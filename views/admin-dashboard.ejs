@@ -1,0 +1,58 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <title>Owner Panel | BoatSpotMedia</title>
+  <%- include('partials-head') %>
+</head>
+<body>
+<div class="panel-layout">
+  <aside class="sidebar">
+    <div class="brand small">Owner Panel</div>
+    <a class="active">Applications</a>
+    <a>Creators</a>
+    <a>Buyers</a>
+    <a>Orders</a>
+    <a>Emails</a>
+    <a>Analytics</a>
+  </aside>
+  <main class="panel-main">
+    <section class="table-wrap">
+      <h2>Creator Applications</h2>
+      <table>
+        <thead><tr><th>Name</th><th>Company</th><th>Email</th><th>Instagram</th><th>Status</th><th>Action</th></tr></thead>
+        <tbody>
+          <% if (!applications.length) { %>
+            <tr><td colspan="6">No applications yet.</td></tr>
+          <% } %>
+          <% applications.forEach(app => { %>
+            <tr>
+              <td><%= app.first_name %> <%= app.last_name %></td>
+              <td><%= app.company_name || '-' %></td>
+              <td><%= app.email %></td>
+              <td><%= app.instagram %></td>
+              <td><span class="badge <%= app.status === 'approved' ? 'ok' : 'warn' %>"><%= app.status %></span></td>
+              <td>
+                <% if (app.status !== 'approved') { %>
+                  <form method="POST" action="/admin/applications/<%= app.id %>/approve"><button class="button small" type="submit">Approve</button></form>
+                <% } %>
+              </td>
+            </tr>
+          <% }) %>
+        </tbody>
+      </table>
+    </section>
+    <section class="table-wrap">
+      <h2>Creators</h2>
+      <table>
+        <thead><tr><th>Public name</th><th>Username</th><th>Email</th><th>Instagram</th></tr></thead>
+        <tbody>
+          <% creators.forEach(c => { %>
+            <tr><td><%= c.public_name %></td><td><%= c.username %></td><td><%= c.email %></td><td><%= c.instagram || '-' %></td></tr>
+          <% }) %>
+        </tbody>
+      </table>
+    </section>
+  </main>
+</div>
+</body>
+</html>

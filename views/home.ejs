@@ -1,0 +1,67 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <title>BoatSpotMedia</title>
+  <%- include('partials-head') %>
+</head>
+<body>
+  <header class="topbar">
+    <div class="brand">BoatSpotMedia</div>
+    <nav>
+      <a href="/apply-creator">Creator Access</a>
+      <a href="/creators/login">Creator Login</a>
+      <a href="/owner-login">Owner</a>
+    </nav>
+  </header>
+
+  <section class="hero">
+    <div>
+      <h1>Find your boat video</h1>
+      <p>Search by location, date, and time range.</p>
+      <form class="search-grid" method="GET" action="/">
+        <select name="location">
+          <option value="">Location</option>
+          <% locations.forEach(loc => { %>
+            <option value="<%= loc %>" <%= q.location===loc?'selected':'' %>><%= loc %></option>
+          <% }) %>
+        </select>
+        <input type="text" name="date" placeholder="MM/DD/YYYY" value="<%= q.date %>" />
+        <input type="text" name="from" placeholder="From" value="<%= q.from %>" />
+        <input type="text" name="to" placeholder="To" value="<%= q.to %>" />
+        <button type="submit">Search</button>
+      </form>
+    </div>
+    <div class="single-ad">
+      <h3>Advertise with us</h3>
+      <p>Reach boat owners, captains, and marine businesses from one home page placement.</p>
+      <a class="button ghost" href="#">Reserve this spot</a>
+    </div>
+  </section>
+
+  <main class="container">
+    <section>
+      <div class="section-head">
+        <h2>Latest uploads</h2>
+        <p>Fresh videos uploaded by approved creators.</p>
+      </div>
+      <div class="cards">
+        <% latestUploads.forEach(video => { %>
+          <article class="card">
+            <div class="thumb watermark"><span><%= video.creator %></span></div>
+            <div class="card-body">
+              <div class="eyebrow"><%= video.location %></div>
+              <h3><%= video.title %></h3>
+              <div class="meta"><span><%= video.date %></span><span><%= video.time %></span></div>
+              <div class="price">From $<%= video.price_from.toFixed(2) %></div>
+              <div class="card-actions">
+                <button class="button ghost">Preview</button>
+                <button class="button">Details</button>
+              </div>
+            </div>
+          </article>
+        <% }) %>
+      </div>
+    </section>
+  </main>
+</body>
+</html>
