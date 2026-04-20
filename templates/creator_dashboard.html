@@ -50,7 +50,7 @@
         <div class="field" style="grid-column:1/-1"><label>{{ t('description') }}</label><textarea name="description"></textarea></div>
         <button class="btn">{{ t('save') }}</button>
       </form>
-      <table class="table"><tr><th>Name</th><th>{{ t('price') }}</th><th>{{ t('delivery_type') }}</th><th>Hours</th></tr>{% for p in packages %}<tr><td>{{ p.title }}</td><td>${{ '%.2f'|format(p.price) }}</td><td>{{ p.delivery_type }}</td><td>{{ p.turnaround_hours }}</td></tr>{% endfor %}</table>
+      <table class="table"><tr><th>Name</th><th>{{ t('price') }}</th><th>{{ t('delivery_type') }}</th><th>Estimated delivery</th></tr>{% for p in packages %}<tr><td>{{ p.title }}</td><td>${{ '%.2f'|format(p.price) }}</td><td>{{ p.delivery_type }}</td><td>{{ p.turnaround_label or '-' }}</td></tr>{% endfor %}</table>
     </section>
 
     <section class="card panel-section" id="videos" data-panel="videos" hidden>
