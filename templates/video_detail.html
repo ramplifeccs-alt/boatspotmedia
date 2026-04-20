@@ -1,1 +1,88 @@
-{% extends 'base.html' %}{% block content %}<div class="layout"><main class="grid"><div class="card"><div class="thumb-wrap large">{% if video.preview_path %}<video data-preview autoplay muted loop playsinline preload="metadata" src="{{ video.preview_path|media_url }}"></video>{% elif video.thumb_path %}<img src="{{ video.thumb_path|media_url }}">{% endif %}<div class="wm">{{ creator.public_name }}</div></div><h1>{{ video.filename }}</h1><div class="meta"><span>{{ video.location }}</span><span>{{ video.recorded_date.strftime('%m/%d/%Y') }} · {{ video.recorded_time.strftime('%I:%M %p') }}</span></div></div><div class="card"><h2>{{ t('packages') }}</h2>{% for p in creator_packages %}<div class="package-line"><div><strong>{{ p.title }}</strong><div class="mini">{{ p.description }}</div><div class="mini">{% if p.delivery_type=='instant' %}Instant{% else %}{{ p.turnaround_hours }}h delivery{% endif %}</div></div><div><div class="price">${{ '%.2f'|format(p.price) }}</div>{% if current_user and current_user.role=='buyer' %}<form method="post" action="{{ url_for('add_video_cart', video_id=video.id) }}"><button class="btn">{{ t('add_to_cart') }}</button></form>{% else %}<a class="btn secondary" href="{{ url_for('buyer_login') }}">{{ t('buy') }}</a>{% endif %}</div></div>{% else %}<div class="package-line"><div><strong>Standard video</strong></div><div class="price">${{ '%.2f'|format(video.price) }}</div></div>{% endif %}</div></main><aside class="card sidebar"><div class="service-logo">{% if creator.logo_path %}<img src="{{ creator.logo_path|media_url }}">{% else %}{{ creator.public_name[:1] }}{% endif %}</div><h3>{{ creator.public_name }}</h3><div class="rating">{% if rating %}⭐ {{ rating }}{% else %}{{ t('rating_coming') }}{% endif %}</div><p class="mini">{{ t('delivery_72') }}</p><div class="mini">{{ t('follow_creator') }}</div>{% if creator.social_link %}<a href="{{ creator.social_link }}" target="_blank">Instagram / Link</a>{% endif %}</aside></div>{% endblock %}
+{% extends 'base.html' %}
+{% block content %}
+<div class="layout">
+  <main class="grid">
+    <div class="card">
+      <div class="thumb-wrap large">
+        {% if video.preview_path %}
+          <video data-preview autoplay muted loop playsinline preload="metadata" src="{{ video.preview_path|media_url }}"></video>
+        {% elif video.thumb_path %}
+          <img src="{{ video.thumb_path|media_url }}">
+        {% endif %}
+        <div class="wm">{{ creator.public_name }}</div>
+      </div>
+
+      <h1>{{ video.filename }}</h1>
+
+      <div class="meta">
+        <span>{{ video.location }}</span>
+        <span>{{ video.recorded_date.strftime('%m/%d/%Y') }} · {{ video.recorded_time.strftime('%I:%M %p') }}</span>
+      </div>
+    </div>
+
+    <div class="card">
+      <h2>{{ t('packages') }}</h2>
+
+      {% for p in creator_packages %}
+        <div class="package-line">
+          <div>
+            <strong>{{ p.title }}</strong>
+            <div class="mini">{{ p.description }}</div>
+            <div class="mini">
+              {% if p.delivery_type == 'instant' %}
+                Instant
+              {% else %}
+                {{ p.turnaround_hours }}h delivery
+              {% endif %}
+            </div>
+          </div>
+
+          <div>
+            <div class="price">${{ '%.2f'|format(p.price) }}</div>
+
+            {% if current_user and current_user.role == 'buyer' %}
+              <form method="post" action="{{ url_for('add_video_cart', video_id=video.id) }}">
+                <button class="btn">{{ t('add_to_cart') }}</button>
+              </form>
+            {% else %}
+              <a class="btn secondary" href="{{ url_for('buyer_login') }}">{{ t('buy') }}</a>
+            {% endif %}
+          </div>
+        </div>
+      {% else %}
+        <div class="package-line">
+          <div><strong>Standard video</strong></div>
+          <div class="price">${{ '%.2f'|format(video.price) }}</div>
+        </div>
+      {% endfor %}
+    </div>
+  </main>
+
+  <aside class="card sidebar">
+    <div class="service-logo">
+      {% if creator.logo_path %}
+        <img src="{{ creator.logo_path|media_url }}">
+      {% else %}
+        {{ creator.public_name[:1] }}
+      {% endif %}
+    </div>
+
+    <h3>{{ creator.public_name }}</h3>
+
+    <div class="rating">
+      {% if rating %}
+        ⭐ {{ rating }}
+      {% else %}
+        {{ t('rating_coming') }}
+      {% endif %}
+    </div>
+
+    <p class="mini">{{ t('delivery_72') }}</p>
+    <div class="mini">{{ t('follow_creator') }}</div>
+
+    {% if creator.social_link %}
+      <a href="{{ creator.social_link }}" target="_blank">Instagram / Link</a>
+    {% endif %}
+  </aside>
+</div>
+{% endblock %}
