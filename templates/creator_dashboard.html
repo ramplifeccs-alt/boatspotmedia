@@ -1,1 +1,90 @@
-{% extends 'base.html' %}{% block content %}<section class="hero"><h1>{{ t('creator_dashboard') }}</h1><p>{{ t('creator_stripe_notice') if not user.payout_connected else t('connected') }}</p></section><div class="layout"><aside class="card sidebar"><nav class="menu"><a href="#dashboard">Dashboard</a><a href="#batches">My Batches</a><a href="#packages">{{ t('packages') }}</a><a href="#videos">Videos</a><a href="#products">{{ t('products') }}</a><a href="#orders">{{ t('orders') }}</a><a href="#settings">{{ t('settings') }}</a></nav></aside><main class="grid"><section class="card panel-section" id="dashboard"><h2>Dashboard</h2><div class="grid grid-3"><div class="stat"><strong>{{ batches|length }}</strong><span>Batches</span></div><div class="stat"><strong>{{ videos|length }}</strong><span>Videos</span></div><div class="stat"><strong>{{ rating if rating else '-' }}</strong><span>Rating</span></div></div><p class="mini">{{ t('creator_stripe_notice') }}</p><a class="btn secondary" href="{{ url_for('creator_connect_stripe') }}">{{ t('connect_stripe') }}</a></section><section class="card panel-section" id="batches"><h2>{{ t('upload_batch') }}</h2><form method="post" action="{{ url_for('creator_upload') }}" enctype="multipart/form-data" class="grid grid-2"><div class="field"><label>{{ t('batch_title') }}</label><input name="batch_title" required></div><div class="field"><label>{{ t('location') }}</label><input list="locations" name="location" required></div><div class="field" style="grid-column:1/-1"><label>{{ t('upload_files') }}</label><input type="file" name="files" accept="video/*" multiple required></div><button class="btn">{{ t('save_batch') }}</button></form><datalist id="locations">{% for loc in creator_locations %}<option value="{{ loc }}">{% endfor %}</datalist><table class="table"><tr><th>Batch</th><th>{{ t('location') }}</th><th>{{ t('date') }}</th></tr>{% for b in batches %}<tr><td>{{ b.title }}</td><td>{{ b.location }}</td><td>{{ b.recorded_date.strftime('%m/%d/%Y') }}</td></tr>{% endfor %}</table></section><section class="card panel-section" id="packages"><h2>{{ t('packages') }}</h2><form method="post" action="{{ url_for('create_package') }}" class="grid grid-2"><div class="field"><label>Package name</label><input name="title" required></div><div class="field"><label>{{ t('price') }}</label><input type="number" step="0.01" name="price" required></div><div class="field"><label>{{ t('delivery_type') }}</label><select name="delivery_type"><option value="instant">{{ t('instant') }}</option><option value="edited">{{ t('edited') }}</option></select></div><div class="field"><label>Delivery hours</label><input type="number" name="turnaround_hours" value="72"></div><div class="field" style="grid-column:1/-1"><label>{{ t('description') }}</label><textarea name="description"></textarea></div><button class="btn">{{ t('save') }}</button></form><table class="table"><tr><th>Name</th><th>{{ t('price') }}</th><th>{{ t('delivery_type') }}</th></tr>{% for p in packages %}<tr><td>{{ p.title }}</td><td>${{ '%.2f'|format(p.price) }}</td><td>{{ p.delivery_type }}</td></tr>{% endfor %}</table></section><section class="card panel-section" id="videos"><h2>{{ t('video_list') }}</h2><table class="table"><tr><th>File</th><th>{{ t('location') }}</th><th>Time</th><th>{{ t('price') }}</th><th></th></tr>{% for v in videos %}<tr><td>{{ v.filename }}</td><td>{{ v.location }}</td><td>{{ v.recorded_time.strftime('%I:%M %p') }}</td><td>${{ '%.2f'|format(v.price) }}</td><td><form method="post" action="{{ url_for('update_video_price', video_id=v.id) }}" style="display:flex;gap:8px"><input type="number" step="0.01" name="price" value="{{ v.price }}"><button class="btn secondary">{{ t('save') }}</button></form></td></tr>{% endfor %}</table></section><section class="card panel-section" id="products"><h2>{{ t('products') }}</h2><form method="post" action="{{ url_for('create_product') }}" class="grid grid-2"><div class="field"><label>Title</label><input name="title" required></div><div class="field"><label>{{ t('price') }}</label><input type="number" step="0.01" name="price" required></div><div class="field" style="grid-column:1/-1"><label>{{ t('description') }}</label><textarea name="description"></textarea></div><button class="btn">{{ t('save') }}</button></form><table class="table"><tr><th>Title</th><th>{{ t('price') }}</th></tr>{% for p in products %}<tr><td>{{ p.title }}</td><td>${{ '%.2f'|format(p.price) }}</td></tr>{% endfor %}</table></section><section class="card panel-section" id="orders"><h2>{{ t('orders') }}</h2><table class="table"><tr><th>Order</th><th>Video</th><th>Status</th><th>Upload edited</th></tr>{% for item, order, video in order_rows %}<tr><td>#{{ order.id }}</td><td>{{ video.filename }} · {{ video.recorded_date.strftime('%m/%d/%Y') }} · {{ video.recorded_time.strftime('%I:%M %p') }}</td><td>{{ item.delivery_status }}</td><td>{% if item.delivery_status=='pending_edit' %}<form method="post" action="{{ url_for('deliver_order_item', item_id=item.id) }}" enctype="multipart/form-data"><input type="file" name="edited_file" accept="video/*" required><button class="btn secondary">Deliver</button></form>{% else %}<span class="mini">{{ item.delivery_status }}</span>{% endif %}</td></tr>{% endfor %}</table></section><section class="card panel-section" id="settings"><h2>{{ t('settings') }}</h2><form method="post" action="{{ url_for('creator_settings') }}" enctype="multipart/form-data" class="grid grid-2"><div class="field"><label>{{ t('public_name') }}</label><input name="public_name" value="{{ user.public_name or '' }}"></div><div class="field"><label>{{ t('socials') }}</label><input name="social_link" value="{{ user.social_link or '' }}"></div><div class="field"><label>{{ t('logo') }}</label><input type="file" name="logo" accept="image/*"></div><div class="field"><label>{{ t('new_password') }}</label><input type="password" name="new_password"></div><button class="btn">{{ t('save_settings') }}</button></form>{% if user.logo_path %}<div class="logo-preview"><img src="{{ user.logo_path|media_url }}" alt="logo"></div>{% endif %}</section></main></div>{% endblock %}
+{% extends 'base.html' %}
+{% block content %}
+<section class="hero">
+  <h1>{{ t('creator_dashboard') }}</h1>
+  <p>{{ t('creator_stripe_notice') if not user.payout_connected else t('connected') }}</p>
+</section>
+<div class="layout">
+  <aside class="card sidebar">
+    <nav class="menu panel-menu">
+      <a href="#dashboard" data-target="dashboard" class="active">Dashboard</a>
+      <a href="#batches" data-target="batches">My Batches</a>
+      <a href="#packages" data-target="packages">{{ t('packages') }}</a>
+      <a href="#videos" data-target="videos">Videos</a>
+      <a href="#products" data-target="products">{{ t('products') }}</a>
+      <a href="#orders" data-target="orders">{{ t('orders') }}</a>
+      <a href="#settings" data-target="settings">{{ t('settings') }}</a>
+    </nav>
+  </aside>
+  <main class="panel-shell">
+    <section class="card panel-section active" id="dashboard" data-panel="dashboard">
+      <h2>Dashboard</h2>
+      <div class="grid grid-3">
+        <div class="stat"><strong>{{ batches|length }}</strong><span>Batches</span></div>
+        <div class="stat"><strong>{{ videos|length }}</strong><span>Videos</span></div>
+        <div class="stat"><strong>{{ rating if rating else '-' }}</strong><span>Rating</span></div>
+      </div>
+      <p class="mini">{{ t('creator_stripe_notice') }}</p>
+      <a class="btn secondary" href="{{ url_for('creator_connect_stripe') }}">{{ t('connect_stripe') }}</a>
+    </section>
+
+    <section class="card panel-section" id="batches" data-panel="batches" hidden>
+      <h2>{{ t('upload_batch') }}</h2>
+      <form method="post" action="{{ url_for('creator_upload') }}" enctype="multipart/form-data" class="grid grid-2">
+        <div class="field"><label>{{ t('batch_title') }}</label><input name="batch_title" required></div>
+        <div class="field"><label>{{ t('location') }}</label><input list="locations" name="location" required></div>
+        <div class="field" style="grid-column:1/-1"><label>{{ t('upload_files') }}</label><input type="file" name="files" accept="video/*" multiple required></div>
+        <button class="btn">{{ t('save_batch') }}</button>
+      </form>
+      <datalist id="locations">{% for loc in creator_locations %}<option value="{{ loc }}">{% endfor %}</datalist>
+      <table class="table"><tr><th>Batch</th><th>{{ t('location') }}</th><th>{{ t('date') }}</th></tr>{% for b in batches %}<tr><td>{{ b.title }}</td><td>{{ b.location }}</td><td>{{ b.recorded_date.strftime('%m/%d/%Y') }}</td></tr>{% endfor %}</table>
+    </section>
+
+    <section class="card panel-section" id="packages" data-panel="packages" hidden>
+      <h2>{{ t('packages') }}</h2>
+      <form method="post" action="{{ url_for('create_package') }}" class="grid grid-2">
+        <div class="field"><label>Package name</label><input name="title" required></div>
+        <div class="field"><label>{{ t('price') }}</label><input type="number" step="0.01" name="price" required></div>
+        <div class="field"><label>{{ t('delivery_type') }}</label><select name="delivery_type"><option value="instant">{{ t('instant') }}</option><option value="edited">{{ t('edited') }}</option></select></div>
+        <div class="field"><label>Delivery hours</label><input type="number" name="turnaround_hours" value="72"></div>
+        <div class="field" style="grid-column:1/-1"><label>{{ t('description') }}</label><textarea name="description"></textarea></div>
+        <button class="btn">{{ t('save') }}</button>
+      </form>
+      <table class="table"><tr><th>Name</th><th>{{ t('price') }}</th><th>{{ t('delivery_type') }}</th><th>Hours</th></tr>{% for p in packages %}<tr><td>{{ p.title }}</td><td>${{ '%.2f'|format(p.price) }}</td><td>{{ p.delivery_type }}</td><td>{{ p.turnaround_hours }}</td></tr>{% endfor %}</table>
+    </section>
+
+    <section class="card panel-section" id="videos" data-panel="videos" hidden>
+      <h2>{{ t('video_list') }}</h2>
+      <table class="table"><tr><th>File</th><th>{{ t('location') }}</th><th>Time</th><th>{{ t('price') }}</th><th></th></tr>{% for v in videos %}<tr><td>{{ v.filename }}</td><td>{{ v.location }}</td><td>{{ v.recorded_time.strftime('%I:%M %p') }}</td><td>${{ '%.2f'|format(v.price) }}</td><td><form method="post" action="{{ url_for('update_video_price', video_id=v.id) }}" style="display:flex;gap:8px"><input type="number" step="0.01" name="price" value="{{ v.price }}"><button class="btn secondary">{{ t('save') }}</button></form></td></tr>{% endfor %}</table>
+    </section>
+
+    <section class="card panel-section" id="products" data-panel="products" hidden>
+      <h2>{{ t('products') }}</h2>
+      <form method="post" action="{{ url_for('create_product') }}" class="grid grid-2">
+        <div class="field"><label>Title</label><input name="title" required></div>
+        <div class="field"><label>{{ t('price') }}</label><input type="number" step="0.01" name="price" required></div>
+        <div class="field" style="grid-column:1/-1"><label>{{ t('description') }}</label><textarea name="description"></textarea></div>
+        <button class="btn">{{ t('save') }}</button>
+      </form>
+      <table class="table"><tr><th>Title</th><th>{{ t('price') }}</th></tr>{% for p in products %}<tr><td>{{ p.title }}</td><td>${{ '%.2f'|format(p.price) }}</td></tr>{% endfor %}</table>
+    </section>
+
+    <section class="card panel-section" id="orders" data-panel="orders" hidden>
+      <h2>{{ t('orders') }}</h2>
+      <table class="table"><tr><th>Order</th><th>Video</th><th>Status</th><th>Upload edited</th></tr>{% for item, order, video in order_rows %}<tr><td>#{{ order.id }}</td><td>{{ video.filename }} · {{ video.recorded_date.strftime('%m/%d/%Y') }} · {{ video.recorded_time.strftime('%I:%M %p') }}</td><td>{{ item.delivery_status }}</td><td>{% if item.delivery_status=='pending_edit' %}<form method="post" action="{{ url_for('deliver_order_item', item_id=item.id) }}" enctype="multipart/form-data"><input type="file" name="edited_file" accept="video/*" required><button class="btn secondary">Deliver</button></form>{% else %}<span class="mini">{{ item.delivery_status }}</span>{% endif %}</td></tr>{% endfor %}</table>
+    </section>
+
+    <section class="card panel-section" id="settings" data-panel="settings" hidden>
+      <h2>{{ t('settings') }}</h2>
+      <form method="post" action="{{ url_for('creator_settings') }}" enctype="multipart/form-data" class="grid grid-2">
+        <div class="field"><label>{{ t('public_name') }}</label><input name="public_name" value="{{ user.public_name or '' }}"></div>
+        <div class="field"><label>{{ t('socials') }}</label><input name="social_link" value="{{ user.social_link or '' }}"></div>
+        <div class="field"><label>{{ t('logo') }}</label><input type="file" name="logo" accept="image/*"></div>
+        <div class="field"><label>{{ t('new_password') }}</label><input type="password" name="new_password"></div>
+        <button class="btn">{{ t('save_settings') }}</button>
+      </form>
+      {% if user.logo_path %}<div class="logo-preview"><img src="{{ user.logo_path|media_url }}" alt="logo"></div>{% endif %}
+    </section>
+  </main>
+</div>
+{% endblock %}
