@@ -15,4 +15,4 @@ npm start
 - Set `OWNER_PASS`
 - Optional: `SESSION_SECRET`
 - Attach PostgreSQL service
-
+force rebuild
