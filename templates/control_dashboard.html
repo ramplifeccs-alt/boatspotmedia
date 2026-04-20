@@ -30,7 +30,7 @@
     </section>
     <section class="card panel-section" id="support" data-panel="support" hidden>
       <h2>{{ t('support_requests') }}</h2>
-      <table class="table"><tr><th>Name</th><th>Email</th><th>{{ t('message') }}</th></tr>{% for s in support_requests %}<tr><td>{{ s.name }}</td><td>{{ s.email }}</td><td>{{ s.message }}</td></tr>{% endfor %}</table>
+      <table class="table"><tr><th>Name</th><th>Email</th><th>{{ t('message') }}</th><th>Reply</th></tr>{% for s in support_requests %}<tr><td>{{ s.name }}</td><td>{{ s.email }}</td><td>{{ s.message }}</td><td><a class="btn secondary" href="mailto:{{ s.email }}?subject=BoatSpotMedia%20Support">Reply</a> <a class="btn secondary" href="mailto:{{ s.email }}?subject=Creator%20Access%20Request&body=Your%20creator%20request%20was%20received.%20Use%20this%20link:%20https://boatspotmedia.com/creator-access">Creator</a> <a class="btn secondary" href="mailto:{{ s.email }}?subject=Service%20Listing%20Request&body=Your%20service%20request%20was%20received.%20We%20will%20send%20the%20private%20listing%20link%20shortly.">Service</a> <a class="btn secondary" href="mailto:{{ s.email }}?subject=Homepage%20Ad%20Request&body=Your%20homepage%20ad%20request%20was%20received.%20We%20will%20send%20the%20private%20ad%20link%20shortly.">Home ad</a></td></tr>{% endfor %}</table>
     </section>
   </main>
 </div>

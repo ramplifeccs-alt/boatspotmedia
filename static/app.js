@@ -18,3 +18,34 @@ document.addEventListener('DOMContentLoaded', ()=>{
     window.addEventListener('hashchange',()=>{const target=(location.hash||'').replace('#',''); if(target) showPanel(target);});
   });
 });
+
+document.addEventListener('DOMContentLoaded', ()=>{
+  document.querySelectorAll('form.time-form').forEach(form=>{
+    form.addEventListener('submit', e=>{
+      ['from','to'].forEach(prefix=>{
+        const h=form.querySelector(`[data-time-hour="${prefix}"]`); const m=form.querySelector(`[data-time-minute="${prefix}"]`); const a=form.querySelector(`[data-time-ampm="${prefix}"]`); const hidden=form.querySelector(`input[name="${prefix}"]`);
+        if(h && m && a && hidden){
+          const hh=(h.value||'').trim(); const mm=(m.value||'').trim().padStart(2,'0'); const ampm=(a.value||'AM').trim();
+          hidden.value = hh && mm ? `${hh}:${mm} ${ampm}` : '';
+        }
+      });
+    });
+  });
+  document.querySelectorAll('.panel-menu').forEach(menu=>{
+    const links=[...menu.querySelectorAll('a[data-target]')];
+    const shell=menu.closest('.layout')?.querySelector('.panel-shell');
+    if(!shell||!links.length) return;
+    const sections=[...shell.querySelectorAll('.panel-section[data-panel]')];
+    const show=(name)=>{
+      sections.forEach(sec=>{
+        const active = sec.dataset.panel===name;
+        sec.style.display = active ? 'block' : 'none';
+        sec.hidden = !active;
+        sec.classList.toggle('active', active);
+      });
+      links.forEach(link=>link.classList.toggle('active', link.dataset.target===name));
+    };
+    show(links[0].dataset.target);
+    links.forEach(link=>link.addEventListener('click',e=>{e.preventDefault(); show(link.dataset.target);}));
+  });
+});

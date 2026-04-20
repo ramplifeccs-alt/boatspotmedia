@@ -46,7 +46,7 @@
         <div class="field"><label>Package name</label><input name="title" required></div>
         <div class="field"><label>{{ t('price') }}</label><input type="number" step="0.01" name="price" required></div>
         <div class="field"><label>{{ t('delivery_type') }}</label><select name="delivery_type"><option value="instant">{{ t('instant') }}</option><option value="edited">{{ t('edited') }}</option></select></div>
-        <div class="field"><label>Delivery hours</label><input type="number" name="turnaround_hours" value="72"></div>
+        <div class="field"><label>Estimated delivery</label><input type="text" name="turnaround_label" placeholder="24 hours / 1 week"></div>
         <div class="field" style="grid-column:1/-1"><label>{{ t('description') }}</label><textarea name="description"></textarea></div>
         <button class="btn">{{ t('save') }}</button>
       </form>
