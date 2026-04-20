@@ -1,0 +1,14 @@
+{% extends 'base.html' %}{% block content %}
+<section class="hero"><h1>Homepage ad application</h1><p>Private form for the single ad space available on the homepage.</p></section>
+<div class="card" style="max-width:860px">
+  <div class="badge">Space available · ${{ ad_price }}/month</div>
+  <form method="post" class="grid grid-2" style="margin-top:16px">
+    <div class="field"><label>Business name</label><input name="business_name" required></div>
+    <div class="field"><label>Email</label><input type="email" name="email" required></div>
+    <div class="field"><label>Your name</label><input name="name" required></div>
+    <div class="field"><label>Website / Link target</label><input name="website"></div>
+    <div class="field"><label>Months</label><input type="number" name="months" min="1" value="1"></div>
+    <button class="btn">Submit request</button>
+  </form>
+</div>
+{% endblock %}

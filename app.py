@@ -673,10 +673,35 @@ def store():
     products=Product.query.filter_by(active=True).order_by(Product.created_at.desc()).all()
     return render_template('store.html', products=products)
 
+
+@app.route('/services-apply', methods=['GET','POST'])
+def services_apply():
+    if request.method=='POST':
+        sr=SupportRequest(
+            name=request.form.get('name','').strip(),
+            email=request.form.get('email','').strip(),
+            message=f"SERVICE APPLY | Business: {request.form.get('business_name','').strip()} | Category: {request.form.get('category','').strip()} | City: {request.form.get('city','').strip()} | Website: {request.form.get('website','').strip()}"
+        )
+        db.session.add(sr); db.session.commit(); flash('Service listing request received.')
+        return redirect(url_for('services_apply'))
+    return render_template('services_apply.html', listing_price=get_setting('service_listing_price','10'))
+
+@app.route('/ad-home-apply', methods=['GET','POST'])
+def ad_home_apply():
+    if request.method=='POST':
+        sr=SupportRequest(
+            name=request.form.get('name','').strip(),
+            email=request.form.get('email','').strip(),
+            message=f"HOME AD APPLY | Business: {request.form.get('business_name','').strip()} | Website: {request.form.get('website','').strip()} | Months: {request.form.get('months','1').strip()}"
+        )
+        db.session.add(sr); db.session.commit(); flash('Home ad request received.')
+        return redirect(url_for('ad_home_apply'))
+    return render_template('ad_home_apply.html', ad_price=get_setting('home_ad_price','50'))
+
 @app.route('/services')
 def services():
     listings=ServiceListing.query.filter_by(status='active').order_by(ServiceListing.created_at.desc()).all()
-    return render_template('services.html', listings=listings, listing_price=get_setting('service_listing_price','10'))
+    return render_template('services.html', listings=listings)
 
 @app.route('/creator/<int:creator_id>')
 def public_creator(creator_id):

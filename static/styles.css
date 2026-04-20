@@ -12,3 +12,8 @@
 .time-parts{display:grid;grid-template-columns:1fr 1fr auto;gap:8px}.time-parts input,.time-parts select{width:100%}.service-logo-img{width:56px;height:56px;border-radius:12px;object-fit:cover;display:block;margin-bottom:10px}.panel-section[hidden]{display:none !important}
 
 .time-parts.inline-time{display:grid;grid-template-columns:1fr 1fr auto;gap:8px}.time-parts.inline-time input[type="text"]{appearance:none;-webkit-appearance:none}.footer-links details{background:#0d1627;border:1px solid var(--line);border-radius:12px;padding:12px}.footer-links summary{cursor:pointer;font-weight:700}.lang-dd{position:relative}.lang-dd summary{list-style:none;cursor:pointer}.lang-dd .dd-menu{position:absolute;right:0;top:calc(100% + 6px);background:#0b1322;border:1px solid var(--line);border-radius:12px;padding:8px;display:grid;gap:6px;min-width:110px}.lang-dd[open] .dd-menu{display:grid}.service-logo-img{width:72px;height:72px;object-fit:contain;background:#fff;border-radius:12px;padding:6px;margin-bottom:10px}.service-logo{width:72px;height:72px;display:grid;place-items:center;border-radius:12px;background:#1e293b;font-weight:800;font-size:28px;margin-bottom:10px}.panel-section[hidden]{display:none!important}
+
+.action-stack{display:flex;flex-wrap:wrap;gap:8px}
+.native-time-form .field input[type="time"]{-webkit-appearance:auto;appearance:auto;min-height:46px}
+.panel-shell{min-width:0}
+.panel-section[hidden]{display:none!important}
