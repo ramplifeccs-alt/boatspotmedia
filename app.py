@@ -1,5 +1,5 @@
 
-import os, uuid, subprocess, json
+import os, uuid, subprocess, json, random
 from datetime import datetime, date, time, timedelta
 from functools import wraps
 from pathlib import Path
@@ -88,7 +88,7 @@ TRANSLATIONS = {
         "delivery_72": "Edited delivery within 72 hours", "preview_note": "Preview is 8 seconds from the middle of the video, with animated watermark and no controls.",
         "starter": "Starter", "pro": "Pro", "elite": "Elite", "plan_pricing": "Publishing plans", "storage_notice": "Capacity and billing rules are prepared for testing.",
         "admin_users": "Admin users", "analytics": "Analytics", "control": "Control", "back": "Back",
-        "service_categories": "Service categories", "go_to_dashboard": "Go to dashboard", "order_created": "Order created.",
+        "service_categories": "Service categories", "go_to_dashboard": "Go to dashboard", "order_created": "Order created.", "socials":"Social links", "space_available":"Space available", "contact_for_access":"Contact us for creator access", "service_spotlight":"Marine services", "packages":"Packages", "logo_saved":"Logo uploaded successfully.", "support_email_notice":"We'll send you the private link by email.", "follow_creator":"Follow this creator",
     },
     "es": {
         "site_title": "BoatSpotMedia",
@@ -118,7 +118,7 @@ TRANSLATIONS = {
         "delivery_72": "Entrega editada dentro de 72 horas", "preview_note": "El preview usa 8 segundos del centro del video, con watermark animado y sin controles.",
         "starter": "Starter", "pro": "Pro", "elite": "Elite", "plan_pricing": "Planes de publicación", "storage_notice": "La capacidad y cobros ya están preparados para pruebas.",
         "admin_users": "Admins", "analytics": "Analíticas", "control": "Control", "back": "Volver",
-        "service_categories": "Categorías de servicios", "go_to_dashboard": "Ir al panel", "order_created": "Orden creada.",
+        "service_categories": "Categorías de servicios", "go_to_dashboard": "Ir al panel", "order_created": "Orden creada.", "socials":"Redes", "space_available":"Espacio disponible", "contact_for_access":"Contáctanos para acceso de creador", "service_spotlight":"Servicios náuticos", "packages":"Paquetes", "logo_saved":"Logo subido correctamente.", "support_email_notice":"Te enviaremos el enlace privado por correo.", "follow_creator":"Sigue a este creador",
     }
 }
 
@@ -199,6 +199,18 @@ class Product(db.Model):
     active = db.Column(db.Boolean, default=True)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
 
+
+class Package(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    creator_id = db.Column(db.Integer, db.ForeignKey("user.id"), nullable=False)
+    title = db.Column(db.String(120), nullable=False)
+    description = db.Column(db.Text)
+    price = db.Column(db.Float, nullable=False, default=40.0)
+    delivery_type = db.Column(db.String(20), nullable=False, default="instant")
+    turnaround_hours = db.Column(db.Integer, nullable=False, default=72)
+    active = db.Column(db.Boolean, default=True)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+
 class CartItem(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     buyer_id = db.Column(db.Integer, db.ForeignKey("user.id"), nullable=False)
@@ -269,7 +281,7 @@ def inject_globals():
     cart_count = 0
     if user and user.role == 'buyer':
         cart_count = CartItem.query.filter_by(buyer_id=user.id).count()
-    return dict(t=t, lang=session.get("lang", "en"), current_user=user, creator_locations=locations, cart_count=cart_count, service_categories=SERVICE_CATEGORIES)
+    return dict(t=t, lang=session.get("lang", "en"), current_user=user, creator_locations=locations, cart_count=cart_count, service_categories=SERVICE_CATEGORIES, get_setting=get_setting, db=db)
 
 def parse_date(value):
     if not value:
@@ -390,28 +402,39 @@ def uploaded_file(category, filename):
 @app.route('/')
 def index():
     latest_videos = Video.query.order_by(Video.recorded_date.desc(), Video.recorded_time.desc()).limit(12).all()
-    latest_services = ServiceListing.query.filter_by(status='active').order_by(ServiceListing.created_at.desc()).limit(6).all()
-    featured_ad = {"title": t('featured_ad'), "subtitle": t('featured_ad_sub')}
-    return render_template('index.html', latest_videos=latest_videos, latest_services=latest_services, featured_ad=featured_ad)
+    creator_names = {}
+    for v in latest_videos:
+        creator = db.session.get(User, v.creator_id)
+        creator_names[v.id] = creator.public_name if creator and creator.public_name else (creator.email.split('@')[0] if creator else 'Boat creator')
+    all_services = ServiceListing.query.filter_by(status='active').all()
+    latest_services = random.sample(all_services, min(3, len(all_services))) if all_services else []
+    featured_ad = {"title": t('space_available'), "subtitle": t('featured_ad_sub')}
+    return render_template('index.html', latest_videos=latest_videos, latest_services=latest_services, featured_ad=featured_ad, creator_names=creator_names)
 
 @app.route('/search')
 def search():
     location = request.args.get('location','').strip().title()
-    d = parse_date(request.args.get('date',''))
+    raw_date = request.args.get('date','') or request.args.get('date_text','')
+    d = parse_date(raw_date)
     tf = parse_time(request.args.get('from',''))
     tt = parse_time(request.args.get('to',''))
-    if not all([location, d, tf, tt]):
+    if not location or not d or not tf or not tt:
         flash(t('all_fields_required'))
         return redirect(url_for('index'))
     results = Video.query.filter(Video.location==location, Video.recorded_date==d, Video.recorded_time>=tf, Video.recorded_time<=tt).order_by(Video.recorded_time.asc()).all()
-    return render_template('search.html', results=results, location=location, date=d, time_from=tf, time_to=tt)
+    creator_names = {}
+    for v in results:
+        creator = db.session.get(User, v.creator_id)
+        creator_names[v.id] = creator.public_name if creator and creator.public_name else (creator.email.split('@')[0] if creator else 'Boat creator')
+    return render_template('search.html', results=results, location=location, date=d, time_from=tf, time_to=tt, creator_names=creator_names)
 
 @app.route('/video/<int:video_id>')
 def video_detail(video_id):
     video = db.session.get(Video, video_id)
     creator = db.session.get(User, video.creator_id)
     rating, reviews = creator_rating(creator.id)
-    return render_template('video_detail.html', video=video, creator=creator, rating=rating, reviews=reviews)
+    creator_packages = Package.query.filter_by(creator_id=creator.id, active=True).order_by(Package.created_at.asc()).all()
+    return render_template('video_detail.html', video=video, creator=creator, rating=rating, reviews=reviews, creator_packages=creator_packages)
 
 @app.route('/creator-access', methods=['GET','POST'])
 def creator_access():
@@ -474,7 +497,13 @@ def buyer_dashboard():
         items=OrderItem.query.filter_by(order_id=o.id).all()
         enriched.append((o, items))
     cart_items=CartItem.query.filter_by(buyer_id=user.id).all()
-    return render_template('buyer_dashboard.html', orders=enriched, cart_items=cart_items)
+    display_cart=[]
+    for c in cart_items:
+        if c.item_type=='video':
+            v=db.session.get(Video,c.item_id); display_cart.append((c, v.filename if v else 'Video', v.price if v else 0))
+        else:
+            p=db.session.get(Product,c.item_id); display_cart.append((c, p.title if p else 'Product', p.price if p else 0))
+    return render_template('buyer_dashboard.html', orders=enriched, cart_items=display_cart)
 
 @app.route('/cart/add/video/<int:video_id>', methods=['POST'])
 @login_required('buyer')
@@ -532,27 +561,38 @@ def creator_dashboard():
     batches=Batch.query.filter_by(creator_id=user.id).order_by(Batch.created_at.desc()).all()
     videos=Video.query.filter_by(creator_id=user.id).order_by(Video.recorded_date.desc(), Video.recorded_time.desc()).all()
     products=Product.query.filter_by(creator_id=user.id).order_by(Product.created_at.desc()).all()
+    packages=Package.query.filter_by(creator_id=user.id).order_by(Package.created_at.desc()).all()
     order_items=(db.session.query(OrderItem, Order)
                  .join(Order, OrderItem.order_id==Order.id)
                  .join(Video, db.and_(OrderItem.item_id==Video.id, OrderItem.item_type=='video'))
                  .filter(Video.creator_id==user.id)
                  .order_by(Order.created_at.desc()).all())
+    order_rows=[]
+    for item, order in order_items:
+        video = db.session.get(Video, item.item_id)
+        order_rows.append((item, order, video))
     rating, review_count = creator_rating(user.id)
-    return render_template('creator_dashboard.html', user=user, batches=batches, videos=videos, products=products, order_items=order_items, rating=rating, review_count=review_count)
+    return render_template('creator_dashboard.html', user=user, batches=batches, videos=videos, products=products, packages=packages, order_rows=order_rows, rating=rating, review_count=review_count)
 
 @app.route('/creator/upload', methods=['POST'])
 @login_required('creator')
 def creator_upload():
     user=get_current_user()
-    title=request.form['batch_title'].strip(); location=request.form['location'].strip().title(); d=parse_date(request.form['recorded_date']); tf=parse_time(request.form['recorded_time']); default_price=float(request.form['default_price']); delivery_type=request.form['delivery_type']
-    if not all([title, location, d, tf]):
+    title=request.form['batch_title'].strip()
+    location=request.form['location'].strip().title()
+    if not all([title, location]):
         flash('Missing batch fields.')
         return redirect(url_for('creator_dashboard'))
-    batch=Batch(creator_id=user.id, title=title, location=location, recorded_date=d)
+    batch_date=date.today()
+    batch=Batch(creator_id=user.id, title=title, location=location, recorded_date=batch_date)
     db.session.add(batch); db.session.flush()
     files=request.files.getlist('files'); count=0
     logo_path = LOGO_DIR / user.logo_path.split('/',1)[1] if user.logo_path and '/' in user.logo_path else None
     creator_name = user.public_name or user.email.split('@')[0]
+    first_package = Package.query.filter_by(creator_id=user.id, active=True).order_by(Package.created_at.asc()).first()
+    default_price = first_package.price if first_package else 40.0
+    delivery_type = first_package.delivery_type if first_package else 'instant'
+    cursor_time=datetime.strptime('12:00 PM','%I:%M %p').time()
     for f in files:
         if not f or not f.filename: continue
         orig=secure_filename(f.filename)
@@ -560,8 +600,9 @@ def creator_upload():
         local_path=VIDEO_DIR/unique
         f.save(local_path)
         thumb_file, preview_file = build_preview_assets(local_path, creator_name, logo_path if logo_path and logo_path.exists() else None)
-        vid=Video(batch_id=batch.id, creator_id=user.id, filename=orig, file_path=f"videos/{unique}", thumb_path=f"thumbs/{thumb_file.name}", preview_path=f"previews/{preview_file.name}", location=location, recorded_date=d, recorded_time=tf, price=default_price, delivery_type=delivery_type)
+        vid=Video(batch_id=batch.id, creator_id=user.id, filename=orig, file_path=f"videos/{unique}", thumb_path=f"thumbs/{thumb_file.name}", preview_path=f"previews/{preview_file.name}", location=location, recorded_date=batch_date, recorded_time=cursor_time, price=default_price, delivery_type=delivery_type)
         db.session.add(vid); count += 1
+        dt=(datetime.combine(date.today(), cursor_time)+timedelta(minutes=3)).time(); cursor_time=dt
     db.session.commit(); flash(f"Batch saved with {count} videos.")
     return redirect(url_for('creator_dashboard'))
 
@@ -581,9 +622,9 @@ def creator_settings():
     user.social_link=request.form.get('social_link', user.social_link or '').strip()
     new_pw=request.form.get('new_password','').strip()
     if 'logo' in request.files and request.files['logo'] and request.files['logo'].filename:
-        logo=request.files['logo']; fn=f"{uuid.uuid4().hex[:8]}_{secure_filename(logo.filename)}"; path=LOGO_DIR/fn; logo.save(path); user.logo_path=f"logos/{fn}"
+        logo=request.files['logo']; fn=f"{uuid.uuid4().hex[:8]}_{secure_filename(logo.filename)}"; path=LOGO_DIR/fn; logo.save(path); user.logo_path=f"logos/{fn}"; flash(t('logo_saved'))
     if new_pw: user.password_hash=generate_password_hash(new_pw)
-    db.session.commit(); flash(t('language'))
+    db.session.commit()
     return redirect(url_for('creator_dashboard'))
 
 @app.route('/creator/connect-stripe')
@@ -594,6 +635,13 @@ def creator_connect_stripe():
     db.session.commit()
     flash('Stripe test connection marked as ready. Replace this route with real Connect onboarding using your test keys.')
     return redirect(url_for('creator_dashboard'))
+
+@app.route('/creator/package', methods=['POST'])
+@login_required('creator')
+def create_package():
+    user=get_current_user()
+    p=Package(creator_id=user.id, title=request.form['title'].strip(), description=request.form.get('description','').strip(), price=float(request.form['price']), delivery_type=request.form.get('delivery_type','instant'), turnaround_hours=int(request.form.get('turnaround_hours','72') or 72))
+    db.session.add(p); db.session.commit(); return redirect(url_for('creator_dashboard'))
 
 @app.route('/creator/product', methods=['POST'])
 @login_required('creator')
@@ -625,13 +673,10 @@ def store():
     products=Product.query.filter_by(active=True).order_by(Product.created_at.desc()).all()
     return render_template('store.html', products=products)
 
-@app.route('/services', methods=['GET','POST'])
+@app.route('/services')
 def services():
-    if request.method=='POST':
-        listing=ServiceListing(business_name=request.form['business_name'].strip(), category=request.form['category'].strip(), email=request.form['email'].strip().lower(), city=request.form['city'].strip().title(), website=request.form.get('website','').strip(), description=request.form.get('description','').strip(), monthly_price=float(get_setting('service_listing_price','10')))
-        db.session.add(listing); db.session.commit(); flash(t('service_registered')); return redirect(url_for('services'))
     listings=ServiceListing.query.filter_by(status='active').order_by(ServiceListing.created_at.desc()).all()
-    return render_template('services.html', listings=listings)
+    return render_template('services.html', listings=listings, listing_price=get_setting('service_listing_price','10'))
 
 @app.route('/creator/<int:creator_id>')
 def public_creator(creator_id):
@@ -711,6 +756,8 @@ def seed():
         for idx,tm in enumerate([time(14,5), time(14,18), time(14,32), time(14,44)]):
             db.session.add(Video(batch_id=batch.id, creator_id=creator.id, filename=f'GH01{idx+1:03d}.MP4', file_path='', thumb_path='', preview_path='', location='Boca Raton Inlet', recorded_date=date.today(), recorded_time=tm, price=40.0+idx*10, delivery_type='instant' if idx<2 else 'edited'))
         db.session.add(Product(creator_id=creator.id, title='RampLife Flag', price=35, description='Boat flag'))
+        db.session.add(Package(creator_id=creator.id, title='Original video', description='Instant clean file', price=40, delivery_type='instant', turnaround_hours=0))
+        db.session.add(Package(creator_id=creator.id, title='Edited video', description='Delivered within 72 hours', price=75, delivery_type='edited', turnaround_hours=72))
         db.session.add(ServiceListing(business_name='Atlantic Marine Wraps', category='Marine Wraps', email='hello@wraps.com', city='Pompano Beach', website='https://example.com', description='Premium wraps for boats and yachts.', status='active', monthly_price=10))
         for k,v in {'starter_price':'19','pro_price':'39','elite_price':'79','service_listing_price':'10'}.items():
             set_setting(k,v)
