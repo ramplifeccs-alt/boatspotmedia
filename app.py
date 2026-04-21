@@ -613,36 +613,57 @@ def buyer_login():
         return redirect(url_for('buyer_dashboard'))
     return render_template('buyer_login.html')
 
+from datetime import datetime
+
 @app.route('/buyer')
 @login_required('buyer')
 def buyer_dashboard():
     user = get_current_user()
 
-    orders = Order.query.filter_by(buyer_id=user.id).order_by(Order.created_at.desc()).all()
+    orders = Order.query.filter_by(
+        buyer_id=user.id
+    ).order_by(Order.created_at.desc()).all()
+
     enriched = []
 
     for o in orders:
         items = OrderItem.query.filter_by(order_id=o.id).all()
 
-        # marcar vencidos
+        # actualizar estado de descarga si expiró
         for item in items:
-            if item.download_available and item.download_expires_at and item.download_expires_at <= datetime.utcnow():
+            if (
+                item.download_available
+                and item.download_expires_at
+                and item.download_expires_at <= datetime.utcnow()
+            ):
                 item.download_available = False
-        db.session.commit()
 
         enriched.append((o, items))
 
+    db.session.commit()
+
     cart_items = CartItem.query.filter_by(buyer_id=user.id).all()
+
     display_cart = []
+
     for c in cart_items:
         if c.item_type == 'video':
             v = db.session.get(Video, c.item_id)
-            display_cart.append((c, v.filename if v else 'Video', v.price if v else 0))
+            display_cart.append(
+                (c, v.filename if v else 'Video', v.price if v else 0)
+            )
         else:
             p = db.session.get(Product, c.item_id)
-            display_cart.append((c, p.title if p else 'Product', p.price if p else 0))
+            display_cart.append(
+                (c, p.title if p else 'Product', p.price if p else 0)
+            )
 
-    return render_template('buyer_dashboard.html', orders=enriched, cart_items=display_cart)
+    return render_template(
+        'buyer_dashboard.html',
+        orders=enriched,
+        cart_items=display_cart,
+        now=datetime.utcnow()
+    )
 
 @app.route('/cart/add/video/<int:video_id>', methods=['POST'])
 @login_required('buyer')
