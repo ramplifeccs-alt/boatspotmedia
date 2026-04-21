@@ -106,15 +106,21 @@
                           Download available until {{ item.download_expires_at.strftime('%m/%d/%Y %I:%M %p') }}
                         </div>
 
-                        {% if item.delivery_status == 'instant_ready' %}
-                          <div style="margin-top:10px;">
-                            <a class="btn secondary" href="#">Download</a>
-                          </div>
-                        {% elif item.delivery_status == 'delivered' and item.edited_file_path %}
-                          <div style="margin-top:10px;">
-                            <a class="btn secondary" href="{{ item.edited_file_path|media_url }}">Download</a>
-                          </div>
-                        {% else %}
+                        {% if item.download_available and item.download_expires_at and item.download_expires_at > now %}
+  {% if item.delivery_status == 'instant_ready' or (item.delivery_status == 'delivered' and item.edited_file_path) %}
+    <div style="margin-top:10px;">
+      <a class="btn secondary" href="{{ url_for('download_order_item', item_id=item.id) }}">Download</a>
+    </div>
+  {% else %}
+    <div class="mini" style="margin-top:10px;">
+      Status: {{ item.delivery_status }}
+    </div>
+  {% endif %}
+{% else %}
+  <div class="mini" style="margin-top:10px;">
+    Download expired
+  </div>
+{% endif %}
                           <div class="mini" style="margin-top:10px;">
                             Status: {{ item.delivery_status }}
                           </div>
