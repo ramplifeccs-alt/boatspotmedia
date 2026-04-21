@@ -833,6 +833,27 @@ def creator_connect_stripe():
     flash('Stripe test connection marked as ready. Replace this route with real Connect onboarding using your test keys.')
     return redirect(url_for('creator_dashboard'))
 
+@app.route('/creator/batch/<int:batch_id>/delete', methods=['POST'])
+@login_required('creator')
+def delete_batch(batch_id):
+    user = get_current_user()
+    batch = db.session.get(Batch, batch_id)
+
+    if not batch or batch.creator_id != user.id:
+        flash('Batch not found.')
+        return redirect(url_for('creator_dashboard'))
+
+    videos = Video.query.filter_by(batch_id=batch.id, creator_id=user.id).all()
+
+    for v in videos:
+        db.session.delete(v)
+
+    db.session.delete(batch)
+    db.session.commit()
+
+    flash('Batch deleted successfully.')
+    return redirect(url_for('creator_dashboard'))
+
 @app.route('/creator/package', methods=['POST'])
 @login_required('creator')
 def create_package():
