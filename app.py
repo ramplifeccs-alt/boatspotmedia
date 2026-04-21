@@ -843,15 +843,41 @@ def delete_batch(batch_id):
         flash('Batch not found.')
         return redirect(url_for('creator_dashboard'))
 
-    videos = Video.query.filter_by(batch_id=batch.id, creator_id=user.id).all()
+    try:
+        # Buscar TODOS los videos del batch
+        videos = Video.query.filter_by(batch_id=batch.id).all()
+        video_ids = [v.id for v in videos]
 
-    for v in videos:
-        db.session.delete(v)
+        # Si hay carrito con esos videos, borrarlo
+        if video_ids:
+            CartItem.query.filter(
+                CartItem.item_type == 'video',
+                CartItem.item_id.in_(video_ids)
+            ).delete(synchronize_session=False)
 
-    db.session.delete(batch)
-    db.session.commit()
+            # Si hay order items de esos videos, borrarlos
+            OrderItem.query.filter(
+                OrderItem.item_type == 'video',
+                OrderItem.item_id.in_(video_ids)
+            ).delete(synchronize_session=False)
 
-    flash('Batch deleted successfully.')
+        # Borrar videos del batch
+        Video.query.filter_by(batch_id=batch.id).delete(synchronize_session=False)
+
+        # Forzar ejecución antes de borrar batch
+        db.session.flush()
+
+        # Borrar batch
+        db.session.delete(batch)
+        db.session.commit()
+
+        flash('Batch deleted successfully.')
+
+    except Exception as e:
+        db.session.rollback()
+        print("DELETE BATCH ERROR:", e)
+        flash('Could not delete batch.')
+
     return redirect(url_for('creator_dashboard'))
 
 @app.route('/creator/package', methods=['POST'])
