@@ -366,19 +366,81 @@ def build_preview_assets(video_path: Path, creator_display: str, logo_path: Path
     stem = video_path.stem + '_' + uuid.uuid4().hex[:8]
     thumb_file = THUMB_DIR / f"{stem}.jpg"
     preview_file = PREVIEW_DIR / f"{stem}.mp4"
+
     dur = ffprobe_duration(video_path)
-    start = max(0.0, dur/2 - 4.0)
-    # thumbnail middle frame
-    subprocess.run(["ffmpeg","-y","-ss",str(start+4),"-i",str(video_path),"-frames:v","1","-q:v","2",str(thumb_file)], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+    start = max(0.0, dur / 2 - 4.0)
+    middle_frame = max(0.0, dur / 2)
+
+    # thumbnail del centro
+    subprocess.run(
+        [
+            "ffmpeg",
+            "-y",
+            "-ss", str(middle_frame),
+            "-i", str(video_path),
+            "-frames:v", "1",
+            "-q:v", "2",
+            str(thumb_file),
+        ],
+        stdout=subprocess.DEVNULL,
+        stderr=subprocess.DEVNULL,
+        check=False,
+    )
+
+    # preview de 8 segundos desde el centro
     if logo_path and logo_path.exists():
         filter_complex = "[1:v]scale='min(220,iw)':-1[wm];[0:v][wm]overlay=(main_w-overlay_w)/2:main_h-overlay_h-20+5*sin(t):format=auto"
-        cmd=["ffmpeg","-y","-ss",str(start),"-i",str(video_path),"-loop","1","-i",str(logo_path),"-t","8","-vf",filter_complex,"-an","-movflags","+faststart","-pix_fmt","yuv420p",str(preview_file)]
+        cmd = [
+            "ffmpeg",
+            "-y",
+            "-ss", str(start),
+            "-i", str(video_path),
+            "-loop", "1",
+            "-i", str(logo_path),
+            "-t", "8",
+            "-vf", filter_complex,
+            "-an",
+            "-movflags", "+faststart",
+            "-pix_fmt", "yuv420p",
+            str(preview_file),
+        ]
     else:
-        safe_text = creator_display.replace(':','-').replace("'"," ")
-        draw = f"drawtext=text='{safe_text} | BoatSpotMedia.com':x=(w-text_w)/2:y=h-text_h-20+5*sin(t):fontcolor=white@0.42:fontsize=28:box=1:boxcolor=black@0.18:boxborderw=8"
-        cmd=["ffmpeg","-y","-ss",str(start),"-i",str(video_path),"-t","8","-vf",draw,"-an","-movflags","+faststart","-pix_fmt","yuv420p",str(preview_file)]
-    subprocess.run(cmd, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
-    return thumb_file, preview_file
+        safe_text = (creator_display or "BoatSpot Creator").replace(":", "-").replace("'", " ")
+        draw = (
+            f"drawtext=text='{safe_text} | BoatSpotMedia.com':"
+            f"x=(w-text_w)/2:"
+            f"y=h-text_h-20+5*sin(t):"
+            f"fontcolor=white@0.42:"
+            f"fontsize=28:"
+            f"box=1:"
+            f"boxcolor=black@0.18:"
+            f"boxborderw=8"
+        )
+        cmd = [
+            "ffmpeg",
+            "-y",
+            "-ss", str(start),
+            "-i", str(video_path),
+            "-t", "8",
+            "-vf", draw,
+            "-an",
+            "-movflags", "+faststart",
+            "-pix_fmt", "yuv420p",
+            str(preview_file),
+        ]
+
+    subprocess.run(
+        cmd,
+        stdout=subprocess.DEVNULL,
+        stderr=subprocess.DEVNULL,
+        check=False,
+    )
+
+    # Si no se generó alguno, devolvemos None en vez de romper todo
+    thumb_result = thumb_file if thumb_file.exists() else None
+    preview_result = preview_file if preview_file.exists() else None
+
+    return thumb_result, preview_result
 
 def creator_rating(creator_id):
     reviews = Review.query.filter_by(creator_id=creator_id).all()
@@ -431,10 +493,30 @@ def search():
 @app.route('/video/<int:video_id>')
 def video_detail(video_id):
     video = db.session.get(Video, video_id)
+    if not video:
+        flash('Video not found.')
+        return redirect(url_for('index'))
+
     creator = db.session.get(User, video.creator_id)
+    if not creator:
+        flash('Creator not found.')
+        return redirect(url_for('index'))
+
     rating, reviews = creator_rating(creator.id)
-    creator_packages = Package.query.filter_by(creator_id=creator.id, active=True).order_by(Package.created_at.asc()).all()
-    return render_template('video_detail.html', video=video, creator=creator, rating=rating, reviews=reviews, creator_packages=creator_packages)
+
+    creator_packages = Package.query.filter_by(
+        creator_id=creator.id,
+        active=True
+    ).order_by(Package.created_at.asc()).all()
+
+    return render_template(
+        'video_detail.html',
+        video=video,
+        creator=creator,
+        rating=rating,
+        reviews=reviews,
+        creator_packages=creator_packages
+    )
 
 @app.route('/creator-access', methods=['GET','POST'])
 def creator_access():
@@ -577,33 +659,125 @@ def creator_dashboard():
 @app.route('/creator/upload', methods=['POST'])
 @login_required('creator')
 def creator_upload():
-    user=get_current_user()
+    user = get_current_user()
+
     title = request.form.get('batch_title', '').strip()
-    location=request.form['location'].strip().title()
-    if not all([title, location]):
-        flash('Missing batch fields.')
+    location = request.form.get('location', '').strip().title()
+    files = request.files.getlist('files')
+
+    if not location:
+        flash('Missing location.')
         return redirect(url_for('creator_dashboard'))
-    batch_date=date.today()
-    batch=Batch(creator_id=user.id, title=title, location=location, recorded_date=batch_date)
-    db.session.add(batch); db.session.flush()
-    files=request.files.getlist('files'); count=0
-    logo_path = LOGO_DIR / user.logo_path.split('/',1)[1] if user.logo_path and '/' in user.logo_path else None
+
+    if not files:
+        flash('No files selected.')
+        return redirect(url_for('creator_dashboard'))
+
+    if not title:
+        title = f"{location} Batch {datetime.utcnow().strftime('%m/%d/%Y %H:%M')}"
+
+    batch_date = date.today()
+    batch = Batch(
+        creator_id=user.id,
+        title=title,
+        location=location,
+        recorded_date=batch_date
+    )
+    db.session.add(batch)
+    db.session.flush()
+
+    logo_path = None
+    if user.logo_path and '/' in user.logo_path:
+        maybe_logo = LOGO_DIR / user.logo_path.split('/', 1)[1]
+        if maybe_logo.exists():
+            logo_path = maybe_logo
+
     creator_name = user.public_name or user.email.split('@')[0]
-    first_package = Package.query.filter_by(creator_id=user.id, active=True).order_by(Package.created_at.asc()).first()
+
+    first_package = Package.query.filter_by(
+        creator_id=user.id,
+        active=True
+    ).order_by(Package.created_at.asc()).first()
+
     default_price = first_package.price if first_package else 40.0
     delivery_type = first_package.delivery_type if first_package else 'instant'
-    cursor_time=datetime.strptime('12:00 PM','%I:%M %p').time()
+
+    cursor_time = datetime.strptime('12:00 PM', '%I:%M %p').time()
+    count = 0
+
     for f in files:
-        if not f or not f.filename: continue
-        orig=secure_filename(f.filename)
-        unique=f"{uuid.uuid4().hex[:8]}_{orig}"
-        local_path=VIDEO_DIR/unique
-        f.save(local_path)
-        thumb_file, preview_file = build_preview_assets(local_path, creator_name, logo_path if logo_path and logo_path.exists() else None)
-        vid=Video(batch_id=batch.id, creator_id=user.id, filename=orig, file_path=f"videos/{unique}", thumb_path=f"thumbs/{thumb_file.name}", preview_path=f"previews/{preview_file.name}", location=location, recorded_date=batch_date, recorded_time=cursor_time, price=default_price, delivery_type=delivery_type)
-        db.session.add(vid); count += 1
-        dt=(datetime.combine(date.today(), cursor_time)+timedelta(minutes=3)).time(); cursor_time=dt
-    db.session.commit(); flash(f"Batch saved with {count} videos.")
+        if not f or not f.filename:
+            continue
+
+        orig = secure_filename(f.filename)
+        unique = f"{uuid.uuid4().hex[:8]}_{orig}"
+        local_path = VIDEO_DIR / unique
+
+        try:
+            f.save(local_path)
+
+            thumb_file, preview_file = build_preview_assets(
+                local_path,
+                creator_name,
+                logo_path
+            )
+
+            # Rutas locales por defecto
+            file_path = f"videos/{unique}"
+            thumb_path = f"thumbs/{thumb_file.name}" if thumb_file else ''
+            preview_path = f"previews/{preview_file.name}" if preview_file else ''
+
+            # Si R2 está conectado, subir assets y guardar URL pública
+            if r2_client and R2_BUCKET:
+                try:
+                    r2_client.upload_file(str(local_path), R2_BUCKET, file_path)
+
+                    if thumb_file and thumb_file.exists():
+                        thumb_key = f"thumbs/{thumb_file.name}"
+                        r2_client.upload_file(str(thumb_file), R2_BUCKET, thumb_key)
+                        if R2_PUBLIC_BASE_URL:
+                            thumb_path = f"{R2_PUBLIC_BASE_URL.rstrip('/')}/{thumb_key}"
+
+                    if preview_file and preview_file.exists():
+                        preview_key = f"previews/{preview_file.name}"
+                        r2_client.upload_file(str(preview_file), R2_BUCKET, preview_key)
+                        if R2_PUBLIC_BASE_URL:
+                            preview_path = f"{R2_PUBLIC_BASE_URL.rstrip('/')}/{preview_key}"
+
+                    if R2_PUBLIC_BASE_URL:
+                        file_path = f"{R2_PUBLIC_BASE_URL.rstrip('/')}/{file_path}"
+
+                except Exception as e:
+                    print("R2 upload error:", e)
+
+            vid = Video(
+                batch_id=batch.id,
+                creator_id=user.id,
+                filename=orig,
+                file_path=file_path,
+                thumb_path=thumb_path,
+                preview_path=preview_path,
+                location=location,
+                recorded_date=batch_date,
+                recorded_time=cursor_time,
+                price=default_price,
+                delivery_type=delivery_type
+            )
+
+            db.session.add(vid)
+            count += 1
+
+            dt = (
+                datetime.combine(date.today(), cursor_time)
+                + timedelta(minutes=3)
+            ).time()
+            cursor_time = dt
+
+        except Exception as e:
+            print("UPLOAD ERROR:", e)
+
+    db.session.commit()
+    flash(f"Batch saved with {count} videos.")
     return redirect(url_for('creator_dashboard'))
 
 @app.route('/creator/video/<int:video_id>/price', methods=['POST'])
