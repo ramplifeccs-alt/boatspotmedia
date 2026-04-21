@@ -232,10 +232,23 @@ class OrderItem(db.Model):
     item_type = db.Column(db.String(20), nullable=False)
     item_id = db.Column(db.Integer, nullable=False)
     price = db.Column(db.Float, nullable=False)
+
     delivery_status = db.Column(db.String(30), default="instant_ready")
     delivered_at = db.Column(db.DateTime)
     payout_release_at = db.Column(db.DateTime)
     edited_file_path = db.Column(db.String(255))
+
+    # nuevo: control de descarga
+    download_expires_at = db.Column(db.DateTime)
+    download_available = db.Column(db.Boolean, default=True)
+
+    # nuevo: snapshot para historial del comprador
+    thumbnail_path_snapshot = db.Column(db.String(255))
+    video_title_snapshot = db.Column(db.String(255))
+    creator_name_snapshot = db.Column(db.String(120))
+    recorded_date_snapshot = db.Column(db.Date)
+    recorded_time_snapshot = db.Column(db.Time)
+    location_snapshot = db.Column(db.String(120))
 
 class ServiceListing(db.Model):
     id = db.Column(db.Integer, primary_key=True)
@@ -603,19 +616,32 @@ def buyer_login():
 @app.route('/buyer')
 @login_required('buyer')
 def buyer_dashboard():
-    user=get_current_user()
-    orders=Order.query.filter_by(buyer_id=user.id).order_by(Order.created_at.desc()).all()
-    enriched=[]
+    user = get_current_user()
+
+    orders = Order.query.filter_by(buyer_id=user.id).order_by(Order.created_at.desc()).all()
+    enriched = []
+
     for o in orders:
-        items=OrderItem.query.filter_by(order_id=o.id).all()
+        items = OrderItem.query.filter_by(order_id=o.id).all()
+
+        # marcar vencidos
+        for item in items:
+            if item.download_available and item.download_expires_at and item.download_expires_at <= datetime.utcnow():
+                item.download_available = False
+        db.session.commit()
+
         enriched.append((o, items))
-    cart_items=CartItem.query.filter_by(buyer_id=user.id).all()
-    display_cart=[]
+
+    cart_items = CartItem.query.filter_by(buyer_id=user.id).all()
+    display_cart = []
     for c in cart_items:
-        if c.item_type=='video':
-            v=db.session.get(Video,c.item_id); display_cart.append((c, v.filename if v else 'Video', v.price if v else 0))
+        if c.item_type == 'video':
+            v = db.session.get(Video, c.item_id)
+            display_cart.append((c, v.filename if v else 'Video', v.price if v else 0))
         else:
-            p=db.session.get(Product,c.item_id); display_cart.append((c, p.title if p else 'Product', p.price if p else 0))
+            p = db.session.get(Product, c.item_id)
+            display_cart.append((c, p.title if p else 'Product', p.price if p else 0))
+
     return render_template('buyer_dashboard.html', orders=enriched, cart_items=display_cart)
 
 @app.route('/cart/add/video/<int:video_id>', methods=['POST'])
@@ -647,22 +673,74 @@ def remove_cart_item(item_id):
 @app.route('/checkout', methods=['POST'])
 @login_required('buyer')
 def checkout():
-    user=get_current_user(); cart=CartItem.query.filter_by(buyer_id=user.id).all()
+    user = get_current_user()
+    cart = CartItem.query.filter_by(buyer_id=user.id).all()
+
     if not cart:
         return redirect(url_for('buyer_dashboard'))
-    total=0.0
-    order=Order(buyer_id=user.id, total=0.0, status='paid', payout_status='hold')
-    db.session.add(order); db.session.flush()
+
+    total = 0.0
+    order = Order(
+        buyer_id=user.id,
+        total=0.0,
+        status='paid',
+        payout_status='hold'
+    )
+    db.session.add(order)
+    db.session.flush()
+
     for c in cart:
-        if c.item_type=='video':
-            video=db.session.get(Video, c.item_id); price=video.price; total+=price
-            status='instant_ready' if video.delivery_type=='instant' else 'pending_edit'
-            db.session.add(OrderItem(order_id=order.id, item_type='video', item_id=video.id, price=price, delivery_status=status))
-        elif c.item_type=='product':
-            product=db.session.get(Product, c.item_id); price=product.price; total+=price
-            db.session.add(OrderItem(order_id=order.id, item_type='product', item_id=product.id, price=price, delivery_status='processing'))
+        if c.item_type == 'video':
+            video = db.session.get(Video, c.item_id)
+            if not video:
+                db.session.delete(c)
+                continue
+
+            creator = db.session.get(User, video.creator_id)
+            creator_name = creator.public_name if creator and creator.public_name else 'Boat creator'
+
+            price = video.price
+            total += price
+
+            status = 'instant_ready' if video.delivery_type == 'instant' else 'pending_edit'
+
+            db.session.add(OrderItem(
+                order_id=order.id,
+                item_type='video',
+                item_id=video.id,
+                price=price,
+                delivery_status=status,
+                download_expires_at=datetime.utcnow() + timedelta(days=7),
+                download_available=True,
+                thumbnail_path_snapshot=video.thumb_path or '',
+                video_title_snapshot=f"{video.location} · {video.recorded_time.strftime('%I:%M %p')}",
+                creator_name_snapshot=creator_name,
+                recorded_date_snapshot=video.recorded_date,
+                recorded_time_snapshot=video.recorded_time,
+                location_snapshot=video.location
+            ))
+
+        elif c.item_type == 'product':
+            product = db.session.get(Product, c.item_id)
+            if not product:
+                db.session.delete(c)
+                continue
+
+            price = product.price
+            total += price
+
+            db.session.add(OrderItem(
+                order_id=order.id,
+                item_type='product',
+                item_id=product.id,
+                price=price,
+                delivery_status='processing',
+                download_available=False
+            ))
+
         db.session.delete(c)
-    order.total=total
+
+    order.total = total
     db.session.commit()
     flash(t('order_created'))
     return redirect(url_for('buyer_dashboard'))
@@ -847,7 +925,22 @@ def delete_batch(batch_id):
         videos = Video.query.filter_by(batch_id=batch.id).all()
         video_ids = [v.id for v in videos]
 
-        # Guardar rutas antes de borrar DB
+        # Revisar si algún video tiene compras con descarga activa
+        active_download = None
+        if video_ids:
+            active_download = OrderItem.query.filter(
+                OrderItem.item_type == 'video',
+                OrderItem.item_id.in_(video_ids),
+                OrderItem.download_available == True,
+                OrderItem.download_expires_at != None,
+                OrderItem.download_expires_at > datetime.utcnow()
+            ).first()
+
+        if active_download:
+            flash('This batch cannot be deleted yet because one or more buyers still have an active download window.')
+            return redirect(url_for('creator_dashboard'))
+
+        # Guardar rutas para limpieza de archivos
         file_paths = []
         thumb_paths = []
         preview_paths = []
@@ -860,33 +953,25 @@ def delete_batch(batch_id):
             if v.preview_path:
                 preview_paths.append(v.preview_path)
 
-        # Limpiar referencias relacionadas
+        # limpiar carrito
         if video_ids:
             CartItem.query.filter(
                 CartItem.item_type == 'video',
                 CartItem.item_id.in_(video_ids)
             ).delete(synchronize_session=False)
 
-            OrderItem.query.filter(
-                OrderItem.item_type == 'video',
-                OrderItem.item_id.in_(video_ids)
-            ).delete(synchronize_session=False)
+        # IMPORTANTE: NO borrar OrderItem ni Order
+        # Solo borrar videos y batch
 
-        # Borrar videos del batch
         Video.query.filter_by(batch_id=batch.id).delete(synchronize_session=False)
         db.session.flush()
 
-        # Borrar batch
         db.session.delete(batch)
         db.session.commit()
-
-        # ---- Limpieza de archivos locales y R2 ----
 
         def delete_local_from_path(path_value: str):
             if not path_value:
                 return
-
-            # Si es local tipo "videos/abc.mp4"
             if not path_value.startswith("http://") and not path_value.startswith("https://"):
                 try:
                     category, filename = path_value.split("/", 1)
@@ -896,7 +981,6 @@ def delete_batch(batch_id):
                         "previews": PREVIEW_DIR,
                         "logos": LOGO_DIR,
                     }.get(category)
-
                     if folder:
                         target = folder / filename
                         if target.exists():
@@ -907,16 +991,12 @@ def delete_batch(batch_id):
         def delete_r2_object(path_value: str):
             if not r2_client or not R2_BUCKET or not path_value:
                 return
-
             try:
                 object_key = None
 
-                # Si guardaste URL pública completa
                 if path_value.startswith("http://") or path_value.startswith("https://"):
                     if R2_PUBLIC_BASE_URL and path_value.startswith(R2_PUBLIC_BASE_URL.rstrip("/") + "/"):
                         object_key = path_value.replace(R2_PUBLIC_BASE_URL.rstrip("/") + "/", "", 1)
-
-                # Si guardaste ruta simple tipo videos/archivo.mp4
                 else:
                     object_key = path_value
 
@@ -926,17 +1006,14 @@ def delete_batch(batch_id):
             except Exception as e:
                 print("R2 DELETE ERROR:", e)
 
-        # Borrar originales
         for p in file_paths:
             delete_local_from_path(p)
             delete_r2_object(p)
 
-        # Borrar thumbs
         for p in thumb_paths:
             delete_local_from_path(p)
             delete_r2_object(p)
 
-        # Borrar previews
         for p in preview_paths:
             delete_local_from_path(p)
             delete_r2_object(p)
