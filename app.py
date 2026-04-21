@@ -664,6 +664,75 @@ def buyer_dashboard():
         cart_items=display_cart,
         now=datetime.utcnow()
     )
+@app.route('/buyer/order-item/<int:item_id>/download')
+@login_required('buyer')
+def download_order_item(item_id):
+    user = get_current_user()
+    item = db.session.get(OrderItem, item_id)
+
+    if not item:
+        flash('Download not found.')
+        return redirect(url_for('buyer_dashboard'))
+
+    order = db.session.get(Order, item.order_id)
+    if not order or order.buyer_id != user.id:
+        flash('Unauthorized download.')
+        return redirect(url_for('buyer_dashboard'))
+
+    if item.item_type != 'video':
+        flash('This item is not downloadable.')
+        return redirect(url_for('buyer_dashboard'))
+
+    # Si expiró, bloquear descarga
+    if (
+        not item.download_available
+        or not item.download_expires_at
+        or item.download_expires_at <= datetime.utcnow()
+    ):
+        item.download_available = False
+        db.session.commit()
+        flash('Download expired.')
+        return redirect(url_for('buyer_dashboard'))
+
+    # Si es editado y ya fue entregado, usar edited_file_path
+    if item.delivery_status == 'delivered' and item.edited_file_path:
+        path_value = item.edited_file_path
+    else:
+        # para instant_ready usamos el video original
+        video = db.session.get(Video, item.item_id)
+        if not video or not video.file_path:
+            flash('Original file is no longer available.')
+            return redirect(url_for('buyer_dashboard'))
+        path_value = video.file_path
+
+    # Si es URL pública (R2), redirigir
+    if path_value.startswith('http://') or path_value.startswith('https://'):
+        return redirect(path_value)
+
+    # Si es local, servir desde uploads
+    try:
+        category, filename = path_value.split("/", 1)
+    except ValueError:
+        flash('Invalid file path.')
+        return redirect(url_for('buyer_dashboard'))
+
+    directory = {
+        "videos": VIDEO_DIR,
+        "thumbs": THUMB_DIR,
+        "previews": PREVIEW_DIR,
+        "logos": LOGO_DIR,
+    }.get(category)
+
+    if not directory:
+        flash('Invalid file location.')
+        return redirect(url_for('buyer_dashboard'))
+
+    file_on_disk = directory / filename
+    if not file_on_disk.exists():
+        flash('File not found.')
+        return redirect(url_for('buyer_dashboard'))
+
+    return send_from_directory(directory, filename, as_attachment=True)
 
 @app.route('/cart/add/video/<int:video_id>', methods=['POST'])
 @login_required('buyer')
