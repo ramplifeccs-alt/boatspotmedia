@@ -578,7 +578,7 @@ def creator_dashboard():
 @login_required('creator')
 def creator_upload():
     user=get_current_user()
-    title=request.form['batch_title'].strip()
+    title = request.form.get('batch_title', '').strip()
     location=request.form['location'].strip().title()
     if not all([title, location]):
         flash('Missing batch fields.')
