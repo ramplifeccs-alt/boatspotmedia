@@ -844,18 +844,29 @@ def delete_batch(batch_id):
         return redirect(url_for('creator_dashboard'))
 
     try:
-        # Buscar TODOS los videos del batch
         videos = Video.query.filter_by(batch_id=batch.id).all()
         video_ids = [v.id for v in videos]
 
-        # Si hay carrito con esos videos, borrarlo
+        # Guardar rutas antes de borrar DB
+        file_paths = []
+        thumb_paths = []
+        preview_paths = []
+
+        for v in videos:
+            if v.file_path:
+                file_paths.append(v.file_path)
+            if v.thumb_path:
+                thumb_paths.append(v.thumb_path)
+            if v.preview_path:
+                preview_paths.append(v.preview_path)
+
+        # Limpiar referencias relacionadas
         if video_ids:
             CartItem.query.filter(
                 CartItem.item_type == 'video',
                 CartItem.item_id.in_(video_ids)
             ).delete(synchronize_session=False)
 
-            # Si hay order items de esos videos, borrarlos
             OrderItem.query.filter(
                 OrderItem.item_type == 'video',
                 OrderItem.item_id.in_(video_ids)
@@ -863,13 +874,72 @@ def delete_batch(batch_id):
 
         # Borrar videos del batch
         Video.query.filter_by(batch_id=batch.id).delete(synchronize_session=False)
-
-        # Forzar ejecución antes de borrar batch
         db.session.flush()
 
         # Borrar batch
         db.session.delete(batch)
         db.session.commit()
+
+        # ---- Limpieza de archivos locales y R2 ----
+
+        def delete_local_from_path(path_value: str):
+            if not path_value:
+                return
+
+            # Si es local tipo "videos/abc.mp4"
+            if not path_value.startswith("http://") and not path_value.startswith("https://"):
+                try:
+                    category, filename = path_value.split("/", 1)
+                    folder = {
+                        "videos": VIDEO_DIR,
+                        "thumbs": THUMB_DIR,
+                        "previews": PREVIEW_DIR,
+                        "logos": LOGO_DIR,
+                    }.get(category)
+
+                    if folder:
+                        target = folder / filename
+                        if target.exists():
+                            target.unlink()
+                except Exception as e:
+                    print("LOCAL DELETE ERROR:", e)
+
+        def delete_r2_object(path_value: str):
+            if not r2_client or not R2_BUCKET or not path_value:
+                return
+
+            try:
+                object_key = None
+
+                # Si guardaste URL pública completa
+                if path_value.startswith("http://") or path_value.startswith("https://"):
+                    if R2_PUBLIC_BASE_URL and path_value.startswith(R2_PUBLIC_BASE_URL.rstrip("/") + "/"):
+                        object_key = path_value.replace(R2_PUBLIC_BASE_URL.rstrip("/") + "/", "", 1)
+
+                # Si guardaste ruta simple tipo videos/archivo.mp4
+                else:
+                    object_key = path_value
+
+                if object_key:
+                    r2_client.delete_object(Bucket=R2_BUCKET, Key=object_key)
+
+            except Exception as e:
+                print("R2 DELETE ERROR:", e)
+
+        # Borrar originales
+        for p in file_paths:
+            delete_local_from_path(p)
+            delete_r2_object(p)
+
+        # Borrar thumbs
+        for p in thumb_paths:
+            delete_local_from_path(p)
+            delete_r2_object(p)
+
+        # Borrar previews
+        for p in preview_paths:
+            delete_local_from_path(p)
+            delete_r2_object(p)
 
         flash('Batch deleted successfully.')
 
