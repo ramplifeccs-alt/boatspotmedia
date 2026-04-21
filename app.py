@@ -1,4 +1,4 @@
-
+from sqlalchemy import text
 import os, uuid, subprocess, json, random, threading
 from datetime import datetime, date, time, timedelta
 from functools import wraps
@@ -283,6 +283,27 @@ class SiteSetting(db.Model):
     value = db.Column(db.String(255))
 
 # ---------- Helpers ----------
+
+def ensure_order_item_columns():
+    statements = [
+        "ALTER TABLE order_item ADD COLUMN IF NOT EXISTS download_expires_at TIMESTAMP;",
+        "ALTER TABLE order_item ADD COLUMN IF NOT EXISTS download_available BOOLEAN DEFAULT TRUE;",
+        "ALTER TABLE order_item ADD COLUMN IF NOT EXISTS thumbnail_path_snapshot VARCHAR(255);",
+        "ALTER TABLE order_item ADD COLUMN IF NOT EXISTS video_title_snapshot VARCHAR(255);",
+        "ALTER TABLE order_item ADD COLUMN IF NOT EXISTS creator_name_snapshot VARCHAR(120);",
+        "ALTER TABLE order_item ADD COLUMN IF NOT EXISTS recorded_date_snapshot DATE;",
+        "ALTER TABLE order_item ADD COLUMN IF NOT EXISTS recorded_time_snapshot TIME;",
+        "ALTER TABLE order_item ADD COLUMN IF NOT EXISTS location_snapshot VARCHAR(120);",
+    ]
+
+    for stmt in statements:
+        try:
+            db.session.execute(text(stmt))
+        except Exception as e:
+            print("ALTER TABLE ERROR:", e)
+
+    db.session.commit()
+    
 def t(key):
     lang = session.get("lang", "en")
     return TRANSLATIONS.get(lang, TRANSLATIONS["en"]).get(key, key)
@@ -1270,7 +1291,9 @@ def seed():
         db.session.commit()
 
 with app.app_context():
-    db.create_all(); seed()
+    db.create_all()
+    ensure_order_item_columns()
+    seed()
 
 if __name__=='__main__':
     app.run(host='0.0.0.0', port=int(os.getenv('PORT', 8080)))
