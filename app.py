@@ -1,5 +1,5 @@
 
-import os, uuid, subprocess, json, random
+import os, uuid, subprocess, json, random, threading
 from datetime import datetime, date, time, timedelta
 from functools import wraps
 from pathlib import Path
@@ -441,7 +441,38 @@ def build_preview_assets(video_path: Path, creator_display: str, logo_path: Path
     preview_result = preview_file if preview_file.exists() else None
 
     return thumb_result, preview_result
+def process_video_async(video_id: int, local_path_str: str, creator_display: str, logo_path_str: str | None = None):
+    with app.app_context():
+        try:
+            video = db.session.get(Video, video_id)
+            if not video:
+                return
 
+            local_path = Path(local_path_str)
+            logo_path = Path(logo_path_str) if logo_path_str else None
+
+            thumb_file, preview_file = build_preview_assets(local_path, creator_display, logo_path)
+
+            thumb_path = ''
+            preview_path = ''
+
+            if thumb_file and thumb_file.exists():
+                thumb_key = f"thumbs/{thumb_file.name}"
+                uploaded_thumb_url = save_local_and_optional_r2(thumb_file, thumb_key)
+                thumb_path = uploaded_thumb_url if uploaded_thumb_url else thumb_key
+
+            if preview_file and preview_file.exists():
+                preview_key = f"previews/{preview_file.name}"
+                uploaded_preview_url = save_local_and_optional_r2(preview_file, preview_key)
+                preview_path = uploaded_preview_url if uploaded_preview_url else preview_key
+
+            video.thumb_path = thumb_path
+            video.preview_path = preview_path
+            db.session.commit()
+
+        except Exception as e:
+            print("ASYNC VIDEO PROCESS ERROR:", e)
+            
 def creator_rating(creator_id):
     reviews = Review.query.filter_by(creator_id=creator_id).all()
     if len(reviews) < 3:
@@ -704,6 +735,7 @@ def creator_upload():
 
     cursor_time = datetime.strptime('12:00 PM', '%I:%M %p').time()
     count = 0
+    jobs = []
 
     for f in files:
         if not f or not f.filename:
@@ -714,57 +746,38 @@ def creator_upload():
         local_path = VIDEO_DIR / unique
 
         try:
+            # 1. Guardar archivo local
             f.save(local_path)
 
-            thumb_file, preview_file = build_preview_assets(
-                local_path,
-                creator_name,
-                logo_path
-            )
+            # 2. Subir original a R2 si está conectado
+            file_key = f"videos/{unique}"
+            uploaded_original_url = save_local_and_optional_r2(local_path, file_key)
+            file_path = uploaded_original_url if uploaded_original_url else file_key
 
-            # Rutas locales por defecto
-            file_path = f"videos/{unique}"
-            thumb_path = f"thumbs/{thumb_file.name}" if thumb_file else ''
-            preview_path = f"previews/{preview_file.name}" if preview_file else ''
-
-            # Si R2 está conectado, subir assets y guardar URL pública
-            if r2_client and R2_BUCKET:
-                try:
-                    r2_client.upload_file(str(local_path), R2_BUCKET, file_path)
-
-                    if thumb_file and thumb_file.exists():
-                        thumb_key = f"thumbs/{thumb_file.name}"
-                        r2_client.upload_file(str(thumb_file), R2_BUCKET, thumb_key)
-                        if R2_PUBLIC_BASE_URL:
-                            thumb_path = f"{R2_PUBLIC_BASE_URL.rstrip('/')}/{thumb_key}"
-
-                    if preview_file and preview_file.exists():
-                        preview_key = f"previews/{preview_file.name}"
-                        r2_client.upload_file(str(preview_file), R2_BUCKET, preview_key)
-                        if R2_PUBLIC_BASE_URL:
-                            preview_path = f"{R2_PUBLIC_BASE_URL.rstrip('/')}/{preview_key}"
-
-                    if R2_PUBLIC_BASE_URL:
-                        file_path = f"{R2_PUBLIC_BASE_URL.rstrip('/')}/{file_path}"
-
-                except Exception as e:
-                    print("R2 upload error:", e)
-
+            # 3. Crear registro sin esperar thumb/preview
             vid = Video(
                 batch_id=batch.id,
                 creator_id=user.id,
                 filename=orig,
                 file_path=file_path,
-                thumb_path=thumb_path,
-                preview_path=preview_path,
+                thumb_path='',
+                preview_path='',
                 location=location,
                 recorded_date=batch_date,
                 recorded_time=cursor_time,
                 price=default_price,
                 delivery_type=delivery_type
             )
-
             db.session.add(vid)
+            db.session.flush()
+
+            jobs.append((
+                vid.id,
+                str(local_path),
+                creator_name,
+                str(logo_path) if logo_path else None
+            ))
+
             count += 1
 
             dt = (
@@ -777,7 +790,17 @@ def creator_upload():
             print("UPLOAD ERROR:", e)
 
     db.session.commit()
-    flash(f"Batch saved with {count} videos.")
+
+    # 4. Procesar preview/thumb en segundo plano
+    for job in jobs:
+        t = threading.Thread(
+            target=process_video_async,
+            args=job,
+            daemon=True
+        )
+        t.start()
+
+    flash(f"Batch saved with {count} videos. Preview and thumbnail are processing.")
     return redirect(url_for('creator_dashboard'))
 
 @app.route('/creator/video/<int:video_id>/price', methods=['POST'])
