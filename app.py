@@ -1,3 +1,4 @@
+
 from sqlalchemy import text
 import os, uuid, subprocess, json, random, threading
 from datetime import datetime, date, time, timedelta
@@ -300,7 +301,23 @@ def ensure_order_item_columns():
         try:
             db.session.execute(text(stmt))
         except Exception as e:
-            print("ALTER TABLE ERROR:", e)
+            print("ALTER order_item ERROR:", e)
+
+    db.session.commit()
+
+
+def ensure_video_columns():
+    statements = [
+        "ALTER TABLE video ADD COLUMN IF NOT EXISTS thumb_path VARCHAR(255);",
+        "ALTER TABLE video ADD COLUMN IF NOT EXISTS preview_path VARCHAR(255);",
+        "ALTER TABLE video ADD COLUMN IF NOT EXISTS file_path VARCHAR(255);",
+    ]
+
+    for stmt in statements:
+        try:
+            db.session.execute(text(stmt))
+        except Exception as e:
+            print("ALTER video ERROR:", e)
 
     db.session.commit()
     
@@ -1293,7 +1310,7 @@ def seed():
 with app.app_context():
     db.create_all()
     ensure_order_item_columns()
-    seed()
+    ensure_video_columns()
 
 if __name__=='__main__':
     app.run(host='0.0.0.0', port=int(os.getenv('PORT', 8080)))
