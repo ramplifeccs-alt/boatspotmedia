@@ -1,4 +1,20 @@
+import tempfile
+import requests
 
+def download_temp_logo(url):
+    try:
+        response = requests.get(url, timeout=10)
+        response.raise_for_status()
+
+        temp_file = tempfile.NamedTemporaryFile(delete=False, suffix=".png")
+        temp_file.write(response.content)
+        temp_file.close()
+
+        return Path(temp_file.name)
+
+    except Exception as e:
+        print("LOGO DOWNLOAD ERROR:", e)
+        return None
 from sqlalchemy import text
 import os, uuid, subprocess, json, random, threading
 from datetime import datetime, date, time, timedelta
@@ -462,6 +478,10 @@ def ffprobe_duration(path: Path):
 
 
 def build_preview_assets(video_path: Path, creator_display: str, logo_path: Path | None = None):
+
+    if isinstance(logo_path, str) and logo_path.startswith("http"):
+    logo_path = download_temp_logo(logo_path)
+    
     stem = video_path.stem + '_' + uuid.uuid4().hex[:8]
     thumb_file = THUMB_DIR / f"{stem}.jpg"
     preview_file = PREVIEW_DIR / f"{stem}.mp4"
@@ -969,7 +989,7 @@ def creator_upload():
     if user.logo_path and '/' in user.logo_path:
         maybe_logo = LOGO_DIR / user.logo_path.split('/', 1)[1]
         if maybe_logo.exists():
-            logo_path = maybe_logo
+            logo_path = user.logo_path
 
     creator_name = user.public_name or user.email.split('@')[0]
 
