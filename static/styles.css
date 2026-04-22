@@ -19,5 +19,3 @@
 .panel-section[hidden]{display:none!important}
 
 .video-detail-layout{display:grid;grid-template-columns:minmax(0,2fr) minmax(280px,420px);gap:24px;align-items:start}.video-main,.video-side{width:100%}@media (max-width:900px){.video-detail-layout{grid-template-columns:1fr}}
-
-.list-stack{display:grid;gap:12px;margin-top:16px}.action-row{display:flex;gap:10px;align-items:center;flex-wrap:wrap}.logo-preview img{max-width:180px;max-height:180px;object-fit:contain}.card details summary{cursor:pointer}

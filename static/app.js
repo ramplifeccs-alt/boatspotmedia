@@ -17,7 +17,7 @@ function initPanels(){
         link.classList.toggle('active',active);
       });
     };
-    let initial=(window.location.hash||'').replace('#',''); const qAnchor=new URLSearchParams(window.location.search).get('_anchor'); if(qAnchor){initial=qAnchor;}
+    let initial=(window.location.hash||'').replace('#','');
     if(!links.some(l=>l.dataset.target===initial)){ initial=links[0].dataset.target; }
     show(initial);
     links.forEach(link=>link.addEventListener('click',e=>{e.preventDefault(); const name=link.dataset.target; show(name); try{window.location.hash=name;}catch(_){};}));
