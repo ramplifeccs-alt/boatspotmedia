@@ -188,7 +188,7 @@
             </td>
             <td>
               {% if v.thumb_path %}
-                <img src="{{ v.thumb_path|media_url }}" alt="thumb" style="width:72px;height:52px;object-fit:cover;border-radius:8px;">
+                <img src="{{ v.thumb_path }}" alt="thumb" style="width:72px;height:52px;object-fit:cover;border-radius:8px;">
               {% else %}
                 <span class="mini">No thumb yet</span>
               {% endif %}
@@ -302,7 +302,7 @@
 
       {% if user.logo_path %}
         <div class="logo-preview">
-          <img src="{{ user.logo_path|media_url }}" alt="logo">
+          <img src="{{ user.logo_path }}" alt="logo">
         </div>
       {% endif %}
     </section>
