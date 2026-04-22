@@ -571,6 +571,12 @@ def video_detail(video_id):
         creator_packages=creator_packages
     )
 
+from flask import send_from_directory
+
+@app.route('/uploads/<path:filename>')
+def uploaded_files(filename):
+    return send_from_directory('uploads', filename)
+
 @app.route('/creator-access', methods=['GET','POST'])
 def creator_access():
     if request.method == 'POST':
