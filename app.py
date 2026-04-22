@@ -986,8 +986,8 @@ def creator_upload():
     db.session.flush()
 
     logo_path = None
-if user.logo_path:
-    logo_path = user.logo_path
+    if user.logo_path:
+        logo_path = user.logo_path
 
     creator_name = user.public_name or user.email.split('@')[0]
 
@@ -1003,7 +1003,6 @@ if user.logo_path:
     count = 0
 
     for f in valid_files:
-
         orig = secure_filename(f.filename)
         unique = f"{uuid.uuid4().hex[:8]}_{orig}"
         local_path = VIDEO_DIR / unique
@@ -1022,46 +1021,36 @@ if user.logo_path:
             preview_path = f"previews/{preview_file.name}" if preview_file else ""
 
             if r2_client and R2_BUCKET:
-
                 try:
-                    # subir video original
                     r2_client.upload_file(
                         str(local_path),
                         R2_BUCKET,
                         f"videos/{unique}"
                     )
 
-                    # subir thumbnail
                     if thumb_file and thumb_file.exists():
                         thumb_key = f"thumbs/{thumb_file.name}"
-
                         r2_client.upload_file(
                             str(thumb_file),
                             R2_BUCKET,
                             thumb_key
                         )
-
                         if R2_PUBLIC_BASE_URL:
                             thumb_path = f"{R2_PUBLIC_BASE_URL.rstrip('/')}/{thumb_key}"
 
-                    # subir preview
                     if preview_file and preview_file.exists():
                         preview_key = f"previews/{preview_file.name}"
-
                         r2_client.upload_file(
                             str(preview_file),
                             R2_BUCKET,
                             preview_key
                         )
-
                         if R2_PUBLIC_BASE_URL:
                             preview_path = f"{R2_PUBLIC_BASE_URL.rstrip('/')}/{preview_key}"
 
-                    # url final del video
                     if R2_PUBLIC_BASE_URL:
                         file_path = f"{R2_PUBLIC_BASE_URL.rstrip('/')}/videos/{unique}"
 
-                    # borrar temporales locales
                     for temp_file in [local_path, thumb_file, preview_file]:
                         try:
                             if temp_file and Path(temp_file).exists() and Path(temp_file).is_file():
@@ -1087,23 +1076,19 @@ if user.logo_path:
             )
 
             db.session.add(vid)
-
             count += 1
 
             dt = (
                 datetime.combine(date.today(), cursor_time)
                 + timedelta(minutes=3)
             ).time()
-
             cursor_time = dt
 
         except Exception as e:
             print("UPLOAD ERROR:", e)
 
     db.session.commit()
-
     flash(f"Batch saved with {count} videos.")
-
     return redirect(url_for('creator_dashboard'))
 
 @app.route('/creator/video/<int:video_id>/price', methods=['POST'])
