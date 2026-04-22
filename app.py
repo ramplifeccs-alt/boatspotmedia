@@ -422,26 +422,30 @@ def build_preview_assets(video_path: Path, creator_display: str, logo_path: Path
     start = max(0.0, dur / 2 - 4.0)
     middle_frame = max(0.0, dur / 2)
 
-    # thumbnail del centro
-    subprocess.run(
-        [
-            "ffmpeg",
-            "-y",
-            "-ss", str(middle_frame),
-            "-i", str(video_path),
-            "-frames:v", "1",
-            "-q:v", "2",
-            str(thumb_file),
-        ],
-        stdout=subprocess.DEVNULL,
-        stderr=subprocess.DEVNULL,
-        check=False,
+    # thumbnail
+    thumb_cmd = [
+        "ffmpeg",
+        "-y",
+        "-i", str(video_path),
+        "-ss", str(middle_frame),
+        "-frames:v", "1",
+        "-q:v", "2",
+        str(thumb_file),
+    ]
+
+    thumb_run = subprocess.run(
+        thumb_cmd,
+        capture_output=True,
+        text=True
     )
 
-    # preview de 8 segundos desde el centro
+    if thumb_run.returncode != 0:
+        print("THUMB FFMPEG ERROR:", thumb_run.stderr)
+
+    # preview
     if logo_path and logo_path.exists():
         filter_complex = "[1:v]scale='min(220,iw)':-1[wm];[0:v][wm]overlay=(main_w-overlay_w)/2:main_h-overlay_h-20+5*sin(t):format=auto"
-        cmd = [
+        preview_cmd = [
             "ffmpeg",
             "-y",
             "-ss", str(start),
@@ -451,6 +455,7 @@ def build_preview_assets(video_path: Path, creator_display: str, logo_path: Path
             "-t", "8",
             "-vf", filter_complex,
             "-an",
+            "-c:v", "libx264",
             "-movflags", "+faststart",
             "-pix_fmt", "yuv420p",
             str(preview_file),
@@ -467,7 +472,8 @@ def build_preview_assets(video_path: Path, creator_display: str, logo_path: Path
             f"boxcolor=black@0.18:"
             f"boxborderw=8"
         )
-        cmd = [
+
+        preview_cmd = [
             "ffmpeg",
             "-y",
             "-ss", str(start),
@@ -475,21 +481,26 @@ def build_preview_assets(video_path: Path, creator_display: str, logo_path: Path
             "-t", "8",
             "-vf", draw,
             "-an",
+            "-c:v", "libx264",
             "-movflags", "+faststart",
             "-pix_fmt", "yuv420p",
             str(preview_file),
         ]
 
-    subprocess.run(
-        cmd,
-        stdout=subprocess.DEVNULL,
-        stderr=subprocess.DEVNULL,
-        check=False,
+    preview_run = subprocess.run(
+        preview_cmd,
+        capture_output=True,
+        text=True
     )
 
-    # Si no se generó alguno, devolvemos None en vez de romper todo
+    if preview_run.returncode != 0:
+        print("PREVIEW FFMPEG ERROR:", preview_run.stderr)
+
     thumb_result = thumb_file if thumb_file.exists() else None
     preview_result = preview_file if preview_file.exists() else None
+
+    print("THUMB EXISTS:", thumb_result)
+    print("PREVIEW EXISTS:", preview_result)
 
     return thumb_result, preview_result
 def process_video_async(video_id: int, local_path_str: str, creator_display: str, logo_path_str: str | None = None):
@@ -941,7 +952,6 @@ def creator_upload():
 
     cursor_time = datetime.strptime('12:00 PM', '%I:%M %p').time()
     count = 0
-    jobs = []
 
     for f in files:
         if not f or not f.filename:
@@ -952,38 +962,63 @@ def creator_upload():
         local_path = VIDEO_DIR / unique
 
         try:
-            # 1. Guardar archivo local
             f.save(local_path)
 
-            # 2. Subir original a R2 si está conectado
-            file_key = f"videos/{unique}"
-            uploaded_original_url = save_local_and_optional_r2(local_path, file_key)
-            file_path = uploaded_original_url if uploaded_original_url else file_key
+            file_path = f"videos/{unique}"
+            thumb_path = ''
+            preview_path = ''
 
-            # 3. Crear registro sin esperar thumb/preview
+            thumb_file, preview_file = build_preview_assets(
+                local_path,
+                creator_name,
+                logo_path
+            )
+
+            # rutas locales
+            if thumb_file and thumb_file.exists():
+                thumb_path = f"thumbs/{thumb_file.name}"
+
+            if preview_file and preview_file.exists():
+                preview_path = f"previews/{preview_file.name}"
+
+            # subir a R2 si está configurado
+            if r2_client and R2_BUCKET:
+                try:
+                    r2_client.upload_file(str(local_path), R2_BUCKET, file_path)
+
+                    if thumb_file and thumb_file.exists():
+                        thumb_key = f"thumbs/{thumb_file.name}"
+                        r2_client.upload_file(str(thumb_file), R2_BUCKET, thumb_key)
+                        if R2_PUBLIC_BASE_URL:
+                            thumb_path = f"{R2_PUBLIC_BASE_URL.rstrip('/')}/{thumb_key}"
+
+                    if preview_file and preview_file.exists():
+                        preview_key = f"previews/{preview_file.name}"
+                        r2_client.upload_file(str(preview_file), R2_BUCKET, preview_key)
+                        if R2_PUBLIC_BASE_URL:
+                            preview_path = f"{R2_PUBLIC_BASE_URL.rstrip('/')}/{preview_key}"
+
+                    if R2_PUBLIC_BASE_URL:
+                        file_path = f"{R2_PUBLIC_BASE_URL.rstrip('/')}/{file_path}"
+
+                except Exception as e:
+                    print("R2 UPLOAD ERROR:", e)
+
             vid = Video(
                 batch_id=batch.id,
                 creator_id=user.id,
                 filename=orig,
                 file_path=file_path,
-                thumb_path='',
-                preview_path='',
+                thumb_path=thumb_path,
+                preview_path=preview_path,
                 location=location,
                 recorded_date=batch_date,
                 recorded_time=cursor_time,
                 price=default_price,
                 delivery_type=delivery_type
             )
+
             db.session.add(vid)
-            db.session.flush()
-
-            jobs.append((
-                vid.id,
-                str(local_path),
-                creator_name,
-                str(logo_path) if logo_path else None
-            ))
-
             count += 1
 
             dt = (
@@ -996,17 +1031,7 @@ def creator_upload():
             print("UPLOAD ERROR:", e)
 
     db.session.commit()
-
-    # 4. Procesar preview/thumb en segundo plano
-    for job in jobs:
-        t = threading.Thread(
-            target=process_video_async,
-            args=job,
-            daemon=True
-        )
-        t.start()
-
-    flash(f"Batch saved with {count} videos. Preview and thumbnail are processing.")
+    flash(f"Batch saved with {count} videos.")
     return redirect(url_for('creator_dashboard'))
 
 @app.route('/creator/video/<int:video_id>/price', methods=['POST'])
