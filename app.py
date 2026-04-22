@@ -477,10 +477,10 @@ def ffprobe_duration(path: Path):
         return 16.0
 
 
-def build_preview_assets(video_path: Path, creator_display: str, logo_path: Path | None = None):
+def build_preview_assets(video_path, creator_name, logo_path):
 
     if isinstance(logo_path, str) and logo_path.startswith("http"):
-    logo_path = download_temp_logo(logo_path)
+        logo_path = download_temp_logo(logo_path)
     
     stem = video_path.stem + '_' + uuid.uuid4().hex[:8]
     thumb_file = THUMB_DIR / f"{stem}.jpg"
@@ -986,10 +986,8 @@ def creator_upload():
     db.session.flush()
 
     logo_path = None
-    if user.logo_path and '/' in user.logo_path:
-        maybe_logo = LOGO_DIR / user.logo_path.split('/', 1)[1]
-        if maybe_logo.exists():
-            logo_path = user.logo_path
+if user.logo_path:
+    logo_path = user.logo_path
 
     creator_name = user.public_name or user.email.split('@')[0]
 
@@ -1119,13 +1117,45 @@ def update_video_price(video_id):
 @app.route('/creator/settings', methods=['POST'])
 @login_required('creator')
 def creator_settings():
-    user=get_current_user()
-    user.public_name=request.form.get('public_name', user.public_name or '').strip() or user.public_name
-    user.social_link=request.form.get('social_link', user.social_link or '').strip()
-    new_pw=request.form.get('new_password','').strip()
+    user = get_current_user()
+
+    user.public_name = request.form.get('public_name', user.public_name or '').strip() or user.public_name
+    user.social_link = request.form.get('social_link', user.social_link or '').strip()
+
+    new_pw = request.form.get('new_password', '').strip()
+
     if 'logo' in request.files and request.files['logo'] and request.files['logo'].filename:
-        logo=request.files['logo']; fn=f"{uuid.uuid4().hex[:8]}_{secure_filename(logo.filename)}"; path=LOGO_DIR/fn; logo.save(path); user.logo_path=f"logos/{fn}"; flash(t('logo_saved'))
-    if new_pw: user.password_hash=generate_password_hash(new_pw)
+        logo = request.files['logo']
+        fn = f"{uuid.uuid4().hex[:8]}_{secure_filename(logo.filename)}"
+        path = LOGO_DIR / fn
+        logo.save(path)
+
+        logo_path_value = f"logos/{fn}"
+
+        if r2_client and R2_BUCKET:
+            try:
+                r2_client.upload_file(str(path), R2_BUCKET, logo_path_value)
+                if R2_PUBLIC_BASE_URL:
+                    user.logo_path = f"{R2_PUBLIC_BASE_URL.rstrip('/')}/{logo_path_value}"
+                else:
+                    user.logo_path = logo_path_value
+            except Exception as e:
+                print("LOGO R2 UPLOAD ERROR:", e)
+                user.logo_path = logo_path_value
+        else:
+            user.logo_path = logo_path_value
+
+        try:
+            if path.exists():
+                path.unlink()
+        except Exception as e:
+            print("TEMP LOGO DELETE ERROR:", e)
+
+        flash(t('logo_saved'))
+
+    if new_pw:
+        user.password_hash = generate_password_hash(new_pw)
+
     db.session.commit()
     return redirect(url_for('creator_dashboard'))
 
