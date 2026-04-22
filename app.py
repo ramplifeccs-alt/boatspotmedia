@@ -447,6 +447,27 @@ def download_temp_logo(url: str) -> Path | None:
         print("TEMP LOGO DOWNLOAD ERROR:", e)
         return None
 
+
+def ffprobe_creation_datetime(path: Path):
+    candidates = [
+        ["ffprobe", "-v", "error", "-show_entries", "format_tags=creation_time", "-of", "default=noprint_wrappers=1:nokey=1", str(path)],
+        ["ffprobe", "-v", "error", "-show_entries", "stream_tags=creation_time", "-of", "default=noprint_wrappers=1:nokey=1", str(path)],
+    ]
+    for cmd in candidates:
+        try:
+            result = subprocess.run(cmd, capture_output=True, text=True, check=True)
+            value = (result.stdout or "").strip()
+            if value:
+                value = value.replace("Z", "+00:00")
+                dt = datetime.fromisoformat(value)
+                return dt
+        except Exception:
+            pass
+    try:
+        return datetime.fromtimestamp(path.stat().st_mtime)
+    except Exception:
+        return None
+
 def ffprobe_duration(path: Path):
     try:
         result = subprocess.run(["ffprobe", "-v", "error", "-show_entries", "format=duration", "-of", "json", str(path)], capture_output=True, text=True, check=True)
@@ -455,26 +476,6 @@ def ffprobe_duration(path: Path):
     except Exception as e:
         print("FFPROBE ERROR:", e)
         return 16.0
-
-
-
-def ffprobe_creation_datetime(path: Path):
-    try:
-        result = subprocess.run([
-            "ffprobe", "-v", "error", "-show_entries", "format_tags=creation_time", "-of", "json", str(path)
-        ], capture_output=True, text=True, check=True)
-        data = json.loads(result.stdout)
-        ct = (((data.get("format") or {}).get("tags") or {}).get("creation_time"))
-        if ct:
-            ct = ct.replace('Z', '+00:00')
-            dt = datetime.fromisoformat(ct)
-            return dt
-    except Exception as e:
-        print("FFPROBE CREATION TIME ERROR:", e)
-    try:
-        return datetime.fromtimestamp(path.stat().st_mtime)
-    except Exception:
-        return datetime.utcnow()
 
 def build_preview_assets(video_path: Path, creator_display: str, logo_path: Path | str | None = None):
     stem = video_path.stem + "_" + uuid.uuid4().hex[:8]
@@ -577,39 +578,6 @@ def ensure_order_item_columns():
         db.session.rollback()
         print("ensure_order_item_columns ERROR:", e)
 
-
-
-def select_home_videos():
-    creators = User.query.filter_by(role="creator", approved=True).all()
-    creator_ids = [c.id for c in creators]
-    if not creator_ids:
-        return []
-    recent = Video.query.filter(Video.creator_id.in_(creator_ids)).order_by(Video.created_at.desc(), Video.id.desc()).limit(100).all()
-    by_creator = {}
-    for v in recent:
-        by_creator.setdefault(v.creator_id, []).append(v)
-    active_ids = [cid for cid, vids in by_creator.items() if vids]
-    if not active_ids:
-        return []
-    active_ids = sorted(active_ids, key=lambda cid: by_creator[cid][0].created_at or datetime.min, reverse=True)
-    n = len(active_ids)
-    if n == 1:
-        quotas = {active_ids[0]: 5}
-    elif n == 2:
-        quotas = {active_ids[0]: 3, active_ids[1]: 2}
-    elif n == 3:
-        quotas = {active_ids[0]: 2, active_ids[1]: 2, active_ids[2]: 1}
-    elif n == 4:
-        quotas = {active_ids[0]: 2, active_ids[1]: 1, active_ids[2]: 1, active_ids[3]: 1}
-    else:
-        quotas = {cid: 1 for cid in active_ids[:5]}
-    chosen=[]
-    for cid in active_ids:
-        for v in by_creator.get(cid, [])[:quotas.get(cid,0)]:
-            chosen.append(v)
-    chosen=sorted(chosen, key=lambda v: (v.created_at or datetime.min, v.id), reverse=True)[:5]
-    return chosen
-
 @app.route('/set-language/<lang>')
 def set_language(lang):
     if lang in ('en', 'es'):
@@ -625,11 +593,33 @@ def uploaded_file(category, filename):
 
 @app.route('/')
 def index():
-    latest_videos = select_home_videos()
+    creators = User.query.filter_by(role='creator', approved=True).order_by(User.created_at.desc()).all()
+    video_buckets = []
+    for creator in creators:
+        vids = Video.query.filter_by(creator_id=creator.id).order_by(Video.created_at.desc()).limit(5).all()
+        if vids:
+            video_buckets.append((creator, vids))
+
+    latest_videos = []
+    if len(video_buckets) == 1:
+        latest_videos = video_buckets[0][1][:5]
+    elif len(video_buckets) == 2:
+        latest_videos = video_buckets[0][1][:3] + video_buckets[1][1][:2]
+    elif len(video_buckets) == 3:
+        latest_videos = video_buckets[0][1][:2] + video_buckets[1][1][:2] + video_buckets[2][1][:1]
+    elif len(video_buckets) == 4:
+        latest_videos = video_buckets[0][1][:2] + video_buckets[1][1][:1] + video_buckets[2][1][:1] + video_buckets[3][1][:1]
+    else:
+        for creator, vids in video_buckets[:5]:
+            latest_videos.extend(vids[:1])
+
+    latest_videos = sorted(latest_videos, key=lambda v: v.created_at or datetime.utcnow(), reverse=True)[:5]
+
     creator_names = {}
     for v in latest_videos:
         creator = db.session.get(User, v.creator_id)
         creator_names[v.id] = creator.public_name if creator and creator.public_name else (creator.email.split('@')[0] if creator else 'Boat creator')
+
     all_services = ServiceListing.query.filter_by(status='active').all()
     latest_services = random.sample(all_services, min(3, len(all_services))) if all_services else []
     featured_ad = {"title": t('space_available'), "subtitle": t('featured_ad_sub')}
@@ -859,13 +849,54 @@ def creator_dashboard():
     videos = Video.query.filter_by(creator_id=user.id).order_by(Video.recorded_date.desc(), Video.recorded_time.desc()).all()
     products = Product.query.filter_by(creator_id=user.id).order_by(Product.created_at.desc()).all()
     packages = Package.query.filter_by(creator_id=user.id).order_by(Package.created_at.desc()).all()
-    order_items = db.session.query(OrderItem, Order).join(Order, OrderItem.order_id == Order.id).join(Video, db.and_(OrderItem.item_id == Video.id, OrderItem.item_type == 'video')).filter(Video.creator_id == user.id).order_by(Order.created_at.desc()).all()
+
+    edit_package_id = request.args.get('edit_package_id', type=int)
+    edit_product_id = request.args.get('edit_product_id', type=int)
+    edit_package = db.session.get(Package, edit_package_id) if edit_package_id else None
+    if edit_package and edit_package.creator_id != user.id:
+        edit_package = None
+    edit_product = db.session.get(Product, edit_product_id) if edit_product_id else None
+    if edit_product and edit_product.creator_id != user.id:
+        edit_product = None
+
+    date_to = parse_date(request.args.get('date_to', '')) or date.today()
+    date_from = parse_date(request.args.get('date_from', '')) or (date_to - timedelta(days=30))
+    buyer_email = request.args.get('buyer_email', '').strip().lower()
+
+    order_query = (
+        db.session.query(OrderItem, Order, Video, User)
+        .join(Order, OrderItem.order_id == Order.id)
+        .join(Video, db.and_(OrderItem.item_id == Video.id, OrderItem.item_type == 'video'))
+        .join(User, User.id == Order.buyer_id)
+        .filter(Video.creator_id == user.id)
+        .filter(Order.created_at >= datetime.combine(date_from, time.min))
+        .filter(Order.created_at <= datetime.combine(date_to, time.max))
+    )
+    if buyer_email:
+        order_query = order_query.filter(User.email.ilike(f"%{buyer_email}%"))
+
+    order_items = order_query.order_by(Order.created_at.desc()).all()
     order_rows = []
-    for item, order in order_items:
-        video = db.session.get(Video, item.item_id)
-        order_rows.append((item, order, video))
+    for item, order, video, buyer in order_items:
+        order_rows.append((item, order, video, buyer.email if buyer else ''))
+
     rating, review_count = creator_rating(user.id)
-    return render_template('creator_dashboard.html', user=user, batches=batches, videos=videos, products=products, packages=packages, order_rows=order_rows, rating=rating, review_count=review_count)
+    return render_template(
+        'creator_dashboard.html',
+        user=user,
+        batches=batches,
+        videos=videos,
+        products=products,
+        packages=packages,
+        order_rows=order_rows,
+        rating=rating,
+        review_count=review_count,
+        edit_package=edit_package,
+        edit_product=edit_product,
+        filter_date_from=date_from,
+        filter_date_to=date_to,
+        filter_buyer_email=buyer_email,
+    )
 
 @app.route('/creator/upload', methods=['POST'])
 @login_required('creator')
@@ -879,13 +910,29 @@ def creator_upload():
     if not location:
         flash('Missing location.')
         return redirect(url_for('creator_dashboard'))
+
     if not valid_files:
         flash('No files selected.')
         return redirect(url_for('creator_dashboard'))
+
+    if Batch.query.filter_by(creator_id=user.id, title=title).first():
+        flash('Batch name already exists. Please use a different batch title.')
+        return redirect(url_for('creator_dashboard') + '#batches')
+
     if not title:
         title = f"{location} Batch {datetime.utcnow().strftime('%m/%d/%Y %H:%M')}"
 
-    batch_date = date.today()
+    # detect initial batch date from first file metadata
+    first_temp = VIDEO_DIR / f"_meta_{uuid.uuid4().hex[:8]}_{secure_filename(valid_files[0].filename)}"
+    valid_files[0].save(first_temp)
+    first_dt = ffprobe_creation_datetime(first_temp)
+    try:
+        if first_temp.exists():
+            first_temp.unlink()
+    except Exception:
+        pass
+
+    batch_date = first_dt.date() if first_dt else date.today()
     batch = Batch(creator_id=user.id, title=title, location=location, recorded_date=batch_date)
     db.session.add(batch)
     db.session.flush()
@@ -895,15 +942,24 @@ def creator_upload():
     first_package = Package.query.filter_by(creator_id=user.id, active=True).order_by(Package.created_at.asc()).first()
     default_price = first_package.price if first_package else 40.0
     delivery_type = first_package.delivery_type if first_package else 'instant'
+    cursor_time = datetime.strptime('12:00 PM', '%I:%M %p').time()
     count = 0
 
     for f in valid_files:
         orig = secure_filename(f.filename)
         unique = f"{uuid.uuid4().hex[:8]}_{orig}"
         local_path = VIDEO_DIR / unique
+
         try:
             f.save(local_path)
             meta_dt = ffprobe_creation_datetime(local_path)
+            if meta_dt:
+                recorded_date = meta_dt.date()
+                recorded_time = meta_dt.time().replace(second=0, microsecond=0)
+            else:
+                recorded_date = batch_date
+                recorded_time = cursor_time
+
             thumb_file, preview_file = build_preview_assets(local_path, creator_name, logo_path)
 
             file_path = f"videos/{unique}"
@@ -928,13 +984,21 @@ def creator_upload():
                             print('TEMP DELETE ERROR:', e)
 
             vid = Video(
-                batch_id=batch.id, creator_id=user.id, filename=orig,
-                file_path=file_path, thumb_path=thumb_path, preview_path=preview_path,
-                location=location, recorded_date=meta_dt.date(), recorded_time=meta_dt.time().replace(microsecond=0),
-                price=default_price, delivery_type=delivery_type
+                batch_id=batch.id,
+                creator_id=user.id,
+                filename=orig,
+                file_path=file_path,
+                thumb_path=thumb_path,
+                preview_path=preview_path,
+                location=location,
+                recorded_date=recorded_date,
+                recorded_time=recorded_time,
+                price=default_price,
+                delivery_type=delivery_type,
             )
             db.session.add(vid)
             count += 1
+            cursor_time = (datetime.combine(date.today(), cursor_time) + timedelta(minutes=3)).time()
         except Exception as e:
             print('UPLOAD ERROR:', e)
 
@@ -1095,19 +1159,21 @@ def create_product():
     return redirect(url_for('creator_dashboard'))
 
 
-
 @app.route('/creator/package/<int:package_id>/update', methods=['POST'])
 @login_required('creator')
 def update_package(package_id):
     user = get_current_user()
     p = db.session.get(Package, package_id)
-    if p and p.creator_id == user.id:
-        p.title = request.form.get('title', p.title).strip()
-        p.description = request.form.get('description', p.description or '').strip()
-        p.price = float(request.form.get('price', p.price))
-        p.delivery_type = request.form.get('delivery_type', p.delivery_type)
-        p.turnaround_hours = int(request.form.get('turnaround_hours', p.turnaround_hours or 72) or 72)
-        db.session.commit()
+    if not p or p.creator_id != user.id:
+        flash('Package not found.')
+        return redirect(url_for('creator_dashboard') + '#packages')
+    p.title = request.form['title'].strip()
+    p.description = request.form.get('description', '').strip()
+    p.price = float(request.form['price'])
+    p.delivery_type = request.form.get('delivery_type', 'instant')
+    p.turnaround_hours = int(request.form.get('turnaround_hours', '72') or 72)
+    db.session.commit()
+    flash('Package updated.')
     return redirect(url_for('creator_dashboard') + '#packages')
 
 @app.route('/creator/package/<int:package_id>/delete', methods=['POST'])
@@ -1118,6 +1184,7 @@ def delete_package(package_id):
     if p and p.creator_id == user.id:
         db.session.delete(p)
         db.session.commit()
+        flash('Package deleted.')
     return redirect(url_for('creator_dashboard') + '#packages')
 
 @app.route('/creator/product/<int:product_id>/update', methods=['POST'])
@@ -1125,11 +1192,14 @@ def delete_package(package_id):
 def update_product(product_id):
     user = get_current_user()
     p = db.session.get(Product, product_id)
-    if p and p.creator_id == user.id:
-        p.title = request.form.get('title', p.title).strip()
-        p.description = request.form.get('description', p.description or '').strip()
-        p.price = float(request.form.get('price', p.price))
-        db.session.commit()
+    if not p or p.creator_id != user.id:
+        flash('Product not found.')
+        return redirect(url_for('creator_dashboard') + '#products')
+    p.title = request.form['title'].strip()
+    p.description = request.form.get('description', '').strip()
+    p.price = float(request.form['price'])
+    db.session.commit()
+    flash('Product updated.')
     return redirect(url_for('creator_dashboard') + '#products')
 
 @app.route('/creator/product/<int:product_id>/delete', methods=['POST'])
@@ -1140,6 +1210,7 @@ def delete_product(product_id):
     if p and p.creator_id == user.id:
         db.session.delete(p)
         db.session.commit()
+        flash('Product deleted.')
     return redirect(url_for('creator_dashboard') + '#products')
 
 @app.route('/creator/order-item/<int:item_id>/deliver', methods=['POST'])
