@@ -538,8 +538,6 @@ def uploaded_files(filename):
         abort(404)
 
     return send_from_directory(UPLOAD_DIR, filename)
-    directory = {"videos": VIDEO_DIR, "thumbs": THUMB_DIR, "previews": PREVIEW_DIR, "logos": LOGO_DIR}.get(category)
-    return send_from_directory(directory, filename)
 
 @app.route('/')
 def index():
