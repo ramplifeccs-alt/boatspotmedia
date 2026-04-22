@@ -40,7 +40,40 @@ function initPreviews(){
     try{ v.play().catch(()=>{}); }catch(e){}
   });
 }
-document.addEventListener('DOMContentLoaded', ()=>{
-  initPreviews();
-  initPanels();
+document.addEventListener("DOMContentLoaded", function () {
+  const menuLinks = document.querySelectorAll(".panel-menu a[data-target]");
+  const panels = document.querySelectorAll(".panel-section[data-panel]");
+
+  menuLinks.forEach(link => {
+    link.addEventListener("click", function (e) {
+      e.preventDefault();
+      const target = this.dataset.target;
+
+      menuLinks.forEach(l => l.classList.remove("active"));
+      this.classList.add("active");
+
+      panels.forEach(panel => {
+        if (panel.dataset.panel === target) {
+          panel.hidden = false;
+          panel.classList.add("active");
+        } else {
+          panel.hidden = true;
+          panel.classList.remove("active");
+        }
+      });
+    });
+  });
+
+  const previewVideos = document.querySelectorAll(".thumb-wrap video");
+
+  previewVideos.forEach(video => {
+    video.addEventListener("mouseenter", () => {
+      video.play().catch(() => {});
+    });
+
+    video.addEventListener("mouseleave", () => {
+      video.pause();
+      video.currentTime = 0;
+    });
+  });
 });
