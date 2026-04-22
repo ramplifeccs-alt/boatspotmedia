@@ -18,13 +18,18 @@ except Exception:
     boto3 = None
 
 BASE_DIR = Path(__file__).resolve().parent
+UPLOAD_DIR = BASE_DIR / "uploads"
+VIDEO_DIR = UPLOAD_DIR / "videos"
+THUMB_DIR = UPLOAD_DIR / "thumbs"
+PREVIEW_DIR = UPLOAD_DIR / "previews"
+LOGO_DIR = UPLOAD_DIR / "logos"
+
 UPLOAD_DIR.mkdir(parents=True, exist_ok=True)
 VIDEO_DIR.mkdir(parents=True, exist_ok=True)
 THUMB_DIR.mkdir(parents=True, exist_ok=True)
 PREVIEW_DIR.mkdir(parents=True, exist_ok=True)
 LOGO_DIR.mkdir(parents=True, exist_ok=True)
-for p in [VIDEO_DIR, THUMB_DIR, PREVIEW_DIR, LOGO_DIR]:
-    p.mkdir(parents=True, exist_ok=True)
+
 
 app = Flask(__name__)
 app.config["SECRET_KEY"] = os.getenv("SECRET_KEY", "boatspotmedia-dev-secret")
@@ -509,7 +514,7 @@ def media_url(path):
     if not path:
         return ""
 
-    if path.startswith("http"):
+    if path.startswith("http://") or path.startswith("https://"):
         return path
 
     return url_for("uploaded_files", filename=path)
@@ -520,10 +525,18 @@ def set_language(lang):
         session['lang']=lang
     return redirect(request.referrer or url_for('index'))
 
-from flask import send_from_directory
+from flask import abort, send_from_directory
 
-@app.route('/uploads/<path:filename>')
+@app.route("/uploads/<path:filename>")
 def uploaded_files(filename):
+    file_path = UPLOAD_DIR / filename
+
+    if not file_path.exists():
+        abort(404)
+
+    if file_path.is_dir():
+        abort(404)
+
     return send_from_directory(UPLOAD_DIR, filename)
     directory = {"videos": VIDEO_DIR, "thumbs": THUMB_DIR, "previews": PREVIEW_DIR, "logos": LOGO_DIR}.get(category)
     return send_from_directory(directory, filename)
@@ -585,11 +598,19 @@ def video_detail(video_id):
         creator_packages=creator_packages
     )
 
-from flask import send_from_directory
+from flask import abort, send_from_directory
 
-@app.route('/uploads/<path:filename>')
+@app.route("/uploads/<path:filename>")
 def uploaded_files(filename):
-    return send_from_directory('uploads', filename)
+    file_path = UPLOAD_DIR / filename
+
+    if not file_path.exists():
+        abort(404)
+
+    if file_path.is_dir():
+        abort(404)
+
+    return send_from_directory(UPLOAD_DIR, filename)
 
 @app.route('/creator-access', methods=['GET','POST'])
 def creator_access():
