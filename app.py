@@ -877,7 +877,8 @@ def creator_upload():
         flash('Missing location.')
         return redirect(url_for('creator_dashboard'))
 
-    if not files:
+    valid_files = [f for f in files if f and f.filename]
+    if not valid_files:
         flash('No files selected.')
         return redirect(url_for('creator_dashboard'))
 
@@ -913,10 +914,7 @@ def creator_upload():
     cursor_time = datetime.strptime('12:00 PM', '%I:%M %p').time()
     count = 0
 
-    for f in files:
-        if not f or not f.filename:
-            continue
-
+    for f in valid_files:
         orig = secure_filename(f.filename)
         unique = f"{uuid.uuid4().hex[:8]}_{orig}"
         local_path = VIDEO_DIR / unique
@@ -924,33 +922,26 @@ def creator_upload():
         try:
             f.save(local_path)
 
-            file_path = f"videos/{unique}"
-            thumb_path = ''
-            preview_path = ''
-
             thumb_file, preview_file = build_preview_assets(
-    local_path,
-    creator_name,
-    logo_path
-)
+                local_path,
+                creator_name,
+                logo_path
+            )
 
-print("VIDEO ORIGINAL:", local_path)
-print("THUMB FILE:", thumb_file)
-print("PREVIEW FILE:", preview_file)
+            print("VIDEO ORIGINAL:", local_path)
+            print("THUMB FILE:", thumb_file)
+            print("PREVIEW FILE:", preview_file)
 
-            # rutas locales
-            if thumb_file and thumb_file.exists():
-                thumb_path = f"thumbs/{thumb_file.name}"
+            file_path = f"videos/{unique}"
+            thumb_path = f"thumbs/{thumb_file.name}" if thumb_file else ""
+            preview_path = f"previews/{preview_file.name}" if preview_file else ""
 
-            if preview_file and preview_file.exists():
-                preview_path = f"previews/{preview_file.name}"
-                print("THUMB PATH DB:", thumb_path)
-                print("PREVIEW PATH DB:", preview_path)
+            print("THUMB PATH DB:", thumb_path)
+            print("PREVIEW PATH DB:", preview_path)
 
-            # subir a R2 si está configurado
             if r2_client and R2_BUCKET:
                 try:
-                    r2_client.upload_file(str(local_path), R2_BUCKET, file_path)
+                    r2_client.upload_file(str(local_path), R2_BUCKET, f"videos/{unique}")
 
                     if thumb_file and thumb_file.exists():
                         thumb_key = f"thumbs/{thumb_file.name}"
@@ -965,7 +956,7 @@ print("PREVIEW FILE:", preview_file)
                             preview_path = f"{R2_PUBLIC_BASE_URL.rstrip('/')}/{preview_key}"
 
                     if R2_PUBLIC_BASE_URL:
-                        file_path = f"{R2_PUBLIC_BASE_URL.rstrip('/')}/{file_path}"
+                        file_path = f"{R2_PUBLIC_BASE_URL.rstrip('/')}/videos/{unique}"
 
                 except Exception as e:
                     print("R2 UPLOAD ERROR:", e)
