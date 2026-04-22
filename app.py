@@ -598,19 +598,6 @@ def video_detail(video_id):
         creator_packages=creator_packages
     )
 
-from flask import abort, send_from_directory
-
-@app.route("/uploads/<path:filename>")
-def uploaded_files(filename):
-    file_path = UPLOAD_DIR / filename
-
-    if not file_path.exists():
-        abort(404)
-
-    if file_path.is_dir():
-        abort(404)
-
-    return send_from_directory(UPLOAD_DIR, filename)
 
 @app.route('/creator-access', methods=['GET','POST'])
 def creator_access():
