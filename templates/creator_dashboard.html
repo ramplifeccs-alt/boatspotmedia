@@ -1,10 +1,33 @@
 {% extends 'base.html' %}
 {% block content %}
-<section class="hero"><h1>{{ t('creator_dashboard') }}</h1><p>{{ t('creator_stripe_notice') if not user.payout_connected else t('connected') }}</p></section>
+<section class="hero">
+  <h1>{{ t('creator_dashboard') }}</h1>
+  <p>{{ t('creator_stripe_notice') if not user.payout_connected else t('connected') }}</p>
+</section>
 <div class="layout">
-  <aside class="card sidebar"><nav class="menu panel-menu"><a href="#dashboard" data-target="dashboard" class="active">Dashboard</a><a href="#batches" data-target="batches">My Batches</a><a href="#packages" data-target="packages">{{ t('packages') }}</a><a href="#videos" data-target="videos">Videos</a><a href="#products" data-target="products">{{ t('products') }}</a><a href="#orders" data-target="orders">{{ t('orders') }}</a><a href="#settings" data-target="settings">{{ t('settings') }}</a></nav></aside>
+  <aside class="card sidebar">
+    <nav class="menu panel-menu">
+      <a href="#dashboard" data-target="dashboard" class="active">Dashboard</a>
+      <a href="#batches" data-target="batches">My Batches</a>
+      <a href="#packages" data-target="packages">{{ t('packages') }}</a>
+      <a href="#videos" data-target="videos">Videos</a>
+      <a href="#products" data-target="products">{{ t('products') }}</a>
+      <a href="#orders" data-target="orders">{{ t('orders') }}</a>
+      <a href="#settings" data-target="settings">{{ t('settings') }}</a>
+    </nav>
+  </aside>
+
   <main class="panel-shell">
-    <section class="card panel-section active" id="dashboard" data-panel="dashboard"><h2>Dashboard</h2><div class="grid grid-3"><div class="stat"><strong>{{ batches|length }}</strong><span>Batches</span></div><div class="stat"><strong>{{ videos|length }}</strong><span>Videos</span></div><div class="stat"><strong>{{ rating if rating else '-' }}</strong><span>Rating</span></div></div><p class="mini">Member since {{ user.created_at.strftime('%m/%d/%Y') if user.created_at else '-' }}</p><p class="mini">{{ t('creator_stripe_notice') }}</p><a class="btn secondary" href="{{ url_for('creator_connect_stripe') }}">{{ t('connect_stripe') }}</a></section>
+    <section class="card panel-section active" id="dashboard" data-panel="dashboard">
+      <h2>Dashboard</h2>
+      <div class="grid grid-3">
+        <div class="stat"><strong>{{ batches|length }}</strong><span>Batches</span></div>
+        <div class="stat"><strong>{{ videos|length }}</strong><span>Videos</span></div>
+        <div class="stat"><strong>{{ rating if rating else '-' }}</strong><span>Rating</span></div>
+      </div>
+      <p class="mini">{{ t('creator_stripe_notice') }}</p>
+      <a class="btn secondary" href="{{ url_for('creator_connect_stripe') }}">{{ t('connect_stripe') }}</a>
+    </section>
 
     <section class="card panel-section" id="batches" data-panel="batches" hidden>
       <h2>{{ t('upload_batch') }}</h2>
@@ -12,39 +35,189 @@
         <div class="field"><label>{{ t('batch_title') }}</label><input name="batch_title" required></div>
         <div class="field"><label>{{ t('location') }}</label><input list="locations" name="location" required></div>
         <div class="field" style="grid-column:1/-1"><label>{{ t('upload_files') }}</label><input type="file" name="files" accept="video/*" multiple required></div>
-        <div class="field" style="grid-column:1/-1"><progress id="uploadProgress" value="0" max="100" style="width:100%;display:none;"></progress><div id="uploadStatus" class="mini"></div></div>
+        <div class="field" style="grid-column:1/-1">
+          <progress id="uploadProgress" value="0" max="100" style="width:100%;display:none;"></progress>
+          <div id="uploadStatus" class="mini"></div>
+        </div>
         <button class="btn">{{ t('save_batch') }}</button>
       </form>
       <datalist id="locations">{% for loc in creator_locations %}<option value="{{ loc }}">{% endfor %}</datalist>
-      <table class="table"><tr><th>Batch</th><th>{{ t('location') }}</th><th>{{ t('date') }}</th><th>Action</th></tr>{% for b in batches %}<tr><td>{{ b.title }}</td><td>{{ b.location }}</td><td>{{ b.recorded_date.strftime('%m/%d/%Y') }}</td><td><form method="post" action="{{ url_for('delete_batch', batch_id=b.id) }}" onsubmit="return confirm('Delete this batch and all its videos?')"><button class="btn danger" type="submit">Delete</button></form></td></tr>{% endfor %}</table>
+
+      <table class="table">
+        <tr><th>Batch</th><th>{{ t('location') }}</th><th>{{ t('date') }}</th><th>Action</th></tr>
+        {% for b in batches %}
+        <tr>
+          <td>{{ b.title }}</td>
+          <td>{{ b.location }}</td>
+          <td>{{ b.recorded_date.strftime('%m/%d/%Y') }}</td>
+          <td>
+            <form method="post" action="{{ url_for('delete_batch', batch_id=b.id) }}" onsubmit="return confirm('Delete this batch and all its videos?')">
+              <button class="btn danger" type="submit">Delete</button>
+            </form>
+          </td>
+        </tr>
+        {% endfor %}
+      </table>
     </section>
 
     <section class="card panel-section" id="packages" data-panel="packages" hidden>
       <h2>{{ t('packages') }}</h2>
-      <form method="post" action="{{ url_for('create_package') }}" class="grid grid-2"><div class="field"><label>Package name</label><input name="title" required></div><div class="field"><label>{{ t('price') }}</label><input type="number" step="0.01" name="price" required></div><div class="field"><label>{{ t('delivery_type') }}</label><select name="delivery_type"><option value="instant">{{ t('instant') }}</option><option value="edited">{{ t('edited') }}</option></select></div><div class="field"><label>Turnaround hours</label><input type="number" name="turnaround_hours" value="72" min="0"></div><div class="field" style="grid-column:1/-1"><label>{{ t('description') }}</label><textarea name="description"></textarea></div><button class="btn">{{ t('save') }}</button></form>
-      <div class="grid">{% for p in packages %}<form class="card grid grid-2" method="post" action="{{ url_for('update_package', package_id=p.id) }}"><div class="field"><label>Name</label><input name="title" value="{{ p.title }}"></div><div class="field"><label>Price</label><input type="number" step="0.01" name="price" value="{{ p.price }}"></div><div class="field"><label>Delivery</label><select name="delivery_type"><option value="instant" {% if p.delivery_type=='instant' %}selected{% endif %}>Instant</option><option value="edited" {% if p.delivery_type=='edited' %}selected{% endif %}>Edited</option></select></div><div class="field"><label>Turnaround hours</label><input type="number" name="turnaround_hours" value="{{ p.turnaround_hours }}"></div><div class="field" style="grid-column:1/-1"><label>Description</label><textarea name="description">{{ p.description or '' }}</textarea></div><div style="display:flex;gap:8px"><button class="btn secondary">Update</button></div></form><form method="post" action="{{ url_for('delete_package', package_id=p.id) }}" onsubmit="return confirm('Delete this package?')"><button class="btn danger">Delete</button></form>{% endfor %}</div>
+      <form method="post" action="{{ url_for('create_package') }}" class="grid grid-2">
+        <div class="field"><label>Package name</label><input name="title" required></div>
+        <div class="field"><label>{{ t('price') }}</label><input type="number" step="0.01" name="price" required></div>
+        <div class="field"><label>{{ t('delivery_type') }}</label>
+          <select name="delivery_type"><option value="instant">{{ t('instant') }}</option><option value="edited">{{ t('edited') }}</option></select>
+        </div>
+        <div class="field"><label>Turnaround hours</label><input type="number" name="turnaround_hours" value="72" min="0"></div>
+        <div class="field" style="grid-column:1/-1"><label>{{ t('description') }}</label><textarea name="description"></textarea></div>
+        <button class="btn">{{ t('save') }}</button>
+      </form>
+
+      <div class="list-stack">
+        {% for p in packages %}
+          <details class="card">
+            <summary><strong>{{ p.title }}</strong> · ${{ '%.2f'|format(p.price) }}</summary>
+            <div class="pad">
+              <p class="mini">{{ p.description or 'No description' }}</p>
+              <p class="mini">Delivery: {{ p.delivery_type }} {% if p.delivery_type == 'edited' %}· {{ p.turnaround_hours }}h{% endif %}</p>
+              <div class="action-row">
+                <a class="btn secondary" href="{{ url_for('creator_dashboard', edit_package_id=p.id) }}#packages">Edit</a>
+                <form method="post" action="{{ url_for('delete_package', package_id=p.id) }}" onsubmit="return confirm('Delete this package?')">
+                  <button class="btn danger" type="submit">Delete</button>
+                </form>
+              </div>
+            </div>
+          </details>
+        {% else %}
+          <div class="empty">No packages yet.</div>
+        {% endfor %}
+      </div>
+
+      {% if edit_package %}
+      <div class="card" style="margin-top:16px;">
+        <h3>Edit package</h3>
+        <form method="post" action="{{ url_for('update_package', package_id=edit_package.id) }}" class="grid grid-2">
+          <div class="field"><label>Package name</label><input name="title" value="{{ edit_package.title }}" required></div>
+          <div class="field"><label>{{ t('price') }}</label><input type="number" step="0.01" name="price" value="{{ edit_package.price }}" required></div>
+          <div class="field"><label>{{ t('delivery_type') }}</label>
+            <select name="delivery_type">
+              <option value="instant" {% if edit_package.delivery_type=='instant' %}selected{% endif %}>{{ t('instant') }}</option>
+              <option value="edited" {% if edit_package.delivery_type=='edited' %}selected{% endif %}>{{ t('edited') }}</option>
+            </select>
+          </div>
+          <div class="field"><label>Turnaround hours</label><input type="number" name="turnaround_hours" value="{{ edit_package.turnaround_hours }}" min="0"></div>
+          <div class="field" style="grid-column:1/-1"><label>{{ t('description') }}</label><textarea name="description">{{ edit_package.description or '' }}</textarea></div>
+          <button class="btn">Save changes</button>
+        </form>
+      </div>
+      {% endif %}
     </section>
 
     <section class="card panel-section" id="videos" data-panel="videos" hidden>
       <h2>{{ t('video_list') }}</h2>
-      <table class="table"><tr><th>Video</th><th>{{ t('location') }}</th><th>Time</th><th>{{ t('price') }}</th><th>Status</th><th>Preview</th><th></th></tr>{% for v in videos %}<tr><td>{{ v.location }} · {{ v.recorded_time.strftime('%I:%M %p') }}</td><td>{{ v.location }}</td><td>{{ v.recorded_time.strftime('%I:%M %p') }}</td><td>${{ '%.2f'|format(v.price) }}</td><td>{% if v.thumb_path or v.preview_path %}<span class="mini">Ready</span>{% else %}<span class="mini">Processing...</span>{% endif %}</td><td>{% if v.thumb_path %}<img src="{{ v.thumb_path|media_url }}" alt="thumb" style="width:72px;height:52px;object-fit:cover;border-radius:8px;">{% else %}<span class="mini">No thumb yet</span>{% endif %}</td><td><form method="post" action="{{ url_for('update_video_price', video_id=v.id) }}" style="display:flex;gap:8px;align-items:center;"><input type="number" step="0.01" name="price" value="{{ v.price }}"><button class="btn secondary">{{ t('save') }}</button></form></td></tr>{% endfor %}</table>
+      <table class="table">
+        <tr><th>Video</th><th>{{ t('location') }}</th><th>Time</th><th>{{ t('price') }}</th><th>Status</th><th>Preview</th><th></th></tr>
+        {% for v in videos %}
+        <tr>
+          <td>{{ v.location }} · {{ v.recorded_time.strftime('%I:%M %p') }}</td>
+          <td>{{ v.location }}</td>
+          <td>{{ v.recorded_time.strftime('%I:%M %p') }}</td>
+          <td>${{ '%.2f'|format(v.price) }}</td>
+          <td>{% if v.thumb_path or v.preview_path %}<span class="mini">Ready</span>{% else %}<span class="mini">Processing...</span>{% endif %}</td>
+          <td>{% if v.thumb_path %}<img src="{{ v.thumb_path|media_url }}" alt="thumb" style="width:72px;height:52px;object-fit:cover;border-radius:8px;">{% else %}<span class="mini">No thumb yet</span>{% endif %}</td>
+          <td>
+            <form method="post" action="{{ url_for('update_video_price', video_id=v.id) }}" style="display:flex;gap:8px;align-items:center;">
+              <input type="number" step="0.01" name="price" value="{{ v.price }}">
+              <button class="btn secondary">{{ t('save') }}</button>
+            </form>
+          </td>
+        </tr>
+        {% endfor %}
+      </table>
     </section>
 
     <section class="card panel-section" id="products" data-panel="products" hidden>
       <h2>{{ t('products') }}</h2>
-      <form method="post" action="{{ url_for('create_product') }}" class="grid grid-2"><div class="field"><label>Title</label><input name="title" required></div><div class="field"><label>{{ t('price') }}</label><input type="number" step="0.01" name="price" required></div><div class="field" style="grid-column:1/-1"><label>{{ t('description') }}</label><textarea name="description"></textarea></div><button class="btn">{{ t('save') }}</button></form>
-      <div class="grid">{% for p in products %}<form class="card grid grid-2" method="post" action="{{ url_for('update_product', product_id=p.id) }}"><div class="field"><label>Title</label><input name="title" value="{{ p.title }}"></div><div class="field"><label>{{ t('price') }}</label><input type="number" step="0.01" name="price" value="{{ p.price }}"></div><div class="field" style="grid-column:1/-1"><label>{{ t('description') }}</label><textarea name="description">{{ p.description or '' }}</textarea></div><div style="display:flex;gap:8px"><button class="btn secondary">Update</button></div></form><form method="post" action="{{ url_for('delete_product', product_id=p.id) }}" onsubmit="return confirm('Delete this product?')"><button class="btn danger">Delete</button></form>{% endfor %}</div>
+      <form method="post" action="{{ url_for('create_product') }}" class="grid grid-2">
+        <div class="field"><label>Title</label><input name="title" required></div>
+        <div class="field"><label>{{ t('price') }}</label><input type="number" step="0.01" name="price" required></div>
+        <div class="field" style="grid-column:1/-1"><label>{{ t('description') }}</label><textarea name="description"></textarea></div>
+        <button class="btn">{{ t('save') }}</button>
+      </form>
+
+      <div class="list-stack">
+        {% for p in products %}
+          <details class="card">
+            <summary><strong>{{ p.title }}</strong> · ${{ '%.2f'|format(p.price) }}</summary>
+            <div class="pad">
+              <p class="mini">{{ p.description or 'No description' }}</p>
+              <div class="action-row">
+                <a class="btn secondary" href="{{ url_for('creator_dashboard', edit_product_id=p.id) }}#products">Edit</a>
+                <form method="post" action="{{ url_for('delete_product', product_id=p.id) }}" onsubmit="return confirm('Delete this product?')">
+                  <button class="btn danger" type="submit">Delete</button>
+                </form>
+              </div>
+            </div>
+          </details>
+        {% else %}
+          <div class="empty">No products yet.</div>
+        {% endfor %}
+      </div>
+
+      {% if edit_product %}
+      <div class="card" style="margin-top:16px;">
+        <h3>Edit product</h3>
+        <form method="post" action="{{ url_for('update_product', product_id=edit_product.id) }}" class="grid grid-2">
+          <div class="field"><label>Title</label><input name="title" value="{{ edit_product.title }}" required></div>
+          <div class="field"><label>{{ t('price') }}</label><input type="number" step="0.01" name="price" value="{{ edit_product.price }}" required></div>
+          <div class="field" style="grid-column:1/-1"><label>{{ t('description') }}</label><textarea name="description">{{ edit_product.description or '' }}</textarea></div>
+          <button class="btn">Save changes</button>
+        </form>
+      </div>
+      {% endif %}
     </section>
 
     <section class="card panel-section" id="orders" data-panel="orders" hidden>
       <h2>{{ t('orders') }}</h2>
-      <form method="get" action="{{ url_for('creator_dashboard') }}" class="grid grid-3" style="margin-bottom:16px;"><div class="field"><label>Buyer email</label><input name="buyer_email" value="{{ buyer_email_filter or '' }}"></div><div class="field"><label>From</label><input type="date" name="date_from" value="{{ date_from_filter or '' }}"></div><div class="field"><label>To</label><input type="date" name="date_to" value="{{ date_to_filter or '' }}"></div><div><button class="btn secondary">Filter</button></div></form>
-      <table class="table"><tr><th>Order</th><th>Buyer</th><th>Video</th><th>Status</th><th>Upload edited</th></tr>{% for item, order, video, buyer_email in order_rows %}<tr><td>#{{ order.id }}<br><span class="mini">{{ order.created_at.strftime('%m/%d/%Y') }}</span></td><td>{{ buyer_email }}</td><td>{% if video %}{{ video.location }} · {{ video.recorded_date.strftime('%m/%d/%Y') }} · {{ video.recorded_time.strftime('%I:%M %p') }}{% else %}Video removed{% endif %}</td><td>{{ item.delivery_status }}</td><td>{% if item.delivery_status == 'pending_edit' %}<form method="post" action="{{ url_for('deliver_order_item', item_id=item.id) }}" enctype="multipart/form-data"><input type="file" name="edited_file" accept="video/*" required><button class="btn secondary">Deliver</button></form>{% else %}<span class="mini">{{ item.delivery_status }}</span>{% endif %}</td></tr>{% endfor %}</table>
+      <form method="get" action="{{ url_for('creator_dashboard') }}" class="grid grid-3" style="margin-bottom:16px;">
+        <input type="hidden" name="_anchor" value="orders">
+        <div class="field"><label>Buyer email</label><input name="buyer_email" value="{{ filter_buyer_email or '' }}"></div>
+        <div class="field"><label>From</label><input type="date" name="date_from" value="{{ filter_date_from.strftime('%Y-%m-%d') if filter_date_from else '' }}"></div>
+        <div class="field"><label>To</label><input type="date" name="date_to" value="{{ filter_date_to.strftime('%Y-%m-%d') if filter_date_to else '' }}"></div>
+        <button class="btn">Filter orders</button>
+      </form>
+      <table class="table">
+        <tr><th>Order</th><th>Buyer</th><th>Video</th><th>Status</th><th>Upload edited</th></tr>
+        {% for item, order, video, buyer_email in order_rows %}
+        <tr>
+          <td>#{{ order.id }}</td>
+          <td>{{ buyer_email }}</td>
+          <td>{% if video %}{{ video.location }} · {{ video.recorded_date.strftime('%m/%d/%Y') }} · {{ video.recorded_time.strftime('%I:%M %p') }}{% else %}Video removed{% endif %}</td>
+          <td>{{ item.delivery_status }}</td>
+          <td>
+            {% if item.delivery_status == 'pending_edit' %}
+            <form method="post" action="{{ url_for('deliver_order_item', item_id=item.id) }}" enctype="multipart/form-data">
+              <input type="file" name="edited_file" accept="video/*" required>
+              <button class="btn secondary">Deliver</button>
+            </form>
+            {% else %}
+            <span class="mini">{{ item.delivery_status }}</span>
+            {% endif %}
+          </td>
+        </tr>
+        {% endfor %}
+      </table>
     </section>
 
     <section class="card panel-section" id="settings" data-panel="settings" hidden>
       <h2>{{ t('settings') }}</h2>
-      <form method="post" action="{{ url_for('creator_settings') }}" enctype="multipart/form-data" class="grid grid-2"><div class="field"><label>{{ t('public_name') }}</label><input name="public_name" value="{{ user.public_name or '' }}"></div><div class="field"><label>{{ t('socials') }}</label><input name="social_link" value="{{ user.social_link or '' }}"></div><div class="field"><label>{{ t('logo') }}</label><input type="file" name="logo" accept="image/*"></div><div class="field"><label>{{ t('new_password') }}</label><input type="password" name="new_password"></div><button class="btn">{{ t('save_settings') }}</button></form>
+      <form method="post" action="{{ url_for('creator_settings') }}" enctype="multipart/form-data" class="grid grid-2">
+        <div class="field"><label>{{ t('public_name') }}</label><input name="public_name" value="{{ user.public_name or '' }}"></div>
+        <div class="field"><label>{{ t('socials') }}</label><input name="social_link" value="{{ user.social_link or '' }}"></div>
+        <div class="field"><label>{{ t('logo') }}</label><input type="file" name="logo" accept="image/*"></div>
+        <div class="field"><label>{{ t('new_password') }}</label><input type="password" name="new_password"></div>
+        <button class="btn">{{ t('save_settings') }}</button>
+      </form>
       {% if user.logo_path %}<div class="logo-preview"><img src="{{ user.logo_path|media_url }}" alt="logo"></div>{% endif %}
     </section>
   </main>
