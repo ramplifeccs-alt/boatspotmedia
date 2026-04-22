@@ -413,96 +413,56 @@ def ffprobe_duration(path: Path):
     except Exception:
         return 16.0
 
+
 def build_preview_assets(video_path: Path, creator_display: str, logo_path: Path | None = None):
     stem = video_path.stem + '_' + uuid.uuid4().hex[:8]
     thumb_file = THUMB_DIR / f"{stem}.jpg"
     preview_file = PREVIEW_DIR / f"{stem}.mp4"
 
     dur = ffprobe_duration(video_path)
+    middle_frame = max(1.0, dur / 2)
     start = max(0.0, dur / 2 - 4.0)
-    middle_frame = max(0.0, dur / 2)
 
-    # thumbnail
     thumb_cmd = [
         "ffmpeg",
         "-y",
-        "-i", str(video_path),
         "-ss", str(middle_frame),
+        "-i", str(video_path),
         "-frames:v", "1",
-        "-q:v", "2",
         str(thumb_file),
     ]
 
-    thumb_run = subprocess.run(
-        thumb_cmd,
-        capture_output=True,
-        text=True
-    )
+    thumb_run = subprocess.run(thumb_cmd, capture_output=True, text=True)
+    print("THUMB CMD:", " ".join(thumb_cmd))
+    print("THUMB RETURN:", thumb_run.returncode)
+    print("THUMB STDERR:", thumb_run.stderr)
 
-    if thumb_run.returncode != 0:
-        print("THUMB FFMPEG ERROR:", thumb_run.stderr)
+    preview_cmd = [
+        "ffmpeg",
+        "-y",
+        "-ss", str(start),
+        "-i", str(video_path),
+        "-t", "8",
+        "-an",
+        "-c:v", "libx264",
+        "-pix_fmt", "yuv420p",
+        "-movflags", "+faststart",
+        str(preview_file),
+    ]
 
-    # preview
-    if logo_path and logo_path.exists():
-        filter_complex = "[1:v]scale='min(220,iw)':-1[wm];[0:v][wm]overlay=(main_w-overlay_w)/2:main_h-overlay_h-20+5*sin(t):format=auto"
-        preview_cmd = [
-            "ffmpeg",
-            "-y",
-            "-ss", str(start),
-            "-i", str(video_path),
-            "-loop", "1",
-            "-i", str(logo_path),
-            "-t", "8",
-            "-vf", filter_complex,
-            "-an",
-            "-c:v", "libx264",
-            "-movflags", "+faststart",
-            "-pix_fmt", "yuv420p",
-            str(preview_file),
-        ]
-    else:
-        safe_text = (creator_display or "BoatSpot Creator").replace(":", "-").replace("'", " ")
-        draw = (
-            f"drawtext=text='{safe_text} | BoatSpotMedia.com':"
-            f"x=(w-text_w)/2:"
-            f"y=h-text_h-20+5*sin(t):"
-            f"fontcolor=white@0.42:"
-            f"fontsize=28:"
-            f"box=1:"
-            f"boxcolor=black@0.18:"
-            f"boxborderw=8"
-        )
+    preview_run = subprocess.run(preview_cmd, capture_output=True, text=True)
+    print("PREVIEW CMD:", " ".join(preview_cmd))
+    print("PREVIEW RETURN:", preview_run.returncode)
+    print("PREVIEW STDERR:", preview_run.stderr)
 
-        preview_cmd = [
-            "ffmpeg",
-            "-y",
-            "-ss", str(start),
-            "-i", str(video_path),
-            "-t", "8",
-            "-vf", draw,
-            "-an",
-            "-c:v", "libx264",
-            "-movflags", "+faststart",
-            "-pix_fmt", "yuv420p",
-            str(preview_file),
-        ]
-
-    preview_run = subprocess.run(
-        preview_cmd,
-        capture_output=True,
-        text=True
-    )
-
-    if preview_run.returncode != 0:
-        print("PREVIEW FFMPEG ERROR:", preview_run.stderr)
-
-    thumb_result = thumb_file if thumb_file.exists() else None
-    preview_result = preview_file if preview_file.exists() else None
+    thumb_result = thumb_file if thumb_file.exists() and thumb_file.stat().st_size > 0 else None
+    preview_result = preview_file if preview_file.exists() and preview_file.stat().st_size > 0 else None
 
     print("THUMB EXISTS:", thumb_result)
     print("PREVIEW EXISTS:", preview_result)
 
     return thumb_result, preview_result
+
 def process_video_async(video_id: int, local_path_str: str, creator_display: str, logo_path_str: str | None = None):
     with app.app_context():
         try:
@@ -969,10 +929,14 @@ def creator_upload():
             preview_path = ''
 
             thumb_file, preview_file = build_preview_assets(
-                local_path,
-                creator_name,
-                logo_path
-            )
+    local_path,
+    creator_name,
+    logo_path
+)
+
+print("VIDEO ORIGINAL:", local_path)
+print("THUMB FILE:", thumb_file)
+print("PREVIEW FILE:", preview_file)
 
             # rutas locales
             if thumb_file and thumb_file.exists():
@@ -980,6 +944,8 @@ def creator_upload():
 
             if preview_file and preview_file.exists():
                 preview_path = f"previews/{preview_file.name}"
+                print("THUMB PATH DB:", thumb_path)
+                print("PREVIEW PATH DB:", preview_path)
 
             # subir a R2 si está configurado
             if r2_client and R2_BUCKET:
