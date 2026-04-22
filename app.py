@@ -1115,20 +1115,22 @@ def creator_settings():
         path = LOGO_DIR / fn
         logo.save(path)
 
-        logo_path_value = f"logos/{fn}"
+        logo_key = f"logos/{fn}"
 
         if r2_client and R2_BUCKET:
             try:
-                r2_client.upload_file(str(path), R2_BUCKET, logo_path_value)
+                r2_client.upload_file(str(path), R2_BUCKET, logo_key)
+
                 if R2_PUBLIC_BASE_URL:
-                    user.logo_path = f"{R2_PUBLIC_BASE_URL.rstrip('/')}/{logo_path_value}"
+                    user.logo_path = f"{R2_PUBLIC_BASE_URL.rstrip('/')}/{logo_key}"
                 else:
-                    user.logo_path = logo_path_value
+                    user.logo_path = logo_key
+
             except Exception as e:
                 print("LOGO R2 UPLOAD ERROR:", e)
-                user.logo_path = logo_path_value
+                user.logo_path = logo_key
         else:
-            user.logo_path = logo_path_value
+            user.logo_path = logo_key
 
         try:
             if path.exists():
