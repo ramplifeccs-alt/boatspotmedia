@@ -1,1 +1,64 @@
-{% extends 'base.html' %}{% block content %}<section class="hero"><h1>{{ t('buyer_dashboard') }}</h1><p>{{ t('my_purchases') }}</p></section><div class="layout"><aside class="card sidebar"><nav class="menu panel-menu"><a href="#cart" data-target="cart" class="active">{{ t('cart') }}</a><a href="#orders" data-target="orders">{{ t('my_purchases') }}</a></nav></aside><main class="panel-shell"><section class="card panel-section active" id="cart" data-panel="cart"><h2>{{ t('cart') }}</h2>{% if cart_items %}<table class="table"><tr><th>Item</th><th>{{ t('price') }}</th><th></th></tr>{% for c, title, price in cart_items %}<tr><td>{{ title }}</td><td>${{ '%.2f'|format(price) }}</td><td><form method="post" action="{{ url_for('remove_cart_item', item_id=c.id) }}"><button class="btn danger" type="submit">Remove</button></form></td></tr>{% endfor %}</table><form method="post" action="{{ url_for('checkout') }}" style="margin-top:16px;"><button class="btn" type="submit">{{ t('checkout') }}</button></form>{% else %}<div class="empty">Your cart is empty.</div>{% endif %}</section><section class="card panel-section" id="orders" data-panel="orders" hidden><h2>{{ t('my_purchases') }}</h2>{% if orders %}{% for order, items in orders %}<div class="card" style="margin-bottom:18px;"><div class="section-title"><h3>Order #{{ order.id }}</h3><div class="mini">{{ order.created_at.strftime('%m/%d/%Y %I:%M %p') }} · ${{ '%.2f'|format(order.total) }}</div></div><div class="grid" style="gap:16px;">{% for item in items %}{% if item.item_type == 'video' %}<div class="purchase-card" style="display:flex;gap:16px;align-items:flex-start;border:1px solid rgba(255,255,255,.08);border-radius:14px;padding:14px;"><div style="width:120px;flex:0 0 120px;">{% if item.thumbnail_path_snapshot %}<img src="{{ item.thumbnail_path_snapshot|media_url }}" style="width:120px;height:84px;object-fit:cover;border-radius:10px;">{% else %}<div style="width:120px;height:84px;border-radius:10px;display:flex;align-items:center;justify-content:center;background:#1c1f26;" class="mini">No image</div>{% endif %}</div><div style="flex:1;"><strong>{{ item.video_title_snapshot or 'Boat video' }}</strong>{% if item.creator_name_snapshot %}<div class="mini">{{ item.creator_name_snapshot }}</div>{% endif %}<div class="mini">{% if item.recorded_date_snapshot %}{{ item.recorded_date_snapshot.strftime('%m/%d/%Y') }}{% endif %}{% if item.recorded_time_snapshot %} · {{ item.recorded_time_snapshot.strftime('%I:%M %p') }}{% endif %}{% if item.location_snapshot %} · {{ item.location_snapshot }}{% endif %}</div><div class="mini" style="margin-top:8px;">Price: ${{ '%.2f'|format(item.price) }}</div>{% if item.download_available and item.download_expires_at and item.download_expires_at > now %}<div class="mini" style="margin-top:8px;">Download available until {{ item.download_expires_at.strftime('%m/%d/%Y %I:%M %p') }}</div>{% if item.delivery_status == 'instant_ready' or (item.delivery_status == 'delivered' and item.edited_file_path) %}<div style="margin-top:10px;"><a class="btn secondary" href="{{ url_for('download_order_item', item_id=item.id) }}">Download</a></div>{% else %}<div class="mini" style="margin-top:10px;">Status: {{ item.delivery_status }}</div>{% endif %}{% else %}<div class="mini" style="margin-top:10px;">Download expired</div>{% endif %}</div></div>{% endif %}{% if item.item_type == 'product' %}<div class="purchase-card" style="border:1px solid rgba(255,255,255,.08);border-radius:14px;padding:14px;"><strong>Product</strong><div class="mini">Price: ${{ '%.2f'|format(item.price) }}</div><div class="mini" style="margin-top:8px;">Status: {{ item.delivery_status }}</div></div>{% endif %}{% endfor %}</div></div>{% endfor %}{% else %}<div class="empty">No purchases yet.</div>{% endif %}</section></main></div>{% endblock %}
+{% extends 'base.html' %}
+{% block content %}
+<section class="hero"><h1>{{ t('buyer_dashboard') }}</h1><p>{{ t('my_purchases') }}</p></section>
+<div class="layout">
+  <aside class="card sidebar"><nav class="menu panel-menu"><a href="#cart" data-target="cart" class="active">{{ t('cart') }}</a><a href="#orders" data-target="orders">{{ t('my_purchases') }}</a></nav></aside>
+  <main class="panel-shell">
+    <section class="card panel-section active" id="cart" data-panel="cart">
+      <h2>{{ t('cart') }}</h2>
+      {% if cart_items %}
+        <table class="table"><tr><th>Item</th><th>{{ t('price') }}</th><th></th></tr>{% for c, title, price in cart_items %}<tr><td>{{ title }}</td><td>${{ '%.2f'|format(price) }}</td><td><form method="post" action="{{ url_for('remove_cart_item', item_id=c.id) }}"><button class="btn danger" type="submit">Remove</button></form></td></tr>{% endfor %}</table>
+        <form method="post" action="{{ url_for('checkout') }}" style="margin-top:16px;"><button class="btn" type="submit">{{ t('checkout') }}</button></form>
+      {% else %}
+        <div class="empty">Your cart is empty.</div>
+      {% endif %}
+    </section>
+    <section class="card panel-section" id="orders" data-panel="orders" hidden>
+      <h2>{{ t('my_purchases') }}</h2>
+      {% if orders %}
+        {% for order, items in orders %}
+          <div class="card" style="margin-bottom:18px;">
+            <div class="section-title"><h3>Order #{{ order.id }}</h3><div class="mini">{{ order.created_at.strftime('%m/%d/%Y %I:%M %p') }} · ${{ '%.2f'|format(order.total) }}</div></div>
+            <div class="grid" style="gap:16px;">
+              {% for item in items %}
+                {% if item.item_type == 'video' %}
+                  <div class="purchase-card" style="display:flex;gap:16px;align-items:flex-start;border:1px solid rgba(255,255,255,.08);border-radius:14px;padding:14px;">
+                    <div style="width:120px;flex:0 0 120px;">
+                      {% if item.thumbnail_path_snapshot %}
+                        <img src="{{ item.thumbnail_path_snapshot|media_url }}" style="width:120px;height:84px;object-fit:cover;border-radius:10px;">
+                      {% else %}
+                        <div style="width:120px;height:84px;border-radius:10px;display:flex;align-items:center;justify-content:center;background:#1c1f26;" class="mini">No image</div>
+                      {% endif %}
+                    </div>
+                    <div style="flex:1;">
+                      <strong>{{ item.video_title_snapshot or 'Boat video' }}</strong>
+                      {% if item.creator_name_snapshot %}<div class="mini">{{ item.creator_name_snapshot }}</div>{% endif %}
+                      <div class="mini">{% if item.recorded_date_snapshot %}{{ item.recorded_date_snapshot.strftime('%m/%d/%Y') }}{% endif %}{% if item.recorded_time_snapshot %} · {{ item.recorded_time_snapshot.strftime('%I:%M %p') }}{% endif %}{% if item.location_snapshot %} · {{ item.location_snapshot }}{% endif %}</div>
+                      <div class="mini" style="margin-top:8px;">Price: ${{ '%.2f'|format(item.price) }}</div>
+                      {% if item.download_available and item.download_expires_at and item.download_expires_at > now %}
+                        <div class="mini" style="margin-top:8px;">Download available until {{ item.download_expires_at.strftime('%m/%d/%Y %I:%M %p') }}</div>
+                        {% if item.delivery_status == 'instant_ready' or (item.delivery_status == 'delivered' and item.edited_file_path) %}
+                          <div style="margin-top:10px;"><a class="btn secondary" href="{{ url_for('download_order_item', item_id=item.id) }}">Download</a></div>
+                        {% else %}
+                          <div class="mini" style="margin-top:10px;">Status: {{ item.delivery_status }}</div>
+                        {% endif %}
+                      {% else %}
+                        <div class="mini" style="margin-top:10px;">Download expired</div>
+                      {% endif %}
+                    </div>
+                  </div>
+                {% endif %}
+                {% if item.item_type == 'product' %}
+                  <div class="purchase-card" style="border:1px solid rgba(255,255,255,.08);border-radius:14px;padding:14px;"><strong>Product</strong><div class="mini">Price: ${{ '%.2f'|format(item.price) }}</div><div class="mini" style="margin-top:8px;">Status: {{ item.delivery_status }}</div></div>
+                {% endif %}
+              {% endfor %}
+            </div>
+          </div>
+        {% endfor %}
+      {% else %}
+        <div class="empty">No purchases yet.</div>
+      {% endif %}
+    </section>
+  </main>
+</div>
+{% endblock %}
