@@ -18,11 +18,11 @@ except Exception:
     boto3 = None
 
 BASE_DIR = Path(__file__).resolve().parent
-UPLOAD_DIR = BASE_DIR / "uploads"
-VIDEO_DIR = UPLOAD_DIR / "videos"
-THUMB_DIR = UPLOAD_DIR / "thumbs"
-PREVIEW_DIR = UPLOAD_DIR / "previews"
-LOGO_DIR = UPLOAD_DIR / "logos"
+UPLOAD_DIR.mkdir(parents=True, exist_ok=True)
+VIDEO_DIR.mkdir(parents=True, exist_ok=True)
+THUMB_DIR.mkdir(parents=True, exist_ok=True)
+PREVIEW_DIR.mkdir(parents=True, exist_ok=True)
+LOGO_DIR.mkdir(parents=True, exist_ok=True)
 for p in [VIDEO_DIR, THUMB_DIR, PREVIEW_DIR, LOGO_DIR]:
     p.mkdir(parents=True, exist_ok=True)
 
@@ -503,14 +503,28 @@ def creator_rating(creator_id):
     return avg, len(reviews)
 
 # ---------- Routes ----------
+
+@app.template_filter("media_url")
+def media_url(path):
+    if not path:
+        return ""
+
+    if path.startswith("http"):
+        return path
+
+    return url_for("uploaded_files", filename=path)
+
 @app.route('/set-language/<lang>')
 def set_language(lang):
     if lang in ('en','es'):
         session['lang']=lang
     return redirect(request.referrer or url_for('index'))
 
-@app.route('/uploads/<category>/<path:filename>')
-def uploaded_file(category, filename):
+from flask import send_from_directory
+
+@app.route('/uploads/<path:filename>')
+def uploaded_files(filename):
+    return send_from_directory(UPLOAD_DIR, filename)
     directory = {"videos": VIDEO_DIR, "thumbs": THUMB_DIR, "previews": PREVIEW_DIR, "logos": LOGO_DIR}.get(category)
     return send_from_directory(directory, filename)
 
