@@ -290,6 +290,48 @@ class SiteSetting(db.Model):
 
 # ---------- Helpers ----------
 
+def delete_r2_object(path_value: str):
+    if not path_value or not r2_client or not R2_BUCKET:
+        return
+
+    try:
+        if path_value.startswith("http://") or path_value.startswith("https://"):
+            if R2_PUBLIC_BASE_URL and path_value.startswith(R2_PUBLIC_BASE_URL.rstrip("/") + "/"):
+                object_key = path_value.replace(R2_PUBLIC_BASE_URL.rstrip("/") + "/", "", 1)
+            else:
+                return
+        else:
+            object_key = path_value.lstrip("/")
+
+        r2_client.delete_object(Bucket=R2_BUCKET, Key=object_key)
+        print("R2 DELETED:", object_key)
+    except Exception as e:
+        print("R2 DELETE ERROR:", e)
+
+def delete_local_file(path_value: str):
+    if not path_value:
+        return
+
+    try:
+        if path_value.startswith("http://") or path_value.startswith("https://"):
+            return
+
+        file_path = UPLOAD_DIR / path_value
+        if file_path.exists() and file_path.is_file():
+            file_path.unlink()
+            print("LOCAL FILE DELETED:", file_path)
+    except Exception as e:
+        print("LOCAL DELETE ERROR:", e)
+
+def delete_video_assets(video):
+    if not video:
+        return
+
+    for path_value in [video.file_path, video.thumb_path, video.preview_path]:
+        delete_r2_object(path_value)
+        delete_local_file(path_value)
+
+
 def ensure_order_item_columns():
     statements = [
         "ALTER TABLE order_item ADD COLUMN IF NOT EXISTS download_expires_at TIMESTAMP;",
@@ -912,12 +954,14 @@ def creator_upload():
         title = f"{location} Batch {datetime.utcnow().strftime('%m/%d/%Y %H:%M')}"
 
     batch_date = date.today()
+
     batch = Batch(
         creator_id=user.id,
         title=title,
         location=location,
         recorded_date=batch_date
     )
+
     db.session.add(batch)
     db.session.flush()
 
@@ -941,6 +985,7 @@ def creator_upload():
     count = 0
 
     for f in valid_files:
+
         orig = secure_filename(f.filename)
         unique = f"{uuid.uuid4().hex[:8]}_{orig}"
         local_path = VIDEO_DIR / unique
@@ -954,35 +999,57 @@ def creator_upload():
                 logo_path
             )
 
-            print("VIDEO ORIGINAL:", local_path)
-            print("THUMB FILE:", thumb_file)
-            print("PREVIEW FILE:", preview_file)
-
             file_path = f"videos/{unique}"
             thumb_path = f"thumbs/{thumb_file.name}" if thumb_file else ""
             preview_path = f"previews/{preview_file.name}" if preview_file else ""
 
-            print("THUMB PATH DB:", thumb_path)
-            print("PREVIEW PATH DB:", preview_path)
-
             if r2_client and R2_BUCKET:
-                try:
-                    r2_client.upload_file(str(local_path), R2_BUCKET, f"videos/{unique}")
 
+                try:
+                    # subir video original
+                    r2_client.upload_file(
+                        str(local_path),
+                        R2_BUCKET,
+                        f"videos/{unique}"
+                    )
+
+                    # subir thumbnail
                     if thumb_file and thumb_file.exists():
                         thumb_key = f"thumbs/{thumb_file.name}"
-                        r2_client.upload_file(str(thumb_file), R2_BUCKET, thumb_key)
+
+                        r2_client.upload_file(
+                            str(thumb_file),
+                            R2_BUCKET,
+                            thumb_key
+                        )
+
                         if R2_PUBLIC_BASE_URL:
                             thumb_path = f"{R2_PUBLIC_BASE_URL.rstrip('/')}/{thumb_key}"
 
+                    # subir preview
                     if preview_file and preview_file.exists():
                         preview_key = f"previews/{preview_file.name}"
-                        r2_client.upload_file(str(preview_file), R2_BUCKET, preview_key)
+
+                        r2_client.upload_file(
+                            str(preview_file),
+                            R2_BUCKET,
+                            preview_key
+                        )
+
                         if R2_PUBLIC_BASE_URL:
                             preview_path = f"{R2_PUBLIC_BASE_URL.rstrip('/')}/{preview_key}"
 
+                    # url final del video
                     if R2_PUBLIC_BASE_URL:
                         file_path = f"{R2_PUBLIC_BASE_URL.rstrip('/')}/videos/{unique}"
+
+                    # borrar temporales locales
+                    for temp_file in [local_path, thumb_file, preview_file]:
+                        try:
+                            if temp_file and Path(temp_file).exists() and Path(temp_file).is_file():
+                                Path(temp_file).unlink()
+                        except Exception as e:
+                            print("TEMP DELETE ERROR:", e)
 
                 except Exception as e:
                     print("R2 UPLOAD ERROR:", e)
@@ -1002,19 +1069,23 @@ def creator_upload():
             )
 
             db.session.add(vid)
+
             count += 1
 
             dt = (
                 datetime.combine(date.today(), cursor_time)
                 + timedelta(minutes=3)
             ).time()
+
             cursor_time = dt
 
         except Exception as e:
             print("UPLOAD ERROR:", e)
 
     db.session.commit()
+
     flash(f"Batch saved with {count} videos.")
+
     return redirect(url_for('creator_dashboard'))
 
 @app.route('/creator/video/<int:video_id>/price', methods=['POST'])
@@ -1057,110 +1128,32 @@ def delete_batch(batch_id):
         flash('Batch not found.')
         return redirect(url_for('creator_dashboard'))
 
-    try:
-        videos = Video.query.filter_by(batch_id=batch.id).all()
-        video_ids = [v.id for v in videos]
+    videos = Video.query.filter_by(batch_id=batch.id, creator_id=user.id).all()
 
-        # Revisar si algún video tiene compras con descarga activa
-        active_download = None
-        if video_ids:
-            active_download = OrderItem.query.filter(
-                OrderItem.item_type == 'video',
-                OrderItem.item_id.in_(video_ids),
-                OrderItem.download_available == True,
-                OrderItem.download_expires_at != None,
-                OrderItem.download_expires_at > datetime.utcnow()
-            ).first()
+    # No permitir borrar si algún video del lote fue comprado y sigue dentro del plazo de descarga
+    for video in videos:
+        locked_items = OrderItem.query.filter_by(item_type='video', item_id=video.id).all()
 
-        if active_download:
-            flash('This batch cannot be deleted yet because one or more buyers still have an active download window.')
-            return redirect(url_for('creator_dashboard'))
+        for item in locked_items:
+            if item.download_available and item.download_expires_at and item.download_expires_at > datetime.utcnow():
+                flash('You cannot delete this batch yet because a buyer still has an active download period.')
+                return redirect(url_for('creator_dashboard'))
 
-        # Guardar rutas para limpieza de archivos
-        file_paths = []
-        thumb_paths = []
-        preview_paths = []
+    # Borrar assets y registros de videos
+    for video in videos:
+        delete_video_assets(video)
 
-        for v in videos:
-            if v.file_path:
-                file_paths.append(v.file_path)
-            if v.thumb_path:
-                thumb_paths.append(v.thumb_path)
-            if v.preview_path:
-                preview_paths.append(v.preview_path)
+        # borrar cart items relacionados
+        cart_items = CartItem.query.filter_by(item_type='video', item_id=video.id).all()
+        for cart_item in cart_items:
+            db.session.delete(cart_item)
 
-        # limpiar carrito
-        if video_ids:
-            CartItem.query.filter(
-                CartItem.item_type == 'video',
-                CartItem.item_id.in_(video_ids)
-            ).delete(synchronize_session=False)
+        db.session.delete(video)
 
-        # IMPORTANTE: NO borrar OrderItem ni Order
-        # Solo borrar videos y batch
+    db.session.delete(batch)
+    db.session.commit()
 
-        Video.query.filter_by(batch_id=batch.id).delete(synchronize_session=False)
-        db.session.flush()
-
-        db.session.delete(batch)
-        db.session.commit()
-
-        def delete_local_from_path(path_value: str):
-            if not path_value:
-                return
-            if not path_value.startswith("http://") and not path_value.startswith("https://"):
-                try:
-                    category, filename = path_value.split("/", 1)
-                    folder = {
-                        "videos": VIDEO_DIR,
-                        "thumbs": THUMB_DIR,
-                        "previews": PREVIEW_DIR,
-                        "logos": LOGO_DIR,
-                    }.get(category)
-                    if folder:
-                        target = folder / filename
-                        if target.exists():
-                            target.unlink()
-                except Exception as e:
-                    print("LOCAL DELETE ERROR:", e)
-
-        def delete_r2_object(path_value: str):
-            if not r2_client or not R2_BUCKET or not path_value:
-                return
-            try:
-                object_key = None
-
-                if path_value.startswith("http://") or path_value.startswith("https://"):
-                    if R2_PUBLIC_BASE_URL and path_value.startswith(R2_PUBLIC_BASE_URL.rstrip("/") + "/"):
-                        object_key = path_value.replace(R2_PUBLIC_BASE_URL.rstrip("/") + "/", "", 1)
-                else:
-                    object_key = path_value
-
-                if object_key:
-                    r2_client.delete_object(Bucket=R2_BUCKET, Key=object_key)
-
-            except Exception as e:
-                print("R2 DELETE ERROR:", e)
-
-        for p in file_paths:
-            delete_local_from_path(p)
-            delete_r2_object(p)
-
-        for p in thumb_paths:
-            delete_local_from_path(p)
-            delete_r2_object(p)
-
-        for p in preview_paths:
-            delete_local_from_path(p)
-            delete_r2_object(p)
-
-        flash('Batch deleted successfully.')
-
-    except Exception as e:
-        db.session.rollback()
-        print("DELETE BATCH ERROR:", e)
-        flash('Could not delete batch.')
-
+    flash('Batch deleted successfully.')
     return redirect(url_for('creator_dashboard'))
 
 @app.route('/creator/package', methods=['POST'])
