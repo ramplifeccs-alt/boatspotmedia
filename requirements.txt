@@ -6,3 +6,4 @@ boto3
 sendgrid
 stripe
 python-dotenv
+ffmpeg-python

@@ -1,19 +1,15 @@
 
-BoatSpotMedia v12 Core
+BoatSpotMedia v12.1 Marketplace Build
 
-Deploy steps:
+Includes:
+- search engine endpoint (location/date/time)
+- creator dashboard route
+- buyer download manager route
+- owner panel route
+- services PPC module route
+- charter marketplace route
+- R2 upload service structure
+- metadata extractor placeholder
+- thumbnail generator placeholder
 
-1. Create Railway project
-2. Attach PostgreSQL
-3. Add environment variables from .env.example
-4. Deploy
-
-Routes:
-
-/creator/login
-/owner/login
-/buyer/orders
-
-Public homepage:
-
-/
+Deploy to Railway with PostgreSQL + R2 + SendGrid + Stripe
