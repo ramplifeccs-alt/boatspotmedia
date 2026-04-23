@@ -488,16 +488,19 @@ def build_preview_assets(video_path: Path, creator_display: str, logo_path: Path
     preview_file = PREVIEW_DIR / f"{stem}.mp4"
 
     dur = ffprobe_duration(video_path)
-    start = max(0.25, min(dur / 2, max(0.25, dur - 8.5)))
-    thumb_time = max(0.25, min(start + 0.8, max(0.25, dur - 0.25)))
+    start_time = max(0.5, min(dur / 2, max(0.5, dur - 8.5)))
+    thumb_time = max(0.5, min(start_time + 1.0, max(0.5, dur - 0.5)))
+
+    # Logo remoto desactivado temporalmente hasta corregir la URL R2 del logo.
+    watermark = "drawtext=text='BoatSpotMedia.com':x=20:y=20:fontsize=24:fontcolor=white@0.75:box=1:boxcolor=black@0.35:boxborderw=8"
 
     try:
         thumb_cmd = [
             "ffmpeg", "-y",
-            "-ss", str(thumb_time),
             "-i", str(video_path),
+            "-ss", str(thumb_time),
             "-frames:v", "1",
-            "-vf", "thumbnail,scale=640:-2,format=yuvj420p",
+            "-vf", "scale=640:-2",
             "-q:v", "3",
             str(thumb_file),
         ]
@@ -507,16 +510,16 @@ def build_preview_assets(video_path: Path, creator_display: str, logo_path: Path
 
         preview_cmd = [
             "ffmpeg", "-y",
-            "-ss", str(start),
             "-i", str(video_path),
+            "-ss", str(start_time),
             "-t", "8",
-            "-vf", "scale=960:-2,format=yuv420p",
+            "-vf", f"scale=960:-2,{watermark}",
             "-an",
             "-c:v", "libx264",
             "-preset", "ultrafast",
             "-crf", "32",
-            "-movflags", "+faststart",
             "-pix_fmt", "yuv420p",
+            "-movflags", "+faststart",
             str(preview_file),
         ]
         preview_run = subprocess.run(preview_cmd, capture_output=True, text=True)
@@ -964,20 +967,30 @@ def delete_batch(batch_id):
     if not batch or batch.creator_id != user.id:
         flash('Batch not found.')
         return redirect(url_for('creator_dashboard'))
+
     videos = Video.query.filter_by(batch_id=batch.id).all()
     video_ids = [v.id for v in videos]
-    active_download = None
+
     if video_ids:
-        active_download = OrderItem.query.filter(OrderItem.item_type == 'video', OrderItem.item_id.in_(video_ids), OrderItem.download_available == True, OrderItem.download_expires_at != None, OrderItem.download_expires_at > datetime.utcnow()).first()
-    if active_download:
-        flash('This batch cannot be deleted yet because one or more buyers still have an active download window.')
-        return redirect(url_for('creator_dashboard'))
+        active_download = OrderItem.query.filter(
+            OrderItem.item_type == 'video',
+            OrderItem.item_id.in_(video_ids),
+            OrderItem.download_available == True,
+            OrderItem.download_expires_at != None,
+            OrderItem.download_expires_at > datetime.utcnow()
+        ).first()
+        if active_download:
+            flash('This batch cannot be deleted yet because one or more buyers still have an active download window.')
+            return redirect(url_for('creator_dashboard'))
+
     try:
         if video_ids:
             CartItem.query.filter(CartItem.item_type == 'video', CartItem.item_id.in_(video_ids)).delete(synchronize_session=False)
-        for video in videos:
-            delete_video_assets(video)
-            db.session.delete(video)
+            for video in videos:
+                delete_video_assets(video)
+                db.session.delete(video)
+            db.session.flush()
+
         db.session.delete(batch)
         db.session.commit()
         flash('Batch deleted successfully.')
