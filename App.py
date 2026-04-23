@@ -307,8 +307,13 @@ def creator_upload():
     if not user:
         return redirect("/login")
 
-    title = request.form.get("title")
+    title = request.form.get("title", "").strip()
 
+    if not title:
+        flash("Batch title required")
+        return redirect("/dashboard")
+
+    # evitar batch duplicado
     existing_batch = Batch.query.filter_by(
         creator_id=user.id,
         title=title
@@ -318,14 +323,22 @@ def creator_upload():
         flash("Batch name already exists")
         return redirect("/dashboard")
 
+    recorded_date_str = request.form.get("recorded_date")
+
+    try:
+        recorded_date = datetime.strptime(
+            recorded_date_str,
+            "%Y-%m-%d"
+        ).date()
+    except Exception:
+        flash("Invalid date")
+        return redirect("/dashboard")
+
     batch = Batch(
         creator_id=user.id,
         title=title,
         location=request.form.get("location"),
-        recorded_date=datetime.strptime(
-            request.form.get("recorded_date"),
-            "%Y-%m-%d"
-        )
+        recorded_date=recorded_date
     )
 
     db.session.add(batch)
@@ -342,23 +355,28 @@ def creator_upload():
 
         filename = secure_filename(file.filename)
 
-        local_video_path = VIDEO_DIR / filename
+        unique_name = f"{uuid.uuid4().hex[:8]}_{filename}"
 
+        local_video_path = VIDEO_DIR / unique_name
+
+        # guardar temporalmente
         file.save(local_video_path)
 
-        video_key = f"videos/{filename}"
+        # generar thumbnail ANTES de borrar o subir
+        thumb_local = build_thumbnail(local_video_path)
+
+        # subir video a R2 o mantener local
+        video_key = f"videos/{unique_name}"
 
         if r2_client:
             video_path = save_to_r2(
                 local_video_path,
                 video_key
             )
-            local_video_path.unlink()
         else:
             video_path = video_key
 
-        thumb_local = build_thumbnail(local_video_path)
-
+        # subir thumbnail a R2 o mantener local
         thumb_path = None
 
         if thumb_local:
@@ -372,11 +390,12 @@ def creator_upload():
                     thumb_key
                 )
 
-                thumb_local.unlink()
-
             else:
 
                 thumb_path = thumb_key
+
+        print("VIDEO PATH SAVED:", video_path, flush=True)
+        print("THUMB PATH SAVED:", thumb_path, flush=True)
 
         video = Video(
             batch_id=batch.id,
@@ -393,10 +412,22 @@ def creator_upload():
 
         uploaded += 1
 
+        # limpiar archivos temporales locales
+        try:
+            if local_video_path.exists():
+                local_video_path.unlink()
+        except Exception:
+            pass
+
+        try:
+            if thumb_local and thumb_local.exists():
+                thumb_local.unlink()
+        except Exception:
+            pass
+
     if uploaded == 0:
 
         db.session.delete(batch)
-
         db.session.commit()
 
         flash("No videos uploaded")
