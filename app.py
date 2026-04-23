@@ -456,37 +456,6 @@ def ffprobe_duration(path: Path):
         print("FFPROBE ERROR:", e)
         return 16.0
 
-
-
-def ffprobe_created_datetime(path: Path):
-    try:
-        result = subprocess.run([
-            "ffprobe", "-v", "error",
-            "-show_entries", "format_tags=creation_time:stream_tags=creation_time",
-            "-of", "json", str(path)
-        ], capture_output=True, text=True, check=True)
-        data = json.loads(result.stdout or '{}')
-        creation = None
-        fmt = data.get('format', {}).get('tags', {}).get('creation_time')
-        if fmt:
-            creation = fmt
-        else:
-            for stream in data.get('streams', []):
-                tags = stream.get('tags', {}) or {}
-                if tags.get('creation_time'):
-                    creation = tags['creation_time']
-                    break
-        if not creation:
-            return None
-        creation = creation.replace('Z', '+00:00')
-        dt = datetime.fromisoformat(creation)
-        if dt.tzinfo:
-            dt = dt.astimezone().replace(tzinfo=None)
-        return dt
-    except Exception as e:
-        print('FFPROBE CREATION TIME ERROR:', e, flush=True)
-        return None
-
 def build_preview_assets(video_path: Path, creator_display: str, logo_path: Path | str | None = None):
     stem = video_path.stem + "_" + uuid.uuid4().hex[:8]
     thumb_file = THUMB_DIR / f"{stem}.jpg"
@@ -586,7 +555,7 @@ def uploaded_file(category, filename):
 
 @app.route('/')
 def index():
-    latest_videos = Video.query.order_by(Video.recorded_date.desc(), Video.recorded_time.desc()).limit(5).all()
+    latest_videos = Video.query.order_by(Video.recorded_date.desc(), Video.recorded_time.desc()).limit(12).all()
     creator_names = {}
     for v in latest_videos:
         creator = db.session.get(User, v.creator_id)
@@ -832,9 +801,9 @@ def creator_dashboard():
 @login_required('creator')
 def creator_upload():
     user = get_current_user()
-    title = request.form.get('batch_title', '').strip()
+    title = (request.form.get('batch_title') or request.form.get('title') or '').strip()
     location = request.form.get('location', '').strip().title()
-    files = request.files.getlist('files')
+    files = request.files.getlist('files') or request.files.getlist('videos')
     valid_files = [f for f in files if f and f.filename]
 
     if not location:
@@ -851,14 +820,15 @@ def creator_upload():
         flash('Batch name already exists. Please choose another name.')
         return redirect(url_for('creator_dashboard'))
 
-    batch = Batch(creator_id=user.id, title=title, location=location, recorded_date=date.today())
+    batch_date = date.today()
+    batch = Batch(creator_id=user.id, title=title, location=location, recorded_date=batch_date)
     db.session.add(batch)
     db.session.flush()
 
+    creator_name = user.public_name or user.email.split('@')[0]
     first_package = Package.query.filter_by(creator_id=user.id, active=True).order_by(Package.created_at.asc()).first()
     default_price = first_package.price if first_package else 40.0
     delivery_type = first_package.delivery_type if first_package else 'instant'
-    cursor_time = datetime.strptime('12:00 PM', '%I:%M %p').time()
     count = 0
 
     for f in valid_files:
@@ -868,23 +838,23 @@ def creator_upload():
         thumb_file = None
         try:
             f.save(local_path)
-            created_dt = ffprobe_created_datetime(local_path)
-            recorded_date = created_dt.date() if created_dt else date.today()
-            recorded_time = created_dt.time().replace(microsecond=0) if created_dt else cursor_time
 
-            thumb_file, _preview_file = build_preview_assets(local_path, user.public_name or user.email.split('@')[0], user.logo_path or None)
+            created_dt = ffprobe_created_datetime(local_path)
+            recorded_dt = created_dt.date() if created_dt else batch_date
+            recorded_tm = (created_dt.time().replace(microsecond=0) if created_dt else datetime.utcnow().time().replace(microsecond=0))
+
+            thumb_file, _ = build_preview_assets(local_path, creator_name, None)
 
             file_path = f"videos/{unique}"
             thumb_path = f"thumbs/{thumb_file.name}" if thumb_file else ''
-            preview_path = ''
 
             if r2_client and R2_BUCKET:
-                try:
-                    file_path = save_to_r2(local_path, f"videos/{unique}")
-                    if thumb_file and thumb_file.exists():
-                        thumb_path = save_to_r2(thumb_file, f"thumbs/{thumb_file.name}")
-                except Exception as e:
-                    print('R2 UPLOAD ERROR:', e, flush=True)
+                file_path = save_to_r2(local_path, f"videos/{unique}")
+                if thumb_file and thumb_file.exists():
+                    thumb_path = save_to_r2(thumb_file, f"thumbs/{thumb_file.name}")
+
+            print('VIDEO PATH SAVED:', file_path, flush=True)
+            print('THUMB PATH SAVED:', thumb_path, flush=True)
 
             vid = Video(
                 batch_id=batch.id,
@@ -892,34 +862,42 @@ def creator_upload():
                 filename=orig,
                 file_path=file_path,
                 thumb_path=thumb_path,
-                preview_path=preview_path,
+                preview_path='',
                 location=location,
-                recorded_date=recorded_date,
-                recorded_time=recorded_time,
+                recorded_date=recorded_dt,
+                recorded_time=recorded_tm,
                 price=default_price,
                 delivery_type=delivery_type,
             )
             db.session.add(vid)
             count += 1
-            cursor_time = (datetime.combine(date.today(), cursor_time) + timedelta(minutes=3)).time()
         except Exception as e:
             print('UPLOAD ERROR:', e, flush=True)
         finally:
-            for temp_file in [local_path, thumb_file]:
-                try:
-                    if temp_file and Path(temp_file).exists() and Path(temp_file).is_file():
-                        Path(temp_file).unlink()
-                except Exception as e:
-                    print('TEMP DELETE ERROR:', e, flush=True)
+            try:
+                if local_path.exists():
+                    local_path.unlink()
+            except Exception:
+                pass
+            try:
+                if thumb_file and thumb_file.exists():
+                    thumb_file.unlink()
+            except Exception:
+                pass
 
     if count == 0:
-        db.session.delete(batch)
-        db.session.commit()
-        flash('No videos could be processed. Batch was not saved.')
+        db.session.rollback()
+        try:
+            if batch.id:
+                db.session.query(Batch).filter_by(id=batch.id).delete()
+                db.session.commit()
+        except Exception:
+            db.session.rollback()
+        flash('No videos were uploaded successfully.')
         return redirect(url_for('creator_dashboard'))
 
     db.session.commit()
-    flash(f"Batch saved with {count} videos.")
+    flash(f'Batch uploaded successfully with {count} videos.')
     return redirect(url_for('creator_dashboard'))
 
 @app.route('/creator/batch/<int:batch_id>/delete', methods=['POST'])
