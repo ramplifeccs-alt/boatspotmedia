@@ -457,6 +457,49 @@ def ffprobe_duration(path: Path):
         print("FFPROBE ERROR:", e)
         return 16.0
 
+
+
+def ffprobe_created_datetime(path: Path):
+    """
+    Try to read the real creation_time metadata from the file.
+    Returns (date_obj, time_obj) or (None, None).
+    """
+    try:
+        result = subprocess.run(
+            [
+                "ffprobe", "-v", "error",
+                "-show_entries", "format_tags=creation_time:stream_tags=creation_time",
+                "-of", "json",
+                str(path)
+            ],
+            capture_output=True,
+            text=True,
+            check=True,
+        )
+        data = json.loads(result.stdout or "{}")
+
+        creation_time = None
+        fmt_tags = data.get("format", {}).get("tags", {}) or {}
+        if fmt_tags.get("creation_time"):
+            creation_time = fmt_tags.get("creation_time")
+
+        if not creation_time:
+            for stream in data.get("streams", []) or []:
+                tags = stream.get("tags", {}) or {}
+                if tags.get("creation_time"):
+                    creation_time = tags.get("creation_time")
+                    break
+
+        if not creation_time:
+            return None, None
+
+        creation_time = creation_time.replace("Z", "+00:00")
+        dt = datetime.fromisoformat(creation_time)
+        return dt.date(), dt.time().replace(microsecond=0)
+    except Exception as e:
+        print("FFPROBE CREATION_TIME ERROR:", e)
+        return None, None
+
 def build_preview_assets(video_path: Path, creator_display: str, logo_path: Path | str | None = None):
     stem = video_path.stem + "_" + uuid.uuid4().hex[:8]
     thumb_file = THUMB_DIR / f"{stem}.jpg"
@@ -960,6 +1003,15 @@ def creator_upload():
                         Path(temp_file).unlink()
                 except Exception as e:
                     print('TEMP DELETE ERROR:', e)
+
+    if count == 0:
+        try:
+            db.session.delete(batch)
+            db.session.commit()
+        except Exception:
+            db.session.rollback()
+        flash("No videos were saved. Check ffmpeg / preview generation logs and try again.")
+        return redirect(url_for('creator_dashboard'))
 
     db.session.commit()
     flash(f"Batch saved with {count} videos.")
