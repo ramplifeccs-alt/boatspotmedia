@@ -1,22 +1,18 @@
 import os
 import uuid
 import json
-import random
-import tempfile
 import subprocess
-import urllib.request
 from datetime import datetime
-from functools import wraps
 from pathlib import Path
+from functools import wraps
 
 from flask import (
-    Flask, render_template, request, redirect,
-    url_for, flash, session, send_from_directory, abort
+    Flask, render_template, request,
+    redirect, url_for, flash,
+    session, send_from_directory, abort
 )
 
 from flask_sqlalchemy import SQLAlchemy
-from sqlalchemy import text
-from werkzeug.security import generate_password_hash, check_password_hash
 from werkzeug.utils import secure_filename
 
 try:
@@ -25,9 +21,9 @@ except:
     boto3 = None
 
 
-# ==============================
-# BASE PATHS
-# ==============================
+########################################
+# PATH CONFIG
+########################################
 
 BASE_DIR = Path(__file__).resolve().parent
 
@@ -36,13 +32,13 @@ VIDEO_DIR = UPLOAD_DIR / "videos"
 THUMB_DIR = UPLOAD_DIR / "thumbs"
 LOGO_DIR = UPLOAD_DIR / "logos"
 
-for p in [VIDEO_DIR, THUMB_DIR, LOGO_DIR]:
-    p.mkdir(parents=True, exist_ok=True)
+for folder in [VIDEO_DIR, THUMB_DIR, LOGO_DIR]:
+    folder.mkdir(parents=True, exist_ok=True)
 
 
-# ==============================
+########################################
 # APP CONFIG
-# ==============================
+########################################
 
 app = Flask(__name__)
 
@@ -51,8 +47,7 @@ app.config["SECRET_KEY"] = os.getenv(
     "boatspotmedia-dev-secret"
 )
 
-# 🔧 FIX IMPORTANTE
-# antes estaba en 4KB
+# ✅ FIX CRÍTICO: antes estaba en 4KB
 app.config["MAX_CONTENT_LENGTH"] = 4 * 1024 * 1024 * 1024
 
 
@@ -70,9 +65,9 @@ app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
 db = SQLAlchemy(app)
 
 
-# ==============================
+########################################
 # R2 CONFIG
-# ==============================
+########################################
 
 R2_ACCOUNT_ID = os.getenv("R2_ACCOUNT_ID", "")
 R2_BUCKET = os.getenv("R2_BUCKET", "")
@@ -89,7 +84,6 @@ if (
     and R2_ACCESS_KEY_ID
     and R2_SECRET_ACCESS_KEY
 ):
-
     endpoint = f"https://{R2_ACCOUNT_ID}.r2.cloudflarestorage.com"
 
     r2_client = boto3.client(
@@ -101,17 +95,14 @@ if (
     )
 
 
-# ==============================
+########################################
 # MODELS
-# ==============================
+########################################
 
 class User(db.Model):
     id = db.Column(db.Integer, primary_key=True)
-    role = db.Column(db.String(20), default="buyer")
+    role = db.Column(db.String(20), default="creator")
     email = db.Column(db.String(255), unique=True)
-    password_hash = db.Column(db.String(255))
-    public_name = db.Column(db.String(120))
-    approved = db.Column(db.Boolean, default=False)
 
 
 class Batch(db.Model):
@@ -120,25 +111,30 @@ class Batch(db.Model):
     title = db.Column(db.String(150))
     location = db.Column(db.String(120))
     recorded_date = db.Column(db.Date)
-    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    created_at = db.Column(
+        db.DateTime,
+        default=datetime.utcnow
+    )
 
 
 class Video(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     batch_id = db.Column(db.Integer)
     creator_id = db.Column(db.Integer)
+
     filename = db.Column(db.String(255))
+
     file_path = db.Column(db.String(255))
     thumb_path = db.Column(db.String(255))
+
     location = db.Column(db.String(120))
     recorded_date = db.Column(db.Date)
     recorded_time = db.Column(db.Time)
-    price = db.Column(db.Float, default=40.0)
 
 
-# ==============================
+########################################
 # HELPERS
-# ==============================
+########################################
 
 def get_current_user():
     uid = session.get("user_id")
@@ -147,13 +143,44 @@ def get_current_user():
     return db.session.get(User, uid)
 
 
-def save_to_r2(src_path: Path, object_key: str):
+########################################
+# MEDIA URL FILTER
+########################################
+
+def media_url(path):
+
+    if not path:
+        return ""
+
+    if path.startswith("http"):
+        return path
+
+    parts = path.split("/", 1)
+
+    if len(parts) != 2:
+        return ""
+
+    return url_for(
+        "uploaded_file",
+        category=parts[0],
+        filename=parts[1]
+    )
+
+
+app.jinja_env.filters["media_url"] = media_url
+
+
+########################################
+# R2 SAVE
+########################################
+
+def save_to_r2(local_path, object_key):
 
     if not r2_client:
         return object_key
 
     r2_client.upload_file(
-        str(src_path),
+        str(local_path),
         R2_BUCKET,
         object_key
     )
@@ -164,19 +191,19 @@ def save_to_r2(src_path: Path, object_key: str):
     return object_key
 
 
-# ==============================
+########################################
 # THUMBNAIL GENERATOR
-# ==============================
+########################################
 
-def ffprobe_duration(path: Path):
+def get_video_duration(path):
 
     try:
-
         result = subprocess.run(
             [
                 "ffprobe",
                 "-v", "error",
-                "-show_entries", "format=duration",
+                "-show_entries",
+                "format=duration",
                 "-of", "json",
                 str(path)
             ],
@@ -190,36 +217,32 @@ def ffprobe_duration(path: Path):
         return float(data["format"]["duration"])
 
     except:
+        return 6.0
 
-        return 8.0
 
+def build_thumbnail(video_path):
 
-def build_thumbnail(video_path: Path):
-
-    stem = video_path.stem + "_" + uuid.uuid4().hex[:8]
+    stem = video_path.stem + "_" + uuid.uuid4().hex[:6]
 
     thumb_file = THUMB_DIR / f"{stem}.jpg"
 
-    dur = ffprobe_duration(video_path)
+    duration = get_video_duration(video_path)
 
-    thumb_time = min(
-        max(1.0, dur / 2),
-        dur - 0.5
+    capture_time = max(
+        1,
+        min(duration / 2, duration - 0.5)
     )
 
-    subprocess.run(
-        [
-            "ffmpeg",
-            "-y",
-            "-i", str(video_path),
-            "-ss", str(thumb_time),
-            "-frames:v", "1",
-            "-vf", "scale=640:-2",
-            "-q:v", "3",
-            str(thumb_file)
-        ],
-        capture_output=True
-    )
+    subprocess.run([
+        "ffmpeg",
+        "-y",
+        "-i", str(video_path),
+        "-ss", str(capture_time),
+        "-frames:v", "1",
+        "-vf", "scale=640:-2",
+        "-q:v", "3",
+        str(thumb_file)
+    ])
 
     if thumb_file.exists():
         return thumb_file
@@ -227,9 +250,9 @@ def build_thumbnail(video_path: Path):
     return None
 
 
-# ==============================
-# MEDIA ROUTE
-# ==============================
+########################################
+# STATIC MEDIA ROUTE
+########################################
 
 @app.route("/uploads/<category>/<path:filename>")
 def uploaded_file(category, filename):
@@ -246,18 +269,18 @@ def uploaded_file(category, filename):
     return send_from_directory(directory, filename)
 
 
-# ==============================
-# HEALTH CHECK (Railway debug)
-# ==============================
+########################################
+# HEALTH CHECK
+########################################
 
 @app.route("/healthz")
 def healthz():
     return "ok", 200
 
 
-# ==============================
+########################################
 # HOME
-# ==============================
+########################################
 
 @app.route("/")
 def index():
@@ -272,9 +295,9 @@ def index():
     )
 
 
-# ==============================
-# CREATE BATCH
-# ==============================
+########################################
+# CREATOR UPLOAD
+########################################
 
 @app.route("/creator/upload", methods=["POST"])
 def creator_upload():
@@ -286,15 +309,13 @@ def creator_upload():
 
     title = request.form.get("title")
 
-    existing = Batch.query.filter_by(
+    existing_batch = Batch.query.filter_by(
         creator_id=user.id,
         title=title
     ).first()
 
-    if existing:
-
-        flash("Batch already exists")
-
+    if existing_batch:
+        flash("Batch name already exists")
         return redirect("/dashboard")
 
     batch = Batch(
@@ -321,19 +342,48 @@ def creator_upload():
 
         filename = secure_filename(file.filename)
 
-        temp_path = VIDEO_DIR / filename
+        local_video_path = VIDEO_DIR / filename
 
-        file.save(temp_path)
+        file.save(local_video_path)
 
-        thumb = build_thumbnail(temp_path)
+        video_key = f"videos/{filename}"
+
+        if r2_client:
+            video_path = save_to_r2(
+                local_video_path,
+                video_key
+            )
+            local_video_path.unlink()
+        else:
+            video_path = video_key
+
+        thumb_local = build_thumbnail(local_video_path)
+
+        thumb_path = None
+
+        if thumb_local:
+
+            thumb_key = f"thumbs/{thumb_local.name}"
+
+            if r2_client:
+
+                thumb_path = save_to_r2(
+                    thumb_local,
+                    thumb_key
+                )
+
+                thumb_local.unlink()
+
+            else:
+
+                thumb_path = thumb_key
 
         video = Video(
             batch_id=batch.id,
             creator_id=user.id,
             filename=filename,
-            file_path=f"videos/{filename}",
-            thumb_path=f"thumbs/{thumb.name}"
-            if thumb else None,
+            file_path=video_path,
+            thumb_path=thumb_path,
             location=batch.location,
             recorded_date=batch.recorded_date,
             recorded_time=datetime.now().time()
@@ -355,6 +405,6 @@ def creator_upload():
 
     db.session.commit()
 
-    flash("Batch uploaded")
+    flash("Batch uploaded successfully")
 
     return redirect("/dashboard")
