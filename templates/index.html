@@ -14,7 +14,6 @@
     <datalist id="locations">{% for loc in creator_locations %}<option value="{{ loc }}">{% endfor %}</datalist>
   </div>
 </section>
-<section class="card creator-cta" style="margin-bottom:20px;"><h3>Are you a boat video creator?</h3><p>Apply here to publish and sell your videos on BoatSpotMedia. Subscriptions help cover storage, previews, traffic and platform costs.</p><a class="btn" href="{{ url_for('creator_access') }}">Request creator access</a></section>
 <section class="home-ad card"><div><h3>{{ t('space_available') }}</h3><p>{{ t('featured_ad_sub') }}</p></div><a class="btn secondary" href="mailto:support@boatspotmedia.com?subject=Home%20Ad%20Request&body=Please%20send%20me%20the%20home%20ad%20application%20link:%20{{ request.url_root.rstrip('/') }}{{ url_for('ad_home_apply') }}">Contact us</a></section>
 <section>
   <div class="section-title"><h2>{{ t('latest_uploads') }}</h2></div>
@@ -23,17 +22,21 @@
       <div class="video-card">
         <a href="{{ url_for('video_detail', video_id=v.id) }}" class="thumb-link">
           <div class="thumb-wrap">
-            {% if v.thumb_path %}
+            {% if v.preview_path %}
+              <video data-preview autoplay muted loop playsinline preload="metadata" poster="{{ v.thumb_path|media_url if v.thumb_path else '' }}" src="{{ v.preview_path|media_url }}"></video>
+            {% elif v.thumb_path %}
               <img src="{{ v.thumb_path|media_url }}" alt="preview">
-            {% elif v.preview_path %}
-              <video muted loop playsinline preload="metadata" poster="{{ v.thumb_path|media_url if v.thumb_path else '' }}" src="{{ v.preview_path|media_url }}"></video>
             {% else %}
               <div class="pad">No preview</div>
             {% endif %}
             <div class="wm">{{ creator_names.get(v.id,'Boat creator') }}</div>
           </div>
         </a>
-        <div class="video-meta"><div class="meta"><span>{{ v.location }}</span><span>{{ v.recorded_time.strftime('%I:%M %p') }}</span></div><h3><a href="{{ url_for('video_detail', video_id=v.id) }}">{{ v.location }} · {{ v.recorded_time.strftime('%I:%M %p') }}</a></h3><div class="meta"><span>{{ v.recorded_date.strftime('%m/%d/%Y') }}</span><span class="price">${{ '%.2f'|format(v.price) }}</span></div></div>
+        <div class="video-meta">
+          <div class="meta"><span>{{ v.location }}</span><span>{{ v.recorded_time.strftime('%I:%M %p') }}</span></div>
+          <h3><a href="{{ url_for('video_detail', video_id=v.id) }}">{{ v.location }} · {{ v.recorded_time.strftime('%I:%M %p') }}</a></h3>
+          <div class="meta"><span>{{ v.recorded_date.strftime('%m/%d/%Y') }}</span><span class="price">${{ '%.2f'|format(v.price) }}</span></div>
+        </div>
       </div>
     {% endfor %}
   </div>

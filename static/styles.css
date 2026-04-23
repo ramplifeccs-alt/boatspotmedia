@@ -19,11 +19,3 @@
 .panel-section[hidden]{display:none!important}
 
 .video-detail-layout{display:grid;grid-template-columns:minmax(0,2fr) minmax(280px,420px);gap:24px;align-items:start}.video-main,.video-side{width:100%}@media (max-width:900px){.video-detail-layout{grid-template-columns:1fr}}
-
-.stack-list{display:grid;gap:12px;margin-top:14px}
-.list-card{border:1px solid rgba(255,255,255,.08);border-radius:14px;background:rgba(255,255,255,.02)}
-.list-card summary{cursor:pointer;display:flex;justify-content:space-between;gap:12px;padding:14px 16px;list-style:none}
-.list-card summary::-webkit-details-marker{display:none}
-.video-checklist{display:grid;gap:10px}
-.check-item{display:flex;gap:10px;align-items:flex-start;padding:8px 0}
-.creator-cta{display:flex;justify-content:space-between;align-items:center;gap:18px;flex-wrap:wrap}

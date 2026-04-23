@@ -184,7 +184,6 @@ class CreatorApplication(db.Model):
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
 
 class Batch(db.Model):
-    __table_args__ = (db.UniqueConstraint('creator_id', 'title', name='uq_batch_creator_title'),)
     id = db.Column(db.Integer, primary_key=True)
     creator_id = db.Column(db.Integer, db.ForeignKey("user.id"), nullable=False)
     title = db.Column(db.String(150), nullable=False)
@@ -457,114 +456,80 @@ def ffprobe_duration(path: Path):
         print("FFPROBE ERROR:", e)
         return 16.0
 
-
-
-def ffprobe_created_datetime(path: Path):
-    """
-    Try to read the real creation_time metadata from the file.
-    Returns (date_obj, time_obj) or (None, None).
-    """
-    try:
-        result = subprocess.run(
-            [
-                "ffprobe", "-v", "error",
-                "-show_entries", "format_tags=creation_time:stream_tags=creation_time",
-                "-of", "json",
-                str(path)
-            ],
-            capture_output=True,
-            text=True,
-            check=True,
-        )
-        data = json.loads(result.stdout or "{}")
-
-        creation_time = None
-        fmt_tags = data.get("format", {}).get("tags", {}) or {}
-        if fmt_tags.get("creation_time"):
-            creation_time = fmt_tags.get("creation_time")
-
-        if not creation_time:
-            for stream in data.get("streams", []) or []:
-                tags = stream.get("tags", {}) or {}
-                if tags.get("creation_time"):
-                    creation_time = tags.get("creation_time")
-                    break
-
-        if not creation_time:
-            return None, None
-
-        creation_time = creation_time.replace("Z", "+00:00")
-        dt = datetime.fromisoformat(creation_time)
-        return dt.date(), dt.time().replace(microsecond=0)
-    except Exception as e:
-        print("FFPROBE CREATION_TIME ERROR:", e)
-        return None, None
-
 def build_preview_assets(video_path: Path, creator_display: str, logo_path: Path | str | None = None):
     stem = video_path.stem + "_" + uuid.uuid4().hex[:8]
     thumb_file = THUMB_DIR / f"{stem}.jpg"
     preview_file = PREVIEW_DIR / f"{stem}.mp4"
+
     dur = ffprobe_duration(video_path)
-    start = max(0.0, dur / 2 - 4.0)
-    middle = max(1.0, dur / 2)
+    start = max(0.5, min(dur / 2, max(0.5, dur - 9)))
+    thumb_time = max(0.5, min(start + 1.0, max(0.5, dur - 0.5)))
 
-    tmp_logo = None
-    logo_input = None
-    import subprocess
-from pathlib import Path
+    # Remote logo URLs are currently unreliable; fall back to text watermark.
+    safe_text = (creator_display or "BoatSpot Creator").replace(":", "-").replace("'", " ")
+    text_overlay = (
+        f"drawtext=text='{safe_text} | BoatSpotMedia.com':"
+        f"x=(w-text_w)/2:y=h-text_h-20:"
+        f"fontcolor=white@0.55:fontsize=24:"
+        f"box=1:boxcolor=black@0.25:boxborderw=8"
+    )
 
-def build_preview_assets(video_path, creator_name=None, logo_path=None):
     try:
-        base = Path(video_path).stem
-
-        thumb_file = Path(f"/tmp/{base}_thumb.jpg")
-        preview_file = Path(f"/tmp/{base}_preview.mp4")
-
-        # 1️⃣ convertir HEVC → H264 temporal
-        temp_h264 = Path(f"/tmp/{base}_temp.mp4")
-
-        convert_cmd = [
-            "ffmpeg",
-            "-y",
-            "-i", str(video_path),
-            "-c:v", "libx264",
-            "-preset", "veryfast",
-            "-crf", "28",
-            str(temp_h264)
-        ]
-
-        subprocess.run(convert_cmd, check=True)
-
-        # 2️⃣ generar thumbnail
         thumb_cmd = [
-            "ffmpeg",
-            "-y",
-            "-i", str(temp_h264),
-            "-ss", "00:00:01",
-            "-vframes", "1",
-            str(thumb_file)
+            "ffmpeg", "-y",
+            "-ss", str(thumb_time),
+            "-i", str(video_path),
+            "-frames:v", "1",
+            "-vf", "scale=640:-2",
+            "-q:v", "3",
+            str(thumb_file),
         ]
+        thumb_run = subprocess.run(thumb_cmd, capture_output=True, text=True)
+        if thumb_run.returncode != 0:
+            print("THUMB FFMPEG ERROR:", thumb_run.stderr)
 
-        subprocess.run(thumb_cmd, check=True)
-
-        # 3️⃣ generar preview 8 segundos
         preview_cmd = [
-            "ffmpeg",
-            "-y",
-            "-i", str(temp_h264),
+            "ffmpeg", "-y",
+            "-ss", str(start),
+            "-i", str(video_path),
             "-t", "8",
-            "-vf", "scale=960:-1",
+            "-vf", f"scale=960:-2,{text_overlay}",
             "-an",
-            str(preview_file)
+            "-c:v", "libx264",
+            "-preset", "ultrafast",
+            "-crf", "32",
+            "-pix_fmt", "yuv420p",
+            "-movflags", "+faststart",
+            str(preview_file),
         ]
-
-        subprocess.run(preview_cmd, check=True)
-
-        return thumb_file, preview_file
-
+        preview_run = subprocess.run(preview_cmd, capture_output=True, text=True)
+        if preview_run.returncode != 0:
+            print("PREVIEW FFMPEG ERROR:", preview_run.stderr)
+            preview_cmd = [
+                "ffmpeg", "-y",
+                "-ss", str(start),
+                "-i", str(video_path),
+                "-t", "8",
+                "-vf", "scale=960:-2",
+                "-an",
+                "-c:v", "libx264",
+                "-preset", "ultrafast",
+                "-crf", "32",
+                "-pix_fmt", "yuv420p",
+                "-movflags", "+faststart",
+                str(preview_file),
+            ]
+            preview_run = subprocess.run(preview_cmd, capture_output=True, text=True)
+            if preview_run.returncode != 0:
+                print("PREVIEW FFMPEG FALLBACK ERROR:", preview_run.stderr)
     except Exception as e:
         print("FFMPEG PROCESS ERROR:", e)
-        return None, None
+
+    thumb_result = thumb_file if thumb_file.exists() and thumb_file.stat().st_size > 0 else None
+    preview_result = preview_file if preview_file.exists() and preview_file.stat().st_size > 0 else None
+    print("THUMB GENERATED:", thumb_result)
+    print("PREVIEW GENERATED:", preview_result)
+    return thumb_result, preview_result
 
 def creator_rating(creator_id):
     reviews = Review.query.filter_by(creator_id=creator_id).all()
@@ -640,36 +605,14 @@ def uploaded_file(category, filename):
 
 @app.route('/')
 def index():
-    recent_videos = Video.query.order_by(Video.created_at.desc(), Video.id.desc()).limit(50).all()
-    by_creator = {}
-    for v in recent_videos:
-        by_creator.setdefault(v.creator_id, []).append(v)
-    creator_ids = list(by_creator.keys())
-    latest_videos = []
-    if len(creator_ids) <= 1:
-        latest_videos = recent_videos[:5]
-    elif len(creator_ids) == 2:
-        counts = [3, 2]
-        for idx, creator_id in enumerate(creator_ids[:2]):
-            latest_videos.extend(by_creator[creator_id][:counts[idx]])
-    elif len(creator_ids) == 3:
-        counts = [2, 2, 1]
-        for idx, creator_id in enumerate(creator_ids[:3]):
-            latest_videos.extend(by_creator[creator_id][:counts[idx]])
-    elif len(creator_ids) == 4:
-        counts = [2, 1, 1, 1]
-        for idx, creator_id in enumerate(creator_ids[:4]):
-            latest_videos.extend(by_creator[creator_id][:counts[idx]])
-    else:
-        for creator_id in creator_ids[:5]:
-            latest_videos.extend(by_creator[creator_id][:1])
+    latest_videos = Video.query.order_by(Video.recorded_date.desc(), Video.recorded_time.desc()).limit(12).all()
     creator_names = {}
     for v in latest_videos:
         creator = db.session.get(User, v.creator_id)
         creator_names[v.id] = creator.public_name if creator and creator.public_name else (creator.email.split('@')[0] if creator else 'Boat creator')
     all_services = ServiceListing.query.filter_by(status='active').all()
     latest_services = random.sample(all_services, min(3, len(all_services))) if all_services else []
-    featured_ad = {'title': t('space_available'), 'subtitle': t('featured_ad_sub')}
+    featured_ad = {"title": t('space_available'), "subtitle": t('featured_ad_sub')}
     return render_template('index.html', latest_videos=latest_videos, latest_services=latest_services, featured_ad=featured_ad, creator_names=creator_names)
 
 @app.route('/search')
@@ -893,68 +836,16 @@ def checkout():
 def creator_dashboard():
     user = get_current_user()
     batches = Batch.query.filter_by(creator_id=user.id).order_by(Batch.created_at.desc()).all()
-    batch_video_map = {b.id: Video.query.filter_by(batch_id=b.id, creator_id=user.id).order_by(Video.recorded_date.desc(), Video.recorded_time.desc()).all() for b in batches}
     videos = Video.query.filter_by(creator_id=user.id).order_by(Video.recorded_date.desc(), Video.recorded_time.desc()).all()
     products = Product.query.filter_by(creator_id=user.id).order_by(Product.created_at.desc()).all()
     packages = Package.query.filter_by(creator_id=user.id).order_by(Package.created_at.desc()).all()
-
-    today = datetime.utcnow().date()
-    filter_from = request.args.get('from_date') or today.replace(day=1).isoformat()
-    filter_to = request.args.get('to_date') or today.isoformat()
-    start_dt = datetime.strptime(filter_from, '%Y-%m-%d') if filter_from else None
-    end_dt = datetime.strptime(filter_to, '%Y-%m-%d') + timedelta(days=1) if filter_to else None
-
-    order_items_q = (db.session.query(OrderItem, Order, User)
-        .join(Order, OrderItem.order_id == Order.id)
-        .join(Video, db.and_(OrderItem.item_id == Video.id, OrderItem.item_type == 'video'))
-        .join(User, User.id == Order.buyer_id)
-        .filter(Video.creator_id == user.id))
-    if start_dt:
-        order_items_q = order_items_q.filter(Order.created_at >= start_dt)
-    if end_dt:
-        order_items_q = order_items_q.filter(Order.created_at < end_dt)
-    order_items = order_items_q.order_by(Order.created_at.desc()).all()
-
+    order_items = db.session.query(OrderItem, Order).join(Order, OrderItem.order_id == Order.id).join(Video, db.and_(OrderItem.item_id == Video.id, OrderItem.item_type == 'video')).filter(Video.creator_id == user.id).order_by(Order.created_at.desc()).all()
     order_rows = []
-    for item, order, buyer in order_items:
+    for item, order in order_items:
         video = db.session.get(Video, item.item_id)
-        order_rows.append((item, order, video, buyer.email if buyer else ''))
-
+        order_rows.append((item, order, video))
     rating, review_count = creator_rating(user.id)
-    return render_template('creator_dashboard.html', user=user, batches=batches, batch_video_map=batch_video_map, videos=videos, products=products, packages=packages, order_rows=order_rows, rating=rating, review_count=review_count, filter_from=filter_from, filter_to=filter_to)
-
-@app.route('/check-batch-name')
-@login_required('creator')
-def check_batch_name():
-    user = get_current_user()
-    title = (request.args.get('title') or '').strip()
-    exists = Batch.query.filter_by(creator_id=user.id, title=title).first() is not None if title else False
-    return {'exists': exists}
-
-@app.route('/creator/batch/<int:batch_id>/delete-videos', methods=['POST'])
-@login_required('creator')
-def delete_batch_videos(batch_id):
-    user = get_current_user()
-    batch = db.session.get(Batch, batch_id)
-    if not batch or batch.creator_id != user.id:
-        flash('Batch not found.')
-        return redirect(url_for('creator_dashboard'))
-    ids = [int(v) for v in request.form.getlist('video_ids') if str(v).isdigit()]
-    if not ids:
-        flash('Select at least one video.')
-        return redirect(url_for('creator_dashboard'))
-    active_download = OrderItem.query.filter(OrderItem.item_type == 'video', OrderItem.item_id.in_(ids), OrderItem.download_available == True, OrderItem.download_expires_at != None, OrderItem.download_expires_at > datetime.utcnow()).first()
-    if active_download:
-        flash('One or more selected videos still have an active buyer download window.')
-        return redirect(url_for('creator_dashboard'))
-    videos = Video.query.filter(Video.creator_id == user.id, Video.batch_id == batch.id, Video.id.in_(ids)).all()
-    for video in videos:
-        CartItem.query.filter_by(item_type='video', item_id=video.id).delete(synchronize_session=False)
-        delete_video_assets(video)
-        db.session.delete(video)
-    db.session.commit()
-    flash(f'{len(videos)} videos deleted.')
-    return redirect(url_for('creator_dashboard'))
+    return render_template('creator_dashboard.html', user=user, batches=batches, videos=videos, products=products, packages=packages, order_rows=order_rows, rating=rating, review_count=review_count)
 
 @app.route('/creator/upload', methods=['POST'])
 @login_required('creator')
@@ -964,6 +855,7 @@ def creator_upload():
     location = request.form.get('location', '').strip().title()
     files = request.files.getlist('files')
     valid_files = [f for f in files if f and f.filename]
+
     if not location:
         flash('Missing location.')
         return redirect(url_for('creator_dashboard'))
@@ -972,9 +864,16 @@ def creator_upload():
         return redirect(url_for('creator_dashboard'))
     if not title:
         title = f"{location} Batch {datetime.utcnow().strftime('%m/%d/%Y %H:%M')}"
-    if Batch.query.filter_by(creator_id=user.id, title=title).first():
+
+    existing_batch = Batch.query.filter_by(creator_id=user.id, title=title).first()
+    if existing_batch:
         flash('Batch name already exists. Please choose another name.')
         return redirect(url_for('creator_dashboard'))
+
+    batch_date = date.today()
+    batch = Batch(creator_id=user.id, title=title, location=location, recorded_date=batch_date)
+    db.session.add(batch)
+    db.session.flush()
 
     logo_path = user.logo_path or None
     creator_name = user.public_name or user.email.split('@')[0]
@@ -982,13 +881,9 @@ def creator_upload():
     default_price = first_package.price if first_package else 40.0
     delivery_type = first_package.delivery_type if first_package else 'instant'
 
-    batch_date = date.today()
-    batch = Batch(creator_id=user.id, title=title, location=location, recorded_date=batch_date)
-    db.session.add(batch)
-    db.session.flush()
-
     cursor_time = datetime.strptime('12:00 PM', '%I:%M %p').time()
     count = 0
+    errors = []
 
     for f in valid_files:
         orig = secure_filename(f.filename)
@@ -996,10 +891,16 @@ def creator_upload():
         local_path = VIDEO_DIR / unique
         thumb_file = None
         preview_file = None
+
         try:
             f.save(local_path)
-            file_date, file_time = ffprobe_created_datetime(local_path)
+
+            created_dt = ffprobe_created_datetime(local_path)
+            video_date = created_dt.date() if created_dt else batch_date
+            video_time = created_dt.time().replace(microsecond=0) if created_dt else cursor_time
+
             thumb_file, preview_file = build_preview_assets(local_path, creator_name, logo_path)
+
             file_path = f"videos/{unique}"
             thumb_path = f"thumbs/{thumb_file.name}" if thumb_file else ''
             preview_path = f"previews/{preview_file.name}" if preview_file else ''
@@ -1014,12 +915,25 @@ def creator_upload():
                 except Exception as e:
                     print('R2 UPLOAD ERROR:', e)
 
-            vid = Video(batch_id=batch.id, creator_id=user.id, filename=orig, file_path=file_path, thumb_path=thumb_path, preview_path=preview_path, location=location, recorded_date=file_date or batch_date, recorded_time=file_time or cursor_time, price=default_price, delivery_type=delivery_type)
+            vid = Video(
+                batch_id=batch.id,
+                creator_id=user.id,
+                filename=orig,
+                file_path=file_path,
+                thumb_path=thumb_path,
+                preview_path=preview_path,
+                location=location,
+                recorded_date=video_date,
+                recorded_time=video_time,
+                price=default_price,
+                delivery_type=delivery_type,
+            )
             db.session.add(vid)
             count += 1
             cursor_time = (datetime.combine(date.today(), cursor_time) + timedelta(minutes=3)).time()
         except Exception as e:
             print('UPLOAD ERROR:', e)
+            errors.append(orig)
         finally:
             for temp_file in [local_path, thumb_file, preview_file]:
                 try:
@@ -1029,17 +943,18 @@ def creator_upload():
                     print('TEMP DELETE ERROR:', e)
 
     if count == 0:
-        try:
-            db.session.delete(batch)
-            db.session.commit()
-        except Exception:
-            db.session.rollback()
-        flash("No videos were saved. Check ffmpeg / preview generation logs and try again.")
+        db.session.delete(batch)
+        db.session.commit()
+        flash('No videos were saved. Please try again with a different file or name.')
         return redirect(url_for('creator_dashboard'))
 
     db.session.commit()
-    flash(f"Batch saved with {count} videos.")
+    if errors:
+        flash(f"Batch saved with {count} videos. Failed: {', '.join(errors[:5])}")
+    else:
+        flash(f"Batch saved with {count} videos.")
     return redirect(url_for('creator_dashboard'))
+
 
 @app.route('/creator/batch/<int:batch_id>/delete', methods=['POST'])
 @login_required('creator')
@@ -1140,56 +1055,6 @@ def create_product():
     p = Product(creator_id=user.id, title=request.form['title'].strip(), price=float(request.form['price']), description=request.form.get('description', '').strip())
     db.session.add(p)
     db.session.commit()
-    return redirect(url_for('creator_dashboard'))
-
-@app.route('/creator/package/<int:package_id>/update', methods=['POST'])
-@login_required('creator')
-def update_package(package_id):
-    user = get_current_user()
-    p = db.session.get(Package, package_id)
-    if p and p.creator_id == user.id:
-        p.title = request.form.get('title', p.title).strip()
-        p.description = request.form.get('description', p.description or '').strip()
-        p.price = float(request.form.get('price', p.price) or p.price)
-        p.delivery_type = request.form.get('delivery_type', p.delivery_type)
-        p.turnaround_hours = int(request.form.get('turnaround_hours', p.turnaround_hours) or p.turnaround_hours)
-        db.session.commit()
-        flash('Package updated.')
-    return redirect(url_for('creator_dashboard'))
-
-@app.route('/creator/package/<int:package_id>/delete', methods=['POST'])
-@login_required('creator')
-def delete_package(package_id):
-    user = get_current_user()
-    p = db.session.get(Package, package_id)
-    if p and p.creator_id == user.id:
-        db.session.delete(p)
-        db.session.commit()
-        flash('Package deleted.')
-    return redirect(url_for('creator_dashboard'))
-
-@app.route('/creator/product/<int:product_id>/update', methods=['POST'])
-@login_required('creator')
-def update_product(product_id):
-    user = get_current_user()
-    p = db.session.get(Product, product_id)
-    if p and p.creator_id == user.id:
-        p.title = request.form.get('title', p.title).strip()
-        p.description = request.form.get('description', p.description or '').strip()
-        p.price = float(request.form.get('price', p.price) or p.price)
-        db.session.commit()
-        flash('Product updated.')
-    return redirect(url_for('creator_dashboard'))
-
-@app.route('/creator/product/<int:product_id>/delete', methods=['POST'])
-@login_required('creator')
-def delete_product(product_id):
-    user = get_current_user()
-    p = db.session.get(Product, product_id)
-    if p and p.creator_id == user.id:
-        db.session.delete(p)
-        db.session.commit()
-        flash('Product deleted.')
     return redirect(url_for('creator_dashboard'))
 
 @app.route('/creator/order-item/<int:item_id>/deliver', methods=['POST'])

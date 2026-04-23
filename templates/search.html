@@ -5,10 +5,10 @@
   {% for v in results %}
     <div class="video-card">
       <div class="thumb-wrap">
-        {% if v.thumb_path %}
+        {% if v.preview_path %}
+          <video data-preview autoplay muted loop playsinline preload="metadata" poster="{{ v.thumb_path|media_url if v.thumb_path else '' }}" src="{{ v.preview_path|media_url }}"></video>
+        {% elif v.thumb_path %}
           <img src="{{ v.thumb_path|media_url }}" alt="preview">
-        {% elif v.preview_path %}
-          <video muted loop playsinline preload="metadata" poster="{{ v.thumb_path|media_url if v.thumb_path else '' }}" src="{{ v.preview_path|media_url }}"></video>
         {% else %}
           <div class="pad">No preview</div>
         {% endif %}
@@ -16,6 +16,8 @@
       </div>
       <div class="video-meta"><div class="meta"><span>{{ v.location }}</span><span>{{ v.recorded_time.strftime('%I:%M %p') }}</span></div><h3><a href="{{ url_for('video_detail', video_id=v.id) }}">{{ v.location }} · {{ v.recorded_time.strftime('%I:%M %p') }}</a></h3><div class="meta"><span>{{ v.recorded_date.strftime('%m/%d/%Y') }}</span><span class="price">${{ '%.2f'|format(v.price) }}</span></div></div>
     </div>
-  {% else %}<div class="empty">No videos found for that exact range.</div>{% endfor %}
+  {% else %}
+    <div class="empty">No videos found for that exact range.</div>
+  {% endfor %}
 </div>
 {% endblock %}

@@ -1,3 +1,4 @@
+
 function initPanels(){
   document.querySelectorAll('.panel-menu').forEach(menu=>{
     const links=[...menu.querySelectorAll('[data-target]')];
@@ -11,9 +12,12 @@ function initPanels(){
         sec.style.display=active?'block':'none';
         sec.classList.toggle('active',active);
       });
-      links.forEach(link=>link.classList.toggle('active', link.dataset.target===name));
+      links.forEach(link=>{
+        const active = link.dataset.target===name;
+        link.classList.toggle('active',active);
+      });
     };
-    let initial=(new URLSearchParams(window.location.search).get('section') || (window.location.hash||'').replace('#',''));
+    let initial=(window.location.hash||'').replace('#','');
     if(!links.some(l=>l.dataset.target===initial)){ initial=links[0].dataset.target; }
     show(initial);
     links.forEach(link=>link.addEventListener('click',e=>{e.preventDefault(); const name=link.dataset.target; show(name); try{window.location.hash=name;}catch(_){};}));
@@ -29,21 +33,9 @@ function initUploadProgress(){
   const uploadForm=document.getElementById('creatorUploadForm');
   const progress=document.getElementById('uploadProgress');
   const status=document.getElementById('uploadStatus');
-  const titleInput=document.getElementById('batch_title');
   if(!uploadForm || !progress || !status) return;
-  uploadForm.addEventListener('submit', async (e)=>{
+  uploadForm.addEventListener('submit', (e)=>{
     e.preventDefault();
-    const title=(titleInput?.value||'').trim();
-    if(title){
-      try{
-        const res = await fetch(`/check-batch-name?title=${encodeURIComponent(title)}`);
-        const data = await res.json();
-        if(data.exists){
-          status.textContent='Batch name already exists. Please choose another name.';
-          return;
-        }
-      }catch(err){}
-    }
     const formData = new FormData(uploadForm);
     const xhr = new XMLHttpRequest();
     progress.style.display='block';
@@ -56,16 +48,11 @@ function initUploadProgress(){
         status.textContent=`Uploading... ${percent}%`;
       }
     });
-    xhr.upload.addEventListener('loadend', ()=>{
-      if(progress.value >= 100 || progress.value > 50){
-        status.textContent='Upload finished. Processing preview and thumbnail...';
-      }
-    });
     xhr.addEventListener('load', ()=>{
       if(xhr.status>=200 && xhr.status<400){
         progress.value=100;
-        status.textContent='Done. Reloading...';
-        window.location.href='/creator?section=batches';
+        status.textContent='Processing preview and thumbnail...';
+        window.location.reload();
       } else {
         status.textContent='Upload failed.';
       }
