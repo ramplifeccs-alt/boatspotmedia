@@ -14,6 +14,7 @@
     <datalist id="locations">{% for loc in creator_locations %}<option value="{{ loc }}">{% endfor %}</datalist>
   </div>
 </section>
+<section class="card creator-cta" style="margin-bottom:20px;"><h3>Are you a boat video creator?</h3><p>Apply here to publish and sell your videos on BoatSpotMedia. Subscriptions help cover storage, previews, traffic and platform costs.</p><a class="btn" href="{{ url_for('creator_access') }}">Request creator access</a></section>
 <section class="home-ad card"><div><h3>{{ t('space_available') }}</h3><p>{{ t('featured_ad_sub') }}</p></div><a class="btn secondary" href="mailto:support@boatspotmedia.com?subject=Home%20Ad%20Request&body=Please%20send%20me%20the%20home%20ad%20application%20link:%20{{ request.url_root.rstrip('/') }}{{ url_for('ad_home_apply') }}">Contact us</a></section>
 <section>
   <div class="section-title"><h2>{{ t('latest_uploads') }}</h2></div>
