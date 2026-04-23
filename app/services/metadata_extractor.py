@@ -1,5 +1,14 @@
 
-# Placeholder metadata extraction service
+import subprocess
 
-def extract_video_datetime(file):
-    return "2026-01-01 12:00:00"
+def extract_creation_datetime(video_path):
+    try:
+        result = subprocess.run(
+            ["ffprobe", "-v", "quiet", "-print_format", "json",
+             "-show_entries", "format_tags=creation_time", video_path],
+            capture_output=True,
+            text=True
+        )
+        return result.stdout
+    except Exception:
+        return None

@@ -4,9 +4,9 @@ from flask import Blueprint
 creator_bp = Blueprint("creator", __name__)
 
 @creator_bp.route("/login")
-def login():
-    return "Creator hidden login ready"
+def creator_login():
+    return "Creator login hidden route"
 
 @creator_bp.route("/dashboard")
-def dashboard():
-    return "Creator dashboard ready"
+def creator_dashboard():
+    return "Creator dashboard active"
