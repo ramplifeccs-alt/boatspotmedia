@@ -5,9 +5,7 @@
   {% for v in results %}
     <div class="video-card">
       <div class="thumb-wrap">
-        {% if v.preview_path %}
-          <video data-preview autoplay muted loop playsinline preload="metadata" poster="{{ v.thumb_path|media_url if v.thumb_path else '' }}" src="{{ v.preview_path|media_url }}"></video>
-        {% elif v.thumb_path %}
+        {% if v.thumb_path %}
           <img src="{{ v.thumb_path|media_url }}" alt="preview">
         {% else %}
           <div class="pad">No preview</div>
