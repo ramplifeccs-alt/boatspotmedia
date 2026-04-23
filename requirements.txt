@@ -1,9 +1,0 @@
-
-flask
-gunicorn
-psycopg2-binary
-boto3
-sendgrid
-stripe
-python-dotenv
-ffmpeg-python
