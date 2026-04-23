@@ -797,18 +797,129 @@ def creator_dashboard():
     rating, review_count = creator_rating(user.id)
     return render_template('creator_dashboard.html', user=user, batches=batches, videos=videos, products=products, packages=packages, order_rows=order_rows, rating=rating, review_count=review_count)
 
-@app.route('/creator/upload', methods=['POST'])
-@login_required('creator')
+@app.route("/creator/upload", methods=["POST"])
+@login_required("creator")
 def creator_upload():
     user = get_current_user()
-    title = (request.form.get('batch_title') or request.form.get('title') or '').strip()
-    location = request.form.get('location', '').strip().title()
-    files = request.files.getlist('files') or request.files.getlist('videos')
+
+    title = (request.form.get("batch_title") or request.form.get("title") or "").strip()
+    location = (request.form.get("location") or "").strip().title()
+    raw_date = request.form.get("recorded_date") or request.form.get("date") or ""
+    files = request.files.getlist("files") or request.files.getlist("videos")
     valid_files = [f for f in files if f and f.filename]
 
+    if not title:
+        flash("Batch title is required.")
+        return redirect(url_for("creator_dashboard"))
+
     if not location:
-        flash('Missing location.')
-        return redirect(url_for('creator_dashboard'))
+        flash("Missing location.")
+        return redirect(url_for("creator_dashboard"))
+
+    if not valid_files:
+        flash("No files selected.")
+        return redirect(url_for("creator_dashboard"))
+
+    existing_batch = Batch.query.filter_by(creator_id=user.id, title=title).first()
+    if existing_batch:
+        flash("Batch name already exists. Please choose another name.")
+        return redirect(url_for("creator_dashboard"))
+
+    try:
+        batch_date = parse_date(raw_date) or date.today()
+    except Exception:
+        batch_date = date.today()
+
+    batch = Batch(creator_id=user.id, title=title, location=location, recorded_date=batch_date)
+    db.session.add(batch)
+    db.session.flush()
+
+    creator_name = user.public_name or user.email.split("@")[0]
+    first_package = Package.query.filter_by(creator_id=user.id, active=True).order_by(Package.created_at.asc()).first()
+    default_price = first_package.price if first_package else 40.0
+    delivery_type = first_package.delivery_type if first_package else "instant"
+
+    uploaded = 0
+    errors = []
+
+    for f in valid_files:
+        original_name = secure_filename(f.filename)
+        unique_name = f"{uuid.uuid4().hex[:8]}_{original_name}"
+        local_video_path = VIDEO_DIR / unique_name
+        thumb_local = None
+
+        try:
+            f.save(local_video_path)
+
+            created_dt = ffprobe_created_datetime(local_video_path)
+            real_date = created_dt.date() if created_dt else batch_date
+            real_time = created_dt.time().replace(microsecond=0) if created_dt else datetime.utcnow().time().replace(microsecond=0)
+
+            thumb_local, _ = build_preview_assets(local_video_path, creator_name, None)
+
+            file_key = f"videos/{unique_name}"
+            thumb_path = ""
+
+            if r2_client and R2_BUCKET:
+                file_path = save_to_r2(local_video_path, file_key)
+            else:
+                file_path = file_key
+
+            if thumb_local and thumb_local.exists():
+                thumb_key = f"thumbs/{thumb_local.name}"
+                if r2_client and R2_BUCKET:
+                    thumb_path = save_to_r2(thumb_local, thumb_key)
+                else:
+                    thumb_path = thumb_key
+
+            print("VIDEO PATH SAVED:", file_path, flush=True)
+            print("THUMB PATH SAVED:", thumb_path, flush=True)
+
+            video = Video(
+                batch_id=batch.id,
+                creator_id=user.id,
+                filename=original_name,
+                file_path=file_path,
+                thumb_path=thumb_path,
+                preview_path="",
+                location=location,
+                recorded_date=real_date,
+                recorded_time=real_time,
+                price=default_price,
+                delivery_type=delivery_type,
+            )
+            db.session.add(video)
+            uploaded += 1
+
+        except Exception as e:
+            errors.append(f"{original_name}: {e}")
+            print("UPLOAD ERROR:", original_name, e, flush=True)
+
+        finally:
+            try:
+                if local_video_path.exists():
+                    local_video_path.unlink()
+            except Exception:
+                pass
+            try:
+                if thumb_local and thumb_local.exists():
+                    thumb_local.unlink()
+            except Exception:
+                pass
+
+    if uploaded == 0:
+        db.session.rollback()
+        flash("No videos were uploaded successfully.")
+        return redirect(url_for("creator_dashboard"))
+
+    db.session.commit()
+
+    if errors:
+        flash(f"Batch uploaded with {uploaded} videos. Some files failed: {'; '.join(errors[:2])}")
+    else:
+        flash(f"Batch uploaded successfully with {uploaded} videos.")
+
+    return redirect(url_for("creator_dashboard"))
     if not valid_files:
         flash('No files selected.')
         return redirect(url_for('creator_dashboard'))
