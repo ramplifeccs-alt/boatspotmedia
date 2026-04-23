@@ -24,8 +24,6 @@
           <div class="thumb-wrap">
             {% if v.thumb_path %}
               <img src="{{ v.thumb_path|media_url }}" alt="preview">
-            {% elif v.preview_path %}
-              <video data-preview muted loop playsinline preload="metadata" src="{{ v.preview_path|media_url }}"></video>
             {% else %}
               <div class="pad">No preview</div>
             {% endif %}
