@@ -9,7 +9,7 @@
         <div class="video-card">
           <div class="thumb-wrap">
             {% if v.thumb_path %}
-              <img src="{{ v.thumb_path|media_url }}" alt="preview">
+              <img src="{{ v.thumb_path|media_url }}?v={{ v.id }}" alt="preview">
             {% else %}
               <div class="pad">No preview</div>
             {% endif %}

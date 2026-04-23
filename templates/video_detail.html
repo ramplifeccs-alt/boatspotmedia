@@ -5,7 +5,7 @@
     <div class="card video-main">
       <div class="thumb-wrap large">
         {% if video.thumb_path %}
-          <img src="{{ video.thumb_path|media_url }}" alt="Video preview">
+          <img src="{{ video.thumb_path|media_url }}?v={{ video.id }}" alt="Video preview">
         {% else %}
           <div class="pad">No preview available</div>
         {% endif %}
