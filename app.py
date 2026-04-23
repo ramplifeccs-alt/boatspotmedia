@@ -456,23 +456,40 @@ def ffprobe_duration(path: Path):
         print("FFPROBE ERROR:", e)
         return 16.0
 
+
+def ffprobe_created_datetime(path: Path):
+    try:
+        result = subprocess.run([
+            "ffprobe", "-v", "error",
+            "-show_entries", "format_tags=creation_time:stream_tags=creation_time",
+            "-of", "json", str(path)
+        ], capture_output=True, text=True, check=True)
+        data = json.loads(result.stdout or '{}')
+        candidates = []
+        fmt_tags = data.get('format', {}).get('tags', {}) if isinstance(data.get('format'), dict) else {}
+        if fmt_tags.get('creation_time'):
+            candidates.append(fmt_tags.get('creation_time'))
+        for stream in data.get('streams', []):
+            tags = stream.get('tags', {})
+            if tags.get('creation_time'):
+                candidates.append(tags.get('creation_time'))
+        for raw in candidates:
+            try:
+                return datetime.fromisoformat(raw.replace('Z', '+00:00')).astimezone().replace(tzinfo=None)
+            except Exception:
+                continue
+    except Exception as e:
+        print('FFPROBE CREATION TIME ERROR:', e)
+    return None
+
 def build_preview_assets(video_path: Path, creator_display: str, logo_path: Path | str | None = None):
     stem = video_path.stem + "_" + uuid.uuid4().hex[:8]
     thumb_file = THUMB_DIR / f"{stem}.jpg"
     preview_file = PREVIEW_DIR / f"{stem}.mp4"
 
     dur = ffprobe_duration(video_path)
-    start = max(0.5, min(dur / 2, max(0.5, dur - 9)))
-    thumb_time = max(0.5, min(start + 1.0, max(0.5, dur - 0.5)))
-
-    # Remote logo URLs are currently unreliable; fall back to text watermark.
-    safe_text = (creator_display or "BoatSpot Creator").replace(":", "-").replace("'", " ")
-    text_overlay = (
-        f"drawtext=text='{safe_text} | BoatSpotMedia.com':"
-        f"x=(w-text_w)/2:y=h-text_h-20:"
-        f"fontcolor=white@0.55:fontsize=24:"
-        f"box=1:boxcolor=black@0.25:boxborderw=8"
-    )
+    start = max(0.25, min(dur / 2, max(0.25, dur - 8.5)))
+    thumb_time = max(0.25, min(start + 0.8, max(0.25, dur - 0.25)))
 
     try:
         thumb_cmd = [
@@ -480,7 +497,7 @@ def build_preview_assets(video_path: Path, creator_display: str, logo_path: Path
             "-ss", str(thumb_time),
             "-i", str(video_path),
             "-frames:v", "1",
-            "-vf", "scale=640:-2",
+            "-vf", "thumbnail,scale=640:-2,format=yuvj420p",
             "-q:v", "3",
             str(thumb_file),
         ]
@@ -493,35 +510,18 @@ def build_preview_assets(video_path: Path, creator_display: str, logo_path: Path
             "-ss", str(start),
             "-i", str(video_path),
             "-t", "8",
-            "-vf", f"scale=960:-2,{text_overlay}",
+            "-vf", "scale=960:-2,format=yuv420p",
             "-an",
             "-c:v", "libx264",
             "-preset", "ultrafast",
             "-crf", "32",
-            "-pix_fmt", "yuv420p",
             "-movflags", "+faststart",
+            "-pix_fmt", "yuv420p",
             str(preview_file),
         ]
         preview_run = subprocess.run(preview_cmd, capture_output=True, text=True)
         if preview_run.returncode != 0:
             print("PREVIEW FFMPEG ERROR:", preview_run.stderr)
-            preview_cmd = [
-                "ffmpeg", "-y",
-                "-ss", str(start),
-                "-i", str(video_path),
-                "-t", "8",
-                "-vf", "scale=960:-2",
-                "-an",
-                "-c:v", "libx264",
-                "-preset", "ultrafast",
-                "-crf", "32",
-                "-pix_fmt", "yuv420p",
-                "-movflags", "+faststart",
-                str(preview_file),
-            ]
-            preview_run = subprocess.run(preview_cmd, capture_output=True, text=True)
-            if preview_run.returncode != 0:
-                print("PREVIEW FFMPEG FALLBACK ERROR:", preview_run.stderr)
     except Exception as e:
         print("FFMPEG PROCESS ERROR:", e)
 
@@ -986,6 +986,48 @@ def delete_batch(batch_id):
         print('DELETE BATCH ERROR:', e)
         flash('Could not delete batch.')
     return redirect(url_for('creator_dashboard'))
+
+
+
+@app.route('/creator/batch/<int:batch_id>')
+@login_required('creator')
+def creator_batch_detail(batch_id):
+    user = get_current_user()
+    batch = db.session.get(Batch, batch_id)
+    if not batch or batch.creator_id != user.id:
+        flash('Batch not found.')
+        return redirect(url_for('creator_dashboard'))
+    videos = Video.query.filter_by(batch_id=batch.id, creator_id=user.id).order_by(Video.recorded_date.desc(), Video.recorded_time.desc()).all()
+    return render_template('creator_batch_detail.html', batch=batch, videos=videos)
+
+@app.route('/creator/batch/<int:batch_id>/delete-selected-videos', methods=['POST'])
+@login_required('creator')
+def delete_selected_videos(batch_id):
+    user = get_current_user()
+    batch = db.session.get(Batch, batch_id)
+    if not batch or batch.creator_id != user.id:
+        flash('Batch not found.')
+        return redirect(url_for('creator_dashboard'))
+    ids = request.form.getlist('video_ids')
+    if not ids:
+        flash('No videos selected.')
+        return redirect(url_for('creator_batch_detail', batch_id=batch.id))
+    videos = Video.query.filter(Video.batch_id == batch.id, Video.creator_id == user.id, Video.id.in_(ids)).all()
+    try:
+        for video in videos:
+            active_download = OrderItem.query.filter(OrderItem.item_type == 'video', OrderItem.item_id == video.id, OrderItem.download_available == True, OrderItem.download_expires_at != None, OrderItem.download_expires_at > datetime.utcnow()).first()
+            if active_download:
+                continue
+            CartItem.query.filter_by(item_type='video', item_id=video.id).delete(synchronize_session=False)
+            delete_video_assets(video)
+            db.session.delete(video)
+        db.session.commit()
+        flash('Selected videos deleted.')
+    except Exception as e:
+        db.session.rollback()
+        print('DELETE SELECTED VIDEOS ERROR:', e)
+        flash('Could not delete selected videos.')
+    return redirect(url_for('creator_batch_detail', batch_id=batch.id))
 
 @app.route('/creator/video/<int:video_id>/price', methods=['POST'])
 @login_required('creator')

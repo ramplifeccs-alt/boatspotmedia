@@ -1,0 +1,39 @@
+{% extends 'base.html' %}
+{% block content %}
+<section class="hero">
+  <h1>{{ batch.title }}</h1>
+  <p>{{ batch.location }} · {{ batch.recorded_date.strftime('%m/%d/%Y') }}</p>
+</section>
+<div class="card">
+  <form method="post" action="{{ url_for('delete_selected_videos', batch_id=batch.id) }}">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;gap:12px;flex-wrap:wrap;">
+      <a class="btn secondary" href="{{ url_for('creator_dashboard') }}#batches">Back to batches</a>
+      <button class="btn danger" type="submit" onclick="return confirm('Delete selected videos?')">Delete selected videos</button>
+    </div>
+    <table class="table">
+      <tr><th></th><th>Preview</th><th>Video</th><th>Location</th><th>Date</th><th>Time</th><th>Price</th></tr>
+      {% for v in videos %}
+      <tr>
+        <td><input type="checkbox" name="video_ids" value="{{ v.id }}"></td>
+        <td>
+          {% if v.thumb_path %}
+            <img src="{{ v.thumb_path|media_url }}" alt="thumb" style="width:72px;height:52px;object-fit:cover;border-radius:8px;">
+          {% elif v.preview_path %}
+            <video muted playsinline preload="metadata" src="{{ v.preview_path|media_url }}" style="width:72px;height:52px;object-fit:cover;border-radius:8px;"></video>
+          {% else %}
+            <span class="mini">No preview</span>
+          {% endif %}
+        </td>
+        <td>{{ v.filename }}</td>
+        <td>{{ v.location }}</td>
+        <td>{{ v.recorded_date.strftime('%m/%d/%Y') }}</td>
+        <td>{{ v.recorded_time.strftime('%I:%M %p') }}</td>
+        <td>${{ '%.2f'|format(v.price) }}</td>
+      </tr>
+      {% else %}
+      <tr><td colspan="7">No videos in this batch.</td></tr>
+      {% endfor %}
+    </table>
+  </form>
+</div>
+{% endblock %}

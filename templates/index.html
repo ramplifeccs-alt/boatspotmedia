@@ -22,10 +22,10 @@
       <div class="video-card">
         <a href="{{ url_for('video_detail', video_id=v.id) }}" class="thumb-link">
           <div class="thumb-wrap">
-            {% if v.preview_path %}
-              <video data-preview autoplay muted loop playsinline preload="metadata" poster="{{ v.thumb_path|media_url if v.thumb_path else '' }}" src="{{ v.preview_path|media_url }}"></video>
-            {% elif v.thumb_path %}
+            {% if v.thumb_path %}
               <img src="{{ v.thumb_path|media_url }}" alt="preview">
+            {% elif v.preview_path %}
+              <video data-preview muted loop playsinline preload="metadata" src="{{ v.preview_path|media_url }}"></video>
             {% else %}
               <div class="pad">No preview</div>
             {% endif %}
