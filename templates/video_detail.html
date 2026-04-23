@@ -4,7 +4,9 @@
   <main class="grid">
     <div class="card video-main">
       <div class="thumb-wrap large">
-        {% if video.thumb_path %}
+        {% if video.preview_path %}
+          <video data-preview autoplay muted loop playsinline preload="metadata" poster="{{ video.thumb_path|media_url if video.thumb_path else '' }}" src="{{ video.preview_path|media_url }}"></video>
+        {% elif video.thumb_path %}
           <img src="{{ video.thumb_path|media_url }}" alt="Video preview">
         {% else %}
           <div class="pad">No preview available</div>

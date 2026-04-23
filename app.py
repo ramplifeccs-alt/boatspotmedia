@@ -384,6 +384,22 @@ def media_url(path):
 
 app.jinja_env.filters["media_url"] = media_url
 
+@app.before_request
+def log_requests():
+    try:
+        print(f"REQUEST START: {request.method} {request.path}")
+    except Exception:
+        pass
+
+@app.after_request
+def log_response(resp):
+    try:
+        print(f"REQUEST END: {request.method} {request.path} -> {resp.status_code}")
+    except Exception:
+        pass
+    return resp
+
+
 def save_to_r2(src_path: Path, object_key: str) -> str:
     if r2_client and R2_BUCKET:
         r2_client.upload_file(str(src_path), R2_BUCKET, object_key)
@@ -456,31 +472,39 @@ def ffprobe_duration(path: Path):
         print("FFPROBE ERROR:", e)
         return 16.0
 
-def build_preview_assets(video_path: Path, creator_display: str, logo_path: Path | str | None = None):
-    stem = video_path.stem + "_" + uuid.uuid4().hex[:8]
-    thumb_file = THUMB_DIR / f"{stem}.jpg"
-    # Preview disabled intentionally. We only generate a thumbnail.
+
+def ffprobe_created_datetime(path: Path):
     try:
-        dur = ffprobe_duration(video_path)
-        middle = max(0.5, dur / 2)
-        thumb_cmd = [
-            "ffmpeg",
-            "-y",
-            "-i", str(video_path),
-            "-ss", str(middle),
-            "-frames:v", "1",
-            "-vf", "scale=960:-1",
-            "-q:v", "3",
-            str(thumb_file),
-        ]
-        thumb_run = subprocess.run(thumb_cmd, capture_output=True, text=True)
-        if thumb_run.returncode != 0:
-            print("THUMB FFMPEG ERROR:", thumb_run.stderr)
+        result = subprocess.run([
+            "ffprobe", "-v", "error",
+            "-show_entries", "format_tags=creation_time:stream_tags=creation_time",
+            "-of", "json", str(path)
+        ], capture_output=True, text=True, check=True)
+        data = json.loads(result.stdout or '{}')
+        candidates = []
+        fmt_tags = data.get('format', {}).get('tags', {}) if isinstance(data.get('format'), dict) else {}
+        if fmt_tags.get('creation_time'):
+            candidates.append(fmt_tags.get('creation_time'))
+        for stream in data.get('streams', []):
+            tags = stream.get('tags', {})
+            if tags.get('creation_time'):
+                candidates.append(tags.get('creation_time'))
+        for raw in candidates:
+            try:
+                return datetime.fromisoformat(raw.replace('Z', '+00:00')).astimezone().replace(tzinfo=None)
+            except Exception:
+                continue
     except Exception as e:
-        print("THUMB BUILD ERROR:", e)
-    thumb_result = thumb_file if thumb_file.exists() and thumb_file.stat().st_size > 0 else None
-    print("THUMB GENERATED:", thumb_result)
-    return thumb_result, None
+        print('FFPROBE CREATION TIME ERROR:', e)
+    return None
+
+def build_preview_assets(video_path: Path, creator_display: str, logo_path: Path | str | None = None):
+    try:
+        print("Thumbnail generation skipped temporarily")
+    except Exception:
+        pass
+    return None, None
+
 
 def creator_rating(creator_id):
     reviews = Review.query.filter_by(creator_id=creator_id).all()
@@ -810,11 +834,9 @@ def creator_upload():
     if not location:
         flash('Missing location.')
         return redirect(url_for('creator_dashboard'))
-
     if not valid_files:
         flash('No files selected.')
         return redirect(url_for('creator_dashboard'))
-
     if not title:
         title = f"{location} Batch {datetime.utcnow().strftime('%m/%d/%Y %H:%M')}"
 
@@ -828,94 +850,36 @@ def creator_upload():
     db.session.add(batch)
     db.session.flush()
 
-    first_package = Package.query.filter_by(creator_id=user.id, active=True).order_by(Package.created_at.asc()).first()
-    default_price = first_package.price if first_package else 40.0
-    delivery_type = first_package.delivery_type if first_package else 'instant'
-    cursor_time = datetime.strptime('12:00 PM', '%I:%M %p').time()
-
-    count = 0
-    for f in valid_files:
-        orig = secure_filename(f.filename)
-        unique = f"{uuid.uuid4().hex[:8]}_{orig}"
-        local_path = VIDEO_DIR / unique
-
-        try:
-            f.save(local_path)
-            thumb_file, _preview_file = build_preview_assets(local_path, user.public_name or user.email.split('@')[0], None)
-
-            file_path = f"videos/{unique}"
-            thumb_path = f"thumbs/{thumb_file.name}" if thumb_file else ''
-            preview_path = ''
-
-            if r2_client and R2_BUCKET:
-                try:
-                    file_path = save_to_r2(local_path, f"videos/{unique}")
-                    if thumb_file and thumb_file.exists():
-                        thumb_path = save_to_r2(thumb_file, f"thumbs/{thumb_file.name}")
-                except Exception as e:
-                    print('R2 UPLOAD ERROR:', e)
-                finally:
-                    for temp_file in [local_path, thumb_file]:
-                        try:
-                            if temp_file and Path(temp_file).exists() and Path(temp_file).is_file():
-                                Path(temp_file).unlink()
-                        except Exception as e:
-                            print('TEMP DELETE ERROR:', e)
-
-            vid = Video(
-                batch_id=batch.id,
-                creator_id=user.id,
-                filename=orig,
-                file_path=file_path,
-                thumb_path=thumb_path,
-                preview_path=preview_path,
-                location=location,
-                recorded_date=batch_date,
-                recorded_time=cursor_time,
-                price=default_price,
-                delivery_type=delivery_type,
-            )
-            db.session.add(vid)
-            count += 1
-            cursor_time = (datetime.combine(date.today(), cursor_time) + timedelta(minutes=3)).time()
-        except Exception as e:
-            print('UPLOAD ERROR:', e)
-
-    if count == 0:
-        db.session.delete(batch)
-        db.session.commit()
-        flash('No videos could be saved. Batch was not created.')
-        return redirect(url_for('creator_dashboard'))
-
-    db.session.commit()
-    flash(f"Batch saved with {count} videos.")
-    return redirect(url_for('creator_dashboard'))
-    if not valid_files:
-        flash('No files selected.')
-        return redirect(url_for('creator_dashboard'))
-    if not title:
-        title = f"{location} Batch {datetime.utcnow().strftime('%m/%d/%Y %H:%M')}"
-    batch_date = date.today()
-    batch = Batch(creator_id=user.id, title=title, location=location, recorded_date=batch_date)
-    db.session.add(batch)
-    db.session.flush()
     logo_path = user.logo_path or None
     creator_name = user.public_name or user.email.split('@')[0]
     first_package = Package.query.filter_by(creator_id=user.id, active=True).order_by(Package.created_at.asc()).first()
     default_price = first_package.price if first_package else 40.0
     delivery_type = first_package.delivery_type if first_package else 'instant'
+
     cursor_time = datetime.strptime('12:00 PM', '%I:%M %p').time()
     count = 0
+    errors = []
+
     for f in valid_files:
         orig = secure_filename(f.filename)
         unique = f"{uuid.uuid4().hex[:8]}_{orig}"
         local_path = VIDEO_DIR / unique
+        thumb_file = None
+        preview_file = None
+
         try:
             f.save(local_path)
+
+            created_dt = ffprobe_created_datetime(local_path)
+            video_date = created_dt.date() if created_dt else batch_date
+            video_time = created_dt.time().replace(microsecond=0) if created_dt else cursor_time
+
             thumb_file, preview_file = build_preview_assets(local_path, creator_name, logo_path)
+
             file_path = f"videos/{unique}"
             thumb_path = f"thumbs/{thumb_file.name}" if thumb_file else ''
             preview_path = f"previews/{preview_file.name}" if preview_file else ''
+
             if r2_client and R2_BUCKET:
                 try:
                     file_path = save_to_r2(local_path, f"videos/{unique}")
@@ -925,22 +889,47 @@ def creator_upload():
                         preview_path = save_to_r2(preview_file, f"previews/{preview_file.name}")
                 except Exception as e:
                     print('R2 UPLOAD ERROR:', e)
-                finally:
-                    for temp_file in [local_path, thumb_file, preview_file]:
-                        try:
-                            if temp_file and Path(temp_file).exists() and Path(temp_file).is_file():
-                                Path(temp_file).unlink()
-                        except Exception as e:
-                            print('TEMP DELETE ERROR:', e)
-            vid = Video(batch_id=batch.id, creator_id=user.id, filename=orig, file_path=file_path, thumb_path=thumb_path, preview_path=preview_path, location=location, recorded_date=batch_date, recorded_time=cursor_time, price=default_price, delivery_type=delivery_type)
+
+            vid = Video(
+                batch_id=batch.id,
+                creator_id=user.id,
+                filename=orig,
+                file_path=file_path,
+                thumb_path=thumb_path,
+                preview_path=preview_path,
+                location=location,
+                recorded_date=video_date,
+                recorded_time=video_time,
+                price=default_price,
+                delivery_type=delivery_type,
+            )
             db.session.add(vid)
             count += 1
             cursor_time = (datetime.combine(date.today(), cursor_time) + timedelta(minutes=3)).time()
         except Exception as e:
             print('UPLOAD ERROR:', e)
+            errors.append(orig)
+        finally:
+            for temp_file in [local_path, thumb_file, preview_file]:
+                try:
+                    if temp_file and Path(temp_file).exists() and Path(temp_file).is_file():
+                        Path(temp_file).unlink()
+                except Exception as e:
+                    print('TEMP DELETE ERROR:', e)
+
+    if count == 0:
+        db.session.delete(batch)
+        db.session.commit()
+        flash('No videos were saved. Please try again with a different file or name.')
+        return redirect(url_for('creator_dashboard'))
+
     db.session.commit()
-    flash(f"Batch saved with {count} videos.")
+    if errors:
+        flash(f"Batch saved with {count} videos. Failed: {', '.join(errors[:5])}")
+    else:
+        flash(f"Batch saved with {count} videos.")
     return redirect(url_for('creator_dashboard'))
+
 
 @app.route('/creator/batch/<int:batch_id>/delete', methods=['POST'])
 @login_required('creator')
@@ -968,38 +957,12 @@ def delete_batch(batch_id):
 
     try:
         if video_ids:
-            CartItem.query.filter(
-                CartItem.item_type == 'video',
-                CartItem.item_id.in_(video_ids)
-            ).delete(synchronize_session=False)
-
-        for video in videos:
-            delete_video_assets(video)
-            db.session.delete(video)
-
-        db.session.flush()
-        db.session.delete(batch)
-        db.session.commit()
-        flash('Batch deleted successfully.')
-    except Exception as e:
-        db.session.rollback()
-        print('DELETE BATCH ERROR:', e)
-        flash('Could not delete batch.')
-    return redirect(url_for('creator_dashboard'))
-    videos = Video.query.filter_by(batch_id=batch.id).all()
-    video_ids = [v.id for v in videos]
-    active_download = None
-    if video_ids:
-        active_download = OrderItem.query.filter(OrderItem.item_type == 'video', OrderItem.item_id.in_(video_ids), OrderItem.download_available == True, OrderItem.download_expires_at != None, OrderItem.download_expires_at > datetime.utcnow()).first()
-    if active_download:
-        flash('This batch cannot be deleted yet because one or more buyers still have an active download window.')
-        return redirect(url_for('creator_dashboard'))
-    try:
-        if video_ids:
             CartItem.query.filter(CartItem.item_type == 'video', CartItem.item_id.in_(video_ids)).delete(synchronize_session=False)
-        for video in videos:
-            delete_video_assets(video)
-            db.session.delete(video)
+            for video in videos:
+                delete_video_assets(video)
+                db.session.delete(video)
+            db.session.flush()
+
         db.session.delete(batch)
         db.session.commit()
         flash('Batch deleted successfully.')
@@ -1008,6 +971,48 @@ def delete_batch(batch_id):
         print('DELETE BATCH ERROR:', e)
         flash('Could not delete batch.')
     return redirect(url_for('creator_dashboard'))
+
+
+
+@app.route('/creator/batch/<int:batch_id>')
+@login_required('creator')
+def creator_batch_detail(batch_id):
+    user = get_current_user()
+    batch = db.session.get(Batch, batch_id)
+    if not batch or batch.creator_id != user.id:
+        flash('Batch not found.')
+        return redirect(url_for('creator_dashboard'))
+    videos = Video.query.filter_by(batch_id=batch.id, creator_id=user.id).order_by(Video.recorded_date.desc(), Video.recorded_time.desc()).all()
+    return render_template('creator_batch_detail.html', batch=batch, videos=videos)
+
+@app.route('/creator/batch/<int:batch_id>/delete-selected-videos', methods=['POST'])
+@login_required('creator')
+def delete_selected_videos(batch_id):
+    user = get_current_user()
+    batch = db.session.get(Batch, batch_id)
+    if not batch or batch.creator_id != user.id:
+        flash('Batch not found.')
+        return redirect(url_for('creator_dashboard'))
+    ids = request.form.getlist('video_ids')
+    if not ids:
+        flash('No videos selected.')
+        return redirect(url_for('creator_batch_detail', batch_id=batch.id))
+    videos = Video.query.filter(Video.batch_id == batch.id, Video.creator_id == user.id, Video.id.in_(ids)).all()
+    try:
+        for video in videos:
+            active_download = OrderItem.query.filter(OrderItem.item_type == 'video', OrderItem.item_id == video.id, OrderItem.download_available == True, OrderItem.download_expires_at != None, OrderItem.download_expires_at > datetime.utcnow()).first()
+            if active_download:
+                continue
+            CartItem.query.filter_by(item_type='video', item_id=video.id).delete(synchronize_session=False)
+            delete_video_assets(video)
+            db.session.delete(video)
+        db.session.commit()
+        flash('Selected videos deleted.')
+    except Exception as e:
+        db.session.rollback()
+        print('DELETE SELECTED VIDEOS ERROR:', e)
+        flash('Could not delete selected videos.')
+    return redirect(url_for('creator_batch_detail', batch_id=batch.id))
 
 @app.route('/creator/video/<int:video_id>/price', methods=['POST'])
 @login_required('creator')
