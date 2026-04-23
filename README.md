@@ -1,18 +1,19 @@
-# BoatSpotMedia v1
 
-First online version for Railway.
+BoatSpotMedia v12 Core
 
-## Run locally
+Deploy steps:
 
-```bash
-npm install
-npm start
-```
+1. Create Railway project
+2. Attach PostgreSQL
+3. Add environment variables from .env.example
+4. Deploy
 
-## Railway
+Routes:
 
-- Set `OWNER_USER`
-- Set `OWNER_PASS`
-- Optional: `SESSION_SECRET`
-- Attach PostgreSQL service
-force rebuild
+/creator/login
+/owner/login
+/buyer/orders
+
+Public homepage:
+
+/
