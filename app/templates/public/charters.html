@@ -1,0 +1,8 @@
+<!doctype html><html><head><meta charset="utf-8"><title>BoatSpotMedia</title><link rel="stylesheet" href="/static/css/style.css"></head><body><header><div><b>BoatSpotMedia</b></div><nav><a href="/">Home</a><a href="/search">Find Your Video</a><a href="/services">Services</a><a href="/charters">Charters</a><a href="/apply-creator">Apply as Creator</a></nav></header><div class="container">
+<h1>Boat Charters</h1>
+<div class="grid">
+{% for c in listings %}
+<div class="card"><h3>{{c.title}}</h3><p>{{c.description}}</p><p>{{c.location}} · Up to {{c.capacity}} guests</p><b>${{c.price_trip or c.price_hour}}</b></div>
+{% else %}<p>No charters yet.</p>{% endfor %}
+</div>
+</div></body></html>

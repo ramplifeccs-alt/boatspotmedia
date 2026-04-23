@@ -1,0 +1,9 @@
+<!doctype html><html><head><meta charset="utf-8"><title>BoatSpotMedia</title><link rel="stylesheet" href="/static/css/style.css"></head><body><header><div><b>BoatSpotMedia</b></div><nav><a href="/">Home</a><a href="/search">Find Your Video</a><a href="/services">Services</a><a href="/charters">Charters</a><a href="/apply-creator">Apply as Creator</a></nav></header><div class="container">
+<h1>Marine Services</h1>
+<p>Pay-per-click ads from marine businesses.</p>
+<div class="grid">
+{% for ad in ads %}
+<div class="card"><h3>{{ad.title}}</h3><p>{{ad.description}}</p><small>{{ad.target_location}}</small><br><br><a class="btn" href="/advertiser/click/{{ad.id}}">Visit Business</a></div>
+{% else %}<p>No active ads yet.</p>{% endfor %}
+</div>
+</div></body></html>

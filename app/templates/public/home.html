@@ -1,0 +1,21 @@
+<!doctype html><html><head><meta charset="utf-8"><title>BoatSpotMedia</title><link rel="stylesheet" href="/static/css/style.css"></head><body><header><div><b>BoatSpotMedia</b></div><nav><a href="/">Home</a><a href="/search">Find Your Video</a><a href="/services">Services</a><a href="/charters">Charters</a><a href="/apply-creator">Apply as Creator</a></nav></header><div class="container">
+<div class="hero">
+<h1>Find your boat video</h1>
+<p>Search by inlet, date, and approximate time. Buy the original video or request an edited version.</p>
+<a class="btn" href="/search">Find Your Video</a>
+</div>
+<h2>Latest Uploads</h2>
+<div class="grid">
+{% for v in videos %}
+<div class="card">
+  <div class="thumb">{% if v.public_thumbnail_url %}<img src="{{v.public_thumbnail_url}}">{% else %}Preview{% endif %}</div>
+  <b>{{ v.location or "Boat Video" }}</b><br>
+  <small>{{ v.recorded_at.strftime('%m/%d/%Y %I:%M %p') if v.recorded_at else "Time pending" }}</small><br>
+  <small>Captured by: {{ v.creator.user.display_name if v.creator and v.creator.user else "Creator" }}</small><br><br>
+  <a class="btn" href="/preview/{{v.id}}">Preview</a>
+</div>
+{% else %}
+<div class="card">No videos uploaded yet.</div>
+{% endfor %}
+</div>
+</div></body></html>

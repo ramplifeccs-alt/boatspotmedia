@@ -1,0 +1,15 @@
+<!doctype html><html><head><meta charset="utf-8"><title>BoatSpotMedia</title><link rel="stylesheet" href="/static/css/style.css"></head><body><header><div><b>BoatSpotMedia</b></div><nav><a href="/">Home</a><a href="/search">Find Your Video</a><a href="/services">Services</a><a href="/charters">Charters</a><a href="/apply-creator">Apply as Creator</a></nav></header><div class="container">
+<h1>Advertiser Dashboard</h1>
+<div class="notice">Pay-per-click: you only pay when someone clicks your ad. If balance reaches $0, the ad is hidden automatically.</div>
+<p>Balance: ${{advertiser.balance if advertiser else 0}}</p>
+<form method="post" action="/advertiser/create-ad">
+<input name="title" placeholder="Ad title">
+<textarea name="description" placeholder="Description"></textarea>
+<input name="website_url" placeholder="Website URL">
+<input name="target_location" placeholder="Target location">
+<input name="cost_per_click" value="0.15">
+<button class="btn">Create Ad</button>
+</form>
+<h2>Ads</h2>
+{% for ad in ads %}<div class="card">{{ad.title}} — {{ad.status}} — ${{ad.cost_per_click}} CPC</div>{% endfor %}
+</div></body></html>

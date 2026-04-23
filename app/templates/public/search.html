@@ -1,0 +1,26 @@
+<!doctype html><html><head><meta charset="utf-8"><title>BoatSpotMedia</title><link rel="stylesheet" href="/static/css/style.css"></head><body><header><div><b>BoatSpotMedia</b></div><nav><a href="/">Home</a><a href="/search">Find Your Video</a><a href="/services">Services</a><a href="/charters">Charters</a><a href="/apply-creator">Apply as Creator</a></nav></header><div class="container">
+<h1>Search Boat Videos</h1>
+<form action="/search/results">
+<label>Location</label>
+<select name="location">{% for l in locations %}<option>{{l.name}}</option>{% endfor %}</select>
+<label>Date</label><input type="date" name="date">
+<label>From</label><input type="time" name="start_time">
+<label>To</label><input type="time" name="end_time">
+<button class="btn">Search</button>
+</form>
+
+{% if results is not none %}
+<h2>Results</h2>
+<div class="grid">
+{% for v in results %}
+<div class="card">
+<div class="thumb">{% if v.public_thumbnail_url %}<img src="{{v.public_thumbnail_url}}">{% else %}Thumbnail{% endif %}</div>
+<b>{{v.location}}</b><br>
+<small>{{ v.recorded_at.strftime('%m/%d/%Y %I:%M %p') if v.recorded_at else "Time pending" }}</small><br>
+<small>Captured by: {{ v.creator.user.display_name if v.creator and v.creator.user else "Creator" }}</small><br><br>
+<a class="btn" href="/preview/{{v.id}}">Open Preview</a>
+</div>
+{% else %}<p>No matching videos.</p>{% endfor %}
+</div>
+{% endif %}
+</div></body></html>

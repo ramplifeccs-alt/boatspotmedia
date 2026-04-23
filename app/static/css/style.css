@@ -1,0 +1,24 @@
+body{font-family:Arial, sans-serif;margin:0;background:#f5f7fb;color:#111}
+header{background:#061a2d;color:white;padding:18px 30px;display:flex;justify-content:space-between;align-items:center}
+a{color:#0b72d9;text-decoration:none}
+nav a{color:white;margin-left:18px}
+.container{max-width:1150px;margin:30px auto;padding:0 18px}
+.hero{background:white;border-radius:16px;padding:34px;box-shadow:0 8px 24px rgba(0,0,0,.08)}
+.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(250px,1fr));gap:18px}
+.card{background:white;border-radius:14px;padding:18px;box-shadow:0 5px 18px rgba(0,0,0,.07)}
+.thumb{height:170px;background:#dbe7f3;border-radius:12px;display:flex;align-items:center;justify-content:center;color:#60758d;margin-bottom:12px;overflow:hidden}
+.thumb img{width:100%;height:100%;object-fit:cover}
+.btn{display:inline-block;background:#0877ff;color:white;padding:10px 16px;border-radius:10px;border:0;cursor:pointer}
+.btn.secondary{background:#1b2b3d}
+.btn.danger{background:#c92828}
+.sidebar-layout{display:flex;min-height:80vh}
+.sidebar{width:240px;background:#071b2f;color:white;padding:24px}
+.sidebar a{display:block;color:white;padding:12px;border-radius:8px;margin-bottom:8px}
+.sidebar a:hover{background:#123a60}
+.content{flex:1;padding:30px}
+input,select,textarea{width:100%;padding:10px;margin:7px 0 14px;border:1px solid #ccd5df;border-radius:8px;box-sizing:border-box}
+table{width:100%;border-collapse:collapse;background:white;border-radius:12px;overflow:hidden}
+td,th{padding:12px;border-bottom:1px solid #e8edf3;text-align:left}
+.notice{background:#fff3cd;padding:12px;border-radius:10px;margin:10px 0}
+.success{background:#d7f7df;padding:12px;border-radius:10px;margin:10px 0}
+.error{background:#ffd9d9;padding:12px;border-radius:10px;margin:10px 0}

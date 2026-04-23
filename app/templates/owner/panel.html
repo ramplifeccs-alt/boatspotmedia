@@ -1,0 +1,34 @@
+<!doctype html><html><head><meta charset="utf-8"><title>Owner Panel</title><link rel="stylesheet" href="/static/css/style.css"></head><body><div class="sidebar-layout"><div class="sidebar"><h2>Owner</h2><a href="/owner/panel">Dashboard</a></div><div class="content">
+<h1>Owner Control Panel</h1>
+<h2>Creator Applications</h2>
+<table><tr><th>Name</th><th>Email</th><th>Status</th><th>Actions</th></tr>
+{% for a in apps %}
+<tr><td>{{a.first_name}} {{a.last_name}}</td><td>{{a.email}}</td><td>{{a.status}}</td><td>
+<form style="display:inline" method="post" action="/owner/applications/{{a.id}}/approve"><button class="btn">Approve</button></form>
+<form style="display:inline" method="post" action="/owner/applications/{{a.id}}/reject"><button class="btn danger">Reject</button></form>
+</td></tr>
+{% endfor %}
+</table>
+
+<h2>Create Storage Plan</h2>
+<form method="post" action="/owner/plans/create">
+<input name="name" placeholder="Plan name">
+<input name="storage_limit_gb" placeholder="Storage GB">
+<input name="monthly_price" placeholder="Monthly price">
+<input name="commission_rate" placeholder="Commission %">
+<button class="btn">Create Plan</button>
+</form>
+
+<h2>Creators</h2>
+<table><tr><th>ID</th><th>Name</th><th>Storage</th><th>Commission</th><th>Temporary Override</th></tr>
+{% for c in creators %}
+<tr><td>{{c.id}}</td><td>{{c.user.display_name}}</td><td>{{c.storage_used_gb}} / {{c.storage_limit_gb}} GB</td><td>{{c.active_commission_rate()}}%</td><td>
+<form method="post" action="/owner/creator/{{c.id}}/override">
+<input name="rate" placeholder="5">
+<input name="days" placeholder="30">
+<button class="btn">Apply</button>
+</form>
+</td></tr>
+{% endfor %}
+</table>
+</div></div></body></html>

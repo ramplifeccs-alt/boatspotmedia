@@ -1,0 +1,17 @@
+<!doctype html><html><head><meta charset="utf-8"><title>BoatSpotMedia</title><link rel="stylesheet" href="/static/css/style.css"></head><body><header><div><b>BoatSpotMedia</b></div><nav><a href="/">Home</a><a href="/search">Find Your Video</a><a href="/services">Services</a><a href="/charters">Charters</a><a href="/apply-creator">Apply as Creator</a></nav></header><div class="container">
+<h1>Apply as Creator</h1>
+<p>Are you a boat videographer? Apply to sell your footage with us. Approval within 24 hours.</p>
+{% if error %}<div class="error">{{error}}</div>{% endif %}
+{% if success %}<div class="success">Application submitted. We will review it within 24 hours.</div>{% endif %}
+<form method="post">
+<label>First name</label><input name="first_name" required>
+<label>Last name</label><input name="last_name" required>
+<label>Email</label><input name="email" type="email" required>
+<label>Instagram</label><input name="instagram">
+<label>Facebook</label><input name="facebook">
+<label>YouTube</label><input name="youtube">
+<label>TikTok</label><input name="tiktok">
+<div class="notice">At least one social media link is required.</div>
+<button class="btn">Submit Application</button>
+</form>
+</div></body></html>

@@ -1,0 +1,14 @@
+<!doctype html><html><head><meta charset="utf-8"><title>BoatSpotMedia</title><link rel="stylesheet" href="/static/css/style.css"></head><body><header><div><b>BoatSpotMedia</b></div><nav><a href="/">Home</a><a href="/search">Find Your Video</a><a href="/services">Services</a><a href="/charters">Charters</a><a href="/apply-creator">Apply as Creator</a></nav></header><div class="container">
+<h1>My Orders</h1>
+<form><label>Email</label><input name="email"><button class="btn">Find Orders</button></form>
+{% for o in orders %}
+<div class="card"><h3>Order #{{o.id}}</h3><p>Total: ${{o.total_price}} · {{o.created_at}}</p>
+{% for item in o.items %}
+<div class="notice">{{item.video.location}} — {{item.purchase_type}}</div>
+{% for d in item.downloadtoken_collection if false %}{% endfor %}
+{% set tokens = item.__dict__.get('_sa_instance_state') %}
+{% endfor %}
+<p>Download buttons are generated per token in backend. Use direct token route after checkout.</p>
+</div>
+{% else %}<p>No orders found.</p>{% endfor %}
+</div></body></html>

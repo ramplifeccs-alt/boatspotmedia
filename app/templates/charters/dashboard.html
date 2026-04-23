@@ -1,0 +1,14 @@
+<!doctype html><html><head><meta charset="utf-8"><title>BoatSpotMedia</title><link rel="stylesheet" href="/static/css/style.css"></head><body><header><div><b>BoatSpotMedia</b></div><nav><a href="/">Home</a><a href="/search">Find Your Video</a><a href="/services">Services</a><a href="/charters">Charters</a><a href="/apply-creator">Apply as Creator</a></nav></header><div class="container">
+<h1>Charter Provider Dashboard</h1>
+<form method="post" action="/charters/create">
+<input name="title" placeholder="Listing title">
+<input name="boat_name" placeholder="Boat name">
+<input name="location" placeholder="Location">
+<input name="capacity" placeholder="Capacity">
+<input name="price_hour" placeholder="Price per hour">
+<input name="price_trip" placeholder="Price per trip">
+<textarea name="description" placeholder="Description"></textarea>
+<button class="btn">Create Charter</button>
+</form>
+{% for l in listings %}<div class="card">{{l.title}} — {{l.location}} — ${{l.price_trip or l.price_hour}}</div>{% endfor %}
+</div></body></html>
