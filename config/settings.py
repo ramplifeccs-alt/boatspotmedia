@@ -3,18 +3,11 @@ import os
 
 class Config:
     SECRET_KEY = os.getenv("SECRET_KEY", "changeme")
-
     DATABASE_URL = os.getenv("DATABASE_URL")
 
-    # Cloudflare R2
-    R2_BUCKET = "boatspotmedia-videos"
     R2_ENDPOINT = os.getenv("R2_ENDPOINT")
     R2_ACCESS_KEY = os.getenv("R2_ACCESS_KEY")
     R2_SECRET_KEY = os.getenv("R2_SECRET_KEY")
 
-    # SendGrid
     SENDGRID_API_KEY = os.getenv("SENDGRID_API_KEY")
-    SENDGRID_SENDER = "noreply@boatspotmedia.com"
-
-    # Stripe
     STRIPE_SECRET_KEY = os.getenv("STRIPE_SECRET_KEY")

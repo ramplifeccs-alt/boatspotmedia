@@ -10,7 +10,7 @@ def search_videos():
     time_range = request.args.get("time_range")
 
     return jsonify({
-        "status": "ok",
+        "status": "db-search-ready",
         "filters": {
             "location": location,
             "date": date,
