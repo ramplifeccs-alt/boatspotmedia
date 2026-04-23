@@ -510,37 +510,61 @@ def build_preview_assets(video_path: Path, creator_display: str, logo_path: Path
 
     tmp_logo = None
     logo_input = None
-    if isinstance(logo_path, str) and logo_path.startswith("http"):
-        tmp_logo = download_temp_logo(logo_path)
-        logo_input = tmp_logo
-    elif isinstance(logo_path, Path) and logo_path.exists():
-        logo_input = logo_path
+    import subprocess
+from pathlib import Path
 
-    thumb_run = subprocess.run(["ffmpeg", "-y", "-ss", str(middle), "-i", str(video_path), "-frames:v", "1", "-q:v", "2", str(thumb_file)], capture_output=True, text=True)
-    if thumb_run.returncode != 0:
-        print("THUMB FFMPEG ERROR:", thumb_run.stderr)
+def build_preview_assets(video_path, creator_name=None, logo_path=None):
+    try:
+        base = Path(video_path).stem
 
-    if logo_input and logo_input.exists():
-        filter_complex = "[1:v]scale='min(220,iw)':-1[wm];[0:v][wm]overlay=(main_w-overlay_w)/2:main_h-overlay_h-20:format=auto"
-        preview_cmd = ["ffmpeg", "-y", "-ss", str(start), "-i", str(video_path), "-loop", "1", "-i", str(logo_input), "-t", "8", "-filter_complex", filter_complex, "-an", "-c:v", "libx264", "-movflags", "+faststart", "-pix_fmt", "yuv420p", str(preview_file)]
-    else:
-        preview_cmd = ["ffmpeg", "-y", "-ss", str(start), "-i", str(video_path), "-t", "8", "-an", "-c:v", "libx264", "-movflags", "+faststart", "-pix_fmt", "yuv420p", str(preview_file)]
-    preview_run = subprocess.run(preview_cmd, capture_output=True, text=True)
-    if preview_run.returncode != 0:
-        print("PREVIEW FFMPEG ERROR:", preview_run.stderr)
+        thumb_file = Path(f"/tmp/{base}_thumb.jpg")
+        preview_file = Path(f"/tmp/{base}_preview.mp4")
 
-    if tmp_logo:
-        try:
-            if tmp_logo.exists():
-                tmp_logo.unlink()
-        except Exception:
-            pass
+        # 1️⃣ convertir HEVC → H264 temporal
+        temp_h264 = Path(f"/tmp/{base}_temp.mp4")
 
-    thumb_result = thumb_file if thumb_file.exists() and thumb_file.stat().st_size > 0 else None
-    preview_result = preview_file if preview_file.exists() and preview_file.stat().st_size > 0 else None
-    print('THUMB GENERATED:', thumb_result)
-    print('PREVIEW GENERATED:', preview_result)
-    return thumb_result, preview_result
+        convert_cmd = [
+            "ffmpeg",
+            "-y",
+            "-i", str(video_path),
+            "-c:v", "libx264",
+            "-preset", "veryfast",
+            "-crf", "28",
+            str(temp_h264)
+        ]
+
+        subprocess.run(convert_cmd, check=True)
+
+        # 2️⃣ generar thumbnail
+        thumb_cmd = [
+            "ffmpeg",
+            "-y",
+            "-i", str(temp_h264),
+            "-ss", "00:00:01",
+            "-vframes", "1",
+            str(thumb_file)
+        ]
+
+        subprocess.run(thumb_cmd, check=True)
+
+        # 3️⃣ generar preview 8 segundos
+        preview_cmd = [
+            "ffmpeg",
+            "-y",
+            "-i", str(temp_h264),
+            "-t", "8",
+            "-vf", "scale=960:-1",
+            "-an",
+            str(preview_file)
+        ]
+
+        subprocess.run(preview_cmd, check=True)
+
+        return thumb_file, preview_file
+
+    except Exception as e:
+        print("FFMPEG PROCESS ERROR:", e)
+        return None, None
 
 def creator_rating(creator_id):
     reviews = Review.query.filter_by(creator_id=creator_id).all()
