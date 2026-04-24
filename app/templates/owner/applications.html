@@ -1,0 +1,113 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>Owner Applications - BoatSpotMedia</title>
+  <link rel="stylesheet" href="/static/css/style.css">
+</head>
+<body>
+<div class="sidebar-layout">
+  <div class="sidebar">
+    <h2>Owner</h2>
+    <a href="/owner/applications">Creator Applications</a>
+    <a href="/owner/applications-raw">Raw Applications</a>
+    <a href="/owner/repair-db-now">Repair DB</a>
+  </div>
+
+  <div class="content">
+    <h1>Creator Applications</h1>
+    <p>Approve or reject boat-video creators. Approved creators receive creator access and can upload videos.</p>
+
+    <h2>Pending / Reviewed Applications</h2>
+    <table>
+      <tr>
+        <th>ID</th>
+        <th>Name</th>
+        <th>Brand</th>
+        <th>Email</th>
+        <th>Instagram</th>
+        <th>Status</th>
+        <th>Submitted</th>
+        <th>Action</th>
+      </tr>
+      {% for a in applications %}
+      <tr>
+        <td>{{ a.id }}</td>
+        <td>{{ a.first_name }} {{ a.last_name }}</td>
+        <td>{{ a.brand_name }}</td>
+        <td>{{ a.email }}</td>
+        <td>
+          {% if a.instagram %}
+            <a href="https://instagram.com/{{ a.instagram }}" target="_blank">{{ a.instagram }}</a>
+          {% endif %}
+        </td>
+        <td><b>{{ a.status }}</b></td>
+        <td>{{ a.submitted_at }}</td>
+        <td>
+          {% if a.status == 'pending' %}
+          <form method="post" action="/owner/applications/{{ a.id }}/approve" style="margin-bottom:8px">
+            <label>Plan</label>
+            <select name="plan_id">
+              {% for p in plans %}
+                <option value="{{ p.id }}">{{ p.name }} — {{ p.storage_limit_gb }}GB — {{ p.commission_rate }}%</option>
+              {% endfor %}
+            </select>
+            <button class="btn">Approve Creator</button>
+          </form>
+          <form method="post" action="/owner/applications/{{ a.id }}/reject">
+            <button class="btn danger">Reject</button>
+          </form>
+          {% else %}
+            Reviewed
+          {% endif %}
+        </td>
+      </tr>
+      {% else %}
+      <tr><td colspan="8">No applications yet.</td></tr>
+      {% endfor %}
+    </table>
+
+    <h2>Create Storage Plan</h2>
+    <form method="post" action="/owner/plans/create" class="card">
+      <label>Plan name</label>
+      <input name="name" placeholder="Creator 512GB">
+      <label>Storage limit GB</label>
+      <input name="storage_limit_gb" placeholder="512">
+      <label>Monthly price</label>
+      <input name="monthly_price" placeholder="79.00">
+      <label>BoatSpot commission %</label>
+      <input name="commission_rate" placeholder="20">
+      <button class="btn">Create Plan</button>
+    </form>
+
+    <h2>Approved Creators</h2>
+    <table>
+      <tr>
+        <th>ID</th>
+        <th>Creator</th>
+        <th>Storage</th>
+        <th>Commission</th>
+        <th>Temporary Override</th>
+      </tr>
+      {% for c in creators %}
+      <tr>
+        <td>{{ c.id }}</td>
+        <td>{{ c.user.display_name if c.user else '' }}</td>
+        <td>{{ c.storage_used_gb }} / {{ c.storage_limit_gb }} GB</td>
+        <td>{{ c.active_commission_rate() }}%</td>
+        <td>
+          <form method="post" action="/owner/creator/{{ c.id }}/override">
+            <input name="rate" placeholder="5">
+            <input name="days" placeholder="30">
+            <button class="btn">Apply Override</button>
+          </form>
+        </td>
+      </tr>
+      {% else %}
+      <tr><td colspan="5">No approved creators yet.</td></tr>
+      {% endfor %}
+    </table>
+  </div>
+</div>
+</body>
+</html>

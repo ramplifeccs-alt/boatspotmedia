@@ -117,3 +117,19 @@ Apply form now includes Creator / Brand Name and insert includes brand_name.
 
 Creator application now uses only Instagram.
 brand_name is automatically saved from Instagram without @.
+
+
+## v10 social_link fix
+
+Fixes legacy Railway DB where creator_application.social_link is NOT NULL.
+The app now saves social_link using the cleaned Instagram username.
+
+
+## v11 Owner Applications Panel
+
+New routes:
+- /owner/applications
+- POST /owner/applications/<id>/approve
+- POST /owner/applications/<id>/reject
+
+Approving an application creates/activates a creator user and CreatorProfile.
