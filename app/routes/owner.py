@@ -77,12 +77,12 @@ def repair_db_now():
     from app.services.db_repair import repair_all_known_tables
     repair_all_known_tables()
     return "DB repair completed."
+
 @owner_bp.route("/applications-raw")
 def applications_raw():
     from sqlalchemy import text
-    from app.services.db_repair import repair_creator_application_table, relax_creator_application_not_nulls
+    from app.services.db_repair import repair_creator_application_table
     repair_creator_application_table()
-    relax_creator_application_not_nulls()
     rows = db.session.execute(text("""
         SELECT *
         FROM creator_application

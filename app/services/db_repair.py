@@ -10,31 +10,64 @@ def repair_creator_application_table():
                     id SERIAL PRIMARY KEY
                 )
             """))
+
             columns = [
                 ("first_name", "VARCHAR(120)"),
                 ("last_name", "VARCHAR(120)"),
+                ("brand_name", "VARCHAR(255) DEFAULT 'Boat Creator'"),
                 ("email", "VARCHAR(255)"),
                 ("instagram", "VARCHAR(255)"),
-                ("facebook", "VARCHAR(255)"),
-                ("youtube", "VARCHAR(255)"),
-                ("tiktok", "VARCHAR(255)"),
                 ("status", "VARCHAR(50) DEFAULT 'pending'"),
                 ("submitted_at", "TIMESTAMP DEFAULT CURRENT_TIMESTAMP"),
                 ("reviewed_at", "TIMESTAMP")
             ]
+
             for name, coltype in columns:
                 conn.execute(text(f'ALTER TABLE creator_application ADD COLUMN IF NOT EXISTS {name} {coltype}'))
+
+            # Make legacy columns safe if they exist.
+            conn.execute(text("""
+                DO $$
+                BEGIN
+                    IF EXISTS (
+                        SELECT 1 FROM information_schema.columns
+                        WHERE table_name='creator_application' AND column_name='brand_name'
+                    ) THEN
+                        ALTER TABLE creator_application ALTER COLUMN brand_name SET DEFAULT 'Boat Creator';
+                    END IF;
+
+                    IF EXISTS (
+                        SELECT 1 FROM information_schema.columns
+                        WHERE table_name='creator_application' AND column_name='facebook'
+                    ) THEN
+                        ALTER TABLE creator_application ALTER COLUMN facebook DROP NOT NULL;
+                    END IF;
+
+                    IF EXISTS (
+                        SELECT 1 FROM information_schema.columns
+                        WHERE table_name='creator_application' AND column_name='youtube'
+                    ) THEN
+                        ALTER TABLE creator_application ALTER COLUMN youtube DROP NOT NULL;
+                    END IF;
+
+                    IF EXISTS (
+                        SELECT 1 FROM information_schema.columns
+                        WHERE table_name='creator_application' AND column_name='tiktok'
+                    ) THEN
+                        ALTER TABLE creator_application ALTER COLUMN tiktok DROP NOT NULL;
+                    END IF;
+                END $$;
+            """))
+
         else:
             conn.execute(text("""
                 CREATE TABLE IF NOT EXISTS creator_application (
                     id INTEGER PRIMARY KEY AUTOINCREMENT,
                     first_name TEXT,
                     last_name TEXT,
+                    brand_name TEXT DEFAULT 'Boat Creator',
                     email TEXT,
                     instagram TEXT,
-                    facebook TEXT,
-                    youtube TEXT,
-                    tiktok TEXT,
                     status TEXT DEFAULT 'pending',
                     submitted_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
                     reviewed_at TIMESTAMP
@@ -64,19 +97,6 @@ def repair_video_table():
             ]
             for name, coltype in columns:
                 conn.execute(text(f'ALTER TABLE video ADD COLUMN IF NOT EXISTS {name} {coltype}'))
-            # copy old field if it exists
-            conn.execute(text("""
-                DO $$
-                BEGIN
-                    IF EXISTS (
-                        SELECT 1 FROM information_schema.columns
-                        WHERE table_name='video' AND column_name='recorded_date'
-                    ) THEN
-                        UPDATE video SET recorded_at = recorded_date
-                        WHERE recorded_at IS NULL AND recorded_date IS NOT NULL;
-                    END IF;
-                END $$;
-            """))
 
 def repair_user_table():
     dialect = db.engine.dialect.name

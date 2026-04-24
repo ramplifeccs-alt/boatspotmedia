@@ -111,3 +111,9 @@ Check saved applications at:
 
 Fixes legacy Railway DB where creator_application.brand_name is NOT NULL.
 Apply form now includes Creator / Brand Name and insert includes brand_name.
+
+
+## v9 Instagram-only creator application
+
+Creator application now uses only Instagram.
+brand_name is automatically saved from Instagram without @.

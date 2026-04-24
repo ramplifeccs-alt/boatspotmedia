@@ -6,6 +6,17 @@ from app.services.db import db
 
 public_bp = Blueprint("public", __name__)
 
+def clean_instagram(value):
+    value = (value or "").strip()
+    value = value.replace("https://www.instagram.com/", "")
+    value = value.replace("https://instagram.com/", "")
+    value = value.replace("http://www.instagram.com/", "")
+    value = value.replace("http://instagram.com/", "")
+    value = value.strip().strip("/")
+    if value.startswith("@"):
+        value = value[1:]
+    return value.strip()
+
 @public_bp.route("/")
 def home():
     try:
@@ -80,38 +91,42 @@ def preview_video(video_id):
 @public_bp.route("/apply-creator", methods=["GET", "POST"])
 def apply_creator():
     if request.method == "POST":
-        social_fields = [request.form.get(k) for k in ["instagram", "facebook", "youtube", "tiktok"]]
-        if not any(social_fields):
-            return render_template("public/apply_creator.html", error="At least one social media link is required.")
+        instagram_raw = request.form.get("instagram", "")
+        instagram = clean_instagram(instagram_raw)
+
+        if not instagram:
+            return render_template("public/apply_creator.html", error="Instagram is required.")
+
+        brand_name = instagram  # saved without @
 
         try:
             from app.services.db_repair import repair_creator_application_table
             repair_creator_application_table()
 
             with db.engine.begin() as conn:
+                # Direct SQL, designed for your existing Railway table.
                 result = conn.execute(text("""
                     INSERT INTO creator_application
-                    (first_name, last_name, email, instagram, facebook, youtube, tiktok, status, submitted_at)
+                    (first_name, last_name, brand_name, email, instagram, status, submitted_at)
                     VALUES
-                    (:first_name, :last_name, :email, :instagram, :facebook, :youtube, :tiktok, 'pending', CURRENT_TIMESTAMP)
+                    (:first_name, :last_name, :brand_name, :email, :instagram, 'pending', CURRENT_TIMESTAMP)
                     RETURNING id
                 """), {
                     "first_name": request.form.get("first_name", ""),
                     "last_name": request.form.get("last_name", ""),
+                    "brand_name": brand_name,
                     "email": request.form.get("email", ""),
-                    "instagram": request.form.get("instagram", ""),
-                    "facebook": request.form.get("facebook", ""),
-                    "youtube": request.form.get("youtube", ""),
-                    "tiktok": request.form.get("tiktok", "")
+                    "instagram": instagram
                 })
                 app_id = result.scalar()
+
             return render_template("public/apply_creator.html", success=True, application_id=app_id)
 
         except Exception as e:
             db.session.rollback()
             return render_template(
                 "public/apply_creator.html",
-                error=f"Application could not be saved yet. Error: {str(e)[:300]}"
+                error=f"Application could not be saved yet. Error: {str(e)[:500]}"
             )
 
     return render_template("public/apply_creator.html")
