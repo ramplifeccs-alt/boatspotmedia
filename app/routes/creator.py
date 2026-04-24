@@ -4,27 +4,86 @@ from app.models import User, CreatorProfile, Batch, Video, Location, CreatorClic
 from app.services.db import db
 from app.services.media import extract_creation_time, generate_center_thumbnail
 from app.services.r2 import upload as r2_upload
-from app.services.db_repair import repair_all_known_tables
 
 creator_bp = Blueprint("creator", __name__)
 
+def creator_instagram(creator):
+    try:
+        value = getattr(creator, "instagram", None)
+        if value:
+            return str(value).replace("@", "")
+    except Exception:
+        pass
+
+    try:
+        if creator.user and creator.user.display_name:
+            return str(creator.user.display_name).replace("@", "")
+    except Exception:
+        pass
+
+    return ""
+
+def creator_display_name(creator):
+    try:
+        if creator.user and creator.user.display_name and creator.user.display_name != "None":
+            return creator.user.display_name
+    except Exception:
+        pass
+
+    ig = creator_instagram(creator)
+    return ig or "Creator"
+
 def current_creator():
-    repair_all_known_tables()
     creator = CreatorProfile.query.first()
+
     if not creator:
-        user = User(email="creator@test.com", role="creator", display_name="Test Creator", is_active=True)
-        db.session.add(user); db.session.flush()
-        creator = CreatorProfile(user_id=user.id, approved=True, storage_limit_gb=512, commission_rate=20, product_commission_rate=20, instagram="testcreator")
-        db.session.add(creator); db.session.flush()
+        user = User(
+            email="creator@test.com",
+            role="creator",
+            display_name="Test Creator",
+            is_active=True
+        )
+        db.session.add(user)
+        db.session.flush()
+
+        creator = CreatorProfile(
+            user_id=user.id,
+            approved=True,
+            storage_limit_gb=512,
+            commission_rate=20,
+            product_commission_rate=20
+        )
+        db.session.add(creator)
+        db.session.flush()
         db.session.add(CreatorClickStats(creator_id=creator.id))
         db.session.commit()
-    if creator.user:
-        if not creator.user.display_name or creator.user.display_name == "None":
-            creator.user.display_name = creator.instagram or "Creator"
-        if not creator.instagram and creator.user.display_name:
-            creator.instagram = creator.user.display_name.replace("@","")
-        db.session.commit()
+
+    try:
+        if creator.user and (not creator.user.display_name or creator.user.display_name == "None"):
+            creator.user.display_name = "Creator"
+            db.session.commit()
+    except Exception:
+        db.session.rollback()
+
     return creator
+
+def render_creator_template(template_name, **kwargs):
+    creator = kwargs.get("creator") or current_creator()
+    kwargs["creator"] = creator
+    kwargs["creator_name"] = creator_display_name(creator)
+    kwargs["creator_instagram"] = creator_instagram(creator)
+    return render_template(template_name, **kwargs)
+
+@creator_bp.route("/health")
+def health():
+    c = current_creator()
+    return {
+        "ok": True,
+        "creator_id": c.id,
+        "display_name": creator_display_name(c),
+        "instagram_safe": creator_instagram(c),
+        "storage_limit_gb": c.storage_limit_gb
+    }
 
 @creator_bp.route("/logout")
 def logout():
@@ -41,51 +100,111 @@ def dashboard():
     creator = current_creator()
     stats = CreatorClickStats.query.filter_by(creator_id=creator.id).first()
     if not stats:
-        stats = CreatorClickStats(creator_id=creator.id); db.session.add(stats); db.session.commit()
-    videos_count = Video.query.filter_by(creator_id=creator.id, status="active").count()
-    return render_template("creator/dashboard.html", creator=creator, stats=stats, videos_count=videos_count)
+        stats = CreatorClickStats(creator_id=creator.id)
+        db.session.add(stats)
+        db.session.commit()
+
+    try:
+        videos_count = Video.query.filter_by(creator_id=creator.id, status="active").count()
+    except Exception:
+        db.session.rollback()
+        videos_count = 0
+
+    return render_creator_template(
+        "creator/dashboard.html",
+        creator=creator,
+        stats=stats,
+        videos_count=videos_count
+    )
 
 @creator_bp.route("/upload", methods=["GET", "POST"])
 def upload():
     creator = current_creator()
-    suggestions = [l.name for l in Location.query.order_by(Location.name.asc()).all()]
+
+    try:
+        suggestions = [l.name for l in Location.query.order_by(Location.name.asc()).all()]
+    except Exception:
+        db.session.rollback()
+        suggestions = [
+            "Boca Raton Inlet",
+            "Hillsboro Inlet",
+            "Boynton Inlet",
+            "Haulover Inlet",
+            "Port Everglades"
+        ]
+
     if request.method == "POST":
         files = request.files.getlist("videos")
         location = (request.form.get("location") or "").strip()
-        total_size = 0; temp_paths = []
+        total_size = 0
+        temp_paths = []
+
         for f in files:
-            f.seek(0, os.SEEK_END); size = f.tell(); f.seek(0)
+            f.seek(0, os.SEEK_END)
+            size = f.tell()
+            f.seek(0)
             total_size += size
+
             tmp = tempfile.NamedTemporaryFile(delete=False, suffix=os.path.splitext(f.filename)[1] or ".mp4")
-            f.save(tmp.name); temp_paths.append((tmp.name, f.filename, size))
+            f.save(tmp.name)
+            temp_paths.append((tmp.name, f.filename, size))
+
         if total_size > current_app.config["MAX_BATCH_GB"] * 1024**3:
-            return render_template("creator/upload.html", creator=creator, suggestions=suggestions, error="Maximum upload size per batch is 128GB.")
+            return render_creator_template("creator/upload.html", creator=creator, suggestions=suggestions, error="Maximum upload size per batch is 128GB.")
+
         if creator.storage_used_bytes + total_size > creator.storage_limit_gb * 1024**3:
-            return render_template("creator/upload.html", creator=creator, suggestions=suggestions, error="Storage limit reached. Delete videos or upgrade your plan.")
+            return render_creator_template("creator/upload.html", creator=creator, suggestions=suggestions, error="Storage limit reached. Delete videos or upgrade your plan.")
+
         batch = Batch(creator_id=creator.id, location=location, total_size_bytes=total_size)
-        db.session.add(batch); db.session.flush()
+        db.session.add(batch)
+        db.session.flush()
+
         preset = VideoPricingPreset.query.filter_by(creator_id=creator.id, is_default=True, active=True).first()
         price = float(preset.price) if preset else 40.00
+
         for path, filename, size in temp_paths:
             recorded_at = extract_creation_time(path)
             video_key = f"creator_{creator.id}/batch_{batch.id}/{uuid.uuid4()}_{filename}"
             r2_upload(path, current_app.config["R2_BUCKET_VIDEOS"], video_key)
-            thumb_url = ""; thumb_key = None
+
+            thumb_url = ""
+            thumb_key = None
+
             try:
-                thumb_path = path + ".jpg"; generate_center_thumbnail(path, thumb_path)
+                thumb_path = path + ".jpg"
+                generate_center_thumbnail(path, thumb_path)
                 thumb_key = f"video_thumbs/{uuid.uuid4()}.jpg"
                 thumb_url = r2_upload(thumb_path, current_app.config["R2_BUCKET_THUMBNAILS"], thumb_key)
-            except Exception: pass
-            db.session.add(Video(creator_id=creator.id, batch_id=batch.id, location=location, recorded_at=recorded_at,
-                r2_video_key=video_key, r2_thumbnail_key=thumb_key, public_thumbnail_url=thumb_url,
-                file_size_bytes=size, original_price=price, edited_price=price, bundle_price=price,
-                internal_filename=filename, status="active"))
-            try: os.unlink(path)
-            except Exception: pass
+            except Exception:
+                pass
+
+            db.session.add(Video(
+                creator_id=creator.id,
+                batch_id=batch.id,
+                location=location,
+                recorded_at=recorded_at,
+                r2_video_key=video_key,
+                r2_thumbnail_key=thumb_key,
+                public_thumbnail_url=thumb_url,
+                file_size_bytes=size,
+                original_price=price,
+                edited_price=price,
+                bundle_price=price,
+                internal_filename=filename,
+                status="active"
+            ))
+
+            try:
+                os.unlink(path)
+            except Exception:
+                pass
+
         creator.storage_used_bytes += total_size
         db.session.commit()
-        return render_template("creator/upload.html", creator=creator, suggestions=suggestions, success=True, batch_id=batch.id)
-    return render_template("creator/upload.html", creator=creator, suggestions=suggestions)
+
+        return render_creator_template("creator/upload.html", creator=creator, suggestions=suggestions, success=True, batch_id=batch.id)
+
+    return render_creator_template("creator/upload.html", creator=creator, suggestions=suggestions)
 
 @creator_bp.route("/batches")
 def batches():
@@ -93,15 +212,16 @@ def batches():
     try:
         batches = Batch.query.filter_by(creator_id=creator.id).order_by(Batch.created_at.desc()).all()
     except Exception:
-        db.session.rollback(); batches = []
-    return render_template("creator/batches.html", creator=creator, batches=batches)
+        db.session.rollback()
+        batches = []
+    return render_creator_template("creator/batches.html", creator=creator, batches=batches)
 
 @creator_bp.route("/batches/<int:batch_id>")
 def batch_detail(batch_id):
     creator = current_creator()
     batch = Batch.query.get_or_404(batch_id)
     videos = Video.query.filter_by(batch_id=batch.id, creator_id=creator.id).order_by(Video.id.asc()).all()
-    return render_template("creator/batch_detail.html", creator=creator, batch=batch, videos=videos)
+    return render_creator_template("creator/batch_detail.html", creator=creator, batch=batch, videos=videos)
 
 @creator_bp.route("/batches/<int:batch_id>/delete", methods=["POST"])
 def delete_batch(batch_id):
@@ -123,43 +243,11 @@ def delete_selected_videos():
     db.session.commit()
     return redirect(request.referrer or url_for("creator.batches"))
 
-@creator_bp.route("/pricing", methods=["GET", "POST"])
-def pricing():
-    creator = current_creator()
-    if request.method == "POST":
-        preset_id = request.form.get("preset_id")
-        if request.form.get("is_default"):
-            VideoPricingPreset.query.filter_by(creator_id=creator.id).update({"is_default": False})
-        if preset_id:
-            p = VideoPricingPreset.query.filter_by(id=int(preset_id), creator_id=creator.id).first_or_404()
-        else:
-            p = VideoPricingPreset(creator_id=creator.id)
-            db.session.add(p)
-        p.title = request.form.get("title") or "Default Video Price"
-        p.description = request.form.get("description")
-        p.price = float(request.form.get("price") or 40)
-        p.delivery_type = request.form.get("delivery_type") or "instant"
-        p.is_default = bool(request.form.get("is_default"))
-        p.active = True
-        creator.second_clip_discount_percent = int(request.form.get("second_clip_discount_percent") or creator.second_clip_discount_percent or 0)
-        db.session.commit()
-        return redirect(url_for("creator.pricing"))
-    presets = VideoPricingPreset.query.filter_by(creator_id=creator.id, active=True).order_by(VideoPricingPreset.id.desc()).all()
-    edit_id = request.args.get("edit")
-    edit_preset = VideoPricingPreset.query.filter_by(id=int(edit_id), creator_id=creator.id).first() if edit_id and edit_id.isdigit() else None
-    return render_template("creator/pricing.html", creator=creator, presets=presets, edit_preset=edit_preset)
-
-@creator_bp.route("/pricing/<int:preset_id>/delete", methods=["POST"])
-def delete_pricing(preset_id):
-    creator = current_creator()
-    p = VideoPricingPreset.query.filter_by(id=preset_id, creator_id=creator.id).first_or_404()
-    p.active = False; db.session.commit()
-    return redirect(url_for("creator.pricing"))
-
 @creator_bp.route("/orders")
 def orders():
     creator = current_creator()
     status = request.args.get("status", "pending")
+
     try:
         q = OrderItem.query.filter_by(creator_id=creator.id)
         if status == "pending":
@@ -168,21 +256,29 @@ def orders():
             q = q.filter(OrderItem.edited_status.in_(["ready", "not_required"]))
         items = q.order_by(OrderItem.id.desc()).all()
     except Exception:
-        db.session.rollback(); items = []
-    return render_template("creator/orders.html", creator=creator, items=items, status=status)
+        db.session.rollback()
+        items = []
+
+    return render_creator_template("creator/orders.html", creator=creator, items=items, status=status)
 
 @creator_bp.route("/products", methods=["GET", "POST"])
 def products():
     creator = current_creator()
     edit_id = request.args.get("edit")
-    edit_product = Product.query.filter_by(id=int(edit_id), creator_id=creator.id).first() if edit_id and edit_id.isdigit() else None
+    edit_product = None
+
+    if edit_id and edit_id.isdigit():
+        edit_product = Product.query.filter_by(id=int(edit_id), creator_id=creator.id).first()
+
     if request.method == "POST":
         product_id = request.form.get("product_id")
+
         if product_id:
             p = Product.query.filter_by(id=int(product_id), creator_id=creator.id).first_or_404()
         else:
             p = Product(creator_id=creator.id)
             db.session.add(p)
+
         p.title = request.form.get("title")
         p.description = request.form.get("description")
         p.price = float(request.form.get("price") or 0)
@@ -191,25 +287,71 @@ def products():
         p.shipping_method = request.form.get("shipping_method")
         p.active = True
         db.session.commit()
+
         return redirect(url_for("creator.products"))
+
     products = Product.query.filter_by(creator_id=creator.id).all()
-    return render_template("creator/products.html", creator=creator, products=products, edit_product=edit_product)
+    return render_creator_template("creator/products.html", creator=creator, products=products, edit_product=edit_product)
 
 @creator_bp.route("/products/<int:product_id>/delete", methods=["POST"])
 def delete_product(product_id):
     creator = current_creator()
     p = Product.query.filter_by(id=product_id, creator_id=creator.id).first_or_404()
-    p.active = False; db.session.commit()
+    p.active = False
+    db.session.commit()
     return redirect(url_for("creator.products"))
+
+@creator_bp.route("/pricing", methods=["GET", "POST"])
+def pricing():
+    creator = current_creator()
+
+    if request.method == "POST":
+        preset_id = request.form.get("preset_id")
+
+        if request.form.get("is_default"):
+            VideoPricingPreset.query.filter_by(creator_id=creator.id).update({"is_default": False})
+
+        if preset_id:
+            p = VideoPricingPreset.query.filter_by(id=int(preset_id), creator_id=creator.id).first_or_404()
+        else:
+            p = VideoPricingPreset(creator_id=creator.id)
+            db.session.add(p)
+
+        p.title = request.form.get("title") or "Default Video Price"
+        p.description = request.form.get("description")
+        p.price = float(request.form.get("price") or 40)
+        p.delivery_type = request.form.get("delivery_type") or "instant"
+        p.is_default = bool(request.form.get("is_default"))
+        p.active = True
+
+        creator.second_clip_discount_percent = int(request.form.get("second_clip_discount_percent") or creator.second_clip_discount_percent or 0)
+
+        db.session.commit()
+        return redirect(url_for("creator.pricing"))
+
+    presets = VideoPricingPreset.query.filter_by(creator_id=creator.id, active=True).order_by(VideoPricingPreset.id.desc()).all()
+    edit_id = request.args.get("edit")
+    edit_preset = VideoPricingPreset.query.filter_by(id=int(edit_id), creator_id=creator.id).first() if edit_id and edit_id.isdigit() else None
+
+    return render_creator_template("creator/pricing.html", creator=creator, presets=presets, edit_preset=edit_preset)
+
+@creator_bp.route("/pricing/<int:preset_id>/delete", methods=["POST"])
+def delete_pricing(preset_id):
+    creator = current_creator()
+    p = VideoPricingPreset.query.filter_by(id=preset_id, creator_id=creator.id).first_or_404()
+    p.active = False
+    db.session.commit()
+    return redirect(url_for("creator.pricing"))
 
 @creator_bp.route("/settings", methods=["GET", "POST"])
 def settings():
     creator = current_creator()
+
     if request.method == "POST":
         if creator.user:
             creator.user.display_name = request.form.get("display_name") or creator.user.display_name
             creator.user.email = request.form.get("email") or creator.user.email
-        creator.instagram = (request.form.get("instagram") or creator.instagram or "").replace("@","")
         db.session.commit()
         return redirect(url_for("creator.settings"))
-    return render_template("creator/settings.html", creator=creator)
+
+    return render_creator_template("creator/settings.html", creator=creator)

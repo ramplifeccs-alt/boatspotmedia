@@ -141,3 +141,7 @@ Creator panel reorganized: Uploads, Batches, Orders, Products, Pricing, Settings
 
 ## v13 Creator Panel Fix
 Fixes Batches/Orders robustness, edit/delete products and pricing, creator name/Instagram/sidebar/logout, plan storage display, published videos count.
+
+
+## v15 No Instagram Crash
+Completely removes direct creator.instagram dependency from routes. Uses safe helper and display_name fallback.
