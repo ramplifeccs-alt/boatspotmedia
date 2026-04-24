@@ -137,3 +137,7 @@ Approving an application creates/activates a creator user and CreatorProfile.
 
 ## v12 Corrections
 Creator panel reorganized: Uploads, Batches, Orders, Products, Pricing, Settings. Second clip discount is video-only. Orders show filename.
+
+
+## v13 Creator Panel Fix
+Fixes Batches/Orders robustness, edit/delete products and pricing, creator name/Instagram/sidebar/logout, plan storage display, published videos count.
