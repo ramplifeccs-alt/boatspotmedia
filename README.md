@@ -161,3 +161,7 @@ Generic product variants, owner sidebar sections, hidden raw/repair links from m
 
 ## v20 Models Indent Fixed
 Fixes ProductVariant indentation error in models.py and removes old color-only fields from variant logic.
+
+
+## v21 Owner Shop Services
+Owner menu shows one block at a time. Shop products clickable with detail page. Adds Services public page and Services Dashboard base.

@@ -9,16 +9,16 @@
 <div class="sidebar-layout">
   <div class="sidebar">
     <h2>Owner</h2>
-    <a href="#applications">Applications</a>
-    <a href="#plans">Plans</a>
-    <a href="#creators">Creators</a>
-    <a href="#history">Override History</a>
+    <a href="#" onclick="showOwnerBlock('applications')">Applications</a>
+    <a href="#" onclick="showOwnerBlock('plans')">Plans</a>
+    <a href="#" onclick="showOwnerBlock('creators')">Creators</a>
+    <a href="#" onclick="showOwnerBlock('history')">Override History</a>
   </div>
 
   <div class="content">
     <h1>Owner Dashboard</h1>
 
-    <section id="applications">
+    <section id="applications" class="owner-block">
       <h2>Creator Applications</h2>
       <div class="card">
         <table>
@@ -52,7 +52,7 @@
       </div>
     </section>
 
-    <section id="plans">
+    <section id="plans" class="owner-block" style="display:none">
       <h2>Storage Plans</h2>
       <div class="grid">
         <form method="post" action="/owner/plans/create" class="card">
@@ -88,7 +88,7 @@
       </div>
     </section>
 
-    <section id="creators">
+    <section id="creators" class="owner-block" style="display:none">
       <h2>Approved Creators</h2>
       {% for c in creators %}
       <div class="card">
@@ -148,7 +148,7 @@
       {% endfor %}
     </section>
 
-    <section id="history">
+    <section id="history" class="owner-block" style="display:none">
       <h2>Override History</h2>
       <div class="card">
         <table>
@@ -172,5 +172,11 @@
     </section>
   </div>
 </div>
-</body>
+<script>
+function showOwnerBlock(id){
+  document.querySelectorAll('.owner-block').forEach(function(el){el.style.display='none';});
+  var block=document.getElementById(id);
+  if(block){block.style.display='block';}
+}
+</script></body>
 </html>

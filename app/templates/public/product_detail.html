@@ -1,0 +1,30 @@
+<!doctype html>
+<html>
+<head><meta charset="utf-8"><title>{{product.title}} - BoatSpotMedia</title><link rel="stylesheet" href="/static/css/style.css"></head>
+<body>
+<header><div><b>BoatSpotMedia</b></div><nav><a href="/">Home</a><a href="/shop">Shop</a><a href="/services">Services</a><a href="/login">Login</a></nav></header>
+<div class="container">
+  <a href="/shop">← Back to Shop</a>
+  <div class="card">
+    <h1>{{product.title}}</h1>
+    <p>{{product.description}}</p>
+    <h2>${{product.price}}</h2>
+    <p><b>Shipping:</b> ${{product.shipping_cost}}</p>
+    <p><b>Processing:</b> {{product.processing_time or 'Not specified'}}</p>
+    <p><b>Shipping method:</b> {{product.shipping_method or 'Not specified'}}</p>
+
+    {% if variants %}
+      <h3>Available Options</h3>
+      <select>
+        {% for v in variants %}
+          <option>{{v.variant_name}}: {{v.variant_value}}{% if v.price_adjustment %} (+${{v.price_adjustment}}){% endif %}</option>
+        {% endfor %}
+      </select>
+    {% endif %}
+
+    <br><br>
+    <button class="btn">Add to Cart</button>
+  </div>
+</div>
+</body>
+</html>

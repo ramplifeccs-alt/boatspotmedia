@@ -169,6 +169,16 @@ class AdvertiserProfile(db.Model):
 
 class ServiceAd(db.Model):
     id = db.Column(db.Integer, primary_key=True)
+    service_account_id = db.Column(db.Integer)
+    title = db.Column(db.String(200))
+    description = db.Column(db.Text)
+    website_url = db.Column(db.String(800))
+    phone = db.Column(db.String(80))
+    category = db.Column(db.String(120))
+    location = db.Column(db.String(180))
+    cost_per_click = db.Column(db.Numeric(10, 2), default=0.15)
+    clicks = db.Column(db.Integer, default=0)
+    active = db.Column(db.Boolean, default=True)
     advertiser_id = db.Column(db.Integer, db.ForeignKey("advertiser_profile.id"))
     title = db.Column(db.String(200))
     description = db.Column(db.Text)
@@ -238,3 +248,22 @@ class CommissionOverrideLog(db.Model):
     expires_at = db.Column(db.DateTime)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
 
+
+
+class ServiceAccount(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    business_name = db.Column(db.String(200))
+    contact_name = db.Column(db.String(160))
+    email = db.Column(db.String(255))
+    password_hash = db.Column(db.String(255))
+    balance = db.Column(db.Numeric(10, 2), default=0)
+    is_active = db.Column(db.Boolean, default=True)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+
+
+class ServiceClickLog(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    service_ad_id = db.Column(db.Integer, db.ForeignKey("service_ad.id"))
+    ip_address = db.Column(db.String(80))
+    user_agent = db.Column(db.Text)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)

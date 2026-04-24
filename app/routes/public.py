@@ -1,4 +1,4 @@
-from flask import Blueprint, render_template, request
+from flask import Blueprint, redirect, render_template, request
 from datetime import datetime
 from sqlalchemy import text
 from app.models import Video, Location, ServiceAd, CharterListing
@@ -176,3 +176,39 @@ def charter_login():
 @public_bp.route("/services/login", methods=["GET", "POST"])
 def services_login():
     return render_template("public/generic_login.html", title="Services Login", subtitle="Manage your pay-per-click service ads.")
+
+
+@public_bp.route("/shop/product/<int:product_id>")
+def product_detail(product_id):
+    from app.models import Product, ProductVariant
+    product = Product.query.get_or_404(product_id)
+    variants = ProductVariant.query.filter_by(product_id=product.id, active=True).all()
+    return render_template("public/product_detail.html", product=product, variants=variants)
+
+
+@public_bp.route("/services")
+def services_public():
+    from app.models import ServiceAd
+    try:
+        ads = ServiceAd.query.filter_by(active=True).order_by(ServiceAd.id.desc()).all()
+    except Exception:
+        db.session.rollback()
+        ads = []
+    return render_template("public/services.html", ads=ads)
+
+
+@public_bp.route("/services/ad/<int:ad_id>/click")
+def service_ad_click(ad_id):
+    from app.models import ServiceAd, ServiceClickLog
+    ad = ServiceAd.query.get_or_404(ad_id)
+    ad.clicks = (ad.clicks or 0) + 1
+    try:
+        db.session.add(ServiceClickLog(
+            service_ad_id=ad.id,
+            ip_address=request.headers.get("X-Forwarded-For", request.remote_addr),
+            user_agent=request.headers.get("User-Agent")
+        ))
+    except Exception:
+        pass
+    db.session.commit()
+    return redirect(ad.website_url or "/services")

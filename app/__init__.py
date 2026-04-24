@@ -10,6 +10,7 @@ def create_app():
     from .routes.public import public_bp
     from .routes.creator import creator_bp
     from .routes.owner import owner_bp
+    from .routes.services_panel import services_bp
     from .routes.buyer import buyer_bp
     from .routes.advertiser import advertiser_bp
     from .routes.charters import charters_bp
@@ -17,6 +18,7 @@ def create_app():
     flask_app.register_blueprint(public_bp)
     flask_app.register_blueprint(creator_bp, url_prefix="/creator")
     flask_app.register_blueprint(owner_bp, url_prefix="/owner")
+    app.register_blueprint(services_bp)
     flask_app.register_blueprint(buyer_bp, url_prefix="/buyer")
     flask_app.register_blueprint(advertiser_bp, url_prefix="/advertiser")
     flask_app.register_blueprint(charters_bp, url_prefix="/charters")
