@@ -9,17 +9,19 @@ public_bp = Blueprint("public", __name__)
 def home():
     try:
         latest = Video.query.filter_by(status="active").order_by(Video.created_at.desc()).limit(20).all()
-    except Exception as e:
+    except Exception:
         db.session.rollback()
         latest = []
-    selected = []
-    used = set()
+    selected, used = [], set()
     for v in latest:
-        if getattr(v, "creator_id", None) not in used:
-            selected.append(v); used.add(getattr(v, "creator_id", None))
-        if len(selected) == 3: break
+        cid = getattr(v, "creator_id", None)
+        if cid not in used:
+            selected.append(v); used.add(cid)
+        if len(selected) == 3:
+            break
     for v in latest:
-        if len(selected) == 3: break
+        if len(selected) == 3:
+            break
         if v not in selected:
             selected.append(v)
     return render_template("public/home.html", videos=selected)
@@ -80,7 +82,15 @@ def apply_creator():
         social_fields = [request.form.get(k) for k in ["instagram", "facebook", "youtube", "tiktok"]]
         if not any(social_fields):
             return render_template("public/apply_creator.html", error="At least one social media link is required.")
-        app = CreatorApplication(
+
+        # Repair old DB table immediately before insert.
+        try:
+            from app.services.db_repair import repair_creator_application_table
+            repair_creator_application_table()
+        except Exception as e:
+            print("creator_application repair warning:", e)
+
+        app_obj = CreatorApplication(
             first_name=request.form.get("first_name"),
             last_name=request.form.get("last_name"),
             email=request.form.get("email"),
@@ -89,8 +99,17 @@ def apply_creator():
             youtube=request.form.get("youtube"),
             tiktok=request.form.get("tiktok")
         )
-        db.session.add(app); db.session.commit()
-        return render_template("public/apply_creator.html", success=True)
+        try:
+            db.session.add(app_obj)
+            db.session.commit()
+            return render_template("public/apply_creator.html", success=True)
+        except Exception as e:
+            db.session.rollback()
+            return render_template(
+                "public/apply_creator.html",
+                error="Database table was repaired. Please submit again once more."
+            )
+
     return render_template("public/apply_creator.html")
 
 @public_bp.route("/services")

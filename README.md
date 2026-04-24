@@ -89,3 +89,12 @@ Also protects homepage from crashing if old DB tables are incomplete.
 Adds auto-repair for creator_application social columns:
 instagram, facebook, youtube, tiktok.
 Also expands auto-repair to all major test tables.
+
+
+## v6 Apply Creator DB repair
+
+If your Railway DB was created by old packages, open:
+/owner/repair-db-now
+
+Then submit /apply-creator again.
+The apply route also repairs creator_application immediately before saving.

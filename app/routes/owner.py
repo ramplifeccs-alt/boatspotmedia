@@ -72,3 +72,8 @@ def reset_db():
     db.drop_all()
     db.create_all()
     return "Database reset. Redeploy/reload app to seed defaults."
+@owner_bp.route("/repair-db-now")
+def repair_db_now():
+    from app.services.db_repair import repair_all_known_tables
+    repair_all_known_tables()
+    return "DB repair completed."
