@@ -22,3 +22,71 @@ td,th{padding:12px;border-bottom:1px solid #e8edf3;text-align:left}
 .notice{background:#fff3cd;padding:12px;border-radius:10px;margin:10px 0}
 .success{background:#d7f7df;padding:12px;border-radius:10px;margin:10px 0}
 .error{background:#ffd9d9;padding:12px;border-radius:10px;margin:10px 0}
+
+
+/* v19 responsive improvements */
+.sidebar-layout {
+  display: flex;
+  min-height: 100vh;
+}
+.sidebar {
+  width: 240px;
+  min-width: 220px;
+  padding: 24px;
+}
+.content {
+  flex: 1;
+  padding: 32px;
+  overflow-x: auto;
+}
+.grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+  gap: 18px;
+}
+table {
+  width: 100%;
+  overflow-x: auto;
+}
+input, select, textarea, button {
+  max-width: 100%;
+}
+@media (max-width: 900px) {
+  .sidebar-layout {
+    display: block;
+  }
+  .sidebar {
+    width: auto;
+    min-width: 0;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+    padding: 16px;
+  }
+  .sidebar h2 {
+    width: 100%;
+  }
+  .sidebar a {
+    display: inline-block;
+    margin: 4px 8px 4px 0;
+  }
+  .content {
+    padding: 16px;
+  }
+  table {
+    display: block;
+    overflow-x: auto;
+    white-space: nowrap;
+  }
+  .card {
+    padding: 16px;
+  }
+}
+@media (max-width: 520px) {
+  h1 { font-size: 28px; }
+  h2 { font-size: 22px; }
+  .btn, button {
+    width: 100%;
+    margin-top: 8px;
+  }
+}

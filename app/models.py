@@ -214,7 +214,9 @@ class VideoPricingPreset(db.Model):
 class ProductVariant(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     product_id = db.Column(db.Integer, db.ForeignKey("product.id"))
-    color_name = db.Column(db.String(80))
+    variant_name = db.Column(db.String(120))
+        variant_value = db.Column(db.String(200))
+        color_name = db.Column(db.String(80))
     color_hex = db.Column(db.String(20))
     price_adjustment = db.Column(db.Numeric(10,2), default=0)
     active = db.Column(db.Boolean, default=True)

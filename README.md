@@ -153,3 +153,7 @@ Adds shop link, plan list edit/delete, creator edit/deactivate, commission overr
 
 ## v18 Marketplace Polish
 Owner cards, override history/reset, product color variants, login selector, Google/Apple placeholders.
+
+
+## v19 Variants Owner Responsive
+Generic product variants, owner sidebar sections, hidden raw/repair links from menu, disabled OAuth labels, responsive CSS.

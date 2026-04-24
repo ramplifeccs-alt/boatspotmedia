@@ -51,7 +51,7 @@ def repair_basic_tables():
             _add(conn, "product", col, typ)
 
         conn.execute(text('CREATE TABLE IF NOT EXISTS product_variant (id SERIAL PRIMARY KEY)'))
-        for col, typ in [("product_id","INTEGER"),("color_name","VARCHAR(80)"),("color_hex","VARCHAR(20)"),("price_adjustment","NUMERIC(10,2) DEFAULT 0"),("active","BOOLEAN DEFAULT TRUE"),("created_at","TIMESTAMP DEFAULT CURRENT_TIMESTAMP")]:
+        for col, typ in [("product_id","INTEGER"),("variant_name","VARCHAR(120)"),("variant_value","VARCHAR(200)"),("color_name","VARCHAR(80)"),("color_hex","VARCHAR(20)"),("price_adjustment","NUMERIC(10,2) DEFAULT 0"),("active","BOOLEAN DEFAULT TRUE"),("created_at","TIMESTAMP DEFAULT CURRENT_TIMESTAMP")]:
             _add(conn, "product_variant", col, typ)
 
         conn.execute(text('CREATE TABLE IF NOT EXISTS product_variant_image (id SERIAL PRIMARY KEY)'))
