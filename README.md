@@ -157,3 +157,7 @@ Owner cards, override history/reset, product color variants, login selector, Goo
 
 ## v19 Variants Owner Responsive
 Generic product variants, owner sidebar sections, hidden raw/repair links from menu, disabled OAuth labels, responsive CSS.
+
+
+## v20 Models Indent Fixed
+Fixes ProductVariant indentation error in models.py and removes old color-only fields from variant logic.

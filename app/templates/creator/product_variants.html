@@ -46,7 +46,7 @@
       {% for v in variants %}
         <tr>
           <td>{{v.variant_name or 'Variant'}}</td>
-          <td>{{v.variant_value or v.color_name}}</td>
+          <td>{{v.variant_value}}</td>
           <td>${{v.price_adjustment}}</td>
           <td>
             <form method="post" action="/creator/products/variants/{{v.id}}/delete" onsubmit="return confirm('Delete this variant?');">
