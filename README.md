@@ -165,3 +165,7 @@ Fixes ProductVariant indentation error in models.py and removes old color-only f
 
 ## v21 Owner Shop Services
 Owner menu shows one block at a time. Shop products clickable with detail page. Adds Services public page and Services Dashboard base.
+
+
+## v22 Init Services Fixed
+Fixes app/__init__.py blueprint registration for services panel. Resolves NameError: app is not defined.
