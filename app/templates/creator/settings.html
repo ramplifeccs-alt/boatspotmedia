@@ -1,9 +1,1 @@
-<!doctype html><html><head><meta charset="utf-8"><title>Creator Dashboard</title><link rel="stylesheet" href="/static/css/style.css"></head><body><div class="sidebar-layout"><div class="sidebar"><h2>Creator</h2><a href="/creator/dashboard">Dashboard</a><a href="/creator/upload">Uploads</a><a href="/creator/batches">Batches</a><a href="/creator/settings">Settings</a></div><div class="content">
-<h1>Pricing Settings</h1>
-<form method="post">
-<label>Second Clip Discount %</label>
-<input name="second_clip_discount_percent" value="{{creator.second_clip_discount_percent if creator else 0}}">
-<div class="notice">If enabled, buyer sees a message encouraging them to buy a second clip from you.</div>
-<button class="btn">Save</button>
-</form>
-</div></div></body></html>
+<!doctype html><html><head><meta charset="utf-8"><title>Creator - BoatSpotMedia</title><link rel="stylesheet" href="/static/css/style.css"></head><body><div class="sidebar-layout"><div class="sidebar"><h2>Creator</h2><a href="/creator/dashboard">Dashboard</a><a href="/creator/upload">Uploads</a><a href="/creator/batches">Batches</a><a href="/creator/orders">Orders</a><a href="/creator/products">Products</a><a href="/creator/pricing">Pricing</a><a href="/creator/settings">Settings</a></div><div class="content"><h1>Settings</h1><form method="post" class="card"><label>Display name</label><input name="display_name" value="{{creator.user.display_name if creator.user else ''}}"><label>Email</label><input name="email" value="{{creator.user.email if creator.user else ''}}"><label>Change password</label><input type="password" name="password" placeholder="New password"><button class="btn">Save Profile</button></form><h2>Plan</h2><div class="card"><p>Current plan storage: {{creator.storage_limit_gb}} GB</p><p>Used: {{creator.storage_used_gb}} GB</p><p>Video commission: {{creator.active_commission_rate()}}%</p><p>Product commission: {{creator.active_product_commission_rate()}}%</p><button class="btn secondary">Change Plan</button></div></div></div></body></html>

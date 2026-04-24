@@ -41,6 +41,9 @@ class CreatorProfile(db.Model):
     commission_rate = db.Column(db.Integer, default=20)
     commission_override_rate = db.Column(db.Integer)
     commission_override_until = db.Column(db.DateTime)
+    product_commission_rate = db.Column(db.Integer, default=20)
+    product_commission_override_rate = db.Column(db.Integer)
+    product_commission_override_until = db.Column(db.DateTime)
     second_clip_discount_percent = db.Column(db.Integer, default=0)
     approved = db.Column(db.Boolean, default=False)
     suspended = db.Column(db.Boolean, default=False)
@@ -56,6 +59,12 @@ class CreatorProfile(db.Model):
     @property
     def storage_remaining_gb(self):
         return max(0, self.storage_limit_gb - self.storage_used_gb)
+
+    def active_product_commission_rate(self):
+        now = datetime.utcnow()
+        if self.product_commission_override_rate is not None and self.product_commission_override_until and self.product_commission_override_until > now:
+            return self.product_commission_override_rate
+        return self.product_commission_rate or 20
 
     def active_commission_rate(self):
         now = datetime.utcnow()
@@ -184,4 +193,16 @@ class CharterListing(db.Model):
     price_trip = db.Column(db.Numeric(10,2))
     description = db.Column(db.Text)
     status = db.Column(db.String(50), default="active")
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+
+
+class VideoPricingPreset(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    creator_id = db.Column(db.Integer, db.ForeignKey("creator_profile.id"))
+    title = db.Column(db.String(200), default="Default Video Price")
+    description = db.Column(db.Text)
+    price = db.Column(db.Numeric(10,2), default=40.00)
+    delivery_type = db.Column(db.String(50), default="instant")
+    is_default = db.Column(db.Boolean, default=False)
+    active = db.Column(db.Boolean, default=True)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)

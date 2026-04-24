@@ -133,3 +133,7 @@ New routes:
 - POST /owner/applications/<id>/reject
 
 Approving an application creates/activates a creator user and CreatorProfile.
+
+
+## v12 Corrections
+Creator panel reorganized: Uploads, Batches, Orders, Products, Pricing, Settings. Second clip discount is video-only. Orders show filename.

@@ -86,15 +86,15 @@
         <th>ID</th>
         <th>Creator</th>
         <th>Storage</th>
-        <th>Commission</th>
+        <th>Video Commission</th><th>Product Commission</th>
         <th>Temporary Override</th>
       </tr>
       {% for c in creators %}
       <tr>
         <td>{{ c.id }}</td>
-        <td>{{ c.user.display_name if c.user else '' }}</td>
+        <td>{{ c.user.display_name if c.user and c.user.display_name else 'Creator #' ~ c.id }}</td>
         <td>{{ c.storage_used_gb }} / {{ c.storage_limit_gb }} GB</td>
-        <td>{{ c.active_commission_rate() }}%</td>
+        <td>{{ c.active_commission_rate() }}%</td><td>{{ c.active_product_commission_rate() }}%</td>
         <td>
           <form method="post" action="/owner/creator/{{ c.id }}/override">
             <input name="rate" placeholder="5">

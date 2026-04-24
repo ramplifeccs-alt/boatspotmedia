@@ -1,8 +1,1 @@
-<!doctype html><html><head><meta charset="utf-8"><title>Creator Dashboard</title><link rel="stylesheet" href="/static/css/style.css"></head><body><div class="sidebar-layout"><div class="sidebar"><h2>Creator</h2><a href="/creator/dashboard">Dashboard</a><a href="/creator/upload">Uploads</a><a href="/creator/batches">Batches</a><a href="/creator/settings">Settings</a></div><div class="content">
-<h1>Creator Dashboard</h1>
-<div class="grid">
-<div class="card"><h3>Storage</h3><p>{{creator.storage_used_gb if creator else 0}} GB used</p><p>{{creator.storage_remaining_gb if creator else 0}} GB remaining</p></div>
-<div class="card"><h3>Videos</h3><p>{{videos_count}}</p></div>
-<div class="card"><h3>Total Clicks</h3><p>{{stats.clicks_lifetime if stats else 0}}</p><small>Global video preview clicks</small></div>
-</div>
-</div></div></body></html>
+<!doctype html><html><head><meta charset="utf-8"><title>Creator - BoatSpotMedia</title><link rel="stylesheet" href="/static/css/style.css"></head><body><div class="sidebar-layout"><div class="sidebar"><h2>Creator</h2><a href="/creator/dashboard">Dashboard</a><a href="/creator/upload">Uploads</a><a href="/creator/batches">Batches</a><a href="/creator/orders">Orders</a><a href="/creator/products">Products</a><a href="/creator/pricing">Pricing</a><a href="/creator/settings">Settings</a></div><div class="content"><h1>Creator Dashboard</h1><div class="grid"><div class="card"><h3>Storage</h3><p>{{creator.storage_used_gb if creator else 0}} GB used</p><p>{{creator.storage_remaining_gb if creator else 0}} GB remaining</p></div><div class="card"><h3>Videos</h3><p>{{videos_count}}</p></div><div class="card"><h3>Total Clicks</h3><p>{{stats.clicks_lifetime if stats else 0}}</p><small>Global video preview clicks</small></div></div></div></div></body></html>
