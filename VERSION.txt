@@ -1,0 +1,2 @@
+BoatSpotMedia v24 FORCE CLEAN INIT
+No bare app.register_blueprint exists. Only flask_app.register_blueprint.

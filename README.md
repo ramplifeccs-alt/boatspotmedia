@@ -169,3 +169,11 @@ Owner menu shows one block at a time. Shop products clickable with detail page. 
 
 ## v22 Init Services Fixed
 Fixes app/__init__.py blueprint registration for services panel. Resolves NameError: app is not defined.
+
+
+## v23 Clean Init
+Rewrites app/__init__.py using flask_app consistently and registers services_bp safely inside create_app.
+
+
+## v24 Force Clean Init
+Hard-overwrites app/__init__.py. Uses flask_app consistently and removes bare app.register_blueprint calls.
