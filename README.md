@@ -62,3 +62,11 @@ Hidden/internal:
 - /owner/panel
 - /advertiser/dashboard
 - /charters/dashboard
+
+
+## v3 fix
+
+This package includes automatic startup migrations for older Railway PostgreSQL tables.
+If Railway still shows database column errors from very old test builds, the fastest clean test option is:
+- Railway PostgreSQL → Data → remove old tables, or create a fresh PostgreSQL database.
+- Redeploy this package.
