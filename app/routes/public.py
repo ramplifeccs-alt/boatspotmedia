@@ -211,3 +211,55 @@ def oauth_start(provider, role):
     if missing:
         return render_template("public/oauth_setup.html", provider=provider.title(), role=role, missing=missing)
     return render_template("public/oauth_setup.html", provider=provider.title(), role=role, missing=[], ready=True)
+
+
+@public_bp.route("/auth/google/<account_type>")
+def auth_google(account_type):
+    import os, urllib.parse
+    client_id = os.getenv("GOOGLE_CLIENT_ID")
+    redirect_uri = os.getenv("GOOGLE_REDIRECT_URI")
+    if not client_id or not redirect_uri:
+        return "Google login is not configured yet. Missing GOOGLE_CLIENT_ID or GOOGLE_REDIRECT_URI.", 400
+    scope = urllib.parse.quote("openid email profile")
+    state = urllib.parse.quote(account_type)
+    url = (
+        "https://accounts.google.com/o/oauth2/v2/auth"
+        f"?client_id={urllib.parse.quote(client_id)}"
+        f"&redirect_uri={urllib.parse.quote(redirect_uri)}"
+        "&response_type=code"
+        f"&scope={scope}"
+        f"&state={state}"
+        "&access_type=offline"
+        "&prompt=consent"
+    )
+    return redirect(url)
+
+
+@public_bp.route("/auth/apple/<account_type>")
+def auth_apple(account_type):
+    import os, urllib.parse
+    client_id = os.getenv("APPLE_CLIENT_ID")
+    redirect_uri = os.getenv("APPLE_REDIRECT_URI")
+    if not client_id or not redirect_uri:
+        return "Apple login is not configured yet. Missing APPLE_CLIENT_ID or APPLE_REDIRECT_URI.", 400
+    state = urllib.parse.quote(account_type)
+    url = (
+        "https://appleid.apple.com/auth/authorize"
+        f"?client_id={urllib.parse.quote(client_id)}"
+        f"&redirect_uri={urllib.parse.quote(redirect_uri)}"
+        "&response_type=code"
+        "&scope=name%20email"
+        f"&state={state}"
+        "&response_mode=form_post"
+    )
+    return redirect(url)
+
+
+@public_bp.route("/auth/callback/google")
+def auth_google_callback():
+    return "Google callback received. Next step: exchange code for token and create/login user."
+
+
+@public_bp.route("/auth/callback/apple", methods=["GET", "POST"])
+def auth_apple_callback():
+    return "Apple callback received. Next step: verify Apple identity token and create/login user."

@@ -177,3 +177,7 @@ Rewrites app/__init__.py using flask_app consistently and registers services_bp 
 
 ## v24 Force Clean Init
 Hard-overwrites app/__init__.py. Uses flask_app consistently and removes bare app.register_blueprint calls.
+
+
+## v26 Confirm Hide OAuth
+Adds delete confirmation, hides deleted/suspended creators from default Applications view, and enables Google/Apple OAuth redirect routes.

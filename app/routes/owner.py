@@ -24,7 +24,11 @@ def applications():
     repair_all_known_tables(); repair_creator_application_table()
     rows = db.session.execute(text("SELECT * FROM creator_application ORDER BY CASE WHEN status='pending' THEN 0 ELSE 1 END, id DESC")).mappings().all()
     plans = StoragePlan.query.filter_by(active=True).order_by(StoragePlan.storage_limit_gb.asc()).all()
-    creators = CreatorProfile.query.order_by(CreatorProfile.id.desc()).all()
+    show_all = request.args.get("show_all") == "1"
+    creator_query = CreatorProfile.query
+    if not show_all:
+        creator_query = creator_query.filter(CreatorProfile.approved == True, CreatorProfile.suspended == False)
+    creators = creator_query.order_by(CreatorProfile.id.desc()).all()
     logs = CommissionOverrideLog.query.order_by(CommissionOverrideLog.created_at.desc()).limit(100).all()
     return render_template("owner/applications.html", applications=rows, plans=plans, creators=creators, logs=logs)
 
@@ -127,17 +131,16 @@ def activate_creator(creator_id):
 
 @owner_bp.route("/creators/<int:creator_id>/delete", methods=["POST"])
 def delete_creator(creator_id):
-    c=CreatorProfile.query.get_or_404(creator_id)
-    c.suspended=True; c.approved=False
+    c = CreatorProfile.query.get_or_404(creator_id)
+    c.suspended = True
+    c.approved = False
     if c.user:
-        c.user.is_active=False
-        c.user.email = f"deleted_creator_{c.id}_{c.user.email}"
-        c.user.display_name = f"Deleted Creator #{c.id}"
-    for v in Video.query.filter_by(creator_id=c.id).all():
-        v.status="deleted"
-    for p in Product.query.filter_by(creator_id=c.id).all():
-        p.active=False
-    db.session.commit(); return redirect(url_for("owner.applications"))
+        c.user.is_active = False
+        # keep email/history but mark display so Owner knows it was deleted if show_all is used
+        if c.user.display_name and not c.user.display_name.startswith("[DELETED]"):
+            c.user.display_name = "[DELETED] " + c.user.display_name
+    db.session.commit()
+    return redirect(url_for("owner.applications"))
 
 @owner_bp.route("/repair-db-now")
 def repair_db_now():
