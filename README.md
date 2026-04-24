@@ -105,3 +105,9 @@ The apply route also repairs creator_application immediately before saving.
 Creator applications now save with direct SQL after force repairing the table.
 Check saved applications at:
 /owner/applications-raw
+
+
+## v8 brand_name fix
+
+Fixes legacy Railway DB where creator_application.brand_name is NOT NULL.
+Apply form now includes Creator / Brand Name and insert includes brand_name.

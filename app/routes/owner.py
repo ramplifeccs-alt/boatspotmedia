@@ -80,10 +80,11 @@ def repair_db_now():
 @owner_bp.route("/applications-raw")
 def applications_raw():
     from sqlalchemy import text
-    from app.services.db_repair import repair_creator_application_table
+    from app.services.db_repair import repair_creator_application_table, relax_creator_application_not_nulls
     repair_creator_application_table()
+    relax_creator_application_not_nulls()
     rows = db.session.execute(text("""
-        SELECT id, first_name, last_name, email, instagram, facebook, youtube, tiktok, status, submitted_at
+        SELECT *
         FROM creator_application
         ORDER BY id DESC
         LIMIT 100
