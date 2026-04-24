@@ -139,9 +139,28 @@
           </div>
         </div>
 
-        <form method="post" action="/owner/creators/{{c.id}}/delete" onsubmit="return confirm('Deactivate creator account? This disables login and hides their content.');">
-          <button class="btn danger">Deactivate Creator</button>
-        </form>
+        <div class="card">
+          <h4>Account Controls</h4>
+          <p><b>Status:</b>
+            {% if c.suspended or not c.approved or (c.user and not c.user.is_active) %}
+              <span class="badge danger">Suspended / Inactive</span>
+            {% else %}
+              <span class="badge success">Active</span>
+            {% endif %}
+          </p>
+          <div class="actions-row">
+            <form method="post" action="/owner/creators/{{c.id}}/suspend" onsubmit="return confirm('Suspend this creator? Their login will be disabled and videos/products hidden.');">
+              <button class="btn danger" {% if c.suspended or not c.approved %}disabled{% endif %}>Suspend</button>
+            </form>
+            <form method="post" action="/owner/creators/{{c.id}}/activate" onsubmit="return confirm('Activate this creator again?');">
+              <button class="btn" {% if not c.suspended and c.approved and (not c.user or c.user.is_active) %}disabled{% endif %}>Activate</button>
+            </form>
+            <form method="post" action="/owner/creators/{{c.id}}/delete" onsubmit="return confirm('Delete this creator from public use? This hides all videos/products and disables the account.');">
+              <button class="btn danger">Delete</button>
+            </form>
+          </div>
+          <small>Use Suspend for temporary problems. Use Activate to restore access. Use Delete only when you want to remove/hide the creator permanently.</small>
+        </div>
       </div>
       {% else %}
       <div class="card">No approved creators yet.</div>

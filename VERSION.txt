@@ -1,2 +1,5 @@
-BoatSpotMedia v24 FORCE CLEAN INIT
-No bare app.register_blueprint exists. Only flask_app.register_blueprint.
+BoatSpotMedia v25 OWNER CREATOR AUTH CONTROLS
+- Forced clean init: only flask_app.register_blueprint, no bare app.register_blueprint inside create_app.
+- Owner can suspend, activate, and delete/hide creators.
+- Buyer, Services, and Charter login pages include Register + Login.
+- Google/Apple OAuth setup routes added and environment variables documented.

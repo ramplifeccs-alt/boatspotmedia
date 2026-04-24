@@ -1,0 +1,29 @@
+<!doctype html>
+<html>
+<head><meta charset="utf-8"><title>{{title or 'Register'}} - BoatSpotMedia</title><link rel="stylesheet" href="/static/css/style.css"></head>
+<body>
+<header><div><b>BoatSpotMedia</b></div><nav><a href="/">Home</a><a href="/login">Login</a></nav></header>
+<div class="container">
+  <h1>{{title or 'Register'}}</h1>
+  {% if error %}<div class="error">{{error}}</div>{% endif %}
+  <div class="grid">
+    <form class="card" method="post">
+      <h2>Create Account</h2>
+      {% if business %}<label>Business name</label><input name="business_name" required>{% else %}<label>Name</label><input name="display_name" required>{% endif %}
+      <label>Email</label><input type="email" name="email" required>
+      <label>Password</label><input type="password" name="password" required>
+      <button class="btn">Register</button>
+    </form>
+    <div class="card">
+      <h2>Already registered?</h2>
+      <p>Use login if you already have an account.</p>
+      <a class="btn secondary" href="{{login_url}}">Login</a>
+    </div>
+  </div>
+  <div class="card">
+    <h2>Google / Apple</h2>
+    <a class="btn secondary" href="/auth/google/{{role}}">Continue with Google</a>
+    <a class="btn secondary" href="/auth/apple/{{role}}">Continue with Apple</a>
+  </div>
+</div>
+</body></html>

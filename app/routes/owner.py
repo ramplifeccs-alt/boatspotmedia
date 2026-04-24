@@ -2,7 +2,7 @@ from datetime import datetime, timedelta
 from flask import Blueprint, render_template, request, redirect, url_for
 from werkzeug.security import generate_password_hash
 from sqlalchemy import text
-from app.models import User, CreatorProfile, StoragePlan, CommissionOverrideLog
+from app.models import User, CreatorProfile, StoragePlan, CommissionOverrideLog, Video, Product
 from app.services.db import db
 from app.services.emailer import send_email
 from app.services.db_repair import repair_creator_application_table, repair_all_known_tables
@@ -34,7 +34,7 @@ def approve_application(app_id):
     selected_plan = StoragePlan.query.get(request.form.get("plan_id")) if request.form.get("plan_id") else StoragePlan.query.first()
     row = db.session.execute(text("SELECT * FROM creator_application WHERE id=:id LIMIT 1"), {"id": app_id}).mappings().first()
     if not row: return redirect(url_for("owner.applications"))
-    email = row.get("email")
+    email = (row.get("email") or "").lower().strip()
     brand_name = row.get("brand_name") or row.get("instagram") or "Boat Creator"
     user = User.query.filter_by(email=email).first()
     if not user:
@@ -105,10 +105,38 @@ def edit_creator(creator_id):
     c.storage_limit_gb=int(request.form.get("storage_limit_gb") or c.storage_limit_gb); c.commission_rate=int(request.form.get("commission_rate") or c.commission_rate); c.product_commission_rate=int(request.form.get("product_commission_rate") or c.product_commission_rate or 20)
     db.session.commit(); return redirect(url_for("owner.applications"))
 
+@owner_bp.route("/creators/<int:creator_id>/suspend", methods=["POST"])
+def suspend_creator(creator_id):
+    c=CreatorProfile.query.get_or_404(creator_id)
+    c.suspended=True; c.approved=False
+    if c.user: c.user.is_active=False
+    for v in Video.query.filter_by(creator_id=c.id).all():
+        if v.status != "deleted": v.status="suspended"
+    for p in Product.query.filter_by(creator_id=c.id).all():
+        p.active=False
+    db.session.commit(); return redirect(url_for("owner.applications"))
+
+@owner_bp.route("/creators/<int:creator_id>/activate", methods=["POST"])
+def activate_creator(creator_id):
+    c=CreatorProfile.query.get_or_404(creator_id)
+    c.suspended=False; c.approved=True
+    if c.user: c.user.is_active=True; c.user.role="creator"
+    for v in Video.query.filter_by(creator_id=c.id, status="suspended").all():
+        v.status="active"
+    db.session.commit(); return redirect(url_for("owner.applications"))
+
 @owner_bp.route("/creators/<int:creator_id>/delete", methods=["POST"])
 def delete_creator(creator_id):
-    c=CreatorProfile.query.get_or_404(creator_id); c.suspended=True; c.approved=False
-    if c.user: c.user.is_active=False
+    c=CreatorProfile.query.get_or_404(creator_id)
+    c.suspended=True; c.approved=False
+    if c.user:
+        c.user.is_active=False
+        c.user.email = f"deleted_creator_{c.id}_{c.user.email}"
+        c.user.display_name = f"Deleted Creator #{c.id}"
+    for v in Video.query.filter_by(creator_id=c.id).all():
+        v.status="deleted"
+    for p in Product.query.filter_by(creator_id=c.id).all():
+        p.active=False
     db.session.commit(); return redirect(url_for("owner.applications"))
 
 @owner_bp.route("/repair-db-now")

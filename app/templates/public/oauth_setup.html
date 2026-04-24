@@ -1,0 +1,17 @@
+<!doctype html>
+<html>
+<head><meta charset="utf-8"><title>{{provider}} Login Setup - BoatSpotMedia</title><link rel="stylesheet" href="/static/css/style.css"></head>
+<body>
+<div class="container">
+  <h1>{{provider}} login for {{role}}</h1>
+  {% if ready %}
+    <div class="success">{{provider}} credentials were found. Next step is connecting the real OAuth callback flow.</div>
+  {% else %}
+    <div class="notice">{{provider}} login is not active yet. Add these Railway environment variables:</div>
+    <div class="card">
+      {% for item in missing %}<p><code>{{item}}</code></p>{% endfor %}
+    </div>
+  {% endif %}
+  <a class="btn" href="/login">Back to Login</a>
+</div>
+</body></html>

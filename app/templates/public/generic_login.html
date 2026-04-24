@@ -6,16 +6,24 @@
 <div class="container">
   <h1>{{title}}</h1>
   <p>{{subtitle}}</p>
-  <form class="card" method="post">
-    <label>Email</label><input type="email" name="email">
-    <label>Password</label><input type="password" name="password">
-    <button class="btn">Login</button>
-  </form>
+  <div class="grid">
+    <form class="card" method="post">
+      <h2>Login</h2>
+      <label>Email</label><input type="email" name="email">
+      <label>Password</label><input type="password" name="password">
+      <button class="btn">Login</button>
+    </form>
+    <div class="card">
+      <h2>New account?</h2>
+      <p>Register first if you do not have an account yet.</p>
+      <a class="btn" href="{{register_url}}">Register</a>
+    </div>
+  </div>
   <div class="card">
-    <button class="btn secondary" disabled>Continue with Google — setup required</button>
-    <button class="btn secondary" disabled>Continue with Apple — setup required</button>
-    <p><small>These buttons will work after Google OAuth and Apple Sign In credentials are configured.</small></p>
+    <h2>Continue with Google or Apple</h2>
+    <a class="btn secondary" href="/auth/google/{{role}}">Continue with Google</a>
+    <a class="btn secondary" href="/auth/apple/{{role}}">Continue with Apple</a>
+    <p><small>These require OAuth credentials in Railway environment variables before real login is active.</small></p>
   </div>
 </div>
-</body>
-</html>
+</body></html>

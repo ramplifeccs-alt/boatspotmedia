@@ -90,3 +90,6 @@ input, select, textarea, button {
     margin-top: 8px;
   }
 }
+
+/* v25 owner/account controls */
+.actions-row{display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin:10px 0}.badge{display:inline-block;padding:4px 8px;border-radius:999px;font-size:12px;font-weight:700}.badge.success{background:#e7f8ec;color:#137333}.badge.danger{background:#fde8e8;color:#b42318}button:disabled,.btn:disabled{opacity:.45;cursor:not-allowed}
