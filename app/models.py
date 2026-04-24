@@ -122,7 +122,7 @@ class DownloadToken(db.Model):
     token = db.Column(db.String(255), unique=True, nullable=False)
     expires_at = db.Column(db.DateTime, nullable=False)
     download_count = db.Column(db.Integer, default=0)
-    item = db.relationship("OrderItem")
+    item = db.relationship("OrderItem", backref="download_tokens")
 
 class CreatorClickStats(db.Model):
     id = db.Column(db.Integer, primary_key=True)
