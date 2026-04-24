@@ -145,3 +145,7 @@ Fixes Batches/Orders robustness, edit/delete products and pricing, creator name/
 
 ## v15 No Instagram Crash
 Completely removes direct creator.instagram dependency from routes. Uses safe helper and display_name fallback.
+
+
+## v16 Owner/Creator Plan Store
+Adds shop link, plan list edit/delete, creator edit/deactivate, commission override reason/duration, creator plan change.

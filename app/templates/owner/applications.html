@@ -1,10 +1,6 @@
 <!doctype html>
 <html>
-<head>
-  <meta charset="utf-8">
-  <title>Owner Applications - BoatSpotMedia</title>
-  <link rel="stylesheet" href="/static/css/style.css">
-</head>
+<head><meta charset="utf-8"><title>Owner Applications - BoatSpotMedia</title><link rel="stylesheet" href="/static/css/style.css"></head>
 <body>
 <div class="sidebar-layout">
   <div class="sidebar">
@@ -13,99 +9,96 @@
     <a href="/owner/applications-raw">Raw Applications</a>
     <a href="/owner/repair-db-now">Repair DB</a>
   </div>
-
   <div class="content">
     <h1>Creator Applications</h1>
-    <p>Approve or reject boat-video creators. Approved creators receive creator access and can upload videos.</p>
 
     <h2>Pending / Reviewed Applications</h2>
     <table>
-      <tr>
-        <th>ID</th>
-        <th>Name</th>
-        <th>Brand</th>
-        <th>Email</th>
-        <th>Instagram</th>
-        <th>Status</th>
-        <th>Submitted</th>
-        <th>Action</th>
-      </tr>
+      <tr><th>ID</th><th>Name</th><th>Brand</th><th>Email</th><th>Instagram</th><th>Status</th><th>Submitted</th><th>Action</th></tr>
       {% for a in applications %}
       <tr>
-        <td>{{ a.id }}</td>
-        <td>{{ a.first_name }} {{ a.last_name }}</td>
-        <td>{{ a.brand_name }}</td>
-        <td>{{ a.email }}</td>
-        <td>
-          {% if a.instagram %}
-            <a href="https://instagram.com/{{ a.instagram }}" target="_blank">{{ a.instagram }}</a>
-          {% endif %}
-        </td>
-        <td><b>{{ a.status }}</b></td>
-        <td>{{ a.submitted_at }}</td>
+        <td>{{ a.id }}</td><td>{{ a.first_name }} {{ a.last_name }}</td><td>{{ a.brand_name }}</td><td>{{ a.email }}</td>
+        <td>{% if a.instagram %}<a href="https://instagram.com/{{ a.instagram }}" target="_blank">{{ a.instagram }}</a>{% endif %}</td>
+        <td><b>{{ a.status }}</b></td><td>{{ a.submitted_at }}</td>
         <td>
           {% if a.status == 'pending' %}
-          <form method="post" action="/owner/applications/{{ a.id }}/approve" style="margin-bottom:8px">
-            <label>Plan</label>
-            <select name="plan_id">
-              {% for p in plans %}
-                <option value="{{ p.id }}">{{ p.name }} — {{ p.storage_limit_gb }}GB — {{ p.commission_rate }}%</option>
-              {% endfor %}
-            </select>
-            <button class="btn">Approve Creator</button>
+          <form method="post" action="/owner/applications/{{ a.id }}/approve">
+            <select name="plan_id">{% for p in plans %}<option value="{{ p.id }}">{{ p.name }} — {{ p.storage_limit_gb }}GB — {{ p.commission_rate }}%</option>{% endfor %}</select>
+            <button class="btn">Approve</button>
           </form>
-          <form method="post" action="/owner/applications/{{ a.id }}/reject">
-            <button class="btn danger">Reject</button>
-          </form>
-          {% else %}
-            Reviewed
-          {% endif %}
+          <form method="post" action="/owner/applications/{{ a.id }}/reject"><button class="btn danger">Reject</button></form>
+          {% else %}Reviewed{% endif %}
         </td>
       </tr>
-      {% else %}
-      <tr><td colspan="8">No applications yet.</td></tr>
-      {% endfor %}
+      {% else %}<tr><td colspan="8">No applications yet.</td></tr>{% endfor %}
     </table>
 
-    <h2>Create Storage Plan</h2>
+    <h2>Storage Plans</h2>
     <form method="post" action="/owner/plans/create" class="card">
-      <label>Plan name</label>
-      <input name="name" placeholder="Creator 512GB">
-      <label>Storage limit GB</label>
-      <input name="storage_limit_gb" placeholder="512">
-      <label>Monthly price</label>
-      <input name="monthly_price" placeholder="79.00">
-      <label>BoatSpot commission %</label>
-      <input name="commission_rate" placeholder="20">
+      <h3>Create Plan</h3>
+      <label>Plan name</label><input name="name" placeholder="Creator 512GB">
+      <label>Storage limit GB</label><input name="storage_limit_gb" placeholder="512">
+      <label>Monthly price</label><input name="monthly_price" placeholder="79.00">
+      <label>BoatSpot video commission %</label><input name="commission_rate" placeholder="20">
       <button class="btn">Create Plan</button>
     </form>
 
+    <table>
+      <tr><th>ID</th><th>Name</th><th>Storage</th><th>Price</th><th>Video Commission</th><th>Actions</th></tr>
+      {% for p in plans %}
+      <tr>
+        <form method="post" action="/owner/plans/{{p.id}}/edit">
+          <td>{{p.id}}</td>
+          <td><input name="name" value="{{p.name}}"></td>
+          <td><input name="storage_limit_gb" value="{{p.storage_limit_gb}}"></td>
+          <td><input name="monthly_price" value="{{p.monthly_price}}"></td>
+          <td><input name="commission_rate" value="{{p.commission_rate}}"></td>
+          <td>
+            <button class="btn">Save</button>
+        </form>
+            <form method="post" action="/owner/plans/{{p.id}}/delete" style="display:inline" onsubmit="return confirm('Delete this plan?');">
+              <button class="btn danger">Delete</button>
+            </form>
+          </td>
+      </tr>
+      {% endfor %}
+    </table>
+
     <h2>Approved Creators</h2>
     <table>
-      <tr>
-        <th>ID</th>
-        <th>Creator</th>
-        <th>Storage</th>
-        <th>Video Commission</th><th>Product Commission</th>
-        <th>Temporary Override</th>
-      </tr>
+      <tr><th>ID</th><th>Creator</th><th>Email</th><th>Storage</th><th>Video %</th><th>Product %</th><th>Override</th><th>Edit/Delete</th></tr>
       {% for c in creators %}
       <tr>
         <td>{{ c.id }}</td>
         <td>{{ c.user.display_name if c.user and c.user.display_name else 'Creator #' ~ c.id }}</td>
+        <td>{{ c.user.email if c.user else '' }}</td>
         <td>{{ c.storage_used_gb }} / {{ c.storage_limit_gb }} GB</td>
-        <td>{{ c.active_commission_rate() }}%</td><td>{{ c.active_product_commission_rate() }}%</td>
+        <td>{{ c.active_commission_rate() }}% {% if c.commission_override_reason %}<br><small>{{c.commission_override_reason}} until {{c.commission_override_until}}</small>{% endif %}</td>
+        <td>{{ c.active_product_commission_rate() }}% {% if c.product_commission_override_reason %}<br><small>{{c.product_commission_override_reason}} until {{c.product_commission_override_until}}</small>{% endif %}</td>
         <td>
           <form method="post" action="/owner/creator/{{ c.id }}/override">
+            <select name="commission_type"><option value="video">Video</option><option value="product">Product</option></select>
             <input name="rate" placeholder="5">
-            <input name="days" placeholder="30">
-            <button class="btn">Apply Override</button>
+            <input name="days" placeholder="30 / 60 / 90">
+            <input name="reason" placeholder="Reason for temporary change">
+            <button class="btn">Apply</button>
+          </form>
+        </td>
+        <td>
+          <form method="post" action="/owner/creators/{{c.id}}/edit">
+            <input name="display_name" value="{{ c.user.display_name if c.user else '' }}">
+            <input name="email" value="{{ c.user.email if c.user else '' }}">
+            <input name="storage_limit_gb" value="{{ c.storage_limit_gb }}">
+            <input name="commission_rate" value="{{ c.commission_rate }}">
+            <input name="product_commission_rate" value="{{ c.product_commission_rate or 20 }}">
+            <button class="btn">Save Creator</button>
+          </form>
+          <form method="post" action="/owner/creators/{{c.id}}/delete" onsubmit="return confirm('Are you sure you want to deactivate this creator?');">
+            <button class="btn danger">Deactivate</button>
           </form>
         </td>
       </tr>
-      {% else %}
-      <tr><td colspan="5">No approved creators yet.</td></tr>
-      {% endfor %}
+      {% else %}<tr><td colspan="8">No approved creators yet.</td></tr>{% endfor %}
     </table>
   </div>
 </div>

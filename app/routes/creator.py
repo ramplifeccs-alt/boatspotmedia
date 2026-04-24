@@ -1,6 +1,6 @@
 import os, tempfile, uuid
 from flask import Blueprint, render_template, request, redirect, url_for, current_app
-from app.models import User, CreatorProfile, Batch, Video, Location, CreatorClickStats, Product, VideoPricingPreset, OrderItem
+from app.models import User, CreatorProfile, Batch, Video, Location, CreatorClickStats, Product, VideoPricingPreset, OrderItem, StoragePlan
 from app.services.db import db
 from app.services.media import extract_creation_time, generate_center_thumbnail
 from app.services.r2 import upload as r2_upload
@@ -348,10 +348,24 @@ def settings():
     creator = current_creator()
 
     if request.method == "POST":
+        action = request.form.get("action")
+
+        if action == "change_plan":
+            plan_id = request.form.get("plan_id")
+            plan = StoragePlan.query.get(plan_id) if plan_id else None
+            if plan and plan.active:
+                creator.plan_id = plan.id
+                creator.storage_limit_gb = plan.storage_limit_gb
+                creator.commission_rate = plan.commission_rate
+                db.session.commit()
+            return redirect(url_for("creator.settings"))
+
         if creator.user:
             creator.user.display_name = request.form.get("display_name") or creator.user.display_name
             creator.user.email = request.form.get("email") or creator.user.email
+
         db.session.commit()
         return redirect(url_for("creator.settings"))
 
-    return render_creator_template("creator/settings.html", creator=creator)
+    plans = StoragePlan.query.filter_by(active=True).order_by(StoragePlan.storage_limit_gb.asc()).all()
+    return render_creator_template("creator/settings.html", creator=creator, plans=plans)

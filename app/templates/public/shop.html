@@ -1,0 +1,23 @@
+<!doctype html>
+<html>
+<head><meta charset="utf-8"><title>Shop - BoatSpotMedia</title><link rel="stylesheet" href="/static/css/style.css"></head>
+<body>
+<header><div><b>BoatSpotMedia</b></div><nav><a href="/">Home</a><a href="/search">Find Your Video</a><a href="/shop">Shop</a><a href="/services">Services</a><a href="/charters">Charters</a><a href="/apply-creator">Apply as Creator</a></nav></header>
+<div class="container">
+  <h1>Shop</h1>
+  <p>Products from BoatSpotMedia creators.</p>
+  <div class="grid">
+  {% for p in products %}
+    <div class="card">
+      <h3>{{ p.title }}</h3>
+      <p>{{ p.description }}</p>
+      <p><b>${{ p.price }}</b></p>
+      <small>Shipping: ${{ p.shipping_cost }} · {{ p.processing_time or '' }} · {{ p.shipping_method or '' }}</small>
+    </div>
+  {% else %}
+    <div class="card">No products available yet.</div>
+  {% endfor %}
+  </div>
+</div>
+</body>
+</html>

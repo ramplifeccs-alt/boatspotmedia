@@ -148,3 +148,14 @@ def charters_public():
         db.session.rollback()
         listings = []
     return render_template("public/charters.html", listings=listings)
+
+
+@public_bp.route("/shop")
+def shop():
+    from app.models import Product
+    try:
+        products = Product.query.filter_by(active=True).all()
+    except Exception:
+        db.session.rollback()
+        products = []
+    return render_template("public/shop.html", products=products)

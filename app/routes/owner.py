@@ -139,12 +139,24 @@ def create_plan():
     return redirect(url_for("owner.applications"))
 
 @owner_bp.route("/creator/<int:creator_id>/override", methods=["POST"])
-def override_commission(creator_id):
-    c = CreatorProfile.query.get_or_404(creator_id)
-    c.commission_override_rate = int(request.form.get("rate"))
-    c.commission_override_until = datetime.utcnow() + timedelta(days=int(request.form.get("days") or 30))
-    db.session.commit()
-    return redirect(url_for("owner.applications"))
+    def override_commission(creator_id):
+        c = CreatorProfile.query.get_or_404(creator_id)
+        rate = int(request.form.get("rate"))
+        days = int(request.form.get("days") or 30)
+        reason = request.form.get("reason") or ""
+        commission_type = request.form.get("commission_type") or "video"
+
+        if commission_type == "product":
+            c.product_commission_override_rate = rate
+            c.product_commission_override_until = datetime.utcnow() + timedelta(days=days)
+            c.product_commission_override_reason = reason
+        else:
+            c.commission_override_rate = rate
+            c.commission_override_until = datetime.utcnow() + timedelta(days=days)
+            c.commission_override_reason = reason
+
+        db.session.commit()
+        return redirect(url_for("owner.applications"))
 
 @owner_bp.route("/repair-db-now")
 def repair_db_now():
@@ -162,3 +174,43 @@ def applications_raw():
         LIMIT 100
     """)).mappings().all()
     return {"applications": [dict(r) for r in rows]}
+
+
+@owner_bp.route("/plans/<int:plan_id>/edit", methods=["POST"])
+def edit_plan(plan_id):
+    plan = StoragePlan.query.get_or_404(plan_id)
+    plan.name = request.form.get("name") or plan.name
+    plan.storage_limit_gb = int(request.form.get("storage_limit_gb") or plan.storage_limit_gb)
+    plan.monthly_price = request.form.get("monthly_price") or plan.monthly_price
+    plan.commission_rate = int(request.form.get("commission_rate") or plan.commission_rate)
+    db.session.commit()
+    return redirect(url_for("owner.applications"))
+
+@owner_bp.route("/plans/<int:plan_id>/delete", methods=["POST"])
+def delete_plan(plan_id):
+    plan = StoragePlan.query.get_or_404(plan_id)
+    plan.active = False
+    db.session.commit()
+    return redirect(url_for("owner.applications"))
+
+@owner_bp.route("/creators/<int:creator_id>/edit", methods=["POST"])
+def edit_creator(creator_id):
+    c = CreatorProfile.query.get_or_404(creator_id)
+    if c.user:
+        c.user.display_name = request.form.get("display_name") or c.user.display_name
+        c.user.email = request.form.get("email") or c.user.email
+    c.storage_limit_gb = int(request.form.get("storage_limit_gb") or c.storage_limit_gb)
+    c.commission_rate = int(request.form.get("commission_rate") or c.commission_rate)
+    c.product_commission_rate = int(request.form.get("product_commission_rate") or c.product_commission_rate or 20)
+    db.session.commit()
+    return redirect(url_for("owner.applications"))
+
+@owner_bp.route("/creators/<int:creator_id>/delete", methods=["POST"])
+def delete_creator(creator_id):
+    c = CreatorProfile.query.get_or_404(creator_id)
+    c.suspended = True
+    c.approved = False
+    if c.user:
+        c.user.is_active = False
+    db.session.commit()
+    return redirect(url_for("owner.applications"))

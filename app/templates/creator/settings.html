@@ -1,1 +1,46 @@
-<!doctype html><html><head><meta charset="utf-8"><title>Creator - BoatSpotMedia</title><link rel="stylesheet" href="/static/css/style.css"></head><body><div class="sidebar-layout"><div class="sidebar"><h2>{{ creator_name or 'Creator' }}</h2>{% if creator_instagram %}<small>@{{ creator_instagram }}</small><br><br>{% endif %}<a href="/creator/dashboard">Dashboard</a><a href="/creator/upload">Uploads</a><a href="/creator/batches">Batches</a><a href="/creator/orders">Orders</a><a href="/creator/products">Products</a><a href="/creator/pricing">Pricing</a><a href="/creator/settings">Settings</a><br><a href="/creator/logout">Log out</a></div><div class="content"><h1>Settings</h1><form method="post" class="card"><label>Display name</label><input name="display_name" value="{{creator.user.display_name if creator.user else ''}}"><label>Instagram</label><input name="instagram" value="{{ creator_instagram or '' }}"><label>Email</label><input name="email" value="{{creator.user.email if creator.user else ''}}"><label>Change password</label><input type="password" name="password" placeholder="New password"><button class="btn">Save Profile</button></form><h2>Plan</h2><div class="card"><p>Current plan storage: {{creator.storage_limit_gb}} GB</p><p>Used: {{creator.storage_used_gb}} GB</p><p>Video commission: {{creator.active_commission_rate()}}%</p><p>Product commission: {{creator.active_product_commission_rate()}}%</p><button class="btn secondary">Change Plan</button></div></div></div></body></html>
+<!doctype html><html><head><meta charset="utf-8"><title>Creator - BoatSpotMedia</title><link rel="stylesheet" href="/static/css/style.css"></head><body>
+<div class="sidebar-layout">
+  <div class="sidebar">
+    <h2>{{ creator_name or 'Creator' }}</h2>
+    {% if creator_instagram %}<small>@{{ creator_instagram }}</small><br><br>{% endif %}
+    <a href="/creator/dashboard">Dashboard</a><a href="/creator/upload">Uploads</a><a href="/creator/batches">Batches</a><a href="/creator/orders">Orders</a><a href="/creator/products">Products</a><a href="/creator/pricing">Pricing</a><a href="/creator/settings">Settings</a><br><a href="/creator/logout">Log out</a>
+  </div>
+  <div class="content">
+    <h1>Settings</h1>
+    <form method="post" class="card">
+      <input type="hidden" name="action" value="profile">
+      <label>Display / Brand name</label><input name="display_name" value="{{creator.user.display_name if creator.user else ''}}">
+      <label>Instagram</label><input value="{{ creator_instagram or '' }}" disabled>
+      <label>Email</label><input name="email" value="{{creator.user.email if creator.user else ''}}">
+      <label>Change password</label><input type="password" name="password" placeholder="New password">
+      <button class="btn">Save Profile</button>
+    </form>
+
+    <h2>Plan</h2>
+    <div class="card">
+      <p>Current plan storage: {{creator.storage_limit_gb}} GB</p>
+      <p>Used: {{creator.storage_used_gb}} GB</p>
+      <p>Video commission: {{creator.active_commission_rate()}}%</p>
+      {% if creator.commission_override_reason %}
+        <div class="notice">Video commission override reason: {{ creator.commission_override_reason }}<br>Until: {{ creator.commission_override_until }}</div>
+      {% endif %}
+      <p>Product commission: {{creator.active_product_commission_rate()}}%</p>
+      {% if creator.product_commission_override_reason %}
+        <div class="notice">Product commission override reason: {{ creator.product_commission_override_reason }}<br>Until: {{ creator.product_commission_override_until }}</div>
+      {% endif %}
+    </div>
+
+    <h2>Change Plan</h2>
+    <form method="post" class="card">
+      <input type="hidden" name="action" value="change_plan">
+      <label>Select new plan</label>
+      <select name="plan_id">
+        {% for p in plans %}
+          <option value="{{p.id}}" {% if creator.plan_id == p.id %}selected{% endif %}>{{p.name}} — {{p.storage_limit_gb}}GB — ${{p.monthly_price}}/month — {{p.commission_rate}}% video commission</option>
+        {% endfor %}
+      </select>
+      <button class="btn">Request / Change Plan</button>
+    </form>
+  </div>
+</div>
+</body></html>
