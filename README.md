@@ -82,3 +82,10 @@ Adds automatic repair for older `video` table columns:
 - price fields
 
 Also protects homepage from crashing if old DB tables are incomplete.
+
+
+## v5 fix
+
+Adds auto-repair for creator_application social columns:
+instagram, facebook, youtube, tiktok.
+Also expands auto-repair to all major test tables.
