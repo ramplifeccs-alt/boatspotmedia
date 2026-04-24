@@ -149,3 +149,7 @@ Completely removes direct creator.instagram dependency from routes. Uses safe he
 
 ## v16 Owner/Creator Plan Store
 Adds shop link, plan list edit/delete, creator edit/deactivate, commission override reason/duration, creator plan change.
+
+
+## v18 Marketplace Polish
+Owner cards, override history/reset, product color variants, login selector, Google/Apple placeholders.

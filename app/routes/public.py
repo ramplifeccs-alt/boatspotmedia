@@ -159,3 +159,20 @@ def shop():
         db.session.rollback()
         products = []
     return render_template("public/shop.html", products=products)
+
+
+@public_bp.route("/login")
+def login_selector():
+    return render_template("public/login_selector.html")
+
+@public_bp.route("/buyer/login", methods=["GET", "POST"])
+def buyer_login():
+    return render_template("public/generic_login.html", title="Buyer Login", subtitle="Access your orders and downloads.")
+
+@public_bp.route("/charter/login", methods=["GET", "POST"])
+def charter_login():
+    return render_template("public/generic_login.html", title="Charter Login", subtitle="Manage your charter listings.")
+
+@public_bp.route("/services/login", methods=["GET", "POST"])
+def services_login():
+    return render_template("public/generic_login.html", title="Services Login", subtitle="Manage your pay-per-click service ads.")

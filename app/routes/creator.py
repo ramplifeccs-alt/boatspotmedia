@@ -1,6 +1,6 @@
 import os, tempfile, uuid
 from flask import Blueprint, render_template, request, redirect, url_for, current_app
-from app.models import User, CreatorProfile, Batch, Video, Location, CreatorClickStats, Product, VideoPricingPreset, OrderItem, StoragePlan
+from app.models import User, CreatorProfile, Batch, Video, Location, CreatorClickStats, Product, VideoPricingPreset, OrderItem, StoragePlan, ProductVariant
 from app.services.db import db
 from app.services.media import extract_creation_time, generate_center_thumbnail
 from app.services.r2 import upload as r2_upload
@@ -369,3 +369,29 @@ def settings():
 
     plans = StoragePlan.query.filter_by(active=True).order_by(StoragePlan.storage_limit_gb.asc()).all()
     return render_creator_template("creator/settings.html", creator=creator, plans=plans)
+
+
+@creator_bp.route("/products/<int:product_id>/variants", methods=["GET", "POST"])
+def product_variants(product_id):
+    creator = current_creator()
+    product = Product.query.filter_by(id=product_id, creator_id=creator.id).first_or_404()
+    if request.method == "POST":
+        variant = ProductVariant(product_id=product.id)
+        variant.color_name = request.form.get("color_name")
+        variant.color_hex = request.form.get("color_hex")
+        variant.price_adjustment = float(request.form.get("price_adjustment") or 0)
+        variant.active = True
+        db.session.add(variant)
+        db.session.commit()
+        return redirect(url_for("creator.product_variants", product_id=product.id))
+    variants = ProductVariant.query.filter_by(product_id=product.id, active=True).all()
+    return render_creator_template("creator/product_variants.html", creator=creator, product=product, variants=variants)
+
+@creator_bp.route("/products/variants/<int:variant_id>/delete", methods=["POST"])
+def delete_product_variant(variant_id):
+    creator = current_creator()
+    variant = ProductVariant.query.get_or_404(variant_id)
+    product = Product.query.filter_by(id=variant.product_id, creator_id=creator.id).first_or_404()
+    variant.active = False
+    db.session.commit()
+    return redirect(url_for("creator.product_variants", product_id=product.id))

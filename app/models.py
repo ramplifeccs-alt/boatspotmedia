@@ -209,3 +209,30 @@ class VideoPricingPreset(db.Model):
     is_default = db.Column(db.Boolean, default=False)
     active = db.Column(db.Boolean, default=True)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
+
+
+class ProductVariant(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    product_id = db.Column(db.Integer, db.ForeignKey("product.id"))
+    color_name = db.Column(db.String(80))
+    color_hex = db.Column(db.String(20))
+    price_adjustment = db.Column(db.Numeric(10,2), default=0)
+    active = db.Column(db.Boolean, default=True)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+
+class ProductVariantImage(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    variant_id = db.Column(db.Integer, db.ForeignKey("product_variant.id"))
+    image_url = db.Column(db.String(800))
+    sort_order = db.Column(db.Integer, default=0)
+
+class CommissionOverrideLog(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    creator_id = db.Column(db.Integer, db.ForeignKey("creator_profile.id"))
+    commission_type = db.Column(db.String(50))
+    old_rate = db.Column(db.Integer)
+    new_rate = db.Column(db.Integer)
+    days = db.Column(db.Integer)
+    reason = db.Column(db.String(500))
+    expires_at = db.Column(db.DateTime)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
