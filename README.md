@@ -98,3 +98,10 @@ If your Railway DB was created by old packages, open:
 
 Then submit /apply-creator again.
 The apply route also repairs creator_application immediately before saving.
+
+
+## v7 creator application SQL fix
+
+Creator applications now save with direct SQL after force repairing the table.
+Check saved applications at:
+/owner/applications-raw

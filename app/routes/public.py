@@ -1,6 +1,7 @@
 from flask import Blueprint, render_template, request
 from datetime import datetime
-from app.models import Video, Location, CreatorApplication, ServiceAd, CharterListing
+from sqlalchemy import text
+from app.models import Video, Location, ServiceAd, CharterListing
 from app.services.db import db
 
 public_bp = Blueprint("public", __name__)
@@ -83,31 +84,34 @@ def apply_creator():
         if not any(social_fields):
             return render_template("public/apply_creator.html", error="At least one social media link is required.")
 
-        # Repair old DB table immediately before insert.
         try:
             from app.services.db_repair import repair_creator_application_table
             repair_creator_application_table()
-        except Exception as e:
-            print("creator_application repair warning:", e)
 
-        app_obj = CreatorApplication(
-            first_name=request.form.get("first_name"),
-            last_name=request.form.get("last_name"),
-            email=request.form.get("email"),
-            instagram=request.form.get("instagram"),
-            facebook=request.form.get("facebook"),
-            youtube=request.form.get("youtube"),
-            tiktok=request.form.get("tiktok")
-        )
-        try:
-            db.session.add(app_obj)
-            db.session.commit()
-            return render_template("public/apply_creator.html", success=True)
+            with db.engine.begin() as conn:
+                result = conn.execute(text("""
+                    INSERT INTO creator_application
+                    (first_name, last_name, email, instagram, facebook, youtube, tiktok, status, submitted_at)
+                    VALUES
+                    (:first_name, :last_name, :email, :instagram, :facebook, :youtube, :tiktok, 'pending', CURRENT_TIMESTAMP)
+                    RETURNING id
+                """), {
+                    "first_name": request.form.get("first_name", ""),
+                    "last_name": request.form.get("last_name", ""),
+                    "email": request.form.get("email", ""),
+                    "instagram": request.form.get("instagram", ""),
+                    "facebook": request.form.get("facebook", ""),
+                    "youtube": request.form.get("youtube", ""),
+                    "tiktok": request.form.get("tiktok", "")
+                })
+                app_id = result.scalar()
+            return render_template("public/apply_creator.html", success=True, application_id=app_id)
+
         except Exception as e:
             db.session.rollback()
             return render_template(
                 "public/apply_creator.html",
-                error="Database table was repaired. Please submit again once more."
+                error=f"Application could not be saved yet. Error: {str(e)[:300]}"
             )
 
     return render_template("public/apply_creator.html")

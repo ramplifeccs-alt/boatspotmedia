@@ -2,7 +2,7 @@
 <h1>Apply as Creator</h1>
 <p>Are you a boat videographer? Apply to sell your footage with us. Approval within 24 hours.</p>
 {% if error %}<div class="error">{{error}}</div>{% endif %}
-{% if success %}<div class="success">Application submitted. We will review it within 24 hours.</div>{% endif %}
+{% if success %}<div class="success">Application submitted successfully. Application ID: {{application_id}}. We will review it within 24 hours.</div>{% endif %}
 <form method="post">
 <label>First name</label><input name="first_name" required>
 <label>Last name</label><input name="last_name" required>

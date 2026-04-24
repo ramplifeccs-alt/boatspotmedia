@@ -77,3 +77,15 @@ def repair_db_now():
     from app.services.db_repair import repair_all_known_tables
     repair_all_known_tables()
     return "DB repair completed."
+@owner_bp.route("/applications-raw")
+def applications_raw():
+    from sqlalchemy import text
+    from app.services.db_repair import repair_creator_application_table
+    repair_creator_application_table()
+    rows = db.session.execute(text("""
+        SELECT id, first_name, last_name, email, instagram, facebook, youtube, tiktok, status, submitted_at
+        FROM creator_application
+        ORDER BY id DESC
+        LIMIT 100
+    """)).mappings().all()
+    return {"applications": [dict(r) for r in rows]}
