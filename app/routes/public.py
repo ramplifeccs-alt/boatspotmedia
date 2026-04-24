@@ -1,18 +1,22 @@
-from flask import Blueprint, render_template, request, redirect, url_for, flash
-from datetime import datetime, time
-from app.models import Video, CreatorProfile, Location, CreatorApplication, ServiceAd, CharterListing
+from flask import Blueprint, render_template, request
+from datetime import datetime
+from app.models import Video, Location, CreatorApplication, ServiceAd, CharterListing
 from app.services.db import db
 
 public_bp = Blueprint("public", __name__)
 
 @public_bp.route("/")
 def home():
-    latest = Video.query.filter_by(status="active").order_by(Video.created_at.desc()).limit(20).all()
+    try:
+        latest = Video.query.filter_by(status="active").order_by(Video.created_at.desc()).limit(20).all()
+    except Exception as e:
+        db.session.rollback()
+        latest = []
     selected = []
     used = set()
     for v in latest:
-        if v.creator_id not in used:
-            selected.append(v); used.add(v.creator_id)
+        if getattr(v, "creator_id", None) not in used:
+            selected.append(v); used.add(getattr(v, "creator_id", None))
         if len(selected) == 3: break
     for v in latest:
         if len(selected) == 3: break
@@ -22,7 +26,11 @@ def home():
 
 @public_bp.route("/search")
 def search_page():
-    locations = Location.query.order_by(Location.name.asc()).all()
+    try:
+        locations = Location.query.order_by(Location.name.asc()).all()
+    except Exception:
+        db.session.rollback()
+        locations = []
     return render_template("public/search.html", locations=locations, results=None)
 
 @public_bp.route("/search/results")
@@ -31,27 +39,32 @@ def search_results():
     date_s = request.args.get("date")
     start_s = request.args.get("start_time")
     end_s = request.args.get("end_time")
-    q = Video.query.filter_by(status="active")
-    if location:
-        q = q.filter(Video.location == location)
-    if date_s and start_s and end_s:
-        try:
+    results = []
+    try:
+        q = Video.query.filter_by(status="active")
+        if location:
+            q = q.filter(Video.location == location)
+        if date_s and start_s and end_s:
             d = datetime.strptime(date_s, "%Y-%m-%d").date()
             start_dt = datetime.combine(d, datetime.strptime(start_s, "%H:%M").time())
             end_dt = datetime.combine(d, datetime.strptime(end_s, "%H:%M").time())
             q = q.filter(Video.recorded_at >= start_dt, Video.recorded_at <= end_dt)
-        except Exception:
-            pass
-    results = q.order_by(Video.recorded_at.asc()).limit(200).all()
-    locations = Location.query.order_by(Location.name.asc()).all()
+        results = q.order_by(Video.recorded_at.asc()).limit(200).all()
+    except Exception:
+        db.session.rollback()
+    try:
+        locations = Location.query.order_by(Location.name.asc()).all()
+    except Exception:
+        db.session.rollback()
+        locations = []
     return render_template("public/search.html", locations=locations, results=results)
 
 @public_bp.route("/preview/<int:video_id>")
 def preview_video(video_id):
+    from app.models import CreatorClickStats
     v = Video.query.get_or_404(video_id)
-    stats = v.creator and __import__("app.models", fromlist=["CreatorClickStats"]).CreatorClickStats.query.filter_by(creator_id=v.creator_id).first()
+    stats = CreatorClickStats.query.filter_by(creator_id=v.creator_id).first()
     if not stats:
-        from app.models import CreatorClickStats
         stats = CreatorClickStats(creator_id=v.creator_id)
         db.session.add(stats)
     stats.clicks_today += 1
@@ -82,10 +95,18 @@ def apply_creator():
 
 @public_bp.route("/services")
 def services():
-    ads = ServiceAd.query.filter_by(status="active").all()
+    try:
+        ads = ServiceAd.query.filter_by(status="active").all()
+    except Exception:
+        db.session.rollback()
+        ads = []
     return render_template("public/services.html", ads=ads)
 
 @public_bp.route("/charters")
 def charters_public():
-    listings = CharterListing.query.filter_by(status="active").all()
+    try:
+        listings = CharterListing.query.filter_by(status="active").all()
+    except Exception:
+        db.session.rollback()
+        listings = []
     return render_template("public/charters.html", listings=listings)

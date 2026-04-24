@@ -70,3 +70,15 @@ This package includes automatic startup migrations for older Railway PostgreSQL 
 If Railway still shows database column errors from very old test builds, the fastest clean test option is:
 - Railway PostgreSQL → Data → remove old tables, or create a fresh PostgreSQL database.
 - Redeploy this package.
+
+
+## v4 fix
+
+Adds automatic repair for older `video` table columns:
+- recorded_at
+- file_size_bytes
+- r2 keys
+- status
+- price fields
+
+Also protects homepage from crashing if old DB tables are incomplete.

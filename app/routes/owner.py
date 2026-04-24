@@ -63,3 +63,12 @@ def override_commission(creator_id):
     c.commission_override_until = datetime.utcnow() + timedelta(days=int(request.form.get("days") or 30))
     db.session.commit()
     return redirect(url_for("owner.panel"))
+
+
+@owner_bp.route("/reset-db-danger", methods=["POST"])
+def reset_db():
+    # TESTING ONLY: drops and recreates all tables.
+    from app.services.db import db
+    db.drop_all()
+    db.create_all()
+    return "Database reset. Redeploy/reload app to seed defaults."
