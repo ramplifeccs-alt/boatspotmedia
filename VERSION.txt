@@ -1,3 +1,2 @@
-BoatSpotMedia v33 STRIPE CHECKOUT
-Adds Stripe Checkout routes for products, videos, services, charters and /stripe/webhook.
-Requires STRIPE_SECRET_KEY and STRIPE_WEBHOOK_SECRET in Railway.
+BoatSpotMedia v33.1 STRIPE CHECKOUT FIX
+Fixes ModuleNotFoundError: app.extensions by removing incorrect db import from payments route.

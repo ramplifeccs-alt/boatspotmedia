@@ -1,7 +1,6 @@
 import os
 import stripe
 from flask import Blueprint, request, redirect, jsonify, session, url_for
-from app.extensions import db
 
 payments_bp = Blueprint("payments", __name__)
 
