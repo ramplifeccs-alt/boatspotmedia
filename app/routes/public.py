@@ -266,6 +266,7 @@ def auth_google_callback():
     import json
     import urllib.parse
     import urllib.request
+    import urllib.error
     from werkzeug.security import generate_password_hash
     from app.models import User
     from app.services.db import db
@@ -304,6 +305,19 @@ def auth_google_callback():
         )
         with urllib.request.urlopen(token_req, timeout=20) as token_resp:
             token_json = json.loads(token_resp.read().decode("utf-8"))
+    except urllib.error.HTTPError as e:
+        try:
+            body = e.read().decode("utf-8")
+        except Exception:
+            body = ""
+        return (
+            "Google token exchange failed. "
+            f"HTTP {e.code}: {e.reason}<br><br>"
+            f"<b>Google response:</b><pre>{body}</pre><br>"
+            f"<b>Redirect used by app:</b><pre>{redirect_uri}</pre><br>"
+            "Check that GOOGLE_CLIENT_ID and GOOGLE_CLIENT_SECRET belong to the same OAuth Web Client, "
+            "and that the redirect URI matches exactly in Google Cloud."
+        ), 400
     except Exception as e:
         return f"Google token exchange failed: {e}", 400
 
