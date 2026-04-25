@@ -142,6 +142,40 @@ def activate_creator(creator_id):
         v.status="active"
     db.session.commit(); return redirect(url_for("owner.applications"))
 
+
+@owner_bp.route("/creators/<int:creator_id>/password", methods=["POST"])
+def reset_creator_password(creator_id):
+    _ensure_creator_profile_deleted_column()
+    c = CreatorProfile.query.get_or_404(creator_id)
+    new_password = (request.form.get("new_password") or request.form.get("password") or "").strip()
+
+    if len(new_password) < 6:
+        flash("Password must be at least 6 characters.", "error")
+        return redirect(url_for("owner.applications"))
+
+    if not c.user:
+        flash("Creator user account not found.", "error")
+        return redirect(url_for("owner.applications"))
+
+    if hasattr(c.user, "password_hash"):
+        c.user.password_hash = generate_password_hash(new_password)
+    elif hasattr(c.user, "password"):
+        c.user.password = generate_password_hash(new_password)
+
+    try:
+        c.deleted = False
+    except Exception:
+        pass
+    c.suspended = False
+    c.approved = True
+    if hasattr(c.user, "is_active"):
+        c.user.is_active = True
+
+    db.session.commit()
+    flash("Creator password updated successfully.", "success")
+    return redirect(url_for("owner.applications"))
+
+
 @owner_bp.route("/creators/<int:creator_id>/delete", methods=["POST"])
 def delete_creator(creator_id):
     _ensure_creator_profile_deleted_column()

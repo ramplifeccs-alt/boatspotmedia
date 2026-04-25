@@ -144,6 +144,14 @@ def login():
     return render_template("creator/login.html")
 
 
+
+
+@creator_bp.route("/login/apple")
+def apple_login_under_construction():
+    flash("Apple login is under construction. You'll be able to log in with Apple soon.", "info")
+    return redirect(url_for("creator.login"))
+
+
 @creator_bp.route("/dashboard")
 def dashboard():
     _ensure_creator_profile_deleted_column()

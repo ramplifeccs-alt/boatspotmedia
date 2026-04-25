@@ -26,7 +26,12 @@
           <tr><th>ID</th><th>Name</th><th>Brand</th><th>Email</th><th>Instagram</th><th>Status</th><th>Action</th></tr>
           {% for a in applications %}
           <tr>
-            <td>{{a.id}}</td>
+            <td>{{a.id}}
+<form method="post" action="{{ url_for('owner.reset_creator_password', creator_id=c.id) }}" class="inline-form reset-password-form" style="display:inline-flex; gap:6px; align-items:center; flex-wrap:wrap; margin:4px 0;">
+  <input type="password" name="new_password" placeholder="New creator password" minlength="6" required style="max-width:180px;">
+  <button type="submit" class="btn btn-small">Set Password</button>
+</form>
+</td>
             <td>{{a.first_name}} {{a.last_name}}</td>
             <td>{{a.brand_name}}</td>
             <td>{{a.email}}</td>

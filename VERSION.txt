@@ -1,4 +1,5 @@
-BoatSpotMedia v37.1 Creator Login Security Fix
-- Blocks creator login with wrong password.
-- Removes fallback to deleted/first creator.
-- Uses exact creator_id/user_id/email session match only.
+BoatSpotMedia v37.2 Owner Password + Apple Login UI Fix
+- Owner panel can set/reset creator password.
+- Creator Login no longer shows Creator sidebar/menu.
+- Apple login displays under-construction message.
+- Keeps Google login option for creators.
