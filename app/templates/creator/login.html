@@ -9,5 +9,5 @@
   {% endif %}
 {% endwith %}
 
-<form method="post"><input placeholder="Email"><input placeholder="Password" type="password"><button class="btn">Login</button></form><div class="card"><a class="btn secondary" href="/auth/google/creator">Login with Google</a><a class="btn secondary" href="{{ url_for('creator.apple_login_under_construction') }}">Continue with Apple</a></div></div></div><script src="/static/js/mobile.js"></script>
+<form method="post"><input placeholder="Email"><input placeholder="Password" type="password"><button class="btn">Login</button></form><div style="margin-top:12px;"><a class="btn btn-muted" href="{{ url_for('creator.apple_login_under_construction') }}">Login with Apple</a></div><div class="card"><a class="btn secondary" href="/auth/google/creator">Login with Google</a><a class="btn secondary" href="{{ url_for('creator.apple_login_under_construction') }}">Continue with Apple</a></div></div></div><script src="/static/js/mobile.js"></script>
 </body></html>

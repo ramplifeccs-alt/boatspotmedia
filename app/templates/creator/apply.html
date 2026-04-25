@@ -1,0 +1,19 @@
+<!doctype html>
+<html><head><meta name="viewport" content="width=device-width, initial-scale=1"><title>Apply as Creator</title></head>
+<body>
+<div style="max-width:620px;margin:30px auto;background:#fff;padding:24px;border-radius:16px;">
+  <h1>Apply as a Creator</h1>
+  {% with messages = get_flashed_messages(with_categories=true) %}
+    {% if messages %}{% for category, message in messages %}<div style="padding:10px;background:#fff3cd;border-radius:10px;margin:8px 0;">{{ message }}</div>{% endfor %}{% endif %}
+  {% endwith %}
+  <div style="margin:16px 0;display:flex;gap:10px;flex-wrap:wrap;">
+    <a href="{{ url_for('creator.apply_with_google') }}" style="background:#1f2937;color:#fff;padding:12px 14px;border-radius:10px;text-decoration:none;">Apply with Google</a>
+    <a href="{{ url_for('creator.apply_with_apple_under_construction') }}" style="background:#e5e7eb;color:#111827;padding:12px 14px;border-radius:10px;text-decoration:none;">Apply with Apple</a>
+  </div>
+  <form method="post">
+    <input name="name" placeholder="Full name" style="width:100%;padding:12px;margin:8px 0;">
+    <input name="email" placeholder="Email" style="width:100%;padding:12px;margin:8px 0;">
+    <button type="submit">Submit Application</button>
+  </form>
+</div>
+</body></html>

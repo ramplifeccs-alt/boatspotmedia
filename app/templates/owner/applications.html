@@ -167,10 +167,11 @@
       {% else %}
       <div class="card">No approved creators yet.</div>
       
-<form method="post" action="{{ url_for('owner.reset_creator_password', creator_id=creator.id) }}" class="inline-form reset-password-form" style="display:inline-flex; gap:6px; align-items:center; flex-wrap:wrap; margin:6px 0;">
-  <input type="password" name="new_password" placeholder="New creator password" minlength="6" required style="max-width:190px;">
-  <button type="submit" class="btn btn-small">Set Password</button>
-</form>
+
+<a class="btn btn-small" style="display:inline-block;margin:6px 6px 6px 0;background:#2563eb;color:white;padding:8px 10px;border-radius:8px;text-decoration:none;"
+   href="{{ url_for('owner.reset_creator_password_page', creator_id=c.id) }}">
+   Reset Password
+</a>
 {% endfor %}
     </section>
 

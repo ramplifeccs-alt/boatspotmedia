@@ -795,3 +795,20 @@ def delete_video(video_id):
     v.status = "deleted"
     db.session.commit()
     return redirect(request.referrer or url_for("creator.batches"))
+
+
+
+@creator_bp.route("/apply/google")
+def apply_with_google():
+    try:
+        return redirect(url_for("auth.google_login"))
+    except Exception:
+        flash("Google application/login is not fully configured yet. Please apply with email for now.", "info")
+        return redirect(url_for("creator.apply"))
+
+
+
+@creator_bp.route("/apply/apple")
+def apply_with_apple_under_construction():
+    flash("Apple login is under construction. You'll be able to apply or log in with Apple soon.", "info")
+    return redirect(url_for("creator.apply"))

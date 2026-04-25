@@ -143,6 +143,50 @@ def activate_creator(creator_id):
     db.session.commit(); return redirect(url_for("owner.applications"))
 
 
+
+@owner_bp.route("/creators/<int:creator_id>/reset-password", methods=["GET", "POST"])
+def reset_creator_password_page(creator_id):
+    _ensure_creator_profile_deleted_column()
+    c = CreatorProfile.query.get_or_404(creator_id)
+
+    if request.method == "POST":
+        new_password = (request.form.get("new_password") or "").strip()
+        confirm_password = (request.form.get("confirm_password") or "").strip()
+
+        if len(new_password) < 6:
+            flash("Password must be at least 6 characters.", "error")
+            return render_template("owner/reset_creator_password.html", creator=c)
+
+        if new_password != confirm_password:
+            flash("Passwords do not match.", "error")
+            return render_template("owner/reset_creator_password.html", creator=c)
+
+        if not c.user:
+            flash("Creator user account not found.", "error")
+            return redirect(url_for("owner.applications"))
+
+        if hasattr(c.user, "password_hash"):
+            c.user.password_hash = generate_password_hash(new_password)
+        elif hasattr(c.user, "password"):
+            c.user.password = generate_password_hash(new_password)
+
+        c.approved = True
+        c.suspended = False
+        try:
+            c.deleted = False
+        except Exception:
+            pass
+
+        if hasattr(c.user, "is_active"):
+            c.user.is_active = True
+
+        db.session.commit()
+        flash("Creator password updated successfully.", "success")
+        return redirect(url_for("owner.applications"))
+
+    return render_template("owner/reset_creator_password.html", creator=c)
+
+
 @owner_bp.route("/creators/<int:creator_id>/password", methods=["POST"])
 def reset_creator_password(creator_id):
     _ensure_creator_profile_deleted_column()

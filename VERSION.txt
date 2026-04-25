@@ -1,4 +1,5 @@
-BoatSpotMedia v37.3 Owner Template + Login Message Fix
-- Fixes Jinja UndefinedError: 'c' is undefined in owner/applications.html.
-- Places creator password reset form inside the correct creators loop.
-- Creator login shows clear message when email or password is incorrect.
+BoatSpotMedia v37.4 Owner Reset + Google Apply UI Fix
+- Adds visible Reset Password button/page in Owner panel.
+- Adds Apply with Google and Apply with Apple buttons to Creator Apply page.
+- Apple apply/login shows under-construction message.
+- Keeps creator login error message for wrong email/password.
