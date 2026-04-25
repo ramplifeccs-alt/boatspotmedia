@@ -1,4 +1,5 @@
-BoatSpotMedia v38.8 Remove Bad Video Block Fix
-- Fixes Jinja error: 'video' is undefined on creator/upload and creator/pricing.
-- Removes buyer video price block from creator/owner templates.
-- Keeps pricing/location fixes and upload round fix from previous versions.
+BoatSpotMedia v38.9 Upload Template Rebuild Fix
+- Fully rebuilds creator/upload.html to remove orphan Jinja endfor/if errors.
+- Keeps upload location suggestions.
+- Keeps cancel upload button visible during upload.
+- Keeps dynamic locations and pricing fixes.
