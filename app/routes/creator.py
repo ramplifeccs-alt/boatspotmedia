@@ -240,7 +240,7 @@ def _safe_video_create_from_upload(creator_id, batch, file_info, location=None):
     if "status" in cols:
         kwargs["status"] = "active"
     if "created_at" in cols:
-        kwargs["created_at"] = datetime.utcnow()
+        kwargs["created_at"] = __import__('datetime').datetime.datetime.utcnow()
 
     return Video(**kwargs)
 
@@ -886,7 +886,7 @@ def upload_r2_complete():
             if hasattr(batch, "status"):
                 batch.status = "active"
             if hasattr(batch, "completed_at"):
-                batch.completed_at = datetime.utcnow()
+                batch.completed_at = __import__('datetime').datetime.datetime.utcnow()
             if hasattr(batch, "total_size_bytes"):
                 batch.total_size_bytes = sum(int(f.get("file_size") or 0) for f in files)
         except Exception:

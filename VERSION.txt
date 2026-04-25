@@ -1,5 +1,4 @@
-BoatSpotMedia v39.6 Complete Accept Files Fix
-- Fixes final save error: No uploaded videos received.
-- Backend complete endpoint accepts files/uploaded_files/videos/uploads.
-- Frontend sends multiple payload aliases for compatibility.
-- Saves Video DB records after R2 upload completes.
+BoatSpotMedia v39.7 Datetime Import Fix
+- Fixes database save error: name 'datetime' is not defined.
+- Keeps R2 multipart upload, fallback upload, global progress, and complete-files fix.
+- After upload completes, video records should save correctly in DB.
