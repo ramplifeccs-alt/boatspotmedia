@@ -324,7 +324,10 @@ def upload():
     return render_template("creator/upload.html",
         used_bytes=used,
         limit_bytes=limit,
-        used_gb=round(used / 1024 / 1024 / 1024, 2, storage_limit_gb=storage_limit_gb, max_batch_gb=max_batch_gb, storage_used_gb=storage_used_gb),
+        used_gb=round(used / 1024 / 1024 / 1024, 2),
+        storage_limit_gb=storage_limit_gb,
+        max_batch_gb=max_batch_gb,
+        storage_used_gb=storage_used_gb,
         limit_gb=round(limit / 1024 / 1024 / 1024, 2),
         batch_limit_gb=128,
     )

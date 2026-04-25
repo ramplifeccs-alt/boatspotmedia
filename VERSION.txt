@@ -1,5 +1,3 @@
-BoatSpotMedia v36.7 Creator Plan Sync Fix
-- Creator upload panel shows safe plan values from creator/plan fields.
-- Defaults to 500 GB storage and 128 GB per batch if Owner plan fields are empty.
-- Upload validation no longer breaks on blank plan values.
-- Adds repair defaults for creator storage_limit_gb and max_batch_gb.
+BoatSpotMedia v36.8 Round Render Fix
+- Fixes TypeError: round() takes at most 2 arguments.
+- Keeps creator plan sync values working in upload panel.
