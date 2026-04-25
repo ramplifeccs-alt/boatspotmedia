@@ -1,3 +1,4 @@
+from app.services.pricing import creator_video_price_options
 import os
 from datetime import datetime
 from flask import Blueprint, redirect, render_template, request, url_for, session, jsonify
@@ -21,7 +22,7 @@ def clean_instagram(value):
 
 
 def _dynamic_video_locations():
-    """Locations shown to buyers must come from uploaded creator videos/batches, not a fixed list."""
+    """Buyer/search locations come only from existing creator uploads."""
     locations = []
     try:
         from app.models import Video
@@ -45,6 +46,7 @@ def _dynamic_video_locations():
         """)).fetchall()
         locations += [r[0] for r in rows if r and r[0]]
     except Exception as e:
+        db.session.rollback()
         print("batch locations warning:", e)
 
     seen = set()
@@ -56,6 +58,25 @@ def _dynamic_video_locations():
             seen.add(key)
             clean.append(value)
     return clean
+
+
+
+def _attach_price_options_to_videos(videos):
+    try:
+        from app.models import CreatorProfile
+        for v in videos:
+            creator = None
+            try:
+                creator = CreatorProfile.query.get(getattr(v, "creator_id", None))
+            except Exception:
+                creator = None
+            try:
+                v.price_options = creator_video_price_options(creator, v)
+            except Exception:
+                v.price_options = creator_video_price_options(None, v)
+    except Exception as e:
+        print("price option attach warning:", e)
+    return videos
 
 
 @public_bp.route("/")
@@ -89,7 +110,7 @@ def search_results():
     results = []
     try:
         q = Video.query.filter_by(status="active")
-        if location: q = q.filter(Video.location == location)
+        if location: q = q.filter(db.func.lower(Video.location) == location.strip().lower())
         if date_s and start_s and end_s:
             d = datetime.strptime(date_s, "%Y-%m-%d").date()
             start_dt = datetime.combine(d, datetime.strptime(start_s, "%H:%M").time())
@@ -523,7 +544,7 @@ def video_search():
 
     q = Video.query.filter(Video.status == "active")
     if location:
-        q = q.filter(Video.location.ilike(f"%{location}%"))
+        q = q.filter(db.func.lower(Video.location) == location.strip().lower())
     if date:
         q = q.filter(db.func.cast(Video.recorded_date, db.String) == date)
     if start_time:

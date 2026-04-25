@@ -4,7 +4,16 @@
 <form method="post" action="/charters/create">
 <input name="title" placeholder="Listing title">
 <input name="boat_name" placeholder="Boat name">
-<input list="video-location-list" name="location" placeholder="Location">
+<label>Location</label>
+<label>Location</label>
+<select name="location" required>
+  <option value="">Select location</option>
+  {% for loc in video_locations|default([]) %}
+    <option value="{{ loc }}" {% if request.args.get('location') == loc %}selected{% endif %}>{{ loc }}</option>
+  {% endfor %}
+</select>
+<p style="font-size:13px;color:#6b7280;margin-top:4px;">Select the exact location saved by the creator so the search can match correctly.</p>
+<p style="font-size:13px;color:#6b7280;margin-top:4px;">Select the exact location saved by the creator so the search can match correctly.</p>
 <input name="capacity" placeholder="Capacity">
 <input name="price_hour" placeholder="Price per hour">
 <input name="price_trip" placeholder="Price per trip">

@@ -126,6 +126,17 @@ def render_creator_template(template_name, **kwargs):
     kwargs["creator_instagram"] = creator_instagram(creator)
     return render_template(template_name, **kwargs)
 
+
+def _creator_location_suggestions():
+    try:
+        from app.models import Video
+        rows = db.session.query(Video.location).filter(Video.location.isnot(None), Video.location != "", Video.status != "deleted").distinct().order_by(Video.location.asc()).all()
+        return [" ".join(str(r[0]).strip().split()) for r in rows if r and r[0]]
+    except Exception:
+        db.session.rollback()
+        return []
+
+
 @creator_bp.route("/health")
 def health():
     c = current_creator()
@@ -433,7 +444,7 @@ def upload():
     return render_template("creator/upload.html",
         used_bytes=used,
         limit_bytes=limit,
-        used_gb=round(used / 1024 / 1024 / 1024, 2),
+        used_gb=round(used / 1024 / 1024 / 1024, 2, video_locations=_creator_location_suggestions()),
         storage_limit_gb=storage_limit_gb,
         max_batch_gb=max_batch_gb,
         storage_used_gb=storage_used_gb,

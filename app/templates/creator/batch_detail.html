@@ -56,3 +56,15 @@ function regenerateThumbnail(videoId){
     .catch(()=>alert("Could not regenerate thumbnail."));
 }
 </script>
+{% set options = video.price_options if video.price_options is defined else [] %}
+{% if options %}
+  <div class="price-options" style="margin-top:10px;">
+    {% for opt in options %}
+      <div style="border:1px solid #e5e7eb;border-radius:10px;padding:10px;margin:8px 0;background:#fff;">
+        <strong>{{ opt.title }} - ${{ "%.2f"|format(opt.price) }}</strong>
+        <p style="font-size:13px;color:#6b7280;margin:4px 0;">{{ opt.description }}</p>
+        <a href="/checkout/video/{{ video.id }}?type={{ opt.key }}" style="display:inline-block;background:#2563eb;color:#fff;padding:8px 10px;border-radius:8px;text-decoration:none;">Buy {{ opt.title }}</a>
+      </div>
+    {% endfor %}
+  </div>
+{% endif %}

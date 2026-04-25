@@ -1,5 +1,6 @@
-BoatSpotMedia v38.5 Title + Storage Transaction Fix
-- Fixes browser tab/title showing raw <a href...> HTML.
-- Stops dashboard storage calculation from aborting SQL transaction.
-- Storage now safely sums video.file_size_bytes and profile fallback.
-- Keeps dynamic buyer locations and account menu link fixes.
+BoatSpotMedia v38.6 Pricing + Location Select Fix
+- Buyer video prices now use creator/video configured price options, not hardcoded $40.
+- Shows only active prices: Original, Edited Video, Bundle if configured.
+- Original option includes description: instant original camera file download.
+- Buyer must select an existing creator-saved location, preventing typos.
+- Creator upload location supports suggestions but can save new locations.
