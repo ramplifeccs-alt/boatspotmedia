@@ -1,3 +1,4 @@
+from datetime import datetime, date, time, timezone
 from werkzeug.security import check_password_hash
 import os, tempfile, uuid
 from flask import Blueprint, render_template, request, redirect, url_for, current_app, flash, jsonify, session
@@ -200,19 +201,62 @@ def _normalize_completed_upload_files(data):
     return normalized
 
 
+
+def _safe_recorded_date_time_from_file_info(file_info):
+    recorded_at = file_info.get("recorded_at") or file_info.get("created_at")
+    if isinstance(recorded_at, datetime):
+        return recorded_at.date(), recorded_at.time().replace(microsecond=0)
+
+    # Fallback so DB not-null constraints do not fail during upload tests.
+    return date.today(), time(0, 0, 0)
+
+
+def _cleanup_uploaded_r2_files(files):
+    try:
+        from app.services.r2 import delete_r2_object
+        for f in files or []:
+            upload = f.get("upload") or {}
+            key = (
+                f.get("key")
+                or f.get("r2_video_key")
+                or f.get("r2_key")
+                or upload.get("key")
+                or upload.get("r2_video_key")
+                or upload.get("r2_key")
+            )
+            if key:
+                try:
+                    delete_r2_object(key)
+                except Exception:
+                    pass
+    except Exception:
+        pass
+
+
 def _safe_video_create_from_upload(creator_id, batch, file_info, location=None):
     from app.models import Video
-    filename = file_info.get("filename") or "video"
-    key = file_info.get("key") or file_info.get("upload", {}).get("key") or file_info.get("upload", {}).get("r2_video_key")
-    size = int(file_info.get("file_size") or 0)
 
+    upload = file_info.get("upload") or {}
+    filename = file_info.get("filename") or file_info.get("name") or upload.get("filename") or upload.get("name") or "video"
+    key = (
+        file_info.get("key")
+        or file_info.get("r2_video_key")
+        or file_info.get("r2_key")
+        or upload.get("key")
+        or upload.get("r2_video_key")
+        or upload.get("r2_key")
+        or filename
+    )
+    size = int(file_info.get("file_size") or file_info.get("size") or upload.get("file_size") or upload.get("size") or 0)
+
+    recorded_date, recorded_time = _safe_recorded_date_time_from_file_info(file_info)
     original_price = getattr(batch, "original_price", None) or 0
     edited_price = getattr(batch, "edited_price", None) or 0
     bundle_price = getattr(batch, "bundle_price", None) or 0
 
-    # Keep legacy required columns populated if model still has them.
-    kwargs = {}
     cols = set(Video.__table__.columns.keys())
+    kwargs = {}
+
     if "creator_id" in cols:
         kwargs["creator_id"] = creator_id
     if "batch_id" in cols:
@@ -224,11 +268,17 @@ def _safe_video_create_from_upload(creator_id, batch, file_info, location=None):
     if "internal_filename" in cols:
         kwargs["internal_filename"] = filename
     if "file_path" in cols:
-        kwargs["file_path"] = key or filename
+        kwargs["file_path"] = key
     if "r2_video_key" in cols:
-        kwargs["r2_video_key"] = key or filename
+        kwargs["r2_video_key"] = key
     if "file_size_bytes" in cols:
         kwargs["file_size_bytes"] = size
+    if "recorded_date" in cols:
+        kwargs["recorded_date"] = recorded_date
+    if "recorded_time" in cols:
+        kwargs["recorded_time"] = recorded_time
+    if "recorded_at" in cols:
+        kwargs["recorded_at"] = datetime.combine(recorded_date, recorded_time)
     if "price" in cols:
         kwargs["price"] = original_price or 0
     if "original_price" in cols:
@@ -240,10 +290,9 @@ def _safe_video_create_from_upload(creator_id, batch, file_info, location=None):
     if "status" in cols:
         kwargs["status"] = "active"
     if "created_at" in cols:
-        kwargs["created_at"] = __import__('datetime').datetime.utcnow()
+        kwargs["created_at"] = datetime.utcnow()
 
     return Video(**kwargs)
-
 
 @creator_bp.route("/health")
 def health():
@@ -902,7 +951,8 @@ def upload_r2_complete():
         return jsonify({"ok": True, "message": "Videos saved.", "count": len(created), "batch_id": getattr(batch, "id", None)})
     except Exception as e:
         db.session.rollback()
-        return jsonify({"ok": False, "error": "Videos uploaded, but database save failed: " + str(e)}), 500
+        _cleanup_uploaded_r2_files(files if "files" in locals() else uploaded if "uploaded" in locals() else [])
+        return jsonify({"ok": False, "error": "Videos uploaded, but database save failed. Uploaded R2 files were cleaned up automatically: " + str(e)}), 500
 
 
 def upload_r2_complete():
@@ -936,7 +986,6 @@ def upload_r2_complete():
     _ensure_batch_exists_for_upload(batch.id, creator.id, getattr(batch, 'name', ''), location or getattr(batch, 'location', ''))
 
     default_original_price, default_edited_price, default_bundle_price = _creator_default_prices(creator)
-    from datetime import datetime, timezone
     for item in uploaded:
         key = item.get("key")
         if not key:
@@ -953,6 +1002,13 @@ def upload_r2_complete():
                 recorded_time = recorded_at.time()
         except Exception:
             recorded_at = None
+
+        if recorded_date is None:
+            recorded_date = date.today()
+        if recorded_time is None:
+            recorded_time = time(0, 0, 0)
+        if recorded_at is None:
+            recorded_at = datetime.combine(recorded_date, recorded_time)
 
         thumb_key = item.get("thumbnail_key")
         v = Video(
@@ -982,7 +1038,8 @@ def upload_r2_complete():
         db.session.commit()
     except Exception as e:
         db.session.rollback()
-        return jsonify({"ok": False, "error": "Videos uploaded, but database save failed: " + str(e)}), 500
+        _cleanup_uploaded_r2_files(files if "files" in locals() else uploaded if "uploaded" in locals() else [])
+        return jsonify({"ok": False, "error": "Videos uploaded, but database save failed. Uploaded R2 files were cleaned up automatically: " + str(e)}), 500
 
     return jsonify({
         "ok": True,

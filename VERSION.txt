@@ -1,5 +1,5 @@
-BoatSpotMedia v39.8 Datetime Object Fix
-- Fixes error: type object 'datetime.datetime' has no attribute 'datetime'
-- Restores correct datetime.utcnow() usage
-- Keeps all previous upload pipeline fixes
-- Database records now save correctly after upload
+BoatSpotMedia v39.9 Recorded Date DB Fix
+- Fixes database error: recorded_date cannot be null.
+- Adds safe fallback recorded_date and recorded_time when metadata is missing.
+- Adds best-effort R2 cleanup if DB save fails after upload.
+- Keeps multipart, fallback upload, and global progress.

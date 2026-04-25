@@ -147,3 +147,9 @@ def complete_multipart_upload(key, upload_id, parts):
 def abort_multipart_upload(key, upload_id):
     client = _client()
     return client.abort_multipart_upload(Bucket=_bucket_name(), Key=key, UploadId=upload_id)
+
+
+def delete_r2_object(key):
+    """Delete one object from Cloudflare R2."""
+    client = _client()
+    return client.delete_object(Bucket=_bucket_name(), Key=key)
