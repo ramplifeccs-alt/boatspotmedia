@@ -48,6 +48,15 @@ def create_app():
             seed_owner_and_default_data()
         except Exception as e:
             print("Seed warning:", e)
+
+    @flask_app.context_processor
+    def inject_latest_previews():
+        try:
+            from app.routes.public import _home_preview_videos
+            return {"latest_previews": _home_preview_videos()}
+        except Exception:
+            return {"latest_previews": []}
+
     return flask_app
 
 

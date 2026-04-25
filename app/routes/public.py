@@ -446,3 +446,50 @@ def auth_google_callback():
 def logout():
     session.clear()
     return redirect("/")
+
+
+
+# ===== Home previews and buyer video search v36 =====
+def _home_preview_videos():
+    from app.models import Video
+    # latest active video per creator, max 3 creators.
+    latest_per_creator = []
+    creator_ids = [row[0] for row in db.session.query(Video.creator_id).filter(Video.status == "active", Video.creator_id.isnot(None)).group_by(Video.creator_id).order_by(db.func.max(Video.id).desc()).limit(3).all()]
+    if len(creator_ids) >= 3:
+        for cid in creator_ids[:3]:
+            v = Video.query.filter_by(creator_id=cid, status="active").order_by(Video.id.desc()).first()
+            if v:
+                latest_per_creator.append(v)
+        return latest_per_creator
+
+    if len(creator_ids) == 2:
+        newest = creator_ids[0]
+        older = creator_ids[1]
+        videos = Video.query.filter_by(creator_id=newest, status="active").order_by(Video.id.desc()).limit(2).all()
+        one_old = Video.query.filter_by(creator_id=older, status="active").order_by(Video.id.desc()).first()
+        if one_old:
+            videos.append(one_old)
+        return videos[:3]
+
+    return Video.query.filter(Video.status == "active").order_by(Video.id.desc()).limit(3).all()
+
+
+@public_bp.route("/video-search")
+def video_search():
+    from app.models import Video
+    location = (request.args.get("location") or "").strip()
+    date = (request.args.get("date") or "").strip()
+    start_time = (request.args.get("start_time") or "").strip()
+    end_time = (request.args.get("end_time") or "").strip()
+
+    q = Video.query.filter(Video.status == "active")
+    if location:
+        q = q.filter(Video.location.ilike(f"%{location}%"))
+    if date:
+        q = q.filter(db.func.cast(Video.recorded_date, db.String) == date)
+    if start_time:
+        q = q.filter(Video.recorded_time >= start_time)
+    if end_time:
+        q = q.filter(Video.recorded_time <= end_time)
+    videos = q.order_by(Video.recorded_at.desc().nullslast(), Video.id.desc()).limit(100).all()
+    return render_template("public/video_search.html", videos=videos, location=location, date=date, start_time=start_time, end_time=end_time)

@@ -8,6 +8,64 @@ document.addEventListener("DOMContentLoaded", function(){
     document.getElementById("progressText").textContent = text;
   }
 
+
+  function captureMiddleThumbnail(file){
+    return new Promise(function(resolve){
+      const video = document.createElement("video");
+      const url = URL.createObjectURL(file);
+      video.preload = "metadata";
+      video.muted = true;
+      video.playsInline = true;
+      video.src = url;
+
+      const cleanup = function(){ URL.revokeObjectURL(url); };
+
+      video.onloadedmetadata = function(){
+        const target = isFinite(video.duration) && video.duration > 1 ? video.duration / 2 : 0.1;
+        video.currentTime = target;
+      };
+
+      video.onseeked = function(){
+        try {
+          const canvas = document.createElement("canvas");
+          const maxW = 640;
+          const ratio = video.videoWidth ? maxW / video.videoWidth : 1;
+          canvas.width = maxW;
+          canvas.height = Math.max(1, Math.round((video.videoHeight || 360) * ratio));
+          const ctx = canvas.getContext("2d");
+          ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+          canvas.toBlob(function(blob){
+            cleanup();
+            resolve(blob);
+          }, "image/jpeg", 0.78);
+        } catch(e) {
+          cleanup();
+          resolve(null);
+        }
+      };
+
+      video.onerror = function(){
+        cleanup();
+        resolve(null);
+      };
+    });
+  }
+
+  function uploadBlob(blob, uploadUrl, contentType){
+    return new Promise(function(resolve, reject){
+      if (!blob || !uploadUrl) return resolve(false);
+      const xhr = new XMLHttpRequest();
+      xhr.open("PUT", uploadUrl);
+      xhr.setRequestHeader("Content-Type", contentType || "image/jpeg");
+      xhr.onload = function(){
+        if (xhr.status >= 200 && xhr.status < 300) resolve(true);
+        else reject(new Error("Thumbnail upload failed (HTTP " + xhr.status + ")"));
+      };
+      xhr.onerror = function(){ reject(new Error("Network error uploading thumbnail")); };
+      xhr.send(blob);
+    });
+  }
+
   function uploadOne(file, uploadInfo, onProgress){
     return new Promise(function(resolve, reject){
       const xhr = new XMLHttpRequest();
@@ -56,7 +114,7 @@ document.addEventListener("DOMContentLoaded", function(){
       original_price: form.original_price.value,
       edited_price: form.edited_price.value,
       bundle_price: form.bundle_price.value,
-      files: files.map(f => ({name: f.name, size: f.size, type: f.type || "application/octet-stream"}))
+      files: files.map(f => ({name: f.name, size: f.size, type: f.type || "application/octet-stream", last_modified: f.lastModified}))
     };
 
     let prepare;
@@ -101,6 +159,16 @@ document.addEventListener("DOMContentLoaded", function(){
         });
         loadedByIndex[i] = file.size;
         bar.style.width = "100%";
+        try {
+          const thumbBlob = await captureMiddleThumbnail(file);
+          if (thumbBlob) {
+            await uploadBlob(thumbBlob, info.thumbnail_upload_url, "image/jpeg");
+            done.thumbnail_key = info.thumbnail_key;
+          }
+        } catch(thumbErr) {
+          console.warn(thumbErr);
+        }
+        done.last_modified = file.lastModified;
         uploaded.push(done);
       }
 

@@ -389,13 +389,18 @@ def upload_r2_prepare():
         original_name = secure_filename(f.get("name") or "video.mp4")
         content_type = f.get("type") or "application/octet-stream"
         key = f"creators/{creator.id}/batches/{batch.id}/{uuid.uuid4().hex}_{original_name}"
+        thumb_key = f"creators/{creator.id}/batches/{batch.id}/thumbs/{uuid.uuid4().hex}_{original_name}.jpg"
         url = create_presigned_put_url(key, content_type=content_type, expires=60 * 60 * 6)
+        thumb_url = create_presigned_put_url(thumb_key, content_type="image/jpeg", expires=60 * 60 * 6)
         uploads.append({
             "name": original_name,
             "size": int(f.get("size") or 0),
             "type": content_type,
             "key": key,
             "upload_url": url,
+            "thumbnail_key": thumb_key,
+            "thumbnail_upload_url": thumb_url,
+            "last_modified": f.get("last_modified")
         })
 
     return jsonify({
@@ -434,23 +439,41 @@ def upload_r2_complete():
     if not uploaded:
         return jsonify({"ok": False, "error": "No uploaded videos received."}), 400
 
+    from datetime import datetime, timezone
     for item in uploaded:
         key = item.get("key")
         if not key:
             continue
 
+        recorded_at = None
+        recorded_date = None
+        recorded_time = None
+        try:
+            lm = item.get("last_modified")
+            if lm:
+                recorded_at = datetime.fromtimestamp(int(lm) / 1000, tz=timezone.utc).replace(tzinfo=None)
+                recorded_date = recorded_at.date()
+                recorded_time = recorded_at.time()
+        except Exception:
+            recorded_at = None
+
+        thumb_key = item.get("thumbnail_key")
         v = Video(
             creator_id=creator.id,
             batch_id=batch.id,
             location=location or batch.location,
             r2_video_key=key,
+            r2_thumbnail_key=thumb_key,
+            public_thumbnail_url=public_url_for_key(thumb_key) if thumb_key else "",
+            recorded_at=recorded_at,
+            recorded_date=recorded_date,
+            recorded_time=recorded_time,
             file_size_bytes=int(item.get("size") or 0),
             original_price=original_price,
             edited_price=edited_price,
             bundle_price=bundle_price,
             status="active",
-            internal_filename=item.get("name") or key.split("/")[-1],
-            public_thumbnail_url=public_url_for_key(key) if False else None
+            internal_filename=item.get("name") or key.split("/")[-1]
         )
         db.session.add(v)
 

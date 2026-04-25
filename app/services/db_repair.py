@@ -94,3 +94,23 @@ def repair_creator_upload_tables():
         db.session.commit()
     except Exception:
         db.session.rollback()
+
+
+
+def repair_video_preview_search_columns():
+    statements = [
+        "ALTER TABLE video ADD COLUMN IF NOT EXISTS r2_thumbnail_key VARCHAR(500)",
+        "ALTER TABLE video ADD COLUMN IF NOT EXISTS public_thumbnail_url VARCHAR(500)",
+        "ALTER TABLE video ADD COLUMN IF NOT EXISTS recorded_at TIMESTAMP",
+        "ALTER TABLE video ADD COLUMN IF NOT EXISTS recorded_date DATE",
+        "ALTER TABLE video ADD COLUMN IF NOT EXISTS recorded_time TIME"
+    ]
+    for sql in statements:
+        try:
+            db.session.execute(db.text(sql))
+        except Exception as e:
+            print("Video preview/search repair warning:", sql, e)
+    try:
+        db.session.commit()
+    except Exception:
+        db.session.rollback()

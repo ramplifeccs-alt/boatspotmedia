@@ -39,11 +39,13 @@ def create_presigned_put_url(key, content_type="application/octet-stream", expir
 
 
 def public_url_for_key(key):
-    base = os.getenv("R2_PUBLIC_URL", "").rstrip("/")
+    base = (os.getenv("R2_PUBLIC_URL") or os.getenv("R2_PUBLIC_BASE_URL") or "").strip().rstrip("/")
+    # R2 API endpoint is not a public delivery URL. Return empty instead of storing an invalid public URL.
+    if "cloudflarestorage.com" in base:
+        return ""
     if not base:
         return ""
     return f"{base}/{key}"
-
 
 # Backwards compatibility for older routes that import:
 # from app.services.r2 import upload as r2_upload

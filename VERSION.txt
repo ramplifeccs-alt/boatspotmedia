@@ -1,2 +1,2 @@
-BoatSpotMedia v35.2 R2 Duplicate Route Fix
-Removes duplicate creator upload/batches route definitions causing AssertionError: creator.batch_detail.
+BoatSpotMedia v36 HOME THUMBNAILS SEARCH READY
+Adds center-frame thumbnails uploaded to R2, home limited to 3 preview thumbnails with creator distribution logic, and buyer search by location/date/time using file lastModified metadata as current recorded_at placeholder.

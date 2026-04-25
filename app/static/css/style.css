@@ -327,3 +327,8 @@ form{
 .notice.success{background:#e8fff1;border-color:#9be7b5}
 .notice.error{background:#ffecec;border-color:#ffb7b7}
 .btn.danger{background:#d93025;color:#fff}
+
+
+.placeholder-thumb{height:180px;border-radius:12px;background:#dfe6f3;display:flex;align-items:center;justify-content:center;font-weight:700;color:#344}
+.home-previews{padding:28px 0}
+.video-card img{aspect-ratio:16/9;object-fit:cover}
