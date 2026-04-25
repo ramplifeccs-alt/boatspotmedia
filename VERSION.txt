@@ -1,6 +1,5 @@
-BoatSpotMedia v38.2 Storage + Backend Thumbnail Fix
-- Creator Dashboard storage now sums video table, video_batch table, and creator profile fallback.
-- Recalculates storage when dashboard loads.
-- Adds backend thumbnail regeneration endpoint using ffmpeg from multiple points in the video with 30% zoom.
-- Adds R2 upload_file helper if missing.
-- Keeps cancel upload and creator topbar fixes.
+BoatSpotMedia v38.4 Dynamic Buyer Locations Fix
+- Buyer search locations are now dynamic from uploaded creator videos and video batches.
+- Location field is no longer a locked fixed select; buyer can type or choose from real saved locations.
+- Adds /api/video-locations endpoint.
+- Creator upload page notes that saved location appears in buyer search.

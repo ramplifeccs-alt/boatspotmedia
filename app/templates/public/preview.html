@@ -10,7 +10,9 @@
   {% elif session.get("user_role") in ["charter", "charters"] %}
     <a href="/charters">Dashboard</a>
   {% endif %}
-  <a href="/logout">Logout</a>
+  <a href="/logout">{% if session.get('user_id') or session.get('user_email') or session.get('email') %}
+<a class="account-menu-link" href="{{ account_dashboard_url() }}" style="color:inherit;text-decoration:none;font-weight:700;">{{ account_display_name() }}</a>
+{% endif %} Logout</a>
 {% else %}
   <a href="/login">Login</a>
 {% endif %}</nav></header><div class="container">

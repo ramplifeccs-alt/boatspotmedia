@@ -1,6 +1,6 @@
 import os
 from datetime import datetime
-from flask import Blueprint, redirect, render_template, request, url_for, session
+from flask import Blueprint, redirect, render_template, request, url_for, session, jsonify
 from sqlalchemy import text
 from werkzeug.security import generate_password_hash
 from app.models import Video, Location, ServiceAd, CharterListing, User
@@ -17,6 +17,45 @@ def clean_instagram(value):
     if value.startswith("@"):
         value = value[1:]
     return value.strip()
+
+
+
+def _dynamic_video_locations():
+    """Locations shown to buyers must come from uploaded creator videos/batches, not a fixed list."""
+    locations = []
+    try:
+        from app.models import Video
+        rows = db.session.query(Video.location).filter(
+            Video.location.isnot(None),
+            Video.location != "",
+            Video.status != "deleted"
+        ).distinct().order_by(Video.location.asc()).all()
+        locations += [r[0] for r in rows if r and r[0]]
+    except Exception as e:
+        print("video locations warning:", e)
+
+    try:
+        rows = db.session.execute(db.text("""
+            SELECT DISTINCT location
+            FROM video_batch
+            WHERE location IS NOT NULL
+              AND trim(location) <> ''
+              AND COALESCE(status, '') <> 'deleted'
+            ORDER BY location ASC
+        """)).fetchall()
+        locations += [r[0] for r in rows if r and r[0]]
+    except Exception as e:
+        print("batch locations warning:", e)
+
+    seen = set()
+    clean = []
+    for loc in locations:
+        value = " ".join(str(loc).strip().split())
+        key = value.lower()
+        if value and key not in seen:
+            seen.add(key)
+            clean.append(value)
+    return clean
 
 
 @public_bp.route("/")
@@ -41,7 +80,7 @@ def home():
 def search_page():
     try: locations = Location.query.order_by(Location.name.asc()).all()
     except Exception: db.session.rollback(); locations = []
-    return render_template("public/search.html", locations=locations, results=None)
+    return render_template("public/search.html", locations=locations, results=None, video_locations=_dynamic_video_locations())
 
 
 @public_bp.route("/search/results")
@@ -492,4 +531,10 @@ def video_search():
     if end_time:
         q = q.filter(Video.recorded_time <= end_time)
     videos = q.order_by(Video.recorded_at.desc().nullslast(), Video.id.desc()).limit(100).all()
-    return render_template("public/video_search.html", videos=videos, location=location, date=date, start_time=start_time, end_time=end_time)
+    return render_template("public/video_search.html", videos=videos, video_locations=_dynamic_video_locations(), location=location, date=date, start_time=start_time, end_time=end_time)
+
+
+
+@public_bp.route("/api/video-locations")
+def api_video_locations():
+    return jsonify({"locations": _dynamic_video_locations()})

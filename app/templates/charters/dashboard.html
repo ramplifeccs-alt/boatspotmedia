@@ -4,7 +4,7 @@
 <form method="post" action="/charters/create">
 <input name="title" placeholder="Listing title">
 <input name="boat_name" placeholder="Boat name">
-<input name="location" placeholder="Location">
+<input list="video-location-list" name="location" placeholder="Location">
 <input name="capacity" placeholder="Capacity">
 <input name="price_hour" placeholder="Price per hour">
 <input name="price_trip" placeholder="Price per trip">
@@ -14,3 +14,5 @@
 {% for l in listings %}<div class="card">{{l.title}} — {{l.location}} — ${{l.price_trip or l.price_hour}}</div>{% endfor %}
 </div><script src="/static/js/mobile.js"></script>
 </body></html>
+
+<datalist id="video-location-list">{% for loc in video_locations|default([]) %}<option value="{{ loc }}"></option>{% endfor %}</datalist>
