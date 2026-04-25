@@ -1,0 +1,21 @@
+{% extends "buyer/base.html" %}
+{% block content %}
+<h1>Welcome, {{display_name}}</h1>
+<div class="grid">
+  <div class="card">
+    <h3>Find your video</h3>
+    <p>Search by date, time range, location, and boat details.</p>
+    <a class="btn" href="/search">Search Videos</a>
+  </div>
+  <div class="card">
+    <h3>Your orders</h3>
+    <p>View purchases and download links while they are available.</p>
+    <a class="btn secondary" href="/buyer/orders">View Orders</a>
+  </div>
+  <div class="card">
+    <h3>Shop</h3>
+    <p>Buy merch and products from approved creators.</p>
+    <a class="btn secondary" href="/shop">Open Shop</a>
+  </div>
+</div>
+{% endblock %}

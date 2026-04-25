@@ -1,0 +1,26 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>Buyer Dashboard - BoatSpotMedia</title>
+  <link rel="stylesheet" href="/static/css/style.css">
+</head>
+<body>
+<div class="sidebar-layout">
+  <div class="sidebar">
+    <h2>Buyer</h2>
+    <p style="opacity:.8;font-size:14px;">{{email or ''}}</p>
+    <a href="/buyer/dashboard">Dashboard</a>
+    <a href="/search">Find Videos</a>
+    <a href="/buyer/orders">Orders</a>
+    <a href="/buyer/downloads">Downloads</a>
+    <a href="/shop">Shop</a>
+    <a href="/services">Services</a>
+    <a href="/logout">Log out</a>
+  </div>
+  <div class="content">
+    {% block content %}{% endblock %}
+  </div>
+</div>
+</body>
+</html>

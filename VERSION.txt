@@ -1,2 +1,2 @@
-BoatSpotMedia v28 GOOGLE ERROR DETAILS
-Shows full Google token exchange error body, redirect URI used, and OAuth troubleshooting details.
+BoatSpotMedia v29 FULL GOOGLE LOGIN DASHBOARDS
+Buyer Google login creates/logs user and shows visual dashboard. Creator Google login requires approved active creator account.

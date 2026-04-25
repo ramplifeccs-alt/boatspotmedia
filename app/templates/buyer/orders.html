@@ -1,32 +1,8 @@
-<!doctype html><html><head><meta charset="utf-8"><title>BoatSpotMedia</title><link rel="stylesheet" href="/static/css/style.css"></head><body><header><div><b>BoatSpotMedia</b></div><nav><a href="/">Home</a><a href="/search">Find Your Video</a><a href="/services">Services</a><a href="/charters">Charters</a><a href="/apply-creator">Apply as Creator</a></nav></header><div class="container">
-<h1>My Orders</h1>
-<form>
-  <label>Email</label>
-  <input name="email" placeholder="your@email.com" value="{{request.args.get('email','')}}">
-  <button class="btn">Find Orders</button>
-</form>
-
-{% for o in orders %}
+{% extends "buyer/base.html" %}
+{% block content %}
+<h1>Your Orders</h1>
 <div class="card">
-  <h3>Order #{{o.id}}</h3>
-  <p>Total: ${{o.total_price}} · {{o.created_at.strftime('%m/%d/%Y')}}</p>
-
-  {% for item in o.items %}
-  <div class="notice">
-    <b>{{item.video.location}}</b> — {{item.purchase_type}}<br>
-    {{item.video.recorded_at.strftime('%m/%d/%Y %I:%M %p') if item.video.recorded_at else "Recorded time pending"}}
-    {% for token in item.download_tokens %}
-      {% if token.expires_at > now %}
-        <br><a class="btn" href="/buyer/download/{{token.token}}">Download Available</a>
-        <small>Expires: {{token.expires_at.strftime('%m/%d/%Y')}}</small>
-      {% else %}
-        <br><button class="btn secondary" disabled>Download Expired</button>
-      {% endif %}
-    {% endfor %}
-  </div>
-  {% endfor %}
+  <p>No orders yet.</p>
+  <p>When you buy a video, the download button will appear here while it is available.</p>
 </div>
-{% else %}
-<p>No orders found.</p>
-{% endfor %}
-</div></body></html>
+{% endblock %}

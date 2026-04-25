@@ -353,24 +353,52 @@ def auth_google_callback():
     role = role_map.get(account_type, "buyer")
 
     user = User.query.filter_by(email=email).first()
-    if not user:
-        user = User(
-            email=email,
-            password_hash=generate_password_hash(os.urandom(24).hex()),
-            role=role,
-            display_name=display_name,
-            is_active=True,
-        )
-        db.session.add(user)
-        db.session.commit()
-    else:
+
+    # Creator rule:
+    # Creators are NOT allowed to self-register with Google.
+    # Owner must approve the creator first and send the registration/login link.
+    if role == "creator":
+        if not user or user.role != "creator" or not user.is_active:
+            return (
+                "Creator access is invite-only. Your creator account must be approved by BoatSpotMedia before you can log in. "
+                "Please apply first or contact BoatSpotMedia if you were already approved."
+            ), 403
+
+        try:
+            from app.models import CreatorProfile
+            creator = CreatorProfile.query.filter_by(user_id=user.id).first()
+            if not creator or not creator.approved or creator.suspended:
+                return (
+                    "Creator account is not active yet. Your application must be approved by BoatSpotMedia before creator login is allowed."
+                ), 403
+        except Exception:
+            pass
+
         user.display_name = user.display_name or display_name
-        user.is_active = True
         db.session.commit()
+
+    else:
+        # Buyer, services, and charter can be created by Google login/register.
+        if not user:
+            user = User(
+                email=email,
+                password_hash=generate_password_hash(os.urandom(24).hex()),
+                role=role,
+                display_name=display_name,
+                is_active=True,
+            )
+            db.session.add(user)
+            db.session.commit()
+        else:
+            # Do not overwrite a creator account into another role.
+            user.display_name = user.display_name or display_name
+            user.is_active = True
+            db.session.commit()
 
     session["user_id"] = user.id
     session["user_email"] = user.email
     session["user_role"] = user.role
+    session["display_name"] = user.display_name or user.email
 
     if user.role == "creator":
         return redirect("/creator/dashboard")
@@ -379,3 +407,9 @@ def auth_google_callback():
     if user.role in ["charter", "charters"]:
         return redirect("/charters")
     return redirect("/buyer/dashboard")
+
+
+@public_bp.route("/logout")
+def logout():
+    session.clear()
+    return redirect("/")

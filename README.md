@@ -181,3 +181,7 @@ Hard-overwrites app/__init__.py. Uses flask_app consistently and removes bare ap
 
 ## v26 Confirm Hide OAuth
 Adds delete confirmation, hides deleted/suspended creators from default Applications view, and enables Google/Apple OAuth redirect routes.
+
+
+## v29 Full Google Login Dashboards
+Buyer Google login now shows a real dashboard. Creator Google login is invite-only and requires Owner approval before login.
