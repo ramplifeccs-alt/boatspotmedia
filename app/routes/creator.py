@@ -1033,3 +1033,81 @@ def regenerate_video_thumbnail(video_id):
     except Exception as e:
         db.session.rollback()
         return jsonify({"ok": False, "error": str(e)}), 500
+
+
+
+@creator_bp.route("/upload/r2/multipart/init", methods=["POST"])
+def upload_r2_multipart_init():
+    creator = current_creator()
+    if not creator:
+        return jsonify({"ok": False, "error": "Please log in again."}), 401
+
+    data = request.get_json(silent=True) or {}
+    filename = secure_filename(data.get("filename") or "video")
+    key = data.get("key")
+    batch_id = data.get("batch_id")
+    content_type = data.get("content_type") or "application/octet-stream"
+
+    if not key:
+        import uuid
+        key = f"creators/{creator.id}/batches/{batch_id or 'pending'}/{uuid.uuid4().hex}_{filename}"
+
+    try:
+        from app.services.r2 import create_multipart_upload
+        result = create_multipart_upload(key, content_type=content_type)
+        return jsonify({"ok": True, "upload_id": result["UploadId"], "key": key})
+    except Exception as e:
+        return jsonify({"ok": False, "error": str(e)}), 500
+
+
+@creator_bp.route("/upload/r2/multipart/part", methods=["POST"])
+def upload_r2_multipart_part():
+    creator = current_creator()
+    if not creator:
+        return jsonify({"ok": False, "error": "Please log in again."}), 401
+
+    data = request.get_json(silent=True) or {}
+    key = data.get("key")
+    upload_id = data.get("upload_id")
+    part_number = int(data.get("part_number") or 1)
+
+    try:
+        from app.services.r2 import presign_upload_part
+        url = presign_upload_part(key, upload_id, part_number)
+        return jsonify({"ok": True, "url": url})
+    except Exception as e:
+        return jsonify({"ok": False, "error": str(e)}), 500
+
+
+@creator_bp.route("/upload/r2/multipart/complete", methods=["POST"])
+def upload_r2_multipart_complete():
+    creator = current_creator()
+    if not creator:
+        return jsonify({"ok": False, "error": "Please log in again."}), 401
+
+    data = request.get_json(silent=True) or {}
+    key = data.get("key")
+    upload_id = data.get("upload_id")
+    parts = data.get("parts") or []
+
+    try:
+        from app.services.r2 import complete_multipart_upload
+        complete_multipart_upload(key, upload_id, parts)
+        return jsonify({"ok": True, "key": key})
+    except Exception as e:
+        return jsonify({"ok": False, "error": str(e)}), 500
+
+
+@creator_bp.route("/upload/r2/multipart/abort", methods=["POST"])
+def upload_r2_multipart_abort():
+    creator = current_creator()
+    if not creator:
+        return jsonify({"ok": False, "error": "Please log in again."}), 401
+
+    data = request.get_json(silent=True) or {}
+    try:
+        from app.services.r2 import abort_multipart_upload
+        abort_multipart_upload(data.get("key"), data.get("upload_id"))
+        return jsonify({"ok": True})
+    except Exception as e:
+        return jsonify({"ok": False, "error": str(e)}), 500

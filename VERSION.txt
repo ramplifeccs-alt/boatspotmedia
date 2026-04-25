@@ -1,5 +1,7 @@
-BoatSpotMedia v38.9 Upload Template Rebuild Fix
-- Fully rebuilds creator/upload.html to remove orphan Jinja endfor/if errors.
-- Keeps upload location suggestions.
-- Keeps cancel upload button visible during upload.
-- Keeps dynamic locations and pricing fixes.
+BoatSpotMedia v39 Multipart Global Progress Fix
+- Adds multipart/chunk upload support for large files over 5GB.
+- Uses 64MB chunks for stable browser uploads.
+- Shows one global batch progress bar instead of many file bars.
+- Shows current file name and file X of Y.
+- Moves Cancel Upload next to the progress bar.
+- Restores creator sidebar by extending creator/base.html when available.

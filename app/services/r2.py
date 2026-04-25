@@ -67,3 +67,46 @@ def upload_file(local_path, key, content_type="application/octet-stream"):
     with open(local_path, "rb") as f:
         client.put_object(Bucket=bucket, Key=key, Body=f, ContentType=content_type)
     return key
+
+
+
+def create_multipart_upload(key, content_type="application/octet-stream"):
+    client = _client()
+    bucket = os.getenv("R2_BUCKET_NAME") or os.getenv("R2_BUCKET")
+    return client.create_multipart_upload(Bucket=bucket, Key=key, ContentType=content_type)
+
+def presign_upload_part(key, upload_id, part_number, expires_in=3600):
+    client = _client()
+    bucket = os.getenv("R2_BUCKET_NAME") or os.getenv("R2_BUCKET")
+    return client.generate_presigned_url(
+        "upload_part",
+        Params={
+            "Bucket": bucket,
+            "Key": key,
+            "UploadId": upload_id,
+            "PartNumber": int(part_number)
+        },
+        ExpiresIn=expires_in
+    )
+
+def complete_multipart_upload(key, upload_id, parts):
+    client = _client()
+    bucket = os.getenv("R2_BUCKET_NAME") or os.getenv("R2_BUCKET")
+    fixed_parts = []
+    for p in parts:
+        fixed_parts.append({
+            "ETag": str(p.get("ETag") or p.get("etag") or "").replace('"', ''),
+            "PartNumber": int(p.get("PartNumber") or p.get("partNumber") or p.get("part_number"))
+        })
+    fixed_parts = sorted(fixed_parts, key=lambda x: x["PartNumber"])
+    return client.complete_multipart_upload(
+        Bucket=bucket,
+        Key=key,
+        UploadId=upload_id,
+        MultipartUpload={"Parts": fixed_parts}
+    )
+
+def abort_multipart_upload(key, upload_id):
+    client = _client()
+    bucket = os.getenv("R2_BUCKET_NAME") or os.getenv("R2_BUCKET")
+    return client.abort_multipart_upload(Bucket=bucket, Key=key, UploadId=upload_id)
