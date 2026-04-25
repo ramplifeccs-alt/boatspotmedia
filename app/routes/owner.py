@@ -1,3 +1,4 @@
+from sqlalchemy import text
 from datetime import datetime, timedelta
 from flask import Blueprint, render_template, request, redirect, url_for
 from werkzeug.security import generate_password_hash

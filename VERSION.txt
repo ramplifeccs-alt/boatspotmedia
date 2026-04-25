@@ -1,5 +1,4 @@
-BoatSpotMedia v37.4 Owner Reset + Google Apply UI Fix
-- Adds visible Reset Password button/page in Owner panel.
-- Adds Apply with Google and Apply with Apple buttons to Creator Apply page.
-- Apple apply/login shows under-construction message.
-- Keeps creator login error message for wrong email/password.
+BoatSpotMedia v37.5 FORCE UI Owner/Creator Fix
+- Replaces Owner Applications template with visible Reset Password buttons.
+- Replaces Creator Apply template with Apply with Google / Apple buttons.
+- Replaces Creator Login template so sidebar cannot appear.
