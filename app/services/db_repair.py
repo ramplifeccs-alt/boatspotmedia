@@ -63,5 +63,146 @@ def repair_basic_tables():
             _add(conn, "commission_override_log", col, typ)
 
 def repair_all_known_tables():
+    repair_creator_upload_tables()
     repair_basic_tables()
     repair_creator_application_table()
+
+
+
+def repair_creator_upload_tables():
+    statements = [
+        "ALTER TABLE video_batch ADD COLUMN IF NOT EXISTS total_size_bytes BIGINT DEFAULT 0",
+        "ALTER TABLE video_batch ADD COLUMN IF NOT EXISTS file_count INTEGER DEFAULT 0",
+        "ALTER TABLE video_batch ADD COLUMN IF NOT EXISTS status VARCHAR(50) DEFAULT 'uploaded'",
+        "ALTER TABLE video ADD COLUMN IF NOT EXISTS creator_id INTEGER",
+        "ALTER TABLE video ADD COLUMN IF NOT EXISTS batch_id INTEGER",
+        "ALTER TABLE video ADD COLUMN IF NOT EXISTS location VARCHAR(255)",
+        "ALTER TABLE video ADD COLUMN IF NOT EXISTS r2_video_key VARCHAR(500)",
+        "ALTER TABLE video ADD COLUMN IF NOT EXISTS file_size_bytes BIGINT DEFAULT 0",
+        "ALTER TABLE video ADD COLUMN IF NOT EXISTS original_price NUMERIC(10,2) DEFAULT 0",
+        "ALTER TABLE video ADD COLUMN IF NOT EXISTS edited_price NUMERIC(10,2) DEFAULT 0",
+        "ALTER TABLE video ADD COLUMN IF NOT EXISTS bundle_price NUMERIC(10,2) DEFAULT 0",
+        "ALTER TABLE video ADD COLUMN IF NOT EXISTS status VARCHAR(50) DEFAULT 'active'",
+        "ALTER TABLE video ADD COLUMN IF NOT EXISTS internal_filename VARCHAR(500)"
+    ]
+    for sql in statements:
+        try:
+            db.session.execute(db.text(sql))
+        except Exception as e:
+            print("Upload table repair warning:", sql, e)
+    try:
+        db.session.commit()
+    except Exception:
+        db.session.rollback()
+
+
+
+def repair_video_preview_search_columns():
+    statements = [
+        "ALTER TABLE video ADD COLUMN IF NOT EXISTS r2_thumbnail_key VARCHAR(500)",
+        "ALTER TABLE video ADD COLUMN IF NOT EXISTS public_thumbnail_url VARCHAR(500)",
+        "ALTER TABLE video ADD COLUMN IF NOT EXISTS recorded_at TIMESTAMP",
+        "ALTER TABLE video ADD COLUMN IF NOT EXISTS recorded_date DATE",
+        "ALTER TABLE video ADD COLUMN IF NOT EXISTS recorded_time TIME"
+    ]
+    for sql in statements:
+        try:
+            db.session.execute(db.text(sql))
+        except Exception as e:
+            print("Video preview/search repair warning:", sql, e)
+    try:
+        db.session.commit()
+    except Exception:
+        db.session.rollback()
+
+
+
+def repair_video_filename_column():
+    statements = [
+        "ALTER TABLE video ADD COLUMN IF NOT EXISTS filename VARCHAR(500)",
+        "UPDATE video SET filename = COALESCE(filename, internal_filename, split_part(r2_video_key, '/', array_length(string_to_array(r2_video_key, '/'), 1)), 'video.mp4') WHERE filename IS NULL OR filename = ''",
+        "ALTER TABLE video ALTER COLUMN filename SET DEFAULT ''"
+    ]
+    for sql in statements:
+        try:
+            db.session.execute(db.text(sql))
+        except Exception as e:
+            print("Video filename repair warning:", sql, e)
+    try:
+        db.session.commit()
+    except Exception:
+        db.session.rollback()
+
+
+
+def repair_video_file_path_columns():
+    statements = [
+        "ALTER TABLE video ADD COLUMN IF NOT EXISTS file_path VARCHAR(500)",
+        "ALTER TABLE video ADD COLUMN IF NOT EXISTS thumbnail_path VARCHAR(500)",
+        "UPDATE video SET file_path = COALESCE(NULLIF(file_path, ''), r2_video_key, filename, internal_filename, 'video.mp4') WHERE file_path IS NULL OR file_path = ''",
+        "UPDATE video SET thumbnail_path = COALESCE(NULLIF(thumbnail_path, ''), r2_thumbnail_key, public_thumbnail_url) WHERE thumbnail_path IS NULL OR thumbnail_path = ''",
+        "ALTER TABLE video ALTER COLUMN file_path SET DEFAULT ''"
+    ]
+    for sql in statements:
+        try:
+            db.session.execute(db.text(sql))
+        except Exception as e:
+            print('Video file_path repair warning:', sql, e)
+    try:
+        db.session.commit()
+    except Exception:
+        db.session.rollback()
+
+
+
+def repair_video_price_column():
+    statements = [
+        "ALTER TABLE video ADD COLUMN IF NOT EXISTS price NUMERIC(10,2) DEFAULT 0",
+        "UPDATE video SET price = 0 WHERE price IS NULL",
+        "ALTER TABLE video ALTER COLUMN price SET DEFAULT 0",
+        "ALTER TABLE video ALTER COLUMN price DROP NOT NULL"
+    ]
+    for sql in statements:
+        try:
+            db.session.execute(db.text(sql))
+        except Exception as e:
+            print("Video price repair warning:", sql, e)
+    try:
+        db.session.commit()
+    except Exception:
+        db.session.rollback()
+
+def repair_video_batch_fk():
+    statements = [
+        "DELETE FROM video WHERE batch_id IS NOT NULL AND batch_id NOT IN (SELECT id FROM batch)",
+        "ALTER TABLE video DROP CONSTRAINT IF EXISTS video_batch_id_fkey",
+        "ALTER TABLE video ADD CONSTRAINT video_batch_id_fkey FOREIGN KEY (batch_id) REFERENCES batch(id) ON DELETE CASCADE"
+    ]
+    for sql in statements:
+        try:
+            db.session.execute(db.text(sql))
+        except Exception as e:
+            print("Video batch FK repair warning:", sql, e)
+    try:
+        db.session.commit()
+    except Exception:
+        db.session.rollback()
+
+
+
+def repair_creator_plan_columns():
+    statements = [
+        "ALTER TABLE creator ADD COLUMN IF NOT EXISTS storage_limit_gb NUMERIC(10,2) DEFAULT 500",
+        "ALTER TABLE creator ADD COLUMN IF NOT EXISTS max_batch_gb NUMERIC(10,2) DEFAULT 128",
+        "UPDATE creator SET storage_limit_gb = 500 WHERE storage_limit_gb IS NULL OR storage_limit_gb <= 0",
+        "UPDATE creator SET max_batch_gb = 128 WHERE max_batch_gb IS NULL OR max_batch_gb <= 0"
+    ]
+    for sql in statements:
+        try:
+            db.session.execute(db.text(sql))
+        except Exception as e:
+            print("Creator plan repair warning:", sql, e)
+    try:
+        db.session.commit()
+    except Exception:
+        db.session.rollback()

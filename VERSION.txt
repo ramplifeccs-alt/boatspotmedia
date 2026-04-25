@@ -1,2 +1,5 @@
-BoatSpotMedia v29 FULL GOOGLE LOGIN DASHBOARDS
-Buyer Google login creates/logs user and shows visual dashboard. Creator Google login requires approved active creator account.
+BoatSpotMedia v36.7 Creator Plan Sync Fix
+- Creator upload panel shows safe plan values from creator/plan fields.
+- Defaults to 500 GB storage and 128 GB per batch if Owner plan fields are empty.
+- Upload validation no longer breaks on blank plan values.
+- Adds repair defaults for creator storage_limit_gb and max_batch_gb.

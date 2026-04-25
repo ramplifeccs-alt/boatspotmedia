@@ -24,12 +24,18 @@
       <h3>BoatSpotMedia Storage Upload</h3>
       <p>Files upload directly to BoatSpotMedia Storage. Railway only saves the batch/video records.</p>
       <p>Plan storage used: <strong>{{ used_gb }} GB</strong> / <strong>{{ limit_gb }} GB</strong></p>
-      <p>Maximum per batch: <strong>{{ batch_limit_gb }} GB</strong></p>
+      <p>Maximum per batch: {{ max_batch_gb|default(128) }} GB</strong></p>
       <div class="progress-shell"><div class="progress-bar" style="width: {{ (used_bytes / limit_bytes * 100) if limit_bytes else 0 }}%"></div></div>
     </div>
 
     <form id="r2UploadForm" class="card">
-      <label>Batch name</label>
+      <label>
+<div class="card plan-card">
+  <p><strong>Plan storage used:</strong> {{ storage_used_gb|default(0) }} GB / {{ storage_limit_gb|default(500) }} GB</p>
+  <p><strong>Maximum per batch:</strong> {{ max_batch_gb|default(128) }} GB</p>
+</div>
+
+Batch name</label>
       <input type="text" name="batch_name" placeholder="Example: Boca Raton Inlet - Sunday morning">
 
       <label>Location</label>
