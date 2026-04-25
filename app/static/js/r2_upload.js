@@ -8,40 +8,99 @@ document.addEventListener("DOMContentLoaded", function(){
     document.getElementById("progressText").textContent = text;
   }
 
+  function frameLooksBlack(canvas){
+    try{
+      const ctx = canvas.getContext("2d");
+      const w = Math.min(canvas.width, 80);
+      const h = Math.min(canvas.height, 45);
+      const data = ctx.getImageData(0,0,w,h).data;
+      let total = 0;
+      let count = 0;
+      for(let i=0;i<data.length;i+=16){
+        total += data[i] + data[i+1] + data[i+2];
+        count += 3;
+      }
+      const avg = total / Math.max(count,1);
+      return avg < 18;
+    }catch(e){ return false; }
+  }
 
   function captureMiddleThumbnail(file){
     return new Promise(function(resolve){
       const video = document.createElement("video");
       const url = URL.createObjectURL(file);
-      video.preload = "metadata";
+      video.preload = "auto";
       video.muted = true;
       video.playsInline = true;
+      video.crossOrigin = "anonymous";
       video.src = url;
 
-      const cleanup = function(){ URL.revokeObjectURL(url); };
+      const cleanup = function(){ try{ URL.revokeObjectURL(url); }catch(e){} };
+
+      function captureAt(timeList, index){
+        if(index >= timeList.length){
+          cleanup();
+          return resolve(null);
+        }
+
+        const target = timeList[index];
+        let done = false;
+
+        const doCapture = function(){
+          if(done) return;
+          done = true;
+          try{
+            const maxW = 960;
+            const vw = video.videoWidth || 1280;
+            const vh = video.videoHeight || 720;
+            const ratio = maxW / vw;
+            const canvas = document.createElement("canvas");
+            canvas.width = maxW;
+            canvas.height = Math.max(1, Math.round(vh * ratio));
+            const ctx = canvas.getContext("2d");
+
+            // 30% zoom: use center crop of 70% width/height, then draw to full canvas.
+            const cropW = vw * 0.70;
+            const cropH = vh * 0.70;
+            const cropX = (vw - cropW) / 2;
+            const cropY = (vh - cropH) / 2;
+            ctx.drawImage(video, cropX, cropY, cropW, cropH, 0, 0, canvas.width, canvas.height);
+
+            if(frameLooksBlack(canvas) && index < timeList.length - 1){
+              return captureAt(timeList, index + 1);
+            }
+
+            canvas.toBlob(function(blob){
+              cleanup();
+              resolve(blob);
+            }, "image/jpeg", 0.82);
+          }catch(e){
+            captureAt(timeList, index + 1);
+          }
+        };
+
+        video.onseeked = function(){
+          // Give Safari/iPhone a short moment to paint the frame.
+          setTimeout(doCapture, 250);
+        };
+        try{
+          video.currentTime = target;
+        }catch(e){
+          captureAt(timeList, index + 1);
+        }
+      }
 
       video.onloadedmetadata = function(){
-        const target = isFinite(video.duration) && video.duration > 1 ? video.duration / 2 : 0.1;
-        video.currentTime = target;
-      };
-
-      video.onseeked = function(){
-        try {
-          const canvas = document.createElement("canvas");
-          const maxW = 640;
-          const ratio = video.videoWidth ? maxW / video.videoWidth : 1;
-          canvas.width = maxW;
-          canvas.height = Math.max(1, Math.round((video.videoHeight || 360) * ratio));
-          const ctx = canvas.getContext("2d");
-          ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
-          canvas.toBlob(function(blob){
-            cleanup();
-            resolve(blob);
-          }, "image/jpeg", 0.78);
-        } catch(e) {
-          cleanup();
-          resolve(null);
-        }
+        const d = isFinite(video.duration) && video.duration > 0 ? video.duration : 10;
+        const times = [
+          Math.max(0.5, d * 0.50),
+          Math.max(0.5, d * 0.45),
+          Math.max(0.5, d * 0.55),
+          Math.max(0.5, d * 0.60),
+          Math.max(0.5, d * 0.35),
+          Math.max(0.5, d * 0.70)
+        ];
+        captureAt(times, 0);
       };
 
       video.onerror = function(){
@@ -50,6 +109,7 @@ document.addEventListener("DOMContentLoaded", function(){
       };
     });
   }
+
 
   function uploadBlob(blob, uploadUrl, contentType){
     return new Promise(function(resolve, reject){
@@ -139,6 +199,7 @@ document.addEventListener("DOMContentLoaded", function(){
 
     try {
       for (let i = 0; i < files.length; i++) {
+        if(window.boatspotCancelUpload || boatspotCancelUpload){ throw new Error('Upload cancelled by creator.'); }
         const file = files[i];
         const info = prepare.uploads[i];
         const row = document.createElement("div");

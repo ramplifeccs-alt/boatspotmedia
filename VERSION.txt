@@ -1,8 +1,5 @@
-BoatSpotMedia v38 Creator Workflow + Thumbnail + Storage Fix
-- Dashboard shows creator GB used, plan storage, and batch limit.
-- Upload page warns creators to upload original camera files only; edited delivery is okay later.
-- Hides price inputs from batch upload; default prices are used.
-- Adds cancel upload endpoint/button support.
-- Thumbnail generation uses the middle of the video with about 30% zoom/crop.
-- Expands accepted camera video formats.
-- BoatSpotMedia brand links to home.
+BoatSpotMedia v38.1 Upload UI + Thumbnail Fix
+- Cancel Upload button appears during upload, not only after finishing.
+- Price fields are hidden only inside upload form; Pricing menu remains visible.
+- Creator pages get a top bar with BoatSpotMedia Home link, Products, creator email, and Logout.
+- Browser thumbnail capture now uses middle frame, 30% zoom crop, and retries if the frame is black.
