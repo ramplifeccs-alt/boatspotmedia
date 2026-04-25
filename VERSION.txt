@@ -1,3 +1,5 @@
-BoatSpotMedia v37.6 Owner Flash Import Fix
-- Fixes NameError: flash is not defined in owner reset password page.
-- Keeps forced Owner/Creator UI updates.
+BoatSpotMedia v37.7 Owner Layout + Google Endpoint Fix
+- Restores Owner Applications layout/menu instead of forced standalone page.
+- Keeps visible Reset Password link/page.
+- Fixes Google endpoint from auth.google_login to public.auth_google_register.
+- Login creator no longer crashes on Google button.
