@@ -110,3 +110,8 @@ def abort_multipart_upload(key, upload_id):
     client = _client()
     bucket = os.getenv("R2_BUCKET_NAME") or os.getenv("R2_BUCKET")
     return client.abort_multipart_upload(Bucket=bucket, Key=key, UploadId=upload_id)
+
+
+def get_r2_client():
+    """Public wrapper for the internal R2/S3 client."""
+    return _client()
