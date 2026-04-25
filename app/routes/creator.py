@@ -107,7 +107,7 @@ def login():
 
         user = User.query.filter(db.func.lower(User.email) == email).first()
         if not user:
-            flash("Invalid email or password.", "error")
+            flash("Email or password is incorrect. Please check and try again.", "error")
             return render_template("creator/login.html")
 
         stored_hash = getattr(user, "password_hash", None) or getattr(user, "password", None)
@@ -120,7 +120,7 @@ def login():
             valid_password = True
 
         if not valid_password:
-            flash("Invalid email or password.", "error")
+            flash("Email or password is incorrect. Please check and try again.", "error")
             return render_template("creator/login.html")
 
         creator = CreatorProfile.query.filter(

@@ -1,5 +1,4 @@
-BoatSpotMedia v37.2 Owner Password + Apple Login UI Fix
-- Owner panel can set/reset creator password.
-- Creator Login no longer shows Creator sidebar/menu.
-- Apple login displays under-construction message.
-- Keeps Google login option for creators.
+BoatSpotMedia v37.3 Owner Template + Login Message Fix
+- Fixes Jinja UndefinedError: 'c' is undefined in owner/applications.html.
+- Places creator password reset form inside the correct creators loop.
+- Creator login shows clear message when email or password is incorrect.

@@ -27,10 +27,6 @@
           {% for a in applications %}
           <tr>
             <td>{{a.id}}
-<form method="post" action="{{ url_for('owner.reset_creator_password', creator_id=c.id) }}" class="inline-form reset-password-form" style="display:inline-flex; gap:6px; align-items:center; flex-wrap:wrap; margin:4px 0;">
-  <input type="password" name="new_password" placeholder="New creator password" minlength="6" required style="max-width:180px;">
-  <button type="submit" class="btn btn-small">Set Password</button>
-</form>
 </td>
             <td>{{a.first_name}} {{a.last_name}}</td>
             <td>{{a.brand_name}}</td>
@@ -170,7 +166,12 @@
       </div>
       {% else %}
       <div class="card">No approved creators yet.</div>
-      {% endfor %}
+      
+<form method="post" action="{{ url_for('owner.reset_creator_password', creator_id=creator.id) }}" class="inline-form reset-password-form" style="display:inline-flex; gap:6px; align-items:center; flex-wrap:wrap; margin:6px 0;">
+  <input type="password" name="new_password" placeholder="New creator password" minlength="6" required style="max-width:190px;">
+  <button type="submit" class="btn btn-small">Set Password</button>
+</form>
+{% endfor %}
     </section>
 
     <section id="history" class="owner-block" style="display:none">
