@@ -265,13 +265,19 @@
         }
 
         setStatus("Saving video records...");
+        const completedFiles = files.map((f, i)=>({
+          filename: f.name,
+          name: f.name,
+          file_size: f.size,
+          size: f.size,
+          key: (uploads[i] || {}).key || (uploads[i] || {}).r2_video_key || (uploads[i] || {}).r2_key,
+          upload: uploads[i] || {}
+        }));
         await postJSON("/creator/upload/r2/complete", {
           batch_id: currentBatchId,
-          files: files.map((f, i)=>({
-            filename: f.name,
-            file_size: f.size,
-            upload: uploads[i] || {}
-          }))
+          files: completedFiles,
+          uploaded_files: completedFiles,
+          uploads: completedFiles
         });
 
         updateGlobalProgress(totalBytes, totalBytes);

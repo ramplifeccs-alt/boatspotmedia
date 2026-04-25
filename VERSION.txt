@@ -1,6 +1,5 @@
-BoatSpotMedia v39.5 R2 No Recursion Fix
-- Fixes maximum recursion depth exceeded in R2 client.
-- Ensures _client() creates boto3 client directly.
-- Ensures get_r2_client() only wraps _client(), never loops.
-- Rebuilds multipart helpers cleanly.
-- Keeps multipart + fallback uploader behavior.
+BoatSpotMedia v39.6 Complete Accept Files Fix
+- Fixes final save error: No uploaded videos received.
+- Backend complete endpoint accepts files/uploaded_files/videos/uploads.
+- Frontend sends multiple payload aliases for compatibility.
+- Saves Video DB records after R2 upload completes.

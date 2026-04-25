@@ -148,6 +148,103 @@ def _safe_secure_filename(name):
         return name or "video"
 
 
+
+def _normalize_completed_upload_files(data):
+    """Accept all frontend payload names for completed uploads."""
+    files = (
+        data.get("files")
+        or data.get("uploaded_files")
+        or data.get("videos")
+        or data.get("uploads")
+        or data.get("uploadedVideos")
+        or []
+    )
+    if isinstance(files, dict):
+        files = list(files.values())
+    normalized = []
+    for item in files:
+        if not isinstance(item, dict):
+            continue
+        upload = item.get("upload") or item.get("uploaded") or item
+        filename = (
+            item.get("filename")
+            or item.get("name")
+            or upload.get("filename")
+            or upload.get("name")
+            or upload.get("original_filename")
+        )
+        key = (
+            item.get("key")
+            or item.get("r2_video_key")
+            or item.get("r2_key")
+            or upload.get("key")
+            or upload.get("r2_video_key")
+            or upload.get("r2_key")
+        )
+        size = (
+            item.get("file_size")
+            or item.get("size")
+            or item.get("file_size_bytes")
+            or upload.get("file_size")
+            or upload.get("size")
+            or upload.get("file_size_bytes")
+            or 0
+        )
+        if filename:
+            normalized.append({
+                "filename": filename,
+                "key": key,
+                "file_size": int(size or 0),
+                "upload": upload,
+            })
+    return normalized
+
+
+def _safe_video_create_from_upload(creator_id, batch, file_info, location=None):
+    from app.models import Video
+    filename = file_info.get("filename") or "video"
+    key = file_info.get("key") or file_info.get("upload", {}).get("key") or file_info.get("upload", {}).get("r2_video_key")
+    size = int(file_info.get("file_size") or 0)
+
+    original_price = getattr(batch, "original_price", None) or 0
+    edited_price = getattr(batch, "edited_price", None) or 0
+    bundle_price = getattr(batch, "bundle_price", None) or 0
+
+    # Keep legacy required columns populated if model still has them.
+    kwargs = {}
+    cols = set(Video.__table__.columns.keys())
+    if "creator_id" in cols:
+        kwargs["creator_id"] = creator_id
+    if "batch_id" in cols:
+        kwargs["batch_id"] = getattr(batch, "id", None)
+    if "location" in cols:
+        kwargs["location"] = location or getattr(batch, "location", None)
+    if "filename" in cols:
+        kwargs["filename"] = filename
+    if "internal_filename" in cols:
+        kwargs["internal_filename"] = filename
+    if "file_path" in cols:
+        kwargs["file_path"] = key or filename
+    if "r2_video_key" in cols:
+        kwargs["r2_video_key"] = key or filename
+    if "file_size_bytes" in cols:
+        kwargs["file_size_bytes"] = size
+    if "price" in cols:
+        kwargs["price"] = original_price or 0
+    if "original_price" in cols:
+        kwargs["original_price"] = original_price or 0
+    if "edited_price" in cols:
+        kwargs["edited_price"] = edited_price or 0
+    if "bundle_price" in cols:
+        kwargs["bundle_price"] = bundle_price or 0
+    if "status" in cols:
+        kwargs["status"] = "active"
+    if "created_at" in cols:
+        kwargs["created_at"] = datetime.utcnow()
+
+    return Video(**kwargs)
+
+
 @creator_bp.route("/health")
 def health():
     c = current_creator()
@@ -749,6 +846,65 @@ def upload_r2_prepare():
 
 
 @creator_bp.route("/upload/r2/complete", methods=["POST"])
+def upload_r2_complete():
+    creator = current_creator()
+    if not creator:
+        return jsonify({"ok": False, "error": "Please log in again."}), 401
+
+    data = request.get_json(silent=True) or {}
+    batch_id = data.get("batch_id") or data.get("batchId")
+    files = _normalize_completed_upload_files(data)
+
+    if not files:
+        return jsonify({
+            "ok": False,
+            "error": "No uploaded videos received.",
+            "debug_keys": list(data.keys())
+        }), 400
+
+    try:
+        from app.models import VideoBatch
+    except Exception:
+        VideoBatch = None
+
+    batch = None
+    if VideoBatch is not None and batch_id:
+        batch = VideoBatch.query.get(batch_id)
+
+    if batch is None:
+        return jsonify({"ok": False, "error": "Upload batch was not found. Please refresh and try again."}), 400
+
+    try:
+        created = []
+        for file_info in files:
+            v = _safe_video_create_from_upload(creator.id, batch, file_info, location=getattr(batch, "location", None))
+            db.session.add(v)
+            created.append(v)
+
+        # Mark batch active/complete when those columns exist.
+        try:
+            if hasattr(batch, "status"):
+                batch.status = "active"
+            if hasattr(batch, "completed_at"):
+                batch.completed_at = datetime.utcnow()
+            if hasattr(batch, "total_size_bytes"):
+                batch.total_size_bytes = sum(int(f.get("file_size") or 0) for f in files)
+        except Exception:
+            pass
+
+        db.session.commit()
+
+        try:
+            _recalculate_creator_storage(creator.id)
+        except Exception:
+            db.session.rollback()
+
+        return jsonify({"ok": True, "message": "Videos saved.", "count": len(created), "batch_id": getattr(batch, "id", None)})
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({"ok": False, "error": "Videos uploaded, but database save failed: " + str(e)}), 500
+
+
 def upload_r2_complete():
     _ensure_video_upload_columns()
     creator = current_creator()
