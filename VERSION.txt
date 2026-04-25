@@ -1,4 +1,5 @@
-BoatSpotMedia v39.7 Datetime Import Fix
-- Fixes database save error: name 'datetime' is not defined.
-- Keeps R2 multipart upload, fallback upload, global progress, and complete-files fix.
-- After upload completes, video records should save correctly in DB.
+BoatSpotMedia v39.8 Datetime Object Fix
+- Fixes error: type object 'datetime.datetime' has no attribute 'datetime'
+- Restores correct datetime.utcnow() usage
+- Keeps all previous upload pipeline fixes
+- Database records now save correctly after upload
