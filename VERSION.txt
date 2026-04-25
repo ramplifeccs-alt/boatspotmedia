@@ -1,4 +1,5 @@
-BoatSpotMedia v36.4 Prepare DB Repair Fix
-- Runs video table repair before duplicate-check SELECT.
-- Adds missing filename/file_path/thumbnail_path columns before upload prepare and complete.
-- Duplicate check now queries only id and batch_id to avoid model/table drift crashes.
+BoatSpotMedia v36.5 PRICE COLUMN AUTOFIX REAL
+- Repairs old NOT NULL video.price column before prepare and complete.
+- Adds price to Video model and saves price=original_price.
+- Keeps duplicate file-name protection.
+- Keeps BoatSpotMedia Storage progress text.

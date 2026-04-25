@@ -152,3 +152,22 @@ def repair_video_file_path_columns():
         db.session.commit()
     except Exception:
         db.session.rollback()
+
+
+
+def repair_video_price_column():
+    statements = [
+        "ALTER TABLE video ADD COLUMN IF NOT EXISTS price NUMERIC(10,2) DEFAULT 0",
+        "UPDATE video SET price = 0 WHERE price IS NULL",
+        "ALTER TABLE video ALTER COLUMN price SET DEFAULT 0",
+        "ALTER TABLE video ALTER COLUMN price DROP NOT NULL"
+    ]
+    for sql in statements:
+        try:
+            db.session.execute(db.text(sql))
+        except Exception as e:
+            print("Video price repair warning:", sql, e)
+    try:
+        db.session.commit()
+    except Exception:
+        db.session.rollback()

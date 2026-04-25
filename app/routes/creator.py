@@ -333,6 +333,10 @@ def upload():
 def _ensure_video_upload_columns():
     """Make sure old PostgreSQL video table has the columns required by the uploader before any SELECT."""
     statements = [
+        "ALTER TABLE video ADD COLUMN IF NOT EXISTS price NUMERIC(10,2) DEFAULT 0",
+        "UPDATE video SET price = 0 WHERE price IS NULL",
+        "ALTER TABLE video ALTER COLUMN price SET DEFAULT 0",
+        "ALTER TABLE video ALTER COLUMN price DROP NOT NULL",
         "ALTER TABLE video ADD COLUMN IF NOT EXISTS filename VARCHAR(500)",
         "ALTER TABLE video ADD COLUMN IF NOT EXISTS file_path VARCHAR(500)",
         "ALTER TABLE video ADD COLUMN IF NOT EXISTS thumbnail_path VARCHAR(500)",
