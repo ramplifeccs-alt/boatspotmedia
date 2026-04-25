@@ -119,21 +119,7 @@ def dashboard():
 
 
 
-@creator_bp.route("/batches/<int:batch_id>")
-def batch_detail(batch_id):
-    creator = current_creator()
-    batch = Batch.query.get_or_404(batch_id)
-    videos = Video.query.filter_by(batch_id=batch.id, creator_id=creator.id).order_by(Video.id.asc()).all()
-    return render_creator_template("creator/batch_detail.html", creator=creator, batch=batch, videos=videos)
 
-@creator_bp.route("/batches/<int:batch_id>/delete", methods=["POST"])
-def delete_batch(batch_id):
-    creator = current_creator()
-    for v in Video.query.filter_by(batch_id=batch_id, creator_id=creator.id, status="active").all():
-        v.status = "deleted"
-        creator.storage_used_bytes = max(0, creator.storage_used_bytes - (v.file_size_bytes or 0))
-    db.session.commit()
-    return redirect(url_for("creator.batches"))
 
 @creator_bp.route("/videos/delete-selected", methods=["POST"])
 def delete_selected_videos():
