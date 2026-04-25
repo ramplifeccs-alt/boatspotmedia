@@ -473,6 +473,7 @@ def upload_r2_complete():
             edited_price=edited_price,
             bundle_price=bundle_price,
             status="active",
+            filename=item.get("name") or key.split("/")[-1],
             internal_filename=item.get("name") or key.split("/")[-1]
         )
         db.session.add(v)

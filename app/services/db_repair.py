@@ -114,3 +114,21 @@ def repair_video_preview_search_columns():
         db.session.commit()
     except Exception:
         db.session.rollback()
+
+
+
+def repair_video_filename_column():
+    statements = [
+        "ALTER TABLE video ADD COLUMN IF NOT EXISTS filename VARCHAR(500)",
+        "UPDATE video SET filename = COALESCE(filename, internal_filename, split_part(r2_video_key, '/', array_length(string_to_array(r2_video_key, '/'), 1)), 'video.mp4') WHERE filename IS NULL OR filename = ''",
+        "ALTER TABLE video ALTER COLUMN filename SET DEFAULT ''"
+    ]
+    for sql in statements:
+        try:
+            db.session.execute(db.text(sql))
+        except Exception as e:
+            print("Video filename repair warning:", sql, e)
+    try:
+        db.session.commit()
+    except Exception:
+        db.session.rollback()
