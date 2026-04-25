@@ -1,4 +1,5 @@
-<!doctype html><html><head><meta charset="utf-8"><title>BoatSpotMedia</title><link rel="stylesheet" href="/static/css/style.css"></head><body><header><div><b>BoatSpotMedia</b></div><nav><a href="/">Home</a><a href="/search">Find Your Video</a><a href="/shop">Shop</a><a href="/services">Services</a><a href="/charters">Charters</a><a href="/apply-creator">Apply as Creator</a>{% if session.get("user_id") %}
+<!doctype html><html><head>
+  <meta name="viewport" content="width=device-width, initial-scale=1"><meta charset="utf-8"><title>BoatSpotMedia</title><link rel="stylesheet" href="/static/css/style.css"></head><body><header><div><b>BoatSpotMedia</b></div><nav><a href="/">Home</a><a href="/search">Find Your Video</a><a href="/shop">Shop</a><a href="/services">Services</a><a href="/charters">Charters</a><a href="/apply-creator">Apply as Creator</a>{% if session.get("user_id") %}
   <span class="nav-user">{{ session.get("display_name") or session.get("user_email") }}</span>
   {% if session.get("user_role") == "buyer" %}
     <a href="/buyer/dashboard">Dashboard</a>
@@ -19,4 +20,5 @@
 <div class="card"><h3>{{c.title}}</h3><p>{{c.description}}</p><p>{{c.location}} · Up to {{c.capacity}} guests</p><b>${{c.price_trip or c.price_hour}}</b></div>
 {% else %}<p>No charters yet.</p>{% endfor %}
 </div>
-</div></body></html>
+</div><script src="/static/js/mobile.js"></script>
+</body></html>

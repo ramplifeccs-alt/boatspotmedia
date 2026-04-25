@@ -1,4 +1,5 @@
-<!doctype html><html><head><meta charset="utf-8"><title>BoatSpotMedia</title><link rel="stylesheet" href="/static/css/style.css"></head><body><header><div><b>BoatSpotMedia</b></div><nav><a href="/">Home</a><a href="/search">Find Your Video</a><a href="/services">Services</a><a href="/charters">Charters</a><a href="/apply-creator">Apply as Creator</a></nav></header><div class="container">
+<!doctype html><html><head>
+  <meta name="viewport" content="width=device-width, initial-scale=1"><meta charset="utf-8"><title>BoatSpotMedia</title><link rel="stylesheet" href="/static/css/style.css"></head><body><header><div><b>BoatSpotMedia</b></div><nav><a href="/">Home</a><a href="/search">Find Your Video</a><a href="/services">Services</a><a href="/charters">Charters</a><a href="/apply-creator">Apply as Creator</a></nav></header><div class="container">
 <h1>Cart</h1>
 <form action="/buyer/checkout" method="post">
 <label>Your Email</label><input type="email" name="buyer_email" required>
@@ -14,4 +15,5 @@ Price: ${{v.original_price}}
 <h2>Total: ${{total|round(2)}}</h2>
 <button class="btn">Checkout / Pay</button>
 </form>
-</div></body></html>
+</div><script src="/static/js/mobile.js"></script>
+</body></html>

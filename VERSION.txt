@@ -1,15 +1,2 @@
-BoatSpotMedia v31 SMART NAVBAR + APPLE READY
-Navbar shows logged-in name/email and logout. Apple OAuth routes and setup variables prepared.
-Patched templates:
-app/templates/public/home.html
-app/templates/public/search.html
-app/templates/public/preview.html
-app/templates/public/apply_creator.html
-app/templates/public/services.html
-app/templates/public/charters.html
-app/templates/public/shop.html
-app/templates/public/login_selector.html
-app/templates/public/generic_login.html
-app/templates/public/product_detail.html
-app/templates/public/generic_register.html
-app/templates/owner/login.html
+BoatSpotMedia v32 MOBILE RESPONSIVE UI
+Adds mobile menu, collapsible sidebar, responsive cards/forms/tables, and viewport meta tags. Apple Login routes remain prepared from v31.

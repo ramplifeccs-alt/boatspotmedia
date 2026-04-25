@@ -1,4 +1,5 @@
-<!doctype html><html><head><meta charset="utf-8"><title>BoatSpotMedia</title><link rel="stylesheet" href="/static/css/style.css"></head><body><header><div><b>BoatSpotMedia</b></div><nav><a href="/">Home</a><a href="/search">Find Your Video</a><a href="/services">Services</a><a href="/charters">Charters</a><a href="/apply-creator">Apply as Creator</a></nav></header><div class="container">
+<!doctype html><html><head>
+  <meta name="viewport" content="width=device-width, initial-scale=1"><meta charset="utf-8"><title>BoatSpotMedia</title><link rel="stylesheet" href="/static/css/style.css"></head><body><header><div><b>BoatSpotMedia</b></div><nav><a href="/">Home</a><a href="/search">Find Your Video</a><a href="/services">Services</a><a href="/charters">Charters</a><a href="/apply-creator">Apply as Creator</a></nav></header><div class="container">
 <h1>Charter Provider Dashboard</h1>
 <form method="post" action="/charters/create">
 <input name="title" placeholder="Listing title">
@@ -11,4 +12,5 @@
 <button class="btn">Create Charter</button>
 </form>
 {% for l in listings %}<div class="card">{{l.title}} — {{l.location}} — ${{l.price_trip or l.price_hour}}</div>{% endfor %}
-</div></body></html>
+</div><script src="/static/js/mobile.js"></script>
+</body></html>

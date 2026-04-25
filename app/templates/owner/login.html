@@ -1,4 +1,5 @@
-<!doctype html><html><head><meta charset="utf-8"><title>BoatSpotMedia</title><link rel="stylesheet" href="/static/css/style.css"></head><body><header><div><b>BoatSpotMedia</b></div><nav><a href="/">Home</a><a href="/search">Find Your Video</a><a href="/services">Services</a><a href="/charters">Charters</a><a href="/apply-creator">Apply as Creator</a>{% if session.get("user_id") %}
+<!doctype html><html><head>
+  <meta name="viewport" content="width=device-width, initial-scale=1"><meta charset="utf-8"><title>BoatSpotMedia</title><link rel="stylesheet" href="/static/css/style.css"></head><body><header><div><b>BoatSpotMedia</b></div><nav><a href="/">Home</a><a href="/search">Find Your Video</a><a href="/services">Services</a><a href="/charters">Charters</a><a href="/apply-creator">Apply as Creator</a>{% if session.get("user_id") %}
   <span class="nav-user">{{ session.get("display_name") or session.get("user_email") }}</span>
   {% if session.get("user_role") == "buyer" %}
     <a href="/buyer/dashboard">Dashboard</a>
@@ -13,4 +14,5 @@
 {% else %}
   <a href="/login">Login</a>
 {% endif %}
-</nav></header><div class="container"><h1>Owner Login</h1><form method="post"><input placeholder="Email"><input type="password" placeholder="Password"><button class="btn">Login</button></form></div></body></html>
+</nav></header><div class="container"><h1>Owner Login</h1><form method="post"><input placeholder="Email"><input type="password" placeholder="Password"><button class="btn">Login</button></form></div><script src="/static/js/mobile.js"></script>
+</body></html>
