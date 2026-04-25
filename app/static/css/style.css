@@ -98,3 +98,18 @@ input, select, textarea, button {
 .auth-wrap{min-height:100vh;display:flex;align-items:center;justify-content:center;padding:24px;background:#f6f7fb}
 .auth-card{max-width:560px;width:100%;padding:32px}
 .notice{background:#fff3cd;border:1px solid #ffe69c;padding:10px;border-radius:8px}
+
+
+.nav-user{
+  color:#fff;
+  font-weight:700;
+  padding:8px 10px;
+  border-radius:999px;
+  background:rgba(255,255,255,.14);
+  max-width:220px;
+  overflow:hidden;
+  text-overflow:ellipsis;
+  white-space:nowrap;
+  display:inline-block;
+  vertical-align:middle;
+}
