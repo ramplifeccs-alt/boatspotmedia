@@ -1,4 +1,3 @@
-BoatSpotMedia v37.5 FORCE UI Owner/Creator Fix
-- Replaces Owner Applications template with visible Reset Password buttons.
-- Replaces Creator Apply template with Apply with Google / Apple buttons.
-- Replaces Creator Login template so sidebar cannot appear.
+BoatSpotMedia v37.6 Owner Flash Import Fix
+- Fixes NameError: flash is not defined in owner reset password page.
+- Keeps forced Owner/Creator UI updates.
