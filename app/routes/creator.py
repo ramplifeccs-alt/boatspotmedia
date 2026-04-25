@@ -1,4 +1,3 @@
-from app.services.r2 import get_r2_client
 from werkzeug.security import check_password_hash
 import os, tempfile, uuid
 from flask import Blueprint, render_template, request, redirect, url_for, current_app, flash, jsonify, session
@@ -1049,6 +1048,29 @@ def regenerate_video_thumbnail(video_id):
 
 
 @creator_bp.route("/upload/r2/multipart/init", methods=["POST"])
+def upload_r2_multipart_init():
+    creator = current_creator()
+    if not creator:
+        return jsonify({"ok": False, "error": "Please log in again."}), 401
+
+    data = request.get_json(silent=True) or {}
+    filename = _safe_secure_filename(data.get("filename") or "video")
+    key = data.get("key")
+    batch_id = data.get("batch_id")
+    content_type = data.get("content_type") or "application/octet-stream"
+
+    if not key:
+        import uuid
+        key = f"creators/{creator.id}/batches/{batch_id or 'pending'}/{uuid.uuid4().hex}_{filename}"
+
+    try:
+        from app.services.r2 import create_multipart_upload
+        result = create_multipart_upload(key, content_type=content_type)
+        return jsonify({"ok": True, "upload_id": result["UploadId"], "key": key})
+    except Exception as e:
+        return jsonify({"ok": False, "error": str(e)}), 500
+
+
 def upload_r2_multipart_init():
     creator = current_creator()
     if not creator:

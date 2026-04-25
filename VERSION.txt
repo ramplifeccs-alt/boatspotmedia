@@ -1,5 +1,6 @@
-BoatSpotMedia v39.3B R2 Client Import Fix
-- Fixes boot crash: cannot import name get_r2_client from app.services.r2.
-- Adds get_r2_client() wrapper inside app/services/r2.py.
-- Multipart endpoints use the valid R2 client.
-- Keeps secure_filename multipart fix and fallback upload behavior.
+BoatSpotMedia v39.4 R2 Service Client Stable Fix
+- Defines a stable _client() inside app/services/r2.py.
+- Defines get_r2_client() correctly.
+- Uses R2_ACCOUNT_ID or R2_ENDPOINT_URL to create the Cloudflare R2 S3 client.
+- Fixes runtime popup: name '_client' is not defined.
+- Keeps multipart + fallback upload behavior.

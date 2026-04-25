@@ -2,6 +2,41 @@ import os
 import boto3
 from botocore.config import Config
 
+def _r2_endpoint_url():
+    account_id = os.getenv("R2_ACCOUNT_ID") or os.getenv("CLOUDFLARE_ACCOUNT_ID")
+    explicit = os.getenv("R2_ENDPOINT_URL") or os.getenv("CLOUDFLARE_R2_ENDPOINT")
+    if explicit:
+        return explicit.rstrip("/")
+    if account_id:
+        return f"https://{account_id}.r2.cloudflarestorage.com"
+    return None
+
+def _client():
+    """Internal Cloudflare R2/S3 client used by all R2 helpers."""
+    endpoint_url = _r2_endpoint_url()
+    access_key = os.getenv("R2_ACCESS_KEY_ID") or os.getenv("AWS_ACCESS_KEY_ID")
+    secret_key = os.getenv("R2_SECRET_ACCESS_KEY") or os.getenv("AWS_SECRET_ACCESS_KEY")
+    if not endpoint_url:
+        raise RuntimeError("R2 endpoint is not configured. Set R2_ACCOUNT_ID or R2_ENDPOINT_URL.")
+    if not access_key or not secret_key:
+        raise RuntimeError("R2 credentials are not configured. Set R2_ACCESS_KEY_ID and R2_SECRET_ACCESS_KEY.")
+    return boto3.client(
+        "s3",
+        endpoint_url=endpoint_url,
+        aws_access_key_id=access_key,
+        aws_secret_access_key=secret_key,
+        region_name=os.getenv("R2_REGION", "auto"),
+    )
+
+def get_r2_client():
+    """Public wrapper for the internal R2/S3 client."""
+    return _client()
+
+def _bucket_name():
+    bucket = _bucket_name()
+    return bucket
+
+
 
 def r2_configured():
     return all([
@@ -63,55 +98,51 @@ def upload(file_obj, key, content_type="application/octet-stream"):
 
 def upload_file(local_path, key, content_type="application/octet-stream"):
     client = _client()
-    bucket = os.getenv("R2_BUCKET_NAME") or os.getenv("R2_BUCKET")
+    bucket = _bucket_name()
     with open(local_path, "rb") as f:
         client.put_object(Bucket=bucket, Key=key, Body=f, ContentType=content_type)
     return key
 
 
 
+
+
+
+
+
 def create_multipart_upload(key, content_type="application/octet-stream"):
     client = _client()
-    bucket = os.getenv("R2_BUCKET_NAME") or os.getenv("R2_BUCKET")
-    return client.create_multipart_upload(Bucket=bucket, Key=key, ContentType=content_type)
+    return client.create_multipart_upload(Bucket=_bucket_name(), Key=key, ContentType=content_type)
 
 def presign_upload_part(key, upload_id, part_number, expires_in=3600):
     client = _client()
-    bucket = os.getenv("R2_BUCKET_NAME") or os.getenv("R2_BUCKET")
     return client.generate_presigned_url(
         "upload_part",
         Params={
-            "Bucket": bucket,
+            "Bucket": _bucket_name(),
             "Key": key,
             "UploadId": upload_id,
-            "PartNumber": int(part_number)
+            "PartNumber": int(part_number),
         },
-        ExpiresIn=expires_in
+        ExpiresIn=expires_in,
     )
 
 def complete_multipart_upload(key, upload_id, parts):
     client = _client()
-    bucket = os.getenv("R2_BUCKET_NAME") or os.getenv("R2_BUCKET")
     fixed_parts = []
     for p in parts:
         fixed_parts.append({
-            "ETag": str(p.get("ETag") or p.get("etag") or "").replace('"', ''),
-            "PartNumber": int(p.get("PartNumber") or p.get("partNumber") or p.get("part_number"))
+            "ETag": str(p.get("ETag") or p.get("etag") or "").replace('"', ""),
+            "PartNumber": int(p.get("PartNumber") or p.get("partNumber") or p.get("part_number")),
         })
     fixed_parts = sorted(fixed_parts, key=lambda x: x["PartNumber"])
     return client.complete_multipart_upload(
-        Bucket=bucket,
+        Bucket=_bucket_name(),
         Key=key,
         UploadId=upload_id,
-        MultipartUpload={"Parts": fixed_parts}
+        MultipartUpload={"Parts": fixed_parts},
     )
 
 def abort_multipart_upload(key, upload_id):
     client = _client()
-    bucket = os.getenv("R2_BUCKET_NAME") or os.getenv("R2_BUCKET")
-    return client.abort_multipart_upload(Bucket=bucket, Key=key, UploadId=upload_id)
-
-
-def get_r2_client():
-    """Public wrapper for the internal R2/S3 client."""
-    return _client()
+    return client.abort_multipart_upload(Bucket=_bucket_name(), Key=key, UploadId=upload_id)
