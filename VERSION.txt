@@ -1,2 +1,2 @@
-BoatSpotMedia v33.1 STRIPE CHECKOUT FIX
-Fixes ModuleNotFoundError: app.extensions by removing incorrect db import from payments route.
+BoatSpotMedia v33.2 STRIPE BOOT FIX
+Fixes payments_bp registration order in app/__init__.py so app is defined before register_blueprint.

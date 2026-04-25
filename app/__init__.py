@@ -9,12 +9,10 @@ def create_app():
     db.init_app(flask_app)
 
     from .routes.public import public_bp
-    from .routes.payments import payments_bp
     from .routes.creator import creator_bp
     from .routes.owner import owner_bp
 
     flask_app.register_blueprint(public_bp)
-    app.register_blueprint(payments_bp)
     flask_app.register_blueprint(creator_bp, url_prefix="/creator")
     flask_app.register_blueprint(owner_bp, url_prefix="/owner")
 
