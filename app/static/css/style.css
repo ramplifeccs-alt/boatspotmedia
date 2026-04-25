@@ -93,3 +93,8 @@ input, select, textarea, button {
 
 /* v25 owner/account controls */
 .actions-row{display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin:10px 0}.badge{display:inline-block;padding:4px 8px;border-radius:999px;font-size:12px;font-weight:700}.badge.success{background:#e7f8ec;color:#137333}.badge.danger{background:#fde8e8;color:#b42318}button:disabled,.btn:disabled{opacity:.45;cursor:not-allowed}
+
+
+.auth-wrap{min-height:100vh;display:flex;align-items:center;justify-content:center;padding:24px;background:#f6f7fb}
+.auth-card{max-width:560px;width:100%;padding:32px}
+.notice{background:#fff3cd;border:1px solid #ffe69c;padding:10px;border-radius:8px}

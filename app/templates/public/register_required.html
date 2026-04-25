@@ -1,0 +1,22 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>Register Required - BoatSpotMedia</title>
+  <link rel="stylesheet" href="/static/css/style.css">
+</head>
+<body>
+  <div class="auth-wrap">
+    <div class="card auth-card">
+      <h1>Register first</h1>
+      <p>This Google account is not registered yet.</p>
+      <p>You must create your account before logging in.</p>
+      <div style="display:flex;gap:10px;flex-wrap:wrap;margin-top:18px;">
+        <a class="btn" href="/auth/google-register/{{account_type}}">Register with Google</a>
+        <a class="btn secondary" href="/login">Back to Login</a>
+        <a class="btn secondary" href="/">Home</a>
+      </div>
+    </div>
+  </div>
+</body>
+</html>

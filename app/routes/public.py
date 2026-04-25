@@ -221,7 +221,29 @@ def auth_google(account_type):
     if not client_id or not redirect_uri:
         return "Google login is not configured yet. Missing GOOGLE_CLIENT_ID or GOOGLE_REDIRECT_URI.", 400
     scope = urllib.parse.quote("openid email profile")
-    state = urllib.parse.quote(account_type)
+    state = urllib.parse.quote(f"login:{account_type}")
+    url = (
+        "https://accounts.google.com/o/oauth2/v2/auth"
+        f"?client_id={urllib.parse.quote(client_id)}"
+        f"&redirect_uri={urllib.parse.quote(redirect_uri)}"
+        "&response_type=code"
+        f"&scope={scope}"
+        f"&state={state}"
+        "&access_type=offline"
+        "&prompt=consent"
+    )
+    return redirect(url)
+
+
+@public_bp.route("/auth/google-register/<account_type>")
+def auth_google_register(account_type):
+    import os, urllib.parse
+    client_id = os.getenv("GOOGLE_CLIENT_ID")
+    redirect_uri = os.getenv("GOOGLE_REDIRECT_URI")
+    if not client_id or not redirect_uri:
+        return "Google register is not configured yet. Missing GOOGLE_CLIENT_ID or GOOGLE_REDIRECT_URI.", 400
+    scope = urllib.parse.quote("openid email profile")
+    state = urllib.parse.quote(f"register:{account_type}")
     url = (
         "https://accounts.google.com/o/oauth2/v2/auth"
         f"?client_id={urllib.parse.quote(client_id)}"
@@ -276,7 +298,11 @@ def auth_google_callback():
         return f"Google login error: {error}", 400
 
     code = request.args.get("code")
-    account_type = request.args.get("state") or "buyer"
+    raw_state = request.args.get("state") or "login:buyer"
+    if ":" in raw_state:
+        auth_mode, account_type = raw_state.split(":", 1)
+    else:
+        auth_mode, account_type = "login", raw_state
 
     if not code:
         return "Google login failed: missing authorization code.", 400
@@ -355,22 +381,16 @@ def auth_google_callback():
     user = User.query.filter_by(email=email).first()
 
     # Creator rule:
-    # Creators are NOT allowed to self-register with Google.
-    # Owner must approve the creator first and send the registration/login link.
+    # Creators are invite-only. They must be approved by Owner first.
     if role == "creator":
         if not user or user.role != "creator" or not user.is_active:
-            return (
-                "Creator access is invite-only. Your creator account must be approved by BoatSpotMedia before you can log in. "
-                "Please apply first or contact BoatSpotMedia if you were already approved."
-            ), 403
+            return render_template("public/creator_invite_required.html"), 403
 
         try:
             from app.models import CreatorProfile
             creator = CreatorProfile.query.filter_by(user_id=user.id).first()
             if not creator or not creator.approved or creator.suspended:
-                return (
-                    "Creator account is not active yet. Your application must be approved by BoatSpotMedia before creator login is allowed."
-                ), 403
+                return render_template("public/creator_invite_required.html"), 403
         except Exception:
             pass
 
@@ -378,22 +398,35 @@ def auth_google_callback():
         db.session.commit()
 
     else:
-        # Buyer, services, and charter can be created by Google login/register.
-        if not user:
-            user = User(
-                email=email,
-                password_hash=generate_password_hash(os.urandom(24).hex()),
-                role=role,
-                display_name=display_name,
-                is_active=True,
-            )
-            db.session.add(user)
-            db.session.commit()
-        else:
-            # Do not overwrite a creator account into another role.
+        # Login must NOT create accounts. User must register first.
+        if auth_mode == "login":
+            if not user:
+                return render_template(
+                    "public/register_required.html",
+                    role=role,
+                    account_type=account_type,
+                    email=email,
+                ), 403
             user.display_name = user.display_name or display_name
             user.is_active = True
             db.session.commit()
+
+        # Register creates buyer/services/charter accounts.
+        elif auth_mode == "register":
+            if not user:
+                user = User(
+                    email=email,
+                    password_hash=generate_password_hash(os.urandom(24).hex()),
+                    role=role,
+                    display_name=display_name,
+                    is_active=True,
+                )
+                db.session.add(user)
+                db.session.commit()
+            else:
+                user.display_name = user.display_name or display_name
+                user.is_active = True
+                db.session.commit()
 
     session["user_id"] = user.id
     session["user_email"] = user.email

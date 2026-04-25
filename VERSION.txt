@@ -1,2 +1,2 @@
-BoatSpotMedia v29 FULL GOOGLE LOGIN DASHBOARDS
-Buyer Google login creates/logs user and shows visual dashboard. Creator Google login requires approved active creator account.
+BoatSpotMedia v30 REGISTER BEFORE LOGIN
+Google login no longer creates buyer/services/charter accounts. Users must register first. Creator remains invite-only after Owner approval.
