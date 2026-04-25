@@ -1,3 +1,4 @@
-BoatSpotMedia v38.7 Upload Round Fix
-- Fixes /creator/upload crash caused by video_locations being inserted inside round().
-- Keeps dynamic location suggestions and pricing fixes from v38.6.
+BoatSpotMedia v38.8 Remove Bad Video Block Fix
+- Fixes Jinja error: 'video' is undefined on creator/upload and creator/pricing.
+- Removes buyer video price block from creator/owner templates.
+- Keeps pricing/location fixes and upload round fix from previous versions.
