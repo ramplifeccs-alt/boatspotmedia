@@ -33,7 +33,20 @@ def creator_display_name(creator):
     ig = creator_instagram(creator)
     return ig or "Creator"
 
+
+def _ensure_creator_profile_deleted_column():
+    """Create creator_profile.deleted before ORM queries reference it."""
+    try:
+        db.session.execute(db.text("ALTER TABLE creator_profile ADD COLUMN IF NOT EXISTS deleted BOOLEAN DEFAULT FALSE"))
+        db.session.execute(db.text("UPDATE creator_profile SET deleted = FALSE WHERE deleted IS NULL"))
+        db.session.commit()
+    except Exception as e:
+        db.session.rollback()
+        print("creator_profile.deleted repair warning:", e)
+
+
 def current_creator():
+    _ensure_creator_profile_deleted_column()
     creator = CreatorProfile.query.first()
 
     if not creator:
@@ -97,6 +110,7 @@ def login():
 
 @creator_bp.route("/dashboard")
 def dashboard():
+    _ensure_creator_profile_deleted_column()
     creator = current_creator()
     stats = CreatorClickStats.query.filter_by(creator_id=creator.id).first()
     if not stats:
@@ -313,6 +327,7 @@ def _creator_used_storage_bytes(creator_id):
 
 @creator_bp.route("/upload", methods=["GET"])
 def upload():
+    _ensure_creator_profile_deleted_column()
     creator = current_creator()
     if not creator:
         return redirect("/creator/login")

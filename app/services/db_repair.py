@@ -227,3 +227,20 @@ def repair_creator_delete_and_video_batch_fk():
         db.session.commit()
     except Exception:
         db.session.rollback()
+
+
+
+def repair_creator_profile_deleted_column():
+    statements = [
+        "ALTER TABLE creator_profile ADD COLUMN IF NOT EXISTS deleted BOOLEAN DEFAULT FALSE",
+        "UPDATE creator_profile SET deleted = FALSE WHERE deleted IS NULL"
+    ]
+    for sql in statements:
+        try:
+            db.session.execute(db.text(sql))
+        except Exception as e:
+            print("creator_profile.deleted repair warning:", sql, e)
+    try:
+        db.session.commit()
+    except Exception:
+        db.session.rollback()

@@ -1,4 +1,4 @@
-BoatSpotMedia v36.9 VideoBatch FK + Delete Creator Fix
-- Fixes video.batch_id foreign key to reference video_batch instead of old batch table.
-- Deleted creators disappear from Owner Applications/Creators and creator login is disabled.
-- Deletes creator videos/products/video_batches from DB when Owner deletes a creator.
+BoatSpotMedia v37 Creator Deleted Column Boot Fix
+- Creates creator_profile.deleted before any Owner/Creator ORM query uses it.
+- Fixes PostgreSQL UndefinedColumn: creator_profile.deleted does not exist.
+- Keeps delete creator behavior and video_batch FK fix.

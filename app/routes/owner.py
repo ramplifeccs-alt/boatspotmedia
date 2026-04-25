@@ -9,6 +9,18 @@ from app.services.db_repair import repair_creator_application_table, repair_all_
 
 owner_bp = Blueprint("owner", __name__)
 
+
+def _ensure_creator_profile_deleted_column():
+    """Create creator_profile.deleted before Owner ORM queries reference it."""
+    try:
+        db.session.execute(text("ALTER TABLE creator_profile ADD COLUMN IF NOT EXISTS deleted BOOLEAN DEFAULT FALSE"))
+        db.session.execute(text("UPDATE creator_profile SET deleted = FALSE WHERE deleted IS NULL"))
+        db.session.commit()
+    except Exception as e:
+        db.session.rollback()
+        print("owner creator_profile.deleted repair warning:", e)
+
+
 @owner_bp.route("/login", methods=["GET", "POST"])
 def login():
     if request.method == "POST":
@@ -21,6 +33,7 @@ def panel():
 
 @owner_bp.route("/applications")
 def applications():
+    _ensure_creator_profile_deleted_column()
     repair_all_known_tables(); repair_creator_application_table()
     rows = db.session.execute(text("SELECT * FROM creator_application WHERE COALESCE(status,'') <> 'deleted' ORDER BY CASE WHEN status='pending' THEN 0 ELSE 1 END, id DESC")).mappings().all()
     plans = StoragePlan.query.filter_by(active=True).order_by(StoragePlan.storage_limit_gb.asc()).all()
@@ -131,6 +144,7 @@ def activate_creator(creator_id):
 
 @owner_bp.route("/creators/<int:creator_id>/delete", methods=["POST"])
 def delete_creator(creator_id):
+    _ensure_creator_profile_deleted_column()
     repair_all_known_tables()
     c = CreatorProfile.query.get_or_404(creator_id)
     user_email = c.user.email if c.user else None
