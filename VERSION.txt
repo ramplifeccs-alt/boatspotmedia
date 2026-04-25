@@ -1,4 +1,6 @@
-BoatSpotMedia v39.2 Secure Filename Multipart Fix
-- Fixes multipart init crash at secure_filename().
-- Adds safe filename fallback helper.
-- Keeps multipart fallback behavior from v39.1.
+BoatSpotMedia v39.3 Multipart R2 Client Init Fix
+Fixes backend crash: name '_client' is not defined
+Properly initializes R2 client using get_r2_client()
+Multipart upload endpoints now functional
+Fallback upload remains active
+Supports large files (5GB+)

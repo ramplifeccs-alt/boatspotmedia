@@ -1,3 +1,4 @@
+from app.services.r2 import get_r2_client
 from werkzeug.security import check_password_hash
 import os, tempfile, uuid
 from flask import Blueprint, render_template, request, redirect, url_for, current_app, flash, jsonify, session
