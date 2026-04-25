@@ -329,8 +329,42 @@ def upload():
     )
 
 
+
+def _ensure_video_upload_columns():
+    """Make sure old PostgreSQL video table has the columns required by the uploader before any SELECT."""
+    statements = [
+        "ALTER TABLE video ADD COLUMN IF NOT EXISTS filename VARCHAR(500)",
+        "ALTER TABLE video ADD COLUMN IF NOT EXISTS file_path VARCHAR(500)",
+        "ALTER TABLE video ADD COLUMN IF NOT EXISTS thumbnail_path VARCHAR(500)",
+        "ALTER TABLE video ADD COLUMN IF NOT EXISTS internal_filename VARCHAR(500)",
+        "ALTER TABLE video ADD COLUMN IF NOT EXISTS r2_video_key VARCHAR(500)",
+        "ALTER TABLE video ADD COLUMN IF NOT EXISTS r2_thumbnail_key VARCHAR(500)",
+        "ALTER TABLE video ADD COLUMN IF NOT EXISTS public_thumbnail_url VARCHAR(500)",
+        "ALTER TABLE video ADD COLUMN IF NOT EXISTS file_size_bytes BIGINT DEFAULT 0",
+        "ALTER TABLE video ADD COLUMN IF NOT EXISTS original_price NUMERIC(10,2) DEFAULT 0",
+        "ALTER TABLE video ADD COLUMN IF NOT EXISTS edited_price NUMERIC(10,2) DEFAULT 0",
+        "ALTER TABLE video ADD COLUMN IF NOT EXISTS bundle_price NUMERIC(10,2) DEFAULT 0",
+        "ALTER TABLE video ADD COLUMN IF NOT EXISTS recorded_at TIMESTAMP",
+        "ALTER TABLE video ADD COLUMN IF NOT EXISTS recorded_date DATE",
+        "ALTER TABLE video ADD COLUMN IF NOT EXISTS recorded_time TIME",
+        "UPDATE video SET filename = COALESCE(NULLIF(filename, ''), internal_filename, split_part(r2_video_key, '/', array_length(string_to_array(r2_video_key, '/'), 1)), 'video.mp4') WHERE filename IS NULL OR filename = ''",
+        "UPDATE video SET file_path = COALESCE(NULLIF(file_path, ''), r2_video_key, filename, internal_filename, 'video.mp4') WHERE file_path IS NULL OR file_path = ''",
+        "UPDATE video SET thumbnail_path = COALESCE(NULLIF(thumbnail_path, ''), r2_thumbnail_key, public_thumbnail_url) WHERE thumbnail_path IS NULL OR thumbnail_path = ''",
+        "ALTER TABLE video ALTER COLUMN filename SET DEFAULT ''",
+        "ALTER TABLE video ALTER COLUMN file_path SET DEFAULT ''"
+    ]
+    try:
+        for sql in statements:
+            db.session.execute(db.text(sql))
+        db.session.commit()
+    except Exception as e:
+        db.session.rollback()
+        print("Video uploader column repair warning:", e)
+
+
 @creator_bp.route("/upload/r2/prepare", methods=["POST"])
 def upload_r2_prepare():
+    _ensure_video_upload_columns()
     creator = current_creator()
     if not creator:
         return jsonify({"ok": False, "error": "Creator login required."}), 401
@@ -363,7 +397,7 @@ def upload_r2_prepare():
     duplicate_messages = []
     for f in files:
         original_name_for_check = secure_filename(f.get("name") or "video.mp4")
-        existing = Video.query.filter(
+        existing = db.session.query(Video.id, Video.batch_id).filter(
             Video.creator_id == creator.id,
             Video.status != "deleted",
             db.or_(
@@ -433,6 +467,7 @@ def upload_r2_prepare():
 
 @creator_bp.route("/upload/r2/complete", methods=["POST"])
 def upload_r2_complete():
+    _ensure_video_upload_columns()
     creator = current_creator()
     if not creator:
         return jsonify({"ok": False, "error": "Creator login required."}), 401

@@ -1,4 +1,4 @@
-BoatSpotMedia v36.3 File Path + Duplicate Upload Fix
-- Saves file_path and thumbnail_path to satisfy database NOT NULL constraints.
-- Blocks duplicate file names per creator before upload and tells which batch already has the file.
-- Keeps progress text as Uploading to BoatSpotMedia Storage.
+BoatSpotMedia v36.4 Prepare DB Repair Fix
+- Runs video table repair before duplicate-check SELECT.
+- Adds missing filename/file_path/thumbnail_path columns before upload prepare and complete.
+- Duplicate check now queries only id and batch_id to avoid model/table drift crashes.
