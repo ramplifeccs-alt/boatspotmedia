@@ -132,3 +132,23 @@ def repair_video_filename_column():
         db.session.commit()
     except Exception:
         db.session.rollback()
+
+
+
+def repair_video_file_path_columns():
+    statements = [
+        "ALTER TABLE video ADD COLUMN IF NOT EXISTS file_path VARCHAR(500)",
+        "ALTER TABLE video ADD COLUMN IF NOT EXISTS thumbnail_path VARCHAR(500)",
+        "UPDATE video SET file_path = COALESCE(NULLIF(file_path, ''), r2_video_key, filename, internal_filename, 'video.mp4') WHERE file_path IS NULL OR file_path = ''",
+        "UPDATE video SET thumbnail_path = COALESCE(NULLIF(thumbnail_path, ''), r2_thumbnail_key, public_thumbnail_url) WHERE thumbnail_path IS NULL OR thumbnail_path = ''",
+        "ALTER TABLE video ALTER COLUMN file_path SET DEFAULT ''"
+    ]
+    for sql in statements:
+        try:
+            db.session.execute(db.text(sql))
+        except Exception as e:
+            print('Video file_path repair warning:', sql, e)
+    try:
+        db.session.commit()
+    except Exception:
+        db.session.rollback()

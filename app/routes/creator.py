@@ -358,6 +358,26 @@ def upload_r2_prepare():
     if not files:
         return jsonify({"ok": False, "error": "Choose at least one video file."}), 400
 
+    # Prevent duplicate uploads by same creator using original filename.
+    from app.models import Video
+    duplicate_messages = []
+    for f in files:
+        original_name_for_check = secure_filename(f.get("name") or "video.mp4")
+        existing = Video.query.filter(
+            Video.creator_id == creator.id,
+            Video.status != "deleted",
+            db.or_(
+                Video.filename == original_name_for_check,
+                Video.internal_filename == original_name_for_check
+            )
+        ).order_by(Video.id.desc()).first()
+        if existing:
+            duplicate_messages.append(
+                f"{original_name_for_check} already exists in batch #{existing.batch_id}. Please check that batch before uploading again."
+            )
+    if duplicate_messages:
+        return jsonify({"ok": False, "error": "Duplicate file found: " + " | ".join(duplicate_messages)}), 409
+
     total_size = 0
     for f in files:
         total_size += int(f.get("size") or 0)
@@ -462,7 +482,9 @@ def upload_r2_complete():
             creator_id=creator.id,
             batch_id=batch.id,
             location=location or batch.location,
+            file_path=key,
             r2_video_key=key,
+            thumbnail_path=thumb_key,
             r2_thumbnail_key=thumb_key,
             public_thumbnail_url=public_url_for_key(thumb_key) if thumb_key else "",
             recorded_at=recorded_at,
