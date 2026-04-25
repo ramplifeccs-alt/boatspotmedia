@@ -1,3 +1,79 @@
-<!doctype html><html><head>
-  <meta name="viewport" content="width=device-width, initial-scale=1"><meta charset="utf-8"><title>Creator - BoatSpotMedia</title><link rel="stylesheet" href="/static/css/style.css"></head><body><div class="sidebar-layout"><div class="sidebar"><h2>{{ creator_name or 'Creator' }}</h2>{% if creator_instagram %}<small>@{{ creator_instagram }}</small><br><br>{% endif %}<a href="/creator/dashboard">Dashboard</a><a href="/creator/upload">Uploads</a><a href="/creator/batches">Batches</a><a href="/creator/orders">Orders</a><a href="/creator/products">Products</a><a href="/creator/pricing">Pricing</a><a href="/creator/settings">Settings</a><br><a href="/creator/logout">Log out</a></div><div class="content"><h1>Upload Batch</h1>{% if error %}<div class="error">{{error}}</div>{% endif %}{% if success %}<div class="success">Batch uploaded successfully. <a href="/creator/batches/{{batch_id}}">View in Batches</a></div>{% endif %}<form id="uploadForm" method="post" enctype="multipart/form-data"><label>Batch name</label><input name="batch_name" placeholder="Example: Boca morning run"><label>Location</label><input name="location" list="location_suggestions" placeholder="Write where you recorded" required><datalist id="location_suggestions">{% for s in suggestions %}<option value="{{s}}">{% endfor %}</datalist><label>Choose files</label><input type="file" name="videos" multiple required><div class="notice">Maximum per batch: 128GB. Your account storage depends on your plan.</div><div id="progressWrap" style="display:none;margin:12px 0"><div style="background:#ddd;border-radius:10px;overflow:hidden"><div id="bar" style="width:0%;background:#0877ff;color:white;padding:6px 0;text-align:center">0%</div></div></div><button class="btn">Upload Batch</button></form><script>document.getElementById('uploadForm').addEventListener('submit',function(){document.getElementById('progressWrap').style.display='block';let p=0;const bar=document.getElementById('bar');const timer=setInterval(()=>{p=Math.min(95,p+5);bar.style.width=p+'%';bar.textContent=p+'%';if(p>=95)clearInterval(timer);},400);});</script></div></div><script src="/static/js/mobile.js"></script>
-</body></html>
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Upload Videos - BoatSpotMedia</title>
+  <link rel="stylesheet" href="/static/css/style.css">
+</head>
+<body>
+<div class="sidebar-layout">
+  <div class="sidebar">
+    <h2>Creator</h2>
+    <a href="/creator/dashboard">Dashboard</a>
+    <a href="/creator/upload">Upload</a>
+    <a href="/creator/batches">Batches</a>
+    <a href="/creator/pricing">Pricing</a>
+    <a href="/creator/products">Products</a>
+    <a href="/creator/orders">Orders</a>
+    <a href="/logout">Logout</a>
+  </div>
+  <div class="content">
+    <h1>Upload Video Batch</h1>
+    <div class="card">
+      <h3>Cloudflare R2 Direct Upload</h3>
+      <p>Files upload directly from your browser to R2. Railway only saves the batch/video records.</p>
+      <p>Plan storage used: <strong>{{ used_gb }} GB</strong> / <strong>{{ limit_gb }} GB</strong></p>
+      <p>Maximum per batch: <strong>{{ batch_limit_gb }} GB</strong></p>
+      <div class="progress-shell"><div class="progress-bar" style="width: {{ (used_bytes / limit_bytes * 100) if limit_bytes else 0 }}%"></div></div>
+    </div>
+
+    <form id="r2UploadForm" class="card">
+      <label>Batch name</label>
+      <input type="text" name="batch_name" placeholder="Example: Boca Raton Inlet - Sunday morning">
+
+      <label>Location</label>
+      <input type="text" name="location" list="locations" placeholder="Boca Raton Inlet">
+      <datalist id="locations">
+        <option value="Boca Raton Inlet">
+        <option value="Hillsboro Inlet">
+        <option value="Boynton Inlet">
+        <option value="Haulover Inlet">
+        <option value="Port Everglades">
+      </datalist>
+
+      <div class="form-row">
+        <div>
+          <label>Original 4K price</label>
+          <input type="number" name="original_price" step="0.01" value="40">
+        </div>
+        <div>
+          <label>Edited video price</label>
+          <input type="number" name="edited_price" step="0.01" value="60">
+        </div>
+        <div>
+          <label>Bundle price</label>
+          <input type="number" name="bundle_price" step="0.01" value="80">
+        </div>
+      </div>
+
+      <label>Choose video files</label>
+      <input id="videoFiles" type="file" name="videos" accept="video/*" multiple required>
+
+      <p class="notice">Do not exceed 128 GB per batch. Uploads also cannot exceed your plan storage limit.</p>
+
+      <button class="btn" type="submit">Upload Batch to R2</button>
+
+      <div id="progressBox" style="display:none;margin-top:16px;">
+        <p id="progressText">Preparing upload...</p>
+        <div class="progress-shell"><div id="uploadProgress" class="progress-bar" style="width:0%"></div></div>
+        <div id="fileProgressList"></div>
+      </div>
+      <div id="uploadResult"></div>
+    </form>
+  </div>
+</div>
+<script src="/static/js/mobile.js"></script>
+<script src="/static/js/r2_upload.js"></script>
+</body>
+</html>

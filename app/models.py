@@ -267,3 +267,14 @@ class ServiceClickLog(db.Model):
     ip_address = db.Column(db.String(80))
     user_agent = db.Column(db.Text)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
+
+
+class VideoBatch(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    creator_id = db.Column(db.Integer, db.ForeignKey("creator_profile.id"), nullable=False)
+    location = db.Column(db.String(255))
+    batch_name = db.Column(db.String(255))
+    total_size_bytes = db.Column(db.BigInteger, default=0)
+    file_count = db.Column(db.Integer, default=0)
+    status = db.Column(db.String(50), default="uploaded")
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)

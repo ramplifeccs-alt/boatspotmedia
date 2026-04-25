@@ -1,2 +1,2 @@
-BoatSpotMedia v33.2 STRIPE BOOT FIX
-Fixes payments_bp registration order in app/__init__.py so app is defined before register_blueprint.
+BoatSpotMedia v35 R2 DIRECT UPLOADS
+Creator uploads now go directly from browser to Cloudflare R2 using presigned PUT URLs. Railway only creates upload permissions and saves video metadata. Max 128GB per batch and plan storage checks remain active.

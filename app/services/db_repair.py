@@ -63,5 +63,34 @@ def repair_basic_tables():
             _add(conn, "commission_override_log", col, typ)
 
 def repair_all_known_tables():
+    repair_creator_upload_tables()
     repair_basic_tables()
     repair_creator_application_table()
+
+
+
+def repair_creator_upload_tables():
+    statements = [
+        "ALTER TABLE video_batch ADD COLUMN IF NOT EXISTS total_size_bytes BIGINT DEFAULT 0",
+        "ALTER TABLE video_batch ADD COLUMN IF NOT EXISTS file_count INTEGER DEFAULT 0",
+        "ALTER TABLE video_batch ADD COLUMN IF NOT EXISTS status VARCHAR(50) DEFAULT 'uploaded'",
+        "ALTER TABLE video ADD COLUMN IF NOT EXISTS creator_id INTEGER",
+        "ALTER TABLE video ADD COLUMN IF NOT EXISTS batch_id INTEGER",
+        "ALTER TABLE video ADD COLUMN IF NOT EXISTS location VARCHAR(255)",
+        "ALTER TABLE video ADD COLUMN IF NOT EXISTS r2_video_key VARCHAR(500)",
+        "ALTER TABLE video ADD COLUMN IF NOT EXISTS file_size_bytes BIGINT DEFAULT 0",
+        "ALTER TABLE video ADD COLUMN IF NOT EXISTS original_price NUMERIC(10,2) DEFAULT 0",
+        "ALTER TABLE video ADD COLUMN IF NOT EXISTS edited_price NUMERIC(10,2) DEFAULT 0",
+        "ALTER TABLE video ADD COLUMN IF NOT EXISTS bundle_price NUMERIC(10,2) DEFAULT 0",
+        "ALTER TABLE video ADD COLUMN IF NOT EXISTS status VARCHAR(50) DEFAULT 'active'",
+        "ALTER TABLE video ADD COLUMN IF NOT EXISTS internal_filename VARCHAR(500)"
+    ]
+    for sql in statements:
+        try:
+            db.session.execute(db.text(sql))
+        except Exception as e:
+            print("Upload table repair warning:", sql, e)
+    try:
+        db.session.commit()
+    except Exception:
+        db.session.rollback()
