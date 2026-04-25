@@ -1,6 +1,3 @@
-BoatSpotMedia v38.6 Pricing + Location Select Fix
-- Buyer video prices now use creator/video configured price options, not hardcoded $40.
-- Shows only active prices: Original, Edited Video, Bundle if configured.
-- Original option includes description: instant original camera file download.
-- Buyer must select an existing creator-saved location, preventing typos.
-- Creator upload location supports suggestions but can save new locations.
+BoatSpotMedia v38.7 Upload Round Fix
+- Fixes /creator/upload crash caused by video_locations being inserted inside round().
+- Keeps dynamic location suggestions and pricing fixes from v38.6.
