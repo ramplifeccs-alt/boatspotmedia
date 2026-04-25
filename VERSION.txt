@@ -1,7 +1,5 @@
-BoatSpotMedia v39 Multipart Global Progress Fix
-- Adds multipart/chunk upload support for large files over 5GB.
-- Uses 64MB chunks for stable browser uploads.
-- Shows one global batch progress bar instead of many file bars.
-- Shows current file name and file X of Y.
-- Moves Cancel Upload next to the progress bar.
-- Restores creator sidebar by extending creator/base.html when available.
+BoatSpotMedia v39.1 Multipart Fallback Fix
+- If multipart init/part fails, uploader automatically falls back to standard presigned upload.
+- Multipart only triggers automatically for files 5GB+ unless the server marks a file as multipart.
+- Adds /creator/upload/r2/multipart/status.
+- Prevents upload from getting stuck on Request failed: /creator/upload/r2/multipart/init.

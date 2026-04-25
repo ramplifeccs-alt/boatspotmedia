@@ -1111,3 +1111,13 @@ def upload_r2_multipart_abort():
         return jsonify({"ok": True})
     except Exception as e:
         return jsonify({"ok": False, "error": str(e)}), 500
+
+
+
+@creator_bp.route("/upload/r2/multipart/status", methods=["GET"])
+def upload_r2_multipart_status():
+    try:
+        from app.services.r2 import create_multipart_upload, presign_upload_part, complete_multipart_upload, abort_multipart_upload
+        return jsonify({"ok": True, "multipart": True})
+    except Exception as e:
+        return jsonify({"ok": True, "multipart": False, "error": str(e)})

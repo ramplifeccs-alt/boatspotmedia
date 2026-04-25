@@ -48,7 +48,7 @@
       <div id="batchSizePreview" style="font-size:14px;color:#374151;margin:8px 0;"></div>
 
       <div style="background:#fff3cd;border-radius:10px;padding:10px;margin:12px 0;">
-        Do not exceed {{ max_batch_gb|default(128) }} GB per batch. Uploads also cannot exceed your plan storage limit.
+        Do not exceed {{ max_batch_gb|default(128) }} GB per batch. Uploads also cannot exceed your plan storage limit. If multipart is not available, BoatSpotMedia will automatically use standard upload.
       </div>
 
       <button id="uploadBatchBtn" style="background:#2563eb;color:#fff;border:0;border-radius:10px;padding:11px 14px;font-weight:700;cursor:pointer;" type="submit">Upload Batch</button>
