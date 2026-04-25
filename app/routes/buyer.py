@@ -74,3 +74,8 @@ def download(token):
     db.session.commit()
     # In production this should generate a signed R2 URL.
     return f"Download allowed for video #{dt.item.video_id}. Replace this with signed R2 URL redirect."
+
+
+@buyer_bp.route("/dashboard")
+def dashboard():
+    return "Buyer Dashboard - login successful with Google."

@@ -1,2 +1,2 @@
-BoatSpotMedia v26 CONFIRM HIDE OAUTH
-Creator delete requires confirmation, hidden from active applications, OAuth redirects enabled.
+BoatSpotMedia v27 GOOGLE CALLBACK REAL
+Google callback exchanges code for token, gets user email, creates/logs user, and redirects by role.

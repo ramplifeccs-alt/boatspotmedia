@@ -1,6 +1,6 @@
 import os
 from datetime import datetime
-from flask import Blueprint, redirect, render_template, request, url_for
+from flask import Blueprint, redirect, render_template, request, url_for, session
 from sqlalchemy import text
 from werkzeug.security import generate_password_hash
 from app.models import Video, Location, ServiceAd, CharterListing, User
@@ -255,11 +255,113 @@ def auth_apple(account_type):
     return redirect(url)
 
 
-@public_bp.route("/auth/callback/google")
-def auth_google_callback():
-    return "Google callback received. Next step: exchange code for token and create/login user."
-
 
 @public_bp.route("/auth/callback/apple", methods=["GET", "POST"])
 def auth_apple_callback():
     return "Apple callback received. Next step: verify Apple identity token and create/login user."
+
+@public_bp.route("/auth/callback/google")
+def auth_google_callback():
+    import os
+    import json
+    import urllib.parse
+    import urllib.request
+    from werkzeug.security import generate_password_hash
+    from app.models import User
+    from app.services.db import db
+
+    error = request.args.get("error")
+    if error:
+        return f"Google login error: {error}", 400
+
+    code = request.args.get("code")
+    account_type = request.args.get("state") or "buyer"
+
+    if not code:
+        return "Google login failed: missing authorization code.", 400
+
+    client_id = os.getenv("GOOGLE_CLIENT_ID")
+    client_secret = os.getenv("GOOGLE_CLIENT_SECRET")
+    redirect_uri = os.getenv("GOOGLE_REDIRECT_URI")
+
+    if not client_id or not client_secret or not redirect_uri:
+        return "Google login is not fully configured. Missing GOOGLE_CLIENT_ID, GOOGLE_CLIENT_SECRET, or GOOGLE_REDIRECT_URI.", 400
+
+    token_data = urllib.parse.urlencode({
+        "code": code,
+        "client_id": client_id,
+        "client_secret": client_secret,
+        "redirect_uri": redirect_uri,
+        "grant_type": "authorization_code",
+    }).encode("utf-8")
+
+    try:
+        token_req = urllib.request.Request(
+            "https://oauth2.googleapis.com/token",
+            data=token_data,
+            headers={"Content-Type": "application/x-www-form-urlencoded"},
+            method="POST",
+        )
+        with urllib.request.urlopen(token_req, timeout=20) as token_resp:
+            token_json = json.loads(token_resp.read().decode("utf-8"))
+    except Exception as e:
+        return f"Google token exchange failed: {e}", 400
+
+    access_token = token_json.get("access_token")
+    if not access_token:
+        return f"Google token exchange failed: no access token returned. Response: {token_json}", 400
+
+    try:
+        user_req = urllib.request.Request(
+            "https://www.googleapis.com/oauth2/v2/userinfo",
+            headers={"Authorization": f"Bearer {access_token}"},
+            method="GET",
+        )
+        with urllib.request.urlopen(user_req, timeout=20) as user_resp:
+            google_user = json.loads(user_resp.read().decode("utf-8"))
+    except Exception as e:
+        return f"Google user info failed: {e}", 400
+
+    email = google_user.get("email")
+    display_name = google_user.get("name") or email
+
+    if not email:
+        return "Google login failed: Google did not return an email.", 400
+
+    role_map = {
+        "buyer": "buyer",
+        "creator": "creator",
+        "service": "services",
+        "services": "services",
+        "charter": "charter",
+        "charters": "charter",
+    }
+    role = role_map.get(account_type, "buyer")
+
+    user = User.query.filter_by(email=email).first()
+    if not user:
+        user = User(
+            email=email,
+            password_hash=generate_password_hash(os.urandom(24).hex()),
+            role=role,
+            display_name=display_name,
+            is_active=True,
+        )
+        db.session.add(user)
+        db.session.commit()
+    else:
+        user.display_name = user.display_name or display_name
+        user.is_active = True
+        db.session.commit()
+
+    session["user_id"] = user.id
+    session["user_email"] = user.email
+    session["user_role"] = user.role
+
+    if user.role == "creator":
+        return redirect("/creator/dashboard")
+    if user.role in ["services", "service"]:
+        return redirect("/service-account/dashboard")
+    if user.role in ["charter", "charters"]:
+        return redirect("/charters")
+    return redirect("/buyer/dashboard")
