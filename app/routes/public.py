@@ -79,6 +79,43 @@ def _attach_price_options_to_videos(videos):
     return videos
 
 
+
+def _public_active_video_query():
+    from app.models import Video
+    q = Video.query
+    if "status" in Video.__table__.columns.keys():
+        q = q.filter(Video.status != "deleted")
+    return q
+
+def _public_video_locations():
+    from app.models import Video
+    cols = Video.__table__.columns.keys()
+    if "location" not in cols:
+        return []
+    q = _public_active_video_query().with_entities(Video.location).filter(Video.location.isnot(None))
+    values = []
+    seen = set()
+    for row in q.all():
+        loc = (row[0] or "").strip()
+        if not loc:
+            continue
+        key = loc.lower()
+        if key not in seen:
+            seen.add(key)
+            values.append(loc)
+    return sorted(values, key=lambda x: x.lower())
+
+def _public_latest_home_videos(limit=3):
+    from app.models import Video
+    q = _public_active_video_query()
+    cols = Video.__table__.columns.keys()
+    if "created_at" in cols:
+        q = q.order_by(Video.created_at.desc())
+    else:
+        q = q.order_by(Video.id.desc())
+    return q.limit(limit).all()
+
+
 @public_bp.route("/")
 def home():
     try:
@@ -94,7 +131,7 @@ def home():
     for v in latest:
         if len(selected) == 3: break
         if v not in selected: selected.append(v)
-    return render_template("public/home.html", videos=selected)
+    return render_template("public/home.html", latest_videos=_public_latest_home_videos(3), video_locations=_public_video_locations())
 
 
 @public_bp.route("/search")

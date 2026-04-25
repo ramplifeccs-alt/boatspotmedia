@@ -1,58 +1,30 @@
-<!doctype html><html><head>
-  <meta name="viewport" content="width=device-width, initial-scale=1"><meta charset="utf-8"><title>BoatSpotMedia</title><link rel="stylesheet" href="/static/css/style.css"></head><body><header><div><b>BoatSpotMedia</b></div><nav><a href="/">Home</a><a href="/search">Find Your Video</a><a href="/shop">Shop</a><a href="/services">Services</a><a href="/charters">Charters</a><a href="/apply-creator">Apply as Creator</a>{% if session.get("user_id") %}
-  <span class="nav-user">{{ session.get("display_name") or session.get("user_email") }}</span>
-  {% if session.get("user_role") == "buyer" %}
-    <a href="/buyer/dashboard">Dashboard</a>
-  {% elif session.get("user_role") == "creator" %}
-    <a href="/creator/dashboard">Dashboard</a>
-  {% elif session.get("user_role") in ["services", "service"] %}
-    <a href="/service-account/dashboard">Dashboard</a>
-  {% elif session.get("user_role") in ["charter", "charters"] %}
-    <a href="/charters">Dashboard</a>
-  {% endif %}
-  <a href="/logout">{% if session.get('user_id') or session.get('user_email') or session.get('email') %}
-<a class="account-menu-link" href="{{ account_dashboard_url() }}" style="color:inherit;text-decoration:none;font-weight:700;">{{ account_display_name() }}</a>
-{% endif %} Logout</a>
-{% else %}
-  <a href="/login">Login</a>
-{% endif %}</nav></header><div class="container">
-<div class="hero">
-<h1>Find your boat video</h1>
-<p>Search by inlet, date, and approximate time. Buy the original video or request an edited version.</p>
-<a class="btn" href="/search">Find Your Video</a>
-</div>
-<h2>Latest Uploads</h2>
-<div class="grid">
-{% for v in videos %}
-<div class="card">
-  <div class="thumb">{% if v.public_thumbnail_url %}<img src="{{v.public_thumbnail_url}}">{% else %}Preview{% endif %}</div>
-  <b>{{ v.location or "Boat Video" }}</b><br>
-  <small>{{ v.recorded_at.strftime('%m/%d/%Y %I:%M %p') if v.recorded_at else "Time pending" }}</small><br>
-  <small>Captured by: {{ v.creator.user.display_name if v.creator and v.creator.user else "Creator" }}</small><br><br>
-  <a class="btn" href="/preview/{{v.id}}">Preview</a>
-</div>
-{% else %}
-<div class="card">No videos uploaded yet.</div>
-{% endfor %}
-</div>
-</div><script src="/static/js/mobile.js"></script>
 
-<section class="home-previews">
-  <h2>Latest Boat Video Previews</h2>
-  <p>Only thumbnails are shown here for visual identification. Search by location, date, and time to find yours.</p>
-  <div class="grid">
-    {% for v in latest_previews %}
-      <div class="card video-card">
-        {% if v.public_thumbnail_url %}
-          <img src="{{ v.public_thumbnail_url }}" alt="Boat video preview" style="width:100%;border-radius:12px;">
+<section class="hero" style="padding:32px 24px;background:#f8fafc;border-radius:18px;margin-bottom:24px;">
+  <h1>Find your boat video</h1>
+  <p>Search by location, date, and approximate time. Buy the original video or request an edited version.</p>
+  <a href="{{ url_for('public.find_video') if 'public.find_video' else '/find-video' }}" style="display:inline-block;background:#2563eb;color:white;padding:12px 16px;border-radius:10px;text-decoration:none;font-weight:700;">Find Your Video</a>
+</section>
+
+<section>
+  <h2>Latest Uploads</h2>
+  <div class="latest-grid" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:18px;">
+    {% for video in latest_videos[:3] %}
+      <div class="video-card" style="background:white;border-radius:16px;padding:14px;box-shadow:0 8px 22px rgba(0,0,0,.08);">
+        {% set thumb = video.public_thumbnail_url or video.thumbnail_url or video.thumbnail_path or '' %}
+        {% if thumb %}
+          <img src="{{ thumb }}" alt="Boat video thumbnail" style="width:100%;height:160px;object-fit:cover;border-radius:12px;background:#111827;">
         {% else %}
-          <div class="placeholder-thumb">Preview</div>
+          <div style="width:100%;height:160px;border-radius:12px;background:#111827;display:flex;align-items:center;justify-content:center;color:#fff;">Thumbnail pending</div>
         {% endif %}
-        <p>{{ v.location or 'Boat video' }}</p>
-        <a class="btn" href="/video-search">Find / Buy Video</a>
+        <h3 style="margin:12px 0 4px;">{{ video.location or 'Boat video' }}</h3>
+        <p style="margin:0;color:#6b7280;font-size:14px;">
+          {% if video.recorded_date %}{{ video.recorded_date }}{% endif %}
+          {% if video.recorded_time %} {{ video.recorded_time }}{% endif %}
+        </p>
+        <a href="/find-video" style="display:inline-block;margin-top:10px;background:#2563eb;color:white;padding:9px 12px;border-radius:8px;text-decoration:none;">Preview</a>
       </div>
+    {% else %}
+      <p>No videos uploaded yet.</p>
     {% endfor %}
   </div>
 </section>
-
-</body></html>

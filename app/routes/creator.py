@@ -197,17 +197,48 @@ def _normalize_completed_upload_files(data):
                 "key": key,
                 "file_size": int(size or 0),
                 "upload": upload,
+                "last_modified": item.get("last_modified") or upload.get("last_modified"),
+                "last_modified_iso": item.get("last_modified_iso") or upload.get("last_modified_iso"),
             })
     return normalized
 
 
 
 def _safe_recorded_date_time_from_file_info(file_info):
-    recorded_at = file_info.get("recorded_at") or file_info.get("created_at")
+    """
+    Prefer the original file timestamp sent by the browser.
+    This prevents using upload time as the recorded time.
+    """
+    # 1) ISO timestamp from JS: new Date(file.lastModified).toISOString()
+    iso = file_info.get("last_modified_iso") or file_info.get("file_last_modified_iso")
+    if iso:
+        try:
+            dt = datetime.fromisoformat(str(iso).replace("Z", "+00:00"))
+            return dt.date(), dt.time().replace(microsecond=0)
+        except Exception:
+            pass
+
+    # 2) Milliseconds timestamp from JS File.lastModified
+    ms = file_info.get("last_modified") or file_info.get("file_last_modified")
+    if ms:
+        try:
+            dt = datetime.fromtimestamp(float(ms) / 1000.0)
+            return dt.date(), dt.time().replace(microsecond=0)
+        except Exception:
+            pass
+
+    # 3) Existing metadata fields if backend extracted them
+    recorded_at = file_info.get("recorded_at") or file_info.get("created_at") or file_info.get("media_created_at")
     if isinstance(recorded_at, datetime):
         return recorded_at.date(), recorded_at.time().replace(microsecond=0)
+    if isinstance(recorded_at, str) and recorded_at:
+        try:
+            dt = datetime.fromisoformat(recorded_at.replace("Z", "+00:00"))
+            return dt.date(), dt.time().replace(microsecond=0)
+        except Exception:
+            pass
 
-    # Fallback so DB not-null constraints do not fail during upload tests.
+    # Last fallback only so DB can save; later metadata extraction can improve this.
     return date.today(), time(0, 0, 0)
 
 
@@ -1003,10 +1034,10 @@ def upload_r2_complete():
         except Exception:
             recorded_at = None
 
-        if recorded_date is None:
-            recorded_date = date.today()
-        if recorded_time is None:
-            recorded_time = time(0, 0, 0)
+        if recorded_date is None or recorded_time is None:
+            fallback_date, fallback_time = _safe_recorded_date_time_from_file_info(item if 'item' in locals() else {})
+            recorded_date = recorded_date or fallback_date
+            recorded_time = recorded_time or fallback_time
         if recorded_at is None:
             recorded_at = datetime.combine(recorded_date, recorded_time)
 

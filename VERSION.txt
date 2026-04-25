@@ -1,5 +1,7 @@
-BoatSpotMedia v39.9 Recorded Date DB Fix
-- Fixes database error: recorded_date cannot be null.
-- Adds safe fallback recorded_date and recorded_time when metadata is missing.
-- Adds best-effort R2 cleanup if DB save fails after upload.
-- Keeps multipart, fallback upload, and global progress.
+BoatSpotMedia v40 Metadata Home Locations Fix
+- Sends browser file timestamp to backend and uses it for recorded_date/recorded_time.
+- Home page shows only the latest 3 uploaded videos.
+- Removes old Latest post / Video preview block by rebuilding home template.
+- Search locations are generated dynamically from active videos only.
+- Deleted batches/videos remove their locations from buyer search once no active video uses that location.
+- Keeps R2 upload pipeline fixes.
