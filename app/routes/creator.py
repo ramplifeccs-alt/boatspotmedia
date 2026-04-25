@@ -71,24 +71,13 @@ def _creator_default_prices(creator):
     return original, edited, bundle
 
 def _recalculate_creator_storage(creator_id):
+    """Safely recalculate storage without aborting the SQLAlchemy transaction."""
     try:
         from app.models import CreatorProfile, Video
         total = int(db.session.query(db.func.coalesce(db.func.sum(Video.file_size_bytes), 0)).filter(
             Video.creator_id == creator_id,
             Video.status != "deleted"
         ).scalar() or 0)
-        try:
-            batch_total = db.session.execute(db.text("""
-                SELECT COALESCE(SUM(
-                    COALESCE(total_size_bytes, size_bytes, file_size_bytes, storage_bytes, 0)
-                ), 0)
-                FROM video_batch
-                WHERE creator_id = :cid
-                  AND COALESCE(status, '') <> 'deleted'
-            """), {"cid": creator_id}).scalar() or 0
-            total = max(total, int(batch_total or 0))
-        except Exception:
-            pass
         c = CreatorProfile.query.get(creator_id)
         if c and hasattr(c, "storage_used_bytes"):
             c.storage_used_bytes = int(total)
@@ -211,7 +200,7 @@ def dashboard():
     _ensure_creator_profile_deleted_column()
     creator = current_creator()
     if creator:
-        _recalculate_creator_storage(creator.id)
+        safe_recalc = _recalculate_creator_storage(creator.id)
     storage_limit_gb, max_batch_gb = _creator_plan_limits(creator)
     storage_used_gb = _creator_storage_used_gb(creator.id)
     if not creator:
@@ -513,40 +502,27 @@ def _creator_plan_limits(creator):
 
 
 def _creator_storage_used_gb(creator_id):
-    """Robust storage calculation shown in Creator Dashboard.
-    Sums video.file_size_bytes, video_batch total fields, and creator_profile.storage_used_bytes fallback.
+    """Safe dashboard storage calculation.
+    Uses video.file_size_bytes and profile fallback only. Avoids broken SQL against unknown batch columns.
     """
     total = 0
     try:
         from app.models import Video
-        total += int(db.session.query(db.func.coalesce(db.func.sum(Video.file_size_bytes), 0)).filter(
+        total = int(db.session.query(db.func.coalesce(db.func.sum(Video.file_size_bytes), 0)).filter(
             Video.creator_id == creator_id,
             Video.status != "deleted"
         ).scalar() or 0)
     except Exception as e:
+        db.session.rollback()
         print("storage video sum warning:", e)
 
-    # Some older batches store the total size only on video_batch.
-    try:
-        rows = db.session.execute(db.text("""
-            SELECT COALESCE(SUM(
-                COALESCE(total_size_bytes, size_bytes, file_size_bytes, storage_bytes, 0)
-            ), 0)
-            FROM video_batch
-            WHERE creator_id = :cid
-              AND COALESCE(status, '') <> 'deleted'
-        """), {"cid": creator_id}).scalar() or 0
-        total = max(total, int(rows or 0))
-    except Exception as e:
-        print("storage batch sum warning:", e)
-
-    # Fallback to profile storage_used_bytes if it is larger.
     try:
         from app.models import CreatorProfile
         c = CreatorProfile.query.get(creator_id)
         if c and getattr(c, "storage_used_bytes", None):
             total = max(total, int(c.storage_used_bytes or 0))
     except Exception as e:
+        db.session.rollback()
         print("storage profile warning:", e)
 
     return round(float(total) / (1024 ** 3), 2)

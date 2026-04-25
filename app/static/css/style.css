@@ -334,3 +334,5 @@ form{
 .video-card img{aspect-ratio:16/9;object-fit:cover}
 
 .account-menu-link{cursor:pointer}.account-menu-link:hover{text-decoration:underline!important}
+
+.brand a,.navbar-brand a{color:inherit;text-decoration:none}.brand a:hover,.navbar-brand a:hover{text-decoration:underline}

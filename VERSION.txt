@@ -1,5 +1,5 @@
-BoatSpotMedia v38.4 Dynamic Buyer Locations Fix
-- Buyer search locations are now dynamic from uploaded creator videos and video batches.
-- Location field is no longer a locked fixed select; buyer can type or choose from real saved locations.
-- Adds /api/video-locations endpoint.
-- Creator upload page notes that saved location appears in buyer search.
+BoatSpotMedia v38.5 Title + Storage Transaction Fix
+- Fixes browser tab/title showing raw <a href...> HTML.
+- Stops dashboard storage calculation from aborting SQL transaction.
+- Storage now safely sums video.file_size_bytes and profile fallback.
+- Keeps dynamic buyer locations and account menu link fixes.
