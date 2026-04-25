@@ -43,3 +43,17 @@ def public_url_for_key(key):
     if not base:
         return ""
     return f"{base}/{key}"
+
+
+# Backwards compatibility for older routes that import:
+# from app.services.r2 import upload as r2_upload
+# New v35 uploader uses presigned URLs, but this keeps app booting.
+def upload(file_obj, key, content_type="application/octet-stream"):
+    client = r2_client()
+    client.upload_fileobj(
+        file_obj,
+        os.getenv("R2_BUCKET_NAME"),
+        key,
+        ExtraArgs={"ContentType": content_type or "application/octet-stream"},
+    )
+    return key

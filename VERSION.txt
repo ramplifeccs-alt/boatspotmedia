@@ -1,2 +1,2 @@
-BoatSpotMedia v35 R2 DIRECT UPLOADS
-Creator uploads now go directly from browser to Cloudflare R2 using presigned PUT URLs. Railway only creates upload permissions and saves video metadata. Max 128GB per batch and plan storage checks remain active.
+BoatSpotMedia v35.1 R2 Import Fix
+Adds backwards-compatible app.services.r2.upload() so old imports do not break app boot. Direct R2 presigned uploads remain active.
