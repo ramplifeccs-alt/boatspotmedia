@@ -1,5 +1,5 @@
 import os, tempfile, uuid
-from flask import Blueprint, render_template, request, redirect, url_for, current_app, flash, jsonify, session
+from flask import Blueprint, render_template, request, redirect, url_for, current_app
 from app.models import User, CreatorProfile, Batch, Video, Location, CreatorClickStats, Product, VideoPricingPreset, OrderItem, StoragePlan, ProductVariant
 from app.services.db import db
 from app.services.media import extract_creation_time, generate_center_thumbnail
@@ -117,9 +117,120 @@ def dashboard():
         videos_count=videos_count
     )
 
+@creator_bp.route("/upload", methods=["GET", "POST"])
+def upload():
+    creator = current_creator()
 
+    try:
+        suggestions = [l.name for l in Location.query.order_by(Location.name.asc()).all()]
+    except Exception:
+        db.session.rollback()
+        suggestions = [
+            "Boca Raton Inlet",
+            "Hillsboro Inlet",
+            "Boynton Inlet",
+            "Haulover Inlet",
+            "Port Everglades"
+        ]
 
+    if request.method == "POST":
+        files = request.files.getlist("videos")
+        location = (request.form.get("location") or "").strip()
+        total_size = 0
+        temp_paths = []
 
+        for f in files:
+            f.seek(0, os.SEEK_END)
+            size = f.tell()
+            f.seek(0)
+            total_size += size
+
+            tmp = tempfile.NamedTemporaryFile(delete=False, suffix=os.path.splitext(f.filename)[1] or ".mp4")
+            f.save(tmp.name)
+            temp_paths.append((tmp.name, f.filename, size))
+
+        if total_size > current_app.config["MAX_BATCH_GB"] * 1024**3:
+            return render_creator_template("creator/upload.html", creator=creator, suggestions=suggestions, error="Maximum upload size per batch is 128GB.")
+
+        if creator.storage_used_bytes + total_size > creator.storage_limit_gb * 1024**3:
+            return render_creator_template("creator/upload.html", creator=creator, suggestions=suggestions, error="Storage limit reached. Delete videos or upgrade your plan.")
+
+        batch = Batch(creator_id=creator.id, location=location, total_size_bytes=total_size)
+        db.session.add(batch)
+        db.session.flush()
+
+        preset = VideoPricingPreset.query.filter_by(creator_id=creator.id, is_default=True, active=True).first()
+        price = float(preset.price) if preset else 40.00
+
+        for path, filename, size in temp_paths:
+            recorded_at = extract_creation_time(path)
+            video_key = f"creator_{creator.id}/batch_{batch.id}/{uuid.uuid4()}_{filename}"
+            r2_upload(path, current_app.config["R2_BUCKET_VIDEOS"], video_key)
+
+            thumb_url = ""
+            thumb_key = None
+
+            try:
+                thumb_path = path + ".jpg"
+                generate_center_thumbnail(path, thumb_path)
+                thumb_key = f"video_thumbs/{uuid.uuid4()}.jpg"
+                thumb_url = r2_upload(thumb_path, current_app.config["R2_BUCKET_THUMBNAILS"], thumb_key)
+            except Exception:
+                pass
+
+            db.session.add(Video(
+                creator_id=creator.id,
+                batch_id=batch.id,
+                location=location,
+                recorded_at=recorded_at,
+                r2_video_key=video_key,
+                r2_thumbnail_key=thumb_key,
+                public_thumbnail_url=thumb_url,
+                file_size_bytes=size,
+                original_price=price,
+                edited_price=price,
+                bundle_price=price,
+                internal_filename=filename,
+                status="active"
+            ))
+
+            try:
+                os.unlink(path)
+            except Exception:
+                pass
+
+        creator.storage_used_bytes += total_size
+        db.session.commit()
+
+        return render_creator_template("creator/upload.html", creator=creator, suggestions=suggestions, success=True, batch_id=batch.id)
+
+    return render_creator_template("creator/upload.html", creator=creator, suggestions=suggestions)
+
+@creator_bp.route("/batches")
+def batches():
+    creator = current_creator()
+    try:
+        batches = Batch.query.filter_by(creator_id=creator.id).order_by(Batch.created_at.desc()).all()
+    except Exception:
+        db.session.rollback()
+        batches = []
+    return render_creator_template("creator/batches.html", creator=creator, batches=batches)
+
+@creator_bp.route("/batches/<int:batch_id>")
+def batch_detail(batch_id):
+    creator = current_creator()
+    batch = Batch.query.get_or_404(batch_id)
+    videos = Video.query.filter_by(batch_id=batch.id, creator_id=creator.id).order_by(Video.id.asc()).all()
+    return render_creator_template("creator/batch_detail.html", creator=creator, batch=batch, videos=videos)
+
+@creator_bp.route("/batches/<int:batch_id>/delete", methods=["POST"])
+def delete_batch(batch_id):
+    creator = current_creator()
+    for v in Video.query.filter_by(batch_id=batch_id, creator_id=creator.id, status="active").all():
+        v.status = "deleted"
+        creator.storage_used_bytes = max(0, creator.storage_used_bytes - (v.file_size_bytes or 0))
+    db.session.commit()
+    return redirect(url_for("creator.batches"))
 
 @creator_bp.route("/videos/delete-selected", methods=["POST"])
 def delete_selected_videos():
@@ -284,318 +395,3 @@ def delete_product_variant(variant_id):
     variant.active = False
     db.session.commit()
     return redirect(url_for("creator.product_variants", product_id=product.id))
-
-# ===== Creator video upload v35 Cloudflare R2 Direct Upload =====
-
-BATCH_LIMIT_BYTES = 128 * 1024 * 1024 * 1024  # 128 GB per batch
-
-
-def _creator_storage_limit_bytes(creator):
-    try:
-        plan = getattr(creator, "plan", None) or getattr(creator, "storage_plan", None)
-        if plan and getattr(plan, "storage_limit_gb", None):
-            return int(plan.storage_limit_gb) * 1024 * 1024 * 1024
-    except Exception:
-        pass
-    try:
-        if getattr(creator, "storage_limit_gb", None):
-            return int(creator.storage_limit_gb) * 1024 * 1024 * 1024
-    except Exception:
-        pass
-    return 128 * 1024 * 1024 * 1024
-
-
-def _creator_used_storage_bytes(creator_id):
-    from app.models import Video
-    total = db.session.query(db.func.coalesce(db.func.sum(Video.file_size_bytes), 0)).filter_by(creator_id=creator_id).scalar()
-    return int(total or 0)
-
-
-@creator_bp.route("/upload", methods=["GET"])
-def upload():
-    creator = current_creator()
-    if not creator:
-        return redirect("/creator/login")
-
-    used = _creator_used_storage_bytes(creator.id)
-    limit = _creator_storage_limit_bytes(creator)
-    return render_template(
-        "creator/upload.html",
-        used_bytes=used,
-        limit_bytes=limit,
-        used_gb=round(used / 1024 / 1024 / 1024, 2),
-        limit_gb=round(limit / 1024 / 1024 / 1024, 2),
-        batch_limit_gb=128,
-    )
-
-
-
-def _ensure_video_upload_columns():
-    """Make sure old PostgreSQL video table has the columns required by the uploader before any SELECT."""
-    statements = [
-        "ALTER TABLE video ADD COLUMN IF NOT EXISTS price NUMERIC(10,2) DEFAULT 0",
-        "UPDATE video SET price = 0 WHERE price IS NULL",
-        "ALTER TABLE video ALTER COLUMN price SET DEFAULT 0",
-        "ALTER TABLE video ALTER COLUMN price DROP NOT NULL",
-        "ALTER TABLE video ADD COLUMN IF NOT EXISTS filename VARCHAR(500)",
-        "ALTER TABLE video ADD COLUMN IF NOT EXISTS file_path VARCHAR(500)",
-        "ALTER TABLE video ADD COLUMN IF NOT EXISTS thumbnail_path VARCHAR(500)",
-        "ALTER TABLE video ADD COLUMN IF NOT EXISTS internal_filename VARCHAR(500)",
-        "ALTER TABLE video ADD COLUMN IF NOT EXISTS r2_video_key VARCHAR(500)",
-        "ALTER TABLE video ADD COLUMN IF NOT EXISTS r2_thumbnail_key VARCHAR(500)",
-        "ALTER TABLE video ADD COLUMN IF NOT EXISTS public_thumbnail_url VARCHAR(500)",
-        "ALTER TABLE video ADD COLUMN IF NOT EXISTS file_size_bytes BIGINT DEFAULT 0",
-        "ALTER TABLE video ADD COLUMN IF NOT EXISTS original_price NUMERIC(10,2) DEFAULT 0",
-        "ALTER TABLE video ADD COLUMN IF NOT EXISTS edited_price NUMERIC(10,2) DEFAULT 0",
-        "ALTER TABLE video ADD COLUMN IF NOT EXISTS bundle_price NUMERIC(10,2) DEFAULT 0",
-        "ALTER TABLE video ADD COLUMN IF NOT EXISTS recorded_at TIMESTAMP",
-        "ALTER TABLE video ADD COLUMN IF NOT EXISTS recorded_date DATE",
-        "ALTER TABLE video ADD COLUMN IF NOT EXISTS recorded_time TIME",
-        "UPDATE video SET filename = COALESCE(NULLIF(filename, ''), internal_filename, split_part(r2_video_key, '/', array_length(string_to_array(r2_video_key, '/'), 1)), 'video.mp4') WHERE filename IS NULL OR filename = ''",
-        "UPDATE video SET file_path = COALESCE(NULLIF(file_path, ''), r2_video_key, filename, internal_filename, 'video.mp4') WHERE file_path IS NULL OR file_path = ''",
-        "UPDATE video SET thumbnail_path = COALESCE(NULLIF(thumbnail_path, ''), r2_thumbnail_key, public_thumbnail_url) WHERE thumbnail_path IS NULL OR thumbnail_path = ''",
-        "ALTER TABLE video ALTER COLUMN filename SET DEFAULT ''",
-        "ALTER TABLE video ALTER COLUMN file_path SET DEFAULT ''"
-    ]
-    try:
-        for sql in statements:
-            db.session.execute(db.text(sql))
-        db.session.commit()
-    except Exception as e:
-        db.session.rollback()
-        print("Video uploader column repair warning:", e)
-
-
-@creator_bp.route("/upload/r2/prepare", methods=["POST"])
-def upload_r2_prepare():
-    _ensure_video_upload_columns()
-    creator = current_creator()
-    if not creator:
-        return jsonify({"ok": False, "error": "Creator login required."}), 401
-
-    from app.models import VideoBatch
-    from app.services.r2 import r2_configured, create_presigned_put_url
-    import uuid
-    from werkzeug.utils import secure_filename
-
-    if not r2_configured():
-        return jsonify({"ok": False, "error": "Cloudflare R2 is not configured. Missing R2 variables in Railway."}), 400
-
-    data = request.get_json(silent=True) or {}
-    files = data.get("files", [])
-    location = (data.get("location") or "").strip()
-    batch_name = (data.get("batch_name") or "").strip() or "New video batch"
-
-    try:
-        original_price = float(data.get("original_price") or 0)
-        edited_price = float(data.get("edited_price") or 0)
-        bundle_price = float(data.get("bundle_price") or 0)
-    except Exception:
-        return jsonify({"ok": False, "error": "Invalid price."}), 400
-
-    if not files:
-        return jsonify({"ok": False, "error": "Choose at least one video file."}), 400
-
-    # Prevent duplicate uploads by same creator using original filename.
-    from app.models import Video
-    duplicate_messages = []
-    for f in files:
-        original_name_for_check = secure_filename(f.get("name") or "video.mp4")
-        existing = db.session.query(Video.id, Video.batch_id).filter(
-            Video.creator_id == creator.id,
-            Video.status != "deleted",
-            db.or_(
-                Video.filename == original_name_for_check,
-                Video.internal_filename == original_name_for_check
-            )
-        ).order_by(Video.id.desc()).first()
-        if existing:
-            duplicate_messages.append(
-                f"{original_name_for_check} already exists in batch #{existing.batch_id}. Please check that batch before uploading again."
-            )
-    if duplicate_messages:
-        return jsonify({"ok": False, "error": "Duplicate file found: " + " | ".join(duplicate_messages)}), 409
-
-    total_size = 0
-    for f in files:
-        total_size += int(f.get("size") or 0)
-
-    if total_size <= 0:
-        return jsonify({"ok": False, "error": "Invalid file size."}), 400
-
-    if total_size > BATCH_LIMIT_BYTES:
-        return jsonify({"ok": False, "error": "This batch is over 128 GB. Please split it into smaller batches."}), 400
-
-    used = _creator_used_storage_bytes(creator.id)
-    limit = _creator_storage_limit_bytes(creator)
-    if used + total_size > limit:
-        return jsonify({"ok": False, "error": "This upload exceeds your plan storage limit. Upgrade your plan or delete old videos."}), 400
-
-    batch = VideoBatch(
-        creator_id=creator.id,
-        location=location,
-        batch_name=batch_name,
-        total_size_bytes=total_size,
-        file_count=len(files),
-        status="uploading"
-    )
-    db.session.add(batch)
-    db.session.commit()
-
-    uploads = []
-    for f in files:
-        original_name = secure_filename(f.get("name") or "video.mp4")
-        content_type = f.get("type") or "application/octet-stream"
-        key = f"creators/{creator.id}/batches/{batch.id}/{uuid.uuid4().hex}_{original_name}"
-        thumb_key = f"creators/{creator.id}/batches/{batch.id}/thumbs/{uuid.uuid4().hex}_{original_name}.jpg"
-        url = create_presigned_put_url(key, content_type=content_type, expires=60 * 60 * 6)
-        thumb_url = create_presigned_put_url(thumb_key, content_type="image/jpeg", expires=60 * 60 * 6)
-        uploads.append({
-            "name": original_name,
-            "size": int(f.get("size") or 0),
-            "type": content_type,
-            "key": key,
-            "upload_url": url,
-            "thumbnail_key": thumb_key,
-            "thumbnail_upload_url": thumb_url,
-            "last_modified": f.get("last_modified")
-        })
-
-    return jsonify({
-        "ok": True,
-        "batch_id": batch.id,
-        "uploads": uploads,
-        "message": "Upload prepared. Browser will upload directly to Cloudflare R2."
-    })
-
-
-@creator_bp.route("/upload/r2/complete", methods=["POST"])
-def upload_r2_complete():
-    _ensure_video_upload_columns()
-    creator = current_creator()
-    if not creator:
-        return jsonify({"ok": False, "error": "Creator login required."}), 401
-
-    from app.models import Video, VideoBatch
-    from app.services.r2 import public_url_for_key
-
-    data = request.get_json(silent=True) or {}
-    batch_id = data.get("batch_id")
-    uploaded = data.get("uploaded", [])
-    location = (data.get("location") or "").strip()
-
-    try:
-        original_price = float(data.get("original_price") or 0)
-        edited_price = float(data.get("edited_price") or 0)
-        bundle_price = float(data.get("bundle_price") or 0)
-    except Exception:
-        return jsonify({"ok": False, "error": "Invalid price."}), 400
-
-    batch = VideoBatch.query.filter_by(id=batch_id, creator_id=creator.id).first()
-    if not batch:
-        return jsonify({"ok": False, "error": "Batch not found."}), 404
-
-    if not uploaded:
-        return jsonify({"ok": False, "error": "No uploaded videos received."}), 400
-
-    from datetime import datetime, timezone
-    for item in uploaded:
-        key = item.get("key")
-        if not key:
-            continue
-
-        recorded_at = None
-        recorded_date = None
-        recorded_time = None
-        try:
-            lm = item.get("last_modified")
-            if lm:
-                recorded_at = datetime.fromtimestamp(int(lm) / 1000, tz=timezone.utc).replace(tzinfo=None)
-                recorded_date = recorded_at.date()
-                recorded_time = recorded_at.time()
-        except Exception:
-            recorded_at = None
-
-        thumb_key = item.get("thumbnail_key")
-        v = Video(
-            creator_id=creator.id,
-            batch_id=batch.id,
-            location=location or batch.location,
-            file_path=key,
-            r2_video_key=key,
-            thumbnail_path=thumb_key,
-            r2_thumbnail_key=thumb_key,
-            public_thumbnail_url=public_url_for_key(thumb_key) if thumb_key else "",
-            recorded_at=recorded_at,
-            recorded_date=recorded_date,
-            recorded_time=recorded_time,
-            file_size_bytes=int(item.get("size") or 0),
-            original_price=original_price,
-            edited_price=edited_price,
-            bundle_price=bundle_price,
-            status="active",
-            filename=item.get("name") or key.split("/")[-1],
-            internal_filename=item.get("name") or key.split("/")[-1]
-        )
-        db.session.add(v)
-
-    batch.status = "uploaded"
-    try:
-        db.session.commit()
-    except Exception as e:
-        db.session.rollback()
-        return jsonify({"ok": False, "error": "Videos uploaded, but database save failed: " + str(e)}), 500
-
-    return jsonify({
-        "ok": True,
-        "message": "Batch uploaded successfully to BoatSpotMedia Storage. You can view it in Batches.",
-        "batch_id": batch.id
-    })
-
-
-@creator_bp.route("/batches")
-def batches():
-    creator = current_creator()
-    if not creator:
-        return redirect("/creator/login")
-    from app.models import VideoBatch
-    batches = VideoBatch.query.filter_by(creator_id=creator.id).order_by(VideoBatch.id.desc()).all()
-    return render_template("creator/batches.html", batches=batches)
-
-
-@creator_bp.route("/batches/<int:batch_id>")
-def batch_detail(batch_id):
-    creator = current_creator()
-    if not creator:
-        return redirect("/creator/login")
-    from app.models import Video, VideoBatch
-    batch = VideoBatch.query.filter_by(id=batch_id, creator_id=creator.id).first_or_404()
-    videos = Video.query.filter_by(batch_id=batch.id, creator_id=creator.id).order_by(Video.id.desc()).all()
-    return render_template("creator/batch_detail.html", batch=batch, videos=videos)
-
-
-@creator_bp.route("/batches/<int:batch_id>/delete", methods=["POST"])
-def delete_batch(batch_id):
-    creator = current_creator()
-    if not creator:
-        return redirect("/creator/login")
-    from app.models import Video, VideoBatch
-    batch = VideoBatch.query.filter_by(id=batch_id, creator_id=creator.id).first_or_404()
-    videos = Video.query.filter_by(batch_id=batch.id, creator_id=creator.id).all()
-    for v in videos:
-        v.status = "deleted"
-    batch.status = "deleted"
-    db.session.commit()
-    return redirect(url_for("creator.batches"))
-
-
-@creator_bp.route("/videos/<int:video_id>/delete", methods=["POST"])
-def delete_video(video_id):
-    creator = current_creator()
-    if not creator:
-        return redirect("/creator/login")
-    from app.models import Video
-    v = Video.query.filter_by(id=video_id, creator_id=creator.id).first_or_404()
-    v.status = "deleted"
-    db.session.commit()
-    return redirect(request.referrer or url_for("creator.batches"))

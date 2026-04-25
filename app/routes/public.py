@@ -221,29 +221,7 @@ def auth_google(account_type):
     if not client_id or not redirect_uri:
         return "Google login is not configured yet. Missing GOOGLE_CLIENT_ID or GOOGLE_REDIRECT_URI.", 400
     scope = urllib.parse.quote("openid email profile")
-    state = urllib.parse.quote(f"login:{account_type}")
-    url = (
-        "https://accounts.google.com/o/oauth2/v2/auth"
-        f"?client_id={urllib.parse.quote(client_id)}"
-        f"&redirect_uri={urllib.parse.quote(redirect_uri)}"
-        "&response_type=code"
-        f"&scope={scope}"
-        f"&state={state}"
-        "&access_type=offline"
-        "&prompt=consent"
-    )
-    return redirect(url)
-
-
-@public_bp.route("/auth/google-register/<account_type>")
-def auth_google_register(account_type):
-    import os, urllib.parse
-    client_id = os.getenv("GOOGLE_CLIENT_ID")
-    redirect_uri = os.getenv("GOOGLE_REDIRECT_URI")
-    if not client_id or not redirect_uri:
-        return "Google register is not configured yet. Missing GOOGLE_CLIENT_ID or GOOGLE_REDIRECT_URI.", 400
-    scope = urllib.parse.quote("openid email profile")
-    state = urllib.parse.quote(f"register:{account_type}")
+    state = urllib.parse.quote(account_type)
     url = (
         "https://accounts.google.com/o/oauth2/v2/auth"
         f"?client_id={urllib.parse.quote(client_id)}"
@@ -298,11 +276,7 @@ def auth_google_callback():
         return f"Google login error: {error}", 400
 
     code = request.args.get("code")
-    raw_state = request.args.get("state") or "login:buyer"
-    if ":" in raw_state:
-        auth_mode, account_type = raw_state.split(":", 1)
-    else:
-        auth_mode, account_type = "login", raw_state
+    account_type = request.args.get("state") or "buyer"
 
     if not code:
         return "Google login failed: missing authorization code.", 400
@@ -381,16 +355,22 @@ def auth_google_callback():
     user = User.query.filter_by(email=email).first()
 
     # Creator rule:
-    # Creators are invite-only. They must be approved by Owner first.
+    # Creators are NOT allowed to self-register with Google.
+    # Owner must approve the creator first and send the registration/login link.
     if role == "creator":
         if not user or user.role != "creator" or not user.is_active:
-            return render_template("public/creator_invite_required.html"), 403
+            return (
+                "Creator access is invite-only. Your creator account must be approved by BoatSpotMedia before you can log in. "
+                "Please apply first or contact BoatSpotMedia if you were already approved."
+            ), 403
 
         try:
             from app.models import CreatorProfile
             creator = CreatorProfile.query.filter_by(user_id=user.id).first()
             if not creator or not creator.approved or creator.suspended:
-                return render_template("public/creator_invite_required.html"), 403
+                return (
+                    "Creator account is not active yet. Your application must be approved by BoatSpotMedia before creator login is allowed."
+                ), 403
         except Exception:
             pass
 
@@ -398,35 +378,22 @@ def auth_google_callback():
         db.session.commit()
 
     else:
-        # Login must NOT create accounts. User must register first.
-        if auth_mode == "login":
-            if not user:
-                return render_template(
-                    "public/register_required.html",
-                    role=role,
-                    account_type=account_type,
-                    email=email,
-                ), 403
+        # Buyer, services, and charter can be created by Google login/register.
+        if not user:
+            user = User(
+                email=email,
+                password_hash=generate_password_hash(os.urandom(24).hex()),
+                role=role,
+                display_name=display_name,
+                is_active=True,
+            )
+            db.session.add(user)
+            db.session.commit()
+        else:
+            # Do not overwrite a creator account into another role.
             user.display_name = user.display_name or display_name
             user.is_active = True
             db.session.commit()
-
-        # Register creates buyer/services/charter accounts.
-        elif auth_mode == "register":
-            if not user:
-                user = User(
-                    email=email,
-                    password_hash=generate_password_hash(os.urandom(24).hex()),
-                    role=role,
-                    display_name=display_name,
-                    is_active=True,
-                )
-                db.session.add(user)
-                db.session.commit()
-            else:
-                user.display_name = user.display_name or display_name
-                user.is_active = True
-                db.session.commit()
 
     session["user_id"] = user.id
     session["user_email"] = user.email
@@ -446,50 +413,3 @@ def auth_google_callback():
 def logout():
     session.clear()
     return redirect("/")
-
-
-
-# ===== Home previews and buyer video search v36 =====
-def _home_preview_videos():
-    from app.models import Video
-    # latest active video per creator, max 3 creators.
-    latest_per_creator = []
-    creator_ids = [row[0] for row in db.session.query(Video.creator_id).filter(Video.status == "active", Video.creator_id.isnot(None)).group_by(Video.creator_id).order_by(db.func.max(Video.id).desc()).limit(3).all()]
-    if len(creator_ids) >= 3:
-        for cid in creator_ids[:3]:
-            v = Video.query.filter_by(creator_id=cid, status="active").order_by(Video.id.desc()).first()
-            if v:
-                latest_per_creator.append(v)
-        return latest_per_creator
-
-    if len(creator_ids) == 2:
-        newest = creator_ids[0]
-        older = creator_ids[1]
-        videos = Video.query.filter_by(creator_id=newest, status="active").order_by(Video.id.desc()).limit(2).all()
-        one_old = Video.query.filter_by(creator_id=older, status="active").order_by(Video.id.desc()).first()
-        if one_old:
-            videos.append(one_old)
-        return videos[:3]
-
-    return Video.query.filter(Video.status == "active").order_by(Video.id.desc()).limit(3).all()
-
-
-@public_bp.route("/video-search")
-def video_search():
-    from app.models import Video
-    location = (request.args.get("location") or "").strip()
-    date = (request.args.get("date") or "").strip()
-    start_time = (request.args.get("start_time") or "").strip()
-    end_time = (request.args.get("end_time") or "").strip()
-
-    q = Video.query.filter(Video.status == "active")
-    if location:
-        q = q.filter(Video.location.ilike(f"%{location}%"))
-    if date:
-        q = q.filter(db.func.cast(Video.recorded_date, db.String) == date)
-    if start_time:
-        q = q.filter(Video.recorded_time >= start_time)
-    if end_time:
-        q = q.filter(Video.recorded_time <= end_time)
-    videos = q.order_by(Video.recorded_at.desc().nullslast(), Video.id.desc()).limit(100).all()
-    return render_template("public/video_search.html", videos=videos, location=location, date=date, start_time=start_time, end_time=end_time)

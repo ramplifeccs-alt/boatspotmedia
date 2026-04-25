@@ -1,5 +1,2 @@
-BoatSpotMedia v36.5 PRICE COLUMN AUTOFIX REAL
-- Repairs old NOT NULL video.price column before prepare and complete.
-- Adds price to Video model and saves price=original_price.
-- Keeps duplicate file-name protection.
-- Keeps BoatSpotMedia Storage progress text.
+BoatSpotMedia v29 FULL GOOGLE LOGIN DASHBOARDS
+Buyer Google login creates/logs user and shows visual dashboard. Creator Google login requires approved active creator account.

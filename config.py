@@ -1,8 +1,6 @@
 import os
 
 class Config:
-    # Max single request/body. Browser/Railway may still timeout on huge files; direct R2 multipart is next phase.
-    MAX_CONTENT_LENGTH = 128 * 1024 * 1024 * 1024
     SECRET_KEY = os.getenv("SECRET_KEY", "dev-secret-change-this")
     SQLALCHEMY_DATABASE_URI = os.getenv("DATABASE_URL", "sqlite:///boatspotmedia_local.db").replace("postgres://", "postgresql://")
     SQLALCHEMY_TRACK_MODIFICATIONS = False

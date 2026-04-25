@@ -1,7 +1,6 @@
 <!doctype html>
 <html>
 <head>
-  <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta charset="utf-8">
   <title>Apply as Creator - BoatSpotMedia</title>
   <link rel="stylesheet" href="/static/css/style.css">
@@ -14,21 +13,7 @@
     <a href="/search">Find Your Video</a>
     <a href="/shop">Shop</a><a href="/services">Services</a>
     <a href="/charters">Charters</a>
-    <a href="/apply-creator">Apply as Creator</a>{% if session.get("user_id") %}
-  <span class="nav-user">{{ session.get("display_name") or session.get("user_email") }}</span>
-  {% if session.get("user_role") == "buyer" %}
-    <a href="/buyer/dashboard">Dashboard</a>
-  {% elif session.get("user_role") == "creator" %}
-    <a href="/creator/dashboard">Dashboard</a>
-  {% elif session.get("user_role") in ["services", "service"] %}
-    <a href="/service-account/dashboard">Dashboard</a>
-  {% elif session.get("user_role") in ["charter", "charters"] %}
-    <a href="/charters">Dashboard</a>
-  {% endif %}
-  <a href="/logout">Logout</a>
-{% else %}
-  <a href="/login">Login</a>
-{% endif %}
+    <a href="/apply-creator">Apply as Creator</a><a href="/login">Login</a>
   </nav>
 </header>
 
@@ -68,6 +53,5 @@
     <button class="btn">Submit Application</button>
   </form>
 </div>
-<script src="/static/js/mobile.js"></script>
 </body>
 </html>
