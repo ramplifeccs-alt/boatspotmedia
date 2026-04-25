@@ -479,11 +479,15 @@ def upload_r2_complete():
         db.session.add(v)
 
     batch.status = "uploaded"
-    db.session.commit()
+    try:
+        db.session.commit()
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({"ok": False, "error": "Videos uploaded, but database save failed: " + str(e)}), 500
 
     return jsonify({
         "ok": True,
-        "message": "Batch uploaded successfully to Cloudflare R2. You can view it in Batches.",
+        "message": "Batch uploaded successfully to BoatSpotMedia Storage. You can view it in Batches.",
         "batch_id": batch.id
     })
 

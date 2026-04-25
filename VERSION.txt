@@ -1,2 +1,2 @@
-BoatSpotMedia v36.1 Filename Fix
-Fixes database error: null value in column filename violates not-null constraint. Video records now save filename and internal_filename.
+BoatSpotMedia v36.2 Model Filename + Progress Text Fix
+Fixes TypeError: filename is an invalid keyword argument for Video by adding filename to Video model. Changes creator upload progress text to 'Uploading to BoatSpotMedia Storage...'.

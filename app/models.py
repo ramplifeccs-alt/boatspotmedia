@@ -88,6 +88,7 @@ class Batch(db.Model):
     creator = db.relationship("CreatorProfile")
 
 class Video(db.Model):
+    filename = db.Column(db.String(500), nullable=False, default='')
     recorded_date = db.Column(db.Date)
     recorded_time = db.Column(db.Time)
     id = db.Column(db.Integer, primary_key=True)

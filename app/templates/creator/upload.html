@@ -21,8 +21,8 @@
   <div class="content">
     <h1>Upload Video Batch</h1>
     <div class="card">
-      <h3>Cloudflare R2 Direct Upload</h3>
-      <p>Files upload directly from your browser to R2. Railway only saves the batch/video records.</p>
+      <h3>BoatSpotMedia Storage Upload</h3>
+      <p>Files upload directly to BoatSpotMedia Storage. Railway only saves the batch/video records.</p>
       <p>Plan storage used: <strong>{{ used_gb }} GB</strong> / <strong>{{ limit_gb }} GB</strong></p>
       <p>Maximum per batch: <strong>{{ batch_limit_gb }} GB</strong></p>
       <div class="progress-shell"><div class="progress-bar" style="width: {{ (used_bytes / limit_bytes * 100) if limit_bytes else 0 }}%"></div></div>
@@ -62,7 +62,7 @@
 
       <p class="notice">Do not exceed 128 GB per batch. Uploads also cannot exceed your plan storage limit.</p>
 
-      <button class="btn" type="submit">Upload Batch to R2</button>
+      <button class="btn" type="submit">Upload Batch</button>
 
       <div id="progressBox" style="display:none;margin-top:16px;">
         <p id="progressText">Preparing upload...</p>

@@ -106,7 +106,7 @@ document.addEventListener("DOMContentLoaded", function(){
 
     const progressBox = document.getElementById("progressBox");
     progressBox.style.display = "block";
-    setOverall(0, "Preparing direct R2 upload...");
+    setOverall(0, "Preparing BoatSpotMedia Storage upload...");
 
     const metadata = {
       batch_name: form.batch_name.value,
@@ -155,7 +155,7 @@ document.addEventListener("DOMContentLoaded", function(){
 
           const loadedTotal = Object.values(loadedByIndex).reduce((a,b) => a + b, 0);
           const overall = Math.round((loadedTotal / totalBytes) * 100);
-          setOverall(overall, "Uploading to R2... " + overall + "%");
+          setOverall(overall, "Uploading to BoatSpotMedia Storage... " + overall + "%");
         });
         loadedByIndex[i] = file.size;
         bar.style.width = "100%";
