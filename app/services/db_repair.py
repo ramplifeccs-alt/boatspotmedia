@@ -206,3 +206,24 @@ def repair_creator_plan_columns():
         db.session.commit()
     except Exception:
         db.session.rollback()
+
+
+
+def repair_creator_delete_and_video_batch_fk():
+    statements = [
+        "ALTER TABLE creator_profile ADD COLUMN IF NOT EXISTS deleted BOOLEAN DEFAULT FALSE",
+        "UPDATE creator_profile SET deleted = FALSE WHERE deleted IS NULL",
+        "UPDATE creator_application SET status='deleted' WHERE lower(email) IN (SELECT lower(u.email) FROM creator_profile c JOIN \"user\" u ON u.id=c.user_id WHERE c.deleted = TRUE)",
+        "DELETE FROM video WHERE batch_id IS NOT NULL AND batch_id NOT IN (SELECT id FROM video_batch)",
+        "ALTER TABLE video DROP CONSTRAINT IF EXISTS video_batch_id_fkey",
+        "ALTER TABLE video ADD CONSTRAINT video_batch_id_fkey FOREIGN KEY (batch_id) REFERENCES video_batch(id) ON DELETE CASCADE"
+    ]
+    for sql in statements:
+        try:
+            db.session.execute(db.text(sql))
+        except Exception as e:
+            print("Creator delete / video batch FK repair warning:", sql, e)
+    try:
+        db.session.commit()
+    except Exception:
+        db.session.rollback()

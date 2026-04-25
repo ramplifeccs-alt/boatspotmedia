@@ -1,3 +1,4 @@
-BoatSpotMedia v36.8 Round Render Fix
-- Fixes TypeError: round() takes at most 2 arguments.
-- Keeps creator plan sync values working in upload panel.
+BoatSpotMedia v36.9 VideoBatch FK + Delete Creator Fix
+- Fixes video.batch_id foreign key to reference video_batch instead of old batch table.
+- Deleted creators disappear from Owner Applications/Creators and creator login is disabled.
+- Deletes creator videos/products/video_batches from DB when Owner deletes a creator.

@@ -33,6 +33,7 @@ class CreatorApplication(db.Model):
     reviewed_at = db.Column(db.DateTime)
 
 class CreatorProfile(db.Model):
+    deleted = db.Column(db.Boolean, default=False)
     id = db.Column(db.Integer, primary_key=True)
     user_id = db.Column(db.Integer, db.ForeignKey("user.id"))
     plan_id = db.Column(db.Integer, db.ForeignKey("storage_plan.id"))
@@ -96,7 +97,7 @@ class Video(db.Model):
     recorded_time = db.Column(db.Time)
     id = db.Column(db.Integer, primary_key=True)
     creator_id = db.Column(db.Integer, db.ForeignKey("creator_profile.id"))
-    batch_id = db.Column(db.Integer, db.ForeignKey("batch.id"))
+    batch_id = db.Column(db.Integer, db.ForeignKey("video_batch.id"))
     location = db.Column(db.String(180))
     recorded_at = db.Column(db.DateTime)
     r2_video_key = db.Column(db.String(500))
@@ -111,7 +112,7 @@ class Video(db.Model):
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
 
     creator = db.relationship("CreatorProfile")
-    batch = db.relationship("Batch")
+    batch = db.relationship("VideoBatch")
 
 class Order(db.Model):
     id = db.Column(db.Integer, primary_key=True)

@@ -156,7 +156,7 @@
             <form method="post" action="/owner/creators/{{c.id}}/activate" onsubmit="return confirm('Activate this creator again?');">
               <button class="btn" {% if not c.suspended and c.approved and (not c.user or c.user.is_active) %}disabled{% endif %}>Activate</button>
             </form>
-            <form method="post" action="/owner/creators/{{c.id}}/delete" onsubmit="return confirm('Delete this creator from public use? This hides all videos/products and disables the account.');">
+            <form method="post" action="/owner/creators/{{c.id}}/delete" onsubmit="return confirm('DELETE this creator permanently from Owner/Applications and disable login? This removes videos/products from the database.');">
               <button class="btn danger">Delete</button>
             </form>
           </div>

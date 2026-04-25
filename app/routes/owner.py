@@ -22,10 +22,10 @@ def panel():
 @owner_bp.route("/applications")
 def applications():
     repair_all_known_tables(); repair_creator_application_table()
-    rows = db.session.execute(text("SELECT * FROM creator_application ORDER BY CASE WHEN status='pending' THEN 0 ELSE 1 END, id DESC")).mappings().all()
+    rows = db.session.execute(text("SELECT * FROM creator_application WHERE COALESCE(status,'') <> 'deleted' ORDER BY CASE WHEN status='pending' THEN 0 ELSE 1 END, id DESC")).mappings().all()
     plans = StoragePlan.query.filter_by(active=True).order_by(StoragePlan.storage_limit_gb.asc()).all()
     show_all = request.args.get("show_all") == "1"
-    creator_query = CreatorProfile.query
+    creator_query = CreatorProfile.query.filter((CreatorProfile.deleted == False) | (CreatorProfile.deleted.is_(None)))
     if not show_all:
         creator_query = creator_query.filter(CreatorProfile.approved == True, CreatorProfile.suspended == False)
     creators = creator_query.order_by(CreatorProfile.id.desc()).all()
@@ -51,7 +51,7 @@ def approve_application(app_id):
         creator = CreatorProfile(user_id=user.id, plan_id=selected_plan.id if selected_plan else None, storage_limit_gb=selected_plan.storage_limit_gb if selected_plan else 512, commission_rate=selected_plan.commission_rate if selected_plan else 20, product_commission_rate=20, approved=True, suspended=False)
         db.session.add(creator)
     else:
-        creator.approved=True; creator.suspended=False
+        creator.approved=True; creator.suspended=False; creator.deleted=False
         if selected_plan:
             creator.plan_id=selected_plan.id; creator.storage_limit_gb=selected_plan.storage_limit_gb; creator.commission_rate=selected_plan.commission_rate
     db.session.execute(text("UPDATE creator_application SET status='approved', reviewed_at=CURRENT_TIMESTAMP WHERE id=:id"), {"id": app_id})
@@ -131,15 +131,36 @@ def activate_creator(creator_id):
 
 @owner_bp.route("/creators/<int:creator_id>/delete", methods=["POST"])
 def delete_creator(creator_id):
+    repair_all_known_tables()
     c = CreatorProfile.query.get_or_404(creator_id)
-    c.suspended = True
-    c.approved = False
-    if c.user:
-        c.user.is_active = False
-        # keep email/history but mark display so Owner knows it was deleted if show_all is used
-        if c.user.display_name and not c.user.display_name.startswith("[DELETED]"):
-            c.user.display_name = "[DELETED] " + c.user.display_name
-    db.session.commit()
+    user_email = c.user.email if c.user else None
+    user_id = c.user_id
+
+    # Remove public/business records first so the creator disappears everywhere.
+    try:
+        Video.query.filter_by(creator_id=c.id).delete(synchronize_session=False)
+    except Exception:
+        db.session.rollback()
+    try:
+        Product.query.filter_by(creator_id=c.id).delete(synchronize_session=False)
+    except Exception:
+        db.session.rollback()
+    try:
+        db.session.execute(text("DELETE FROM video_batch WHERE creator_id=:cid"), {"cid": c.id})
+        db.session.execute(text("DELETE FROM commission_override_log WHERE creator_id=:cid"), {"cid": c.id})
+        if user_email:
+            db.session.execute(text("UPDATE creator_application SET status='deleted', reviewed_at=CURRENT_TIMESTAMP WHERE lower(email)=lower(:email)"), {"email": user_email})
+        c.approved = False
+        c.suspended = True
+        c.deleted = True
+        if c.user:
+            c.user.is_active = False
+            c.user.role = "deleted_creator"
+        db.session.commit()
+    except Exception as e:
+        db.session.rollback()
+        print("Delete creator warning:", e)
+
     return redirect(url_for("owner.applications"))
 
 @owner_bp.route("/repair-db-now")

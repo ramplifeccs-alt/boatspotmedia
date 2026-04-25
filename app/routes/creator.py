@@ -405,41 +405,55 @@ def _creator_storage_used_gb(creator_id):
 
 
 def _ensure_batch_exists_for_upload(batch_id, creator_id, batch_name="", location=""):
-    """Guarantee batch row exists before inserting videos."""
+    """Guarantee video_batch row exists before inserting videos."""
     try:
-        from app.models import Batch
-        existing = Batch.query.get(batch_id)
+        from app.models import VideoBatch
+        existing = VideoBatch.query.get(batch_id)
         if existing:
             return existing
-        b = Batch(id=batch_id, creator_id=creator_id, name=batch_name or f"Batch {batch_id}", location=location or "", status="uploaded")
+        b = VideoBatch(
+            id=batch_id,
+            creator_id=creator_id,
+            batch_name=batch_name or f"Batch {batch_id}",
+            location=location or "",
+            status="uploaded"
+        )
         db.session.add(b)
         db.session.commit()
         return b
     except Exception as e:
         db.session.rollback()
-        print("Batch ensure warning:", e)
+        print("VideoBatch ensure warning:", e)
         try:
             db.session.execute(db.text("""
-                INSERT INTO batch (id, creator_id, name, location, status, created_at)
+                INSERT INTO video_batch (id, creator_id, batch_name, location, status, created_at)
                 VALUES (:id, :creator_id, :name, :location, 'uploaded', NOW())
                 ON CONFLICT (id) DO NOTHING
-            """), {"id": batch_id, "creator_id": creator_id, "name": batch_name or f"Batch {batch_id}", "location": location or ""})
+            """), {
+                "id": batch_id,
+                "creator_id": creator_id,
+                "name": batch_name or f"Batch {batch_id}",
+                "location": location or ""
+            })
             db.session.commit()
         except Exception as e2:
             db.session.rollback()
-            print("Raw batch ensure warning:", e2)
+            print("Raw video_batch ensure warning:", e2)
         return None
+
 
 def _ensure_video_upload_columns():
     """Make sure old PostgreSQL video table has the columns required by the uploader before any SELECT."""
     statements = [
+        "ALTER TABLE creator_profile ADD COLUMN IF NOT EXISTS deleted BOOLEAN DEFAULT FALSE",
+        "UPDATE creator_profile SET deleted = FALSE WHERE deleted IS NULL",
         "ALTER TABLE video ADD COLUMN IF NOT EXISTS price NUMERIC(10,2) DEFAULT 0",
         "UPDATE video SET price = 0 WHERE price IS NULL",
         "ALTER TABLE video ALTER COLUMN price SET DEFAULT 0",
         "ALTER TABLE video ALTER COLUMN price DROP NOT NULL",
-        "DELETE FROM video WHERE batch_id IS NOT NULL AND batch_id NOT IN (SELECT id FROM batch)",
+        "DELETE FROM video WHERE batch_id IS NOT NULL AND batch_id NOT IN (SELECT id FROM video_batch)",
         "ALTER TABLE video DROP CONSTRAINT IF EXISTS video_batch_id_fkey",
-        "ALTER TABLE video ADD CONSTRAINT video_batch_id_fkey FOREIGN KEY (batch_id) REFERENCES batch(id) ON DELETE CASCADE",
+        "ALTER TABLE video ADD CONSTRAINT video_batch_id_fkey FOREIGN KEY (batch_id) REFERENCES video_batch(id) ON DELETE CASCADE",
         "ALTER TABLE video ADD COLUMN IF NOT EXISTS filename VARCHAR(500)",
         "ALTER TABLE video ADD COLUMN IF NOT EXISTS file_path VARCHAR(500)",
         "ALTER TABLE video ADD COLUMN IF NOT EXISTS thumbnail_path VARCHAR(500)",
