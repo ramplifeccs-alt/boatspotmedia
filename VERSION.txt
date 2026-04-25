@@ -1,5 +1,4 @@
-BoatSpotMedia v39.1 Multipart Fallback Fix
-- If multipart init/part fails, uploader automatically falls back to standard presigned upload.
-- Multipart only triggers automatically for files 5GB+ unless the server marks a file as multipart.
-- Adds /creator/upload/r2/multipart/status.
-- Prevents upload from getting stuck on Request failed: /creator/upload/r2/multipart/init.
+BoatSpotMedia v39.2 Secure Filename Multipart Fix
+- Fixes multipart init crash at secure_filename().
+- Adds safe filename fallback helper.
+- Keeps multipart fallback behavior from v39.1.

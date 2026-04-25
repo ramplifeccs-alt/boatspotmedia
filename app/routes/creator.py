@@ -137,6 +137,17 @@ def _creator_location_suggestions():
         return []
 
 
+
+def _safe_secure_filename(name):
+    try:
+        return secure_filename(name or "video")
+    except Exception:
+        import re
+        name = str(name or "video")
+        name = re.sub(r"[^A-Za-z0-9_.-]+", "_", name).strip("._")
+        return name or "video"
+
+
 @creator_bp.route("/health")
 def health():
     c = current_creator()
@@ -1043,7 +1054,7 @@ def upload_r2_multipart_init():
         return jsonify({"ok": False, "error": "Please log in again."}), 401
 
     data = request.get_json(silent=True) or {}
-    filename = secure_filename(data.get("filename") or "video")
+    filename = _safe_secure_filename(data.get("filename") or "video")
     key = data.get("key")
     batch_id = data.get("batch_id")
     content_type = data.get("content_type") or "application/octet-stream"
