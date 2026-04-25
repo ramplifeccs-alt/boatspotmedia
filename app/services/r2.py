@@ -4,38 +4,37 @@ from botocore.config import Config
 
 def _r2_endpoint_url():
     account_id = os.getenv("R2_ACCOUNT_ID") or os.getenv("CLOUDFLARE_ACCOUNT_ID")
-    explicit = os.getenv("R2_ENDPOINT_URL") or os.getenv("CLOUDFLARE_R2_ENDPOINT")
-    if explicit:
-        return explicit.rstrip("/")
+    endpoint = os.getenv("R2_ENDPOINT_URL") or os.getenv("CLOUDFLARE_R2_ENDPOINT")
+    if endpoint:
+        return endpoint.rstrip("/")
     if account_id:
         return f"https://{account_id}.r2.cloudflarestorage.com"
-    return None
+    raise RuntimeError("R2 endpoint is not configured. Set R2_ACCOUNT_ID or R2_ENDPOINT_URL.")
+
+def _bucket_name():
+    bucket = os.getenv("R2_BUCKET_NAME") or os.getenv("R2_BUCKET")
+    if not bucket:
+        raise RuntimeError("R2 bucket is not configured. Set R2_BUCKET_NAME.")
+    return bucket
 
 def _client():
-    """Internal Cloudflare R2/S3 client used by all R2 helpers."""
-    endpoint_url = _r2_endpoint_url()
+    """Cloudflare R2 S3 client. This function must never call get_r2_client() to avoid recursion."""
     access_key = os.getenv("R2_ACCESS_KEY_ID") or os.getenv("AWS_ACCESS_KEY_ID")
     secret_key = os.getenv("R2_SECRET_ACCESS_KEY") or os.getenv("AWS_SECRET_ACCESS_KEY")
-    if not endpoint_url:
-        raise RuntimeError("R2 endpoint is not configured. Set R2_ACCOUNT_ID or R2_ENDPOINT_URL.")
     if not access_key or not secret_key:
         raise RuntimeError("R2 credentials are not configured. Set R2_ACCESS_KEY_ID and R2_SECRET_ACCESS_KEY.")
+
     return boto3.client(
         "s3",
-        endpoint_url=endpoint_url,
+        endpoint_url=_r2_endpoint_url(),
         aws_access_key_id=access_key,
         aws_secret_access_key=secret_key,
         region_name=os.getenv("R2_REGION", "auto"),
     )
 
 def get_r2_client():
-    """Public wrapper for the internal R2/S3 client."""
+    """Public wrapper for routes. One-way wrapper only: get_r2_client -> _client."""
     return _client()
-
-def _bucket_name():
-    bucket = _bucket_name()
-    return bucket
-
 
 
 def r2_configured():
@@ -102,6 +101,8 @@ def upload_file(local_path, key, content_type="application/octet-stream"):
     with open(local_path, "rb") as f:
         client.put_object(Bucket=bucket, Key=key, Body=f, ContentType=content_type)
     return key
+
+
 
 
 
