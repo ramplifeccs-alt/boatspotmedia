@@ -46,6 +46,48 @@ def _ensure_creator_profile_deleted_column():
         print("creator_profile.deleted repair warning:", e)
 
 
+
+ALLOWED_VIDEO_EXTENSIONS = {".mp4",".mov",".mxf",".avi",".mts",".m2ts",".3gp",".hevc",".h265",".h264",".m4v",".mpg",".mpeg",".wmv"}
+
+def _is_allowed_video_filename(filename):
+    return os.path.splitext((filename or "").lower())[1] in ALLOWED_VIDEO_EXTENSIONS
+
+def _creator_default_prices(creator):
+    def num(v, default):
+        try:
+            if v is not None and str(v).strip() != "":
+                return float(v)
+        except Exception:
+            pass
+        return float(default)
+    plan = getattr(creator, "plan", None)
+    original = num(getattr(creator, "default_original_price", None), 40)
+    edited = num(getattr(creator, "default_edited_price", None), 60)
+    bundle = num(getattr(creator, "default_bundle_price", None), 80)
+    if plan:
+        original = num(getattr(plan, "default_original_price", None), original)
+        edited = num(getattr(plan, "default_edited_price", None), edited)
+        bundle = num(getattr(plan, "default_bundle_price", None), bundle)
+    return original, edited, bundle
+
+def _recalculate_creator_storage(creator_id):
+    try:
+        from app.models import CreatorProfile, Video
+        total = db.session.query(db.func.coalesce(db.func.sum(Video.file_size_bytes), 0)).filter(
+            Video.creator_id == creator_id,
+            Video.status != "deleted"
+        ).scalar() or 0
+        c = CreatorProfile.query.get(creator_id)
+        if c and hasattr(c, "storage_used_bytes"):
+            c.storage_used_bytes = int(total)
+            db.session.commit()
+        return int(total)
+    except Exception as e:
+        db.session.rollback()
+        print("storage recalculation warning:", e)
+        return 0
+
+
 def current_creator():
     _ensure_creator_profile_deleted_column()
     user_id = session.get("user_id")
@@ -694,6 +736,7 @@ def upload_r2_complete():
 
     _ensure_batch_exists_for_upload(batch.id, creator.id, getattr(batch, 'name', ''), location or getattr(batch, 'location', ''))
 
+    default_original_price, default_edited_price, default_bundle_price = _creator_default_prices(creator)
     from datetime import datetime, timezone
     for item in uploaded:
         key = item.get("key")
@@ -848,3 +891,33 @@ def apply_with_google():
 def apply_with_apple_under_construction():
     flash("Apple login is under construction. You'll be able to apply or log in with Apple soon.", "info")
     return redirect(url_for("creator.apply"))
+
+
+
+@creator_bp.route("/upload/batch/<int:batch_id>/cancel", methods=["POST"])
+def cancel_upload_batch(batch_id):
+    creator = current_creator()
+    if not creator:
+        return jsonify({"ok": False, "error": "Please log in again."}), 401
+    try:
+        from app.models import Video, VideoBatch
+        videos = Video.query.filter_by(creator_id=creator.id, batch_id=batch_id).all()
+        try:
+            from app.services import r2
+            for v in videos:
+                for key in [getattr(v, "r2_video_key", None), getattr(v, "file_path", None), getattr(v, "r2_thumbnail_key", None), getattr(v, "thumbnail_path", None)]:
+                    if key and hasattr(r2, "delete"):
+                        r2.delete(key)
+        except Exception as e:
+            print("R2 cancel delete warning:", e)
+        for v in videos:
+            db.session.delete(v)
+        batch = VideoBatch.query.filter_by(id=batch_id, creator_id=creator.id).first()
+        if batch:
+            db.session.delete(batch)
+        db.session.commit()
+        _recalculate_creator_storage(creator.id)
+        return jsonify({"ok": True, "message": "Upload cancelled and uploaded files were removed."})
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({"ok": False, "error": str(e)}), 500

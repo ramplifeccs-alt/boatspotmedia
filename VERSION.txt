@@ -1,4 +1,8 @@
-BoatSpotMedia v37.9 Creator Apply Endpoint Fix
-- Adds missing creator.apply route so /creator/login renders correctly.
-- Login 'Apply to become a creator' link no longer crashes.
-- Keeps Google apply/login with account_type='creator'.
+BoatSpotMedia v38 Creator Workflow + Thumbnail + Storage Fix
+- Dashboard shows creator GB used, plan storage, and batch limit.
+- Upload page warns creators to upload original camera files only; edited delivery is okay later.
+- Hides price inputs from batch upload; default prices are used.
+- Adds cancel upload endpoint/button support.
+- Thumbnail generation uses the middle of the video with about 30% zoom/crop.
+- Expands accepted camera video formats.
+- BoatSpotMedia brand links to home.
