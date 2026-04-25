@@ -798,6 +798,42 @@ def delete_video(video_id):
 
 
 
+
+@creator_bp.route("/apply", methods=["GET", "POST"])
+def apply():
+    if request.method == "POST":
+        name = (request.form.get("name") or "").strip()
+        email = (request.form.get("email") or "").strip().lower()
+        social = (request.form.get("social") or "").strip()
+        message = (request.form.get("message") or "").strip()
+
+        try:
+            db.session.execute(db.text("""
+                CREATE TABLE IF NOT EXISTS creator_application (
+                    id SERIAL PRIMARY KEY,
+                    name VARCHAR(255),
+                    email VARCHAR(255),
+                    social VARCHAR(500),
+                    message TEXT,
+                    status VARCHAR(50) DEFAULT 'pending',
+                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+                )
+            """))
+            db.session.execute(db.text("""
+                INSERT INTO creator_application (name, email, social, message, status, created_at)
+                VALUES (:name, :email, :social, :message, 'pending', NOW())
+            """), {"name": name, "email": email, "social": social, "message": message})
+            db.session.commit()
+            flash("Application submitted. BoatSpotMedia will review your request.", "success")
+            return redirect(url_for("creator.login"))
+        except Exception as e:
+            db.session.rollback()
+            print("creator apply warning:", e)
+            flash("Application could not be submitted right now. Please try again.", "error")
+
+    return render_template("creator/apply.html")
+
+
 @creator_bp.route("/apply/google")
 def apply_with_google():
     try:

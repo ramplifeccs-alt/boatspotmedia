@@ -1,4 +1,4 @@
-BoatSpotMedia v37.8 Creator Google Param + Owner Passwords Fix
-- Fixes public.auth_google_register needing account_type='creator'.
-- Adds dedicated Owner page: /owner/creator-passwords.
-- Adds visible Creator Passwords / Reset Password link in Owner applications.
+BoatSpotMedia v37.9 Creator Apply Endpoint Fix
+- Adds missing creator.apply route so /creator/login renders correctly.
+- Login 'Apply to become a creator' link no longer crashes.
+- Keeps Google apply/login with account_type='creator'.
