@@ -38,3 +38,11 @@ button,.btn{display:inline-block;border:0;border-radius:10px;padding:12px 16px;t
 </div>
 </body>
 </html>
+<script>
+function regenerateThumbnail(videoId){
+  fetch("/creator/videos/"+videoId+"/regenerate-thumbnail",{method:"POST"})
+    .then(r=>r.json())
+    .then(d=>{ if(d.ok){ alert("Thumbnail regenerated."); location.reload(); } else { alert(d.error || "Could not regenerate thumbnail."); }})
+    .catch(()=>alert("Could not regenerate thumbnail."));
+}
+</script>

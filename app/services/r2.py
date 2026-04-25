@@ -59,3 +59,11 @@ def upload(file_obj, key, content_type="application/octet-stream"):
         ExtraArgs={"ContentType": content_type or "application/octet-stream"},
     )
     return key
+
+
+def upload_file(local_path, key, content_type="application/octet-stream"):
+    client = _client()
+    bucket = os.getenv("R2_BUCKET_NAME") or os.getenv("R2_BUCKET")
+    with open(local_path, "rb") as f:
+        client.put_object(Bucket=bucket, Key=key, Body=f, ContentType=content_type)
+    return key

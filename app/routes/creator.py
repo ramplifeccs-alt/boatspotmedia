@@ -73,10 +73,22 @@ def _creator_default_prices(creator):
 def _recalculate_creator_storage(creator_id):
     try:
         from app.models import CreatorProfile, Video
-        total = db.session.query(db.func.coalesce(db.func.sum(Video.file_size_bytes), 0)).filter(
+        total = int(db.session.query(db.func.coalesce(db.func.sum(Video.file_size_bytes), 0)).filter(
             Video.creator_id == creator_id,
             Video.status != "deleted"
-        ).scalar() or 0
+        ).scalar() or 0)
+        try:
+            batch_total = db.session.execute(db.text("""
+                SELECT COALESCE(SUM(
+                    COALESCE(total_size_bytes, size_bytes, file_size_bytes, storage_bytes, 0)
+                ), 0)
+                FROM video_batch
+                WHERE creator_id = :cid
+                  AND COALESCE(status, '') <> 'deleted'
+            """), {"cid": creator_id}).scalar() or 0
+            total = max(total, int(batch_total or 0))
+        except Exception:
+            pass
         c = CreatorProfile.query.get(creator_id)
         if c and hasattr(c, "storage_used_bytes"):
             c.storage_used_bytes = int(total)
@@ -198,6 +210,10 @@ def apple_login_under_construction():
 def dashboard():
     _ensure_creator_profile_deleted_column()
     creator = current_creator()
+    if creator:
+        _recalculate_creator_storage(creator.id)
+    storage_limit_gb, max_batch_gb = _creator_plan_limits(creator)
+    storage_used_gb = _creator_storage_used_gb(creator.id)
     if not creator:
         flash('Please log in with an approved creator account.', 'error')
         return redirect(url_for('creator.login'))
@@ -497,15 +513,43 @@ def _creator_plan_limits(creator):
 
 
 def _creator_storage_used_gb(creator_id):
+    """Robust storage calculation shown in Creator Dashboard.
+    Sums video.file_size_bytes, video_batch total fields, and creator_profile.storage_used_bytes fallback.
+    """
+    total = 0
     try:
         from app.models import Video
-        total = db.session.query(db.func.coalesce(db.func.sum(Video.file_size_bytes), 0)).filter(
+        total += int(db.session.query(db.func.coalesce(db.func.sum(Video.file_size_bytes), 0)).filter(
             Video.creator_id == creator_id,
             Video.status != "deleted"
-        ).scalar() or 0
-        return round(float(total) / (1024 ** 3), 2)
-    except Exception:
-        return 0.0
+        ).scalar() or 0)
+    except Exception as e:
+        print("storage video sum warning:", e)
+
+    # Some older batches store the total size only on video_batch.
+    try:
+        rows = db.session.execute(db.text("""
+            SELECT COALESCE(SUM(
+                COALESCE(total_size_bytes, size_bytes, file_size_bytes, storage_bytes, 0)
+            ), 0)
+            FROM video_batch
+            WHERE creator_id = :cid
+              AND COALESCE(status, '') <> 'deleted'
+        """), {"cid": creator_id}).scalar() or 0
+        total = max(total, int(rows or 0))
+    except Exception as e:
+        print("storage batch sum warning:", e)
+
+    # Fallback to profile storage_used_bytes if it is larger.
+    try:
+        from app.models import CreatorProfile
+        c = CreatorProfile.query.get(creator_id)
+        if c and getattr(c, "storage_used_bytes", None):
+            total = max(total, int(c.storage_used_bytes or 0))
+    except Exception as e:
+        print("storage profile warning:", e)
+
+    return round(float(total) / (1024 ** 3), 2)
 
 
 def _ensure_batch_exists_for_upload(batch_id, creator_id, batch_name="", location=""):
@@ -918,6 +962,86 @@ def cancel_upload_batch(batch_id):
         db.session.commit()
         _recalculate_creator_storage(creator.id)
         return jsonify({"ok": True, "message": "Upload cancelled and uploaded files were removed."})
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({"ok": False, "error": str(e)}), 500
+
+
+
+@creator_bp.route("/videos/<int:video_id>/regenerate-thumbnail", methods=["POST"])
+def regenerate_video_thumbnail(video_id):
+    creator = current_creator()
+    if not creator:
+        return jsonify({"ok": False, "error": "Please log in again."}), 401
+
+    try:
+        from app.models import Video
+        import tempfile, subprocess, os, json, urllib.request, uuid
+        from app.services.r2 import public_url_for_key
+        try:
+            from app.services.r2 import upload_file as r2_upload_file
+        except Exception:
+            r2_upload_file = None
+
+        v = Video.query.filter_by(id=video_id, creator_id=creator.id).first()
+        if not v:
+            return jsonify({"ok": False, "error": "Video not found."}), 404
+
+        public_video_url = public_url_for_key(v.r2_video_key or v.file_path)
+        if not public_video_url:
+            return jsonify({"ok": False, "error": "Video public URL unavailable for thumbnail generation."}), 400
+
+        tmpdir = tempfile.mkdtemp()
+        video_path = os.path.join(tmpdir, "video_original")
+        thumb_path = os.path.join(tmpdir, "thumb.jpg")
+
+        urllib.request.urlretrieve(public_video_url, video_path)
+
+        def duration(path):
+            try:
+                r = subprocess.run(["ffprobe","-v","error","-show_entries","format=duration","-of","json",path], capture_output=True, text=True, timeout=60)
+                return float(json.loads(r.stdout or "{}").get("format",{}).get("duration") or 0)
+            except Exception:
+                return 0
+
+        d = duration(video_path)
+        points = [0.50,0.45,0.55,0.60,0.40,0.65,0.35,0.70,0.25,0.75]
+        made = False
+        for pct in points:
+            t = max(1.0, d * pct if d else 2.0)
+            cmd = [
+                "ffmpeg","-y","-ss",str(t),"-i",video_path,
+                "-frames:v","1",
+                "-vf","crop=iw*0.70:ih*0.70:iw*0.15:ih*0.15,scale=1280:-2,eq=brightness=0.02:saturation=1.1",
+                "-q:v","2",thumb_path
+            ]
+            subprocess.run(cmd, capture_output=True, text=True, timeout=120)
+            if os.path.exists(thumb_path) and os.path.getsize(thumb_path) > 4000:
+                # basic black check using ffmpeg signalstats would be heavy; size threshold + multiple points is enough here.
+                made = True
+                break
+
+        if not made:
+            return jsonify({"ok": False, "error": "Could not generate a usable thumbnail."}), 500
+
+        thumb_key = f"creators/{creator.id}/batches/{v.batch_id}/thumbs/backend_{uuid.uuid4().hex}_{v.filename or 'thumb'}.jpg"
+        if r2_upload_file:
+            r2_upload_file(thumb_path, thumb_key, content_type="image/jpeg")
+        else:
+            try:
+                from app.services import r2
+                if hasattr(r2, "upload"):
+                    r2.upload(thumb_path, thumb_key, content_type="image/jpeg")
+                else:
+                    return jsonify({"ok": False, "error": "R2 upload helper not available."}), 500
+            except Exception as e:
+                return jsonify({"ok": False, "error": "R2 upload helper not available: " + str(e)}), 500
+
+        v.r2_thumbnail_key = thumb_key
+        v.thumbnail_path = thumb_key
+        v.public_thumbnail_url = public_url_for_key(thumb_key)
+        db.session.commit()
+        return jsonify({"ok": True, "thumbnail_url": v.public_thumbnail_url})
     except Exception as e:
         db.session.rollback()
         return jsonify({"ok": False, "error": str(e)}), 500

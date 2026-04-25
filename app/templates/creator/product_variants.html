@@ -72,3 +72,12 @@
 <script src="/static/js/mobile.js"></script>
 </body>
 </html>
+
+<script>
+function regenerateThumbnail(videoId){
+  fetch("/creator/videos/"+videoId+"/regenerate-thumbnail",{method:"POST"})
+    .then(r=>r.json())
+    .then(d=>{ if(d.ok){ alert("Thumbnail regenerated."); location.reload(); } else { alert(d.error || "Could not regenerate thumbnail."); }})
+    .catch(()=>alert("Could not regenerate thumbnail."));
+}
+</script>

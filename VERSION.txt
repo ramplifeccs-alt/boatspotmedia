@@ -1,5 +1,6 @@
-BoatSpotMedia v38.1 Upload UI + Thumbnail Fix
-- Cancel Upload button appears during upload, not only after finishing.
-- Price fields are hidden only inside upload form; Pricing menu remains visible.
-- Creator pages get a top bar with BoatSpotMedia Home link, Products, creator email, and Logout.
-- Browser thumbnail capture now uses middle frame, 30% zoom crop, and retries if the frame is black.
+BoatSpotMedia v38.2 Storage + Backend Thumbnail Fix
+- Creator Dashboard storage now sums video table, video_batch table, and creator profile fallback.
+- Recalculates storage when dashboard loads.
+- Adds backend thumbnail regeneration endpoint using ffmpeg from multiple points in the video with 30% zoom.
+- Adds R2 upload_file helper if missing.
+- Keeps cancel upload and creator topbar fixes.
