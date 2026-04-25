@@ -145,6 +145,16 @@ def activate_creator(creator_id):
 
 
 
+
+@owner_bp.route("/creator-passwords")
+def creator_passwords():
+    _ensure_creator_profile_deleted_column()
+    creators = CreatorProfile.query.filter(
+        (CreatorProfile.deleted == False) | (CreatorProfile.deleted.is_(None))
+    ).order_by(CreatorProfile.id.desc()).all()
+    return render_template("owner/creator_passwords.html", creators=creators)
+
+
 @owner_bp.route("/creators/<int:creator_id>/reset-password", methods=["GET", "POST"])
 def reset_creator_password_page(creator_id):
     _ensure_creator_profile_deleted_column()

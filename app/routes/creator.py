@@ -801,7 +801,7 @@ def delete_video(video_id):
 @creator_bp.route("/apply/google")
 def apply_with_google():
     try:
-        return redirect(url_for("public.auth_google_register"))
+        return redirect(url_for("public.auth_google_register", account_type="creator"))
     except Exception:
         flash("Google application/login is not fully configured yet. Please apply with email for now.", "info")
         return redirect(url_for("creator.apply"))

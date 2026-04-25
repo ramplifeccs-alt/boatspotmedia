@@ -1,5 +1,4 @@
-BoatSpotMedia v37.7 Owner Layout + Google Endpoint Fix
-- Restores Owner Applications layout/menu instead of forced standalone page.
-- Keeps visible Reset Password link/page.
-- Fixes Google endpoint from auth.google_login to public.auth_google_register.
-- Login creator no longer crashes on Google button.
+BoatSpotMedia v37.8 Creator Google Param + Owner Passwords Fix
+- Fixes public.auth_google_register needing account_type='creator'.
+- Adds dedicated Owner page: /owner/creator-passwords.
+- Adds visible Creator Passwords / Reset Password link in Owner applications.
