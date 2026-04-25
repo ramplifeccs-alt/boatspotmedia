@@ -170,6 +170,8 @@ def delete_creator(creator_id):
         if c.user:
             c.user.is_active = False
             c.user.role = "deleted_creator"
+            if hasattr(c.user, "password_hash"):
+                c.user.password_hash = "DELETED_CREATOR_LOGIN_DISABLED"
         db.session.commit()
     except Exception as e:
         db.session.rollback()

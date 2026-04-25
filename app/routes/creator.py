@@ -1,3 +1,4 @@
+from werkzeug.security import check_password_hash
 import os, tempfile, uuid
 from flask import Blueprint, render_template, request, redirect, url_for, current_app, flash, jsonify, session
 from app.models import User, CreatorProfile, Batch, Video, Location, CreatorClickStats, Product, VideoPricingPreset, OrderItem, StoragePlan, ProductVariant
@@ -47,38 +48,33 @@ def _ensure_creator_profile_deleted_column():
 
 def current_creator():
     _ensure_creator_profile_deleted_column()
-    creator = CreatorProfile.query.first()
+    user_id = session.get("user_id")
+    user_email = session.get("user_email") or session.get("email")
+    creator_id = session.get("creator_id")
 
-    if not creator:
-        user = User(
-            email="creator@test.com",
-            role="creator",
-            display_name="Test Creator",
-            is_active=True
-        )
-        db.session.add(user)
-        db.session.flush()
+    q = CreatorProfile.query.filter(
+        CreatorProfile.approved == True,
+        CreatorProfile.suspended == False,
+        db.or_(CreatorProfile.deleted == False, CreatorProfile.deleted.is_(None))
+    )
 
-        creator = CreatorProfile(
-            user_id=user.id,
-            approved=True,
-            storage_limit_gb=512,
-            commission_rate=20,
-            product_commission_rate=20
-        )
-        db.session.add(creator)
-        db.session.flush()
-        db.session.add(CreatorClickStats(creator_id=creator.id))
-        db.session.commit()
+    if creator_id:
+        creator = q.filter_by(id=creator_id).first()
+        if creator:
+            return creator
 
-    try:
-        if creator.user and (not creator.user.display_name or creator.user.display_name == "None"):
-            creator.user.display_name = "Creator"
-            db.session.commit()
-    except Exception:
-        db.session.rollback()
+    if user_id:
+        creator = q.filter_by(user_id=user_id).first()
+        if creator:
+            return creator
 
-    return creator
+    if user_email:
+        creator = q.join(User, CreatorProfile.user_id == User.id).filter(db.func.lower(User.email) == user_email.lower()).first()
+        if creator:
+            return creator
+
+    return None
+
 
 def render_creator_template(template_name, **kwargs):
     creator = kwargs.get("creator") or current_creator()
@@ -104,14 +100,57 @@ def logout():
 
 @creator_bp.route("/login", methods=["GET", "POST"])
 def login():
+    _ensure_creator_profile_deleted_column()
     if request.method == "POST":
+        email = (request.form.get("email") or request.form.get("username") or "").strip().lower()
+        password = request.form.get("password") or ""
+
+        user = User.query.filter(db.func.lower(User.email) == email).first()
+        if not user:
+            flash("Invalid email or password.", "error")
+            return render_template("creator/login.html")
+
+        stored_hash = getattr(user, "password_hash", None) or getattr(user, "password", None)
+        valid_password = False
+        try:
+            valid_password = bool(stored_hash and check_password_hash(stored_hash, password))
+        except Exception:
+            valid_password = False
+        if not valid_password and stored_hash and stored_hash == password:
+            valid_password = True
+
+        if not valid_password:
+            flash("Invalid email or password.", "error")
+            return render_template("creator/login.html")
+
+        creator = CreatorProfile.query.filter(
+            CreatorProfile.user_id == user.id,
+            CreatorProfile.approved == True,
+            CreatorProfile.suspended == False,
+            db.or_(CreatorProfile.deleted == False, CreatorProfile.deleted.is_(None))
+        ).first()
+
+        if not creator:
+            flash("Creator account is not approved or is no longer active.", "error")
+            return render_template("creator/login.html")
+
+        session.clear()
+        session["user_id"] = user.id
+        session["user_email"] = user.email
+        session["creator_id"] = creator.id
+        session["role"] = "creator"
         return redirect(url_for("creator.dashboard"))
+
     return render_template("creator/login.html")
+
 
 @creator_bp.route("/dashboard")
 def dashboard():
     _ensure_creator_profile_deleted_column()
     creator = current_creator()
+    if not creator:
+        flash('Please log in with an approved creator account.', 'error')
+        return redirect(url_for('creator.login'))
     stats = CreatorClickStats.query.filter_by(creator_id=creator.id).first()
     if not stats:
         stats = CreatorClickStats(creator_id=creator.id)

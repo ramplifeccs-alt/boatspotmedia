@@ -1,4 +1,4 @@
-BoatSpotMedia v37 Creator Deleted Column Boot Fix
-- Creates creator_profile.deleted before any Owner/Creator ORM query uses it.
-- Fixes PostgreSQL UndefinedColumn: creator_profile.deleted does not exist.
-- Keeps delete creator behavior and video_batch FK fix.
+BoatSpotMedia v37.1 Creator Login Security Fix
+- Blocks creator login with wrong password.
+- Removes fallback to deleted/first creator.
+- Uses exact creator_id/user_id/email session match only.
