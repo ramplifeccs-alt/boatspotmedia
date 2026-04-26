@@ -1,6 +1,6 @@
-BoatSpotMedia v41.1 REAL Thumbnail v38 Engine Patch
-- Base: v41.0 R2 Batch Delete Thumbnail Repair Fix.
-- Surgical patch only; does not revert current app.
-- Restores v38.2-style backend thumbnail generation after upload.
-- Uses ffmpeg multi-seek 10/25/50/75/90% with dark-frame rejection.
-- Keeps metadata date/time, View & Buy, Captured by, Terms footer, current routes, and R2 cleanup work.
+BoatSpotMedia v41.2 Python FFmpeg Binary Fix
+- Fixes Railway missing ffmpeg/ffprobe.
+- Adds imageio-ffmpeg Python dependency, which provides an ffmpeg binary without apt/Nixpacks.
+- Thumbnail engine now uses imageio_ffmpeg.get_ffmpeg_exe() first.
+- Keeps v41.1 thumbnail engine, metadata, View & Buy, Captured by, Terms footer, and R2 cleanup.
+- If ffprobe is unavailable, thumbnail generation still tries deeper seek points: 10/20/30/45/60 seconds.

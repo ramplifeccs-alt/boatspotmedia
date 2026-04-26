@@ -379,6 +379,28 @@ def _fill_public_thumbnail_url(video):
 
 
 
+
+def _ffmpeg_bin():
+    try:
+        import imageio_ffmpeg
+        path = imageio_ffmpeg.get_ffmpeg_exe()
+        if path:
+            return path
+    except Exception as e:
+        try:
+            print("imageio-ffmpeg lookup warning:", e)
+        except Exception:
+            pass
+    return "ffmpeg"
+
+
+def _ffprobe_bin():
+    # imageio-ffmpeg ships ffmpeg, not always ffprobe. If ffprobe is missing, metadata/duration can be skipped.
+    import shutil, os
+    fp = shutil.which("ffprobe")
+    return fp or "ffprobe"
+
+
 def _thumb_image_is_dark(path):
     try:
         from PIL import Image, ImageStat
@@ -395,7 +417,7 @@ def _get_video_duration_seconds(local_video):
     try:
         import subprocess
         result = subprocess.run(
-            ["ffprobe", "-v", "error", "-show_entries", "format=duration", "-of", "default=nw=1:nk=1", local_video],
+            [_ffprobe_bin(), "-v", "error", "-show_entries", "format=duration", "-of", "default=nw=1:nk=1", local_video],
             stdout=subprocess.PIPE,
             stderr=subprocess.PIPE,
             text=True,
@@ -415,7 +437,7 @@ def _get_video_creation_datetime(local_video):
         import subprocess, json
         result = subprocess.run(
             [
-                "ffprobe", "-v", "error",
+                _ffprobe_bin(), "-v", "error",
                 "-show_entries", "format_tags=creation_time:stream_tags=creation_time",
                 "-of", "json",
                 local_video,
@@ -463,6 +485,10 @@ def _generate_and_attach_thumbnail_for_video(video):
 
         client = get_r2_client()
         bucket = _bucket_name()
+        try:
+            print("thumbnail engine using ffmpeg:", _ffmpeg_bin())
+        except Exception:
+            pass
         tmp_dir = tempfile.mkdtemp(prefix="bsm_v38_thumb_")
         local_video = os.path.join(tmp_dir, "input_video")
         local_thumb = os.path.join(tmp_dir, "thumb.jpg")
@@ -490,7 +516,7 @@ def _generate_and_attach_thumbnail_for_video(video):
         elif duration and duration > 4:
             seek_points = [duration * 0.25, duration * 0.50, duration * 0.75, 2, 1]
         else:
-            seek_points = [2, 1, 0.5]
+            seek_points = [10, 20, 30, 45, 60, 2, 1, 0.5]
 
         good = False
         last_error = ""
