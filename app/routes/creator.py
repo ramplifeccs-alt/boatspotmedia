@@ -407,7 +407,7 @@ def _parse_ffprobe_creation_time(local_video):
             except Exception:
                 pass
     except Exception as e:
-        try: print("ffprobe creation_time warning:", e)
+        try: print("optional ffprobe creation_time warning:", e)
         except Exception: pass
     return None, None
 
@@ -540,7 +540,7 @@ def _generate_and_attach_thumbnail_for_video(video):
         except Exception: pass
         return True
     except Exception as e:
-        try: print("thumbnail/metadata generation warning:", e)
+        try: print("optional thumbnail/metadata generation warning:", e)
         except Exception: pass
         return False
 

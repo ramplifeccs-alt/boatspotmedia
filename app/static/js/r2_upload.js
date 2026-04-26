@@ -313,7 +313,7 @@
       const meta = {
         batch_name: formData.get("batch_name"),
         location: formData.get("location"),
-        files: files.map(f => ({name:f.name, size:f.size, type:f.type || "application/octet-stream", last_modified:f.lastModified || null, last_modified_iso:f.lastModified ? new Date(f.lastModified).toISOString() : null, last_modified_local: localDateTimeStringFromMs(f.lastModified)}))
+        files: files.map(f => ({name:f.name, size:f.size, type:f.type || "application/octet-stream", last_modified:f.lastModified || null, last_modified_iso:f.lastModified ? new Date(f.lastModified).toISOString() : null, last_modified_local: localDateTimeStringFromMs(f.lastModified), last_modified_local: localDateTimeStringFromMs(f.lastModified)}))
       };
 
       try{

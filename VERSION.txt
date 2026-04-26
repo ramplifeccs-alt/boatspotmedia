@@ -1,5 +1,6 @@
-BoatSpotMedia v40.7 Footer Internal Thumb FFprobe Fix
-- Moves Terms out of top menu and keeps it in footer.
-- Adds internal /video-thumbnail/<id> route so thumbnails do not depend on public R2 URL setup.
-- After upload, server downloads R2 video, reads creation_time with ffprobe, and updates recorded_date/time.
-- Generates thumbnail by testing several points in the video and rejecting mostly black frames when possible.
+BoatSpotMedia v40.8 Browser Thumbnail No FFmpeg Fix
+- Fixes thumbnail generation when Railway does not have ffprobe/ffmpeg installed.
+- Generates thumbnails in the browser from the selected original video file.
+- Uploads thumbnail JPG directly to R2 using presigned PUT.
+- Saves thumbnail_key/public_thumbnail_url with the video record.
+- Keeps correct file date/time handling from previous version.
