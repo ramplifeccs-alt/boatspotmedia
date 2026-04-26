@@ -3,7 +3,7 @@
 <head>
   <meta name="viewport" content="width=device-width, initial-scale=1"><meta charset="utf-8"><title>Boat Services - BoatSpotMedia</title><link rel="stylesheet" href="/static/css/style.css"></head>
 <body>
-<header><div><b>BoatSpotMedia</b></div><nav><a href="/">Home</a><a href="/search">Find Your Video</a><a href="/shop">Shop</a><a href="/services">Services</a><a href="/terms">Terms</a><a href="https://charters.boatspotmedia.com">Charters</a>{% if session.get("user_id") %}
+<header><div><b>BoatSpotMedia</b></div><nav><a href="/">Home</a><a href="/search">Find Your Video</a><a href="/shop">Shop</a><a href="/services">Services</a><a href="https://charters.boatspotmedia.com">Charters</a>{% if session.get("user_id") %}
   <span class="nav-user">{{ session.get("display_name") or session.get("user_email") }}</span>
   {% if session.get("user_role") == "buyer" %}
     <a href="/buyer/dashboard">Dashboard</a>
@@ -38,5 +38,10 @@
   </div>
 </div>
 <script src="/static/js/mobile.js"></script>
+
+  <footer style="padding:24px;text-align:center;color:#6b7280;font-size:14px;">
+    <a href="/terms" style="color:#6b7280;text-decoration:none;font-weight:700;">Terms of Service</a>
+  </footer>
+
 </body>
 </html>

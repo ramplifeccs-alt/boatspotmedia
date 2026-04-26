@@ -47,7 +47,7 @@
       <a href="/">Home</a>
       <a href="/find-video">Find Your Video</a>
       <a href="/shop">Shop</a>
-      <a href="/services">Services</a><a href="/terms">Terms</a>
+      <a href="/services">Services</a>
       <a href="https://charters.boatspotmedia.com">Charters</a>
       {% if account_display_name is defined %}
         <a class="pill" href="{{ account_dashboard_url() }}">{{ account_display_name() }}</a>
@@ -71,10 +71,10 @@
       <h2>Latest Uploads</h2>
       <div class="latest-grid">
         {% for video in latest_videos[:3] %}
-          {% set thumb = video_thumb_url(video) if video_thumb_url is defined else (video.public_thumbnail_url or video.thumbnail_url or video.thumbnail_path or '') %}
           <article class="video-card">
-            {% if thumb %}
-              <img class="thumb" src="{{ thumb }}" alt="Boat video thumbnail" loading="lazy">
+            {% set has_thumb = video.public_thumbnail_url or video.thumbnail_url or video.thumbnail_path or video.r2_thumbnail_key %}
+            {% if has_thumb %}
+              <img class="thumb" src="/video-thumbnail/{{ video.id }}" alt="Boat video thumbnail" loading="lazy">
             {% else %}
               <div class="thumb-pending">Thumbnail pending</div>
             {% endif %}
@@ -93,5 +93,10 @@
       </div>
     </section>
   </main>
+
+  <footer style="padding:24px;text-align:center;color:#6b7280;font-size:14px;">
+    <a href="/terms" style="color:#6b7280;text-decoration:none;font-weight:700;">Terms of Service</a>
+  </footer>
+
 </body>
 </html>

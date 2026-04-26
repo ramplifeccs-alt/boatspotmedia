@@ -1,7 +1,7 @@
 from app.services.pricing import creator_video_price_options
 import os
 from datetime import datetime
-from flask import Blueprint, redirect, render_template, request, url_for, session, jsonify
+from flask import Blueprint, redirect, render_template, request, url_for, session, jsonify, Response, send_file, abort
 from sqlalchemy import text
 from werkzeug.security import generate_password_hash
 from app.models import Video, Location, ServiceAd, CharterListing, User
@@ -638,3 +638,29 @@ def terms():
 @public_bp.route("/charters")
 def charters_redirect():
     return redirect("https://charters.boatspotmedia.com", code=302)
+
+
+
+@public_bp.route("/video-thumbnail/<int:video_id>")
+def video_thumbnail(video_id):
+    from app.models import Video
+    import io, os
+    video = Video.query.get_or_404(video_id)
+
+    # Prefer direct public URL if present.
+    for attr in ["public_thumbnail_url", "thumbnail_url"]:
+        value = getattr(video, attr, None)
+        if value:
+            return redirect(value, code=302)
+
+    key = getattr(video, "r2_thumbnail_key", None) or getattr(video, "thumbnail_path", None)
+    if not key:
+        abort(404)
+
+    try:
+        from app.services.r2 import get_r2_client, _bucket_name
+        obj = get_r2_client().get_object(Bucket=_bucket_name(), Key=key)
+        data = obj["Body"].read()
+        return Response(data, mimetype="image/jpeg")
+    except Exception:
+        abort(404)

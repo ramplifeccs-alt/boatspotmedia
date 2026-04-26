@@ -1,5 +1,5 @@
 <!doctype html><html><head>
-  <meta name="viewport" content="width=device-width, initial-scale=1"><meta charset="utf-8"><title>BoatSpotMedia</title><link rel="stylesheet" href="/static/css/style.css"></head><body><header><div><b>BoatSpotMedia</b></div><nav><a href="/">Home</a><a href="/search">Find Your Video</a><a href="/services">Services</a><a href="/terms">Terms</a><a href="https://charters.boatspotmedia.com">Charters</a><a href="/apply-creator">Apply as Creator</a>{% if session.get("user_id") %}
+  <meta name="viewport" content="width=device-width, initial-scale=1"><meta charset="utf-8"><title>BoatSpotMedia</title><link rel="stylesheet" href="/static/css/style.css"></head><body><header><div><b>BoatSpotMedia</b></div><nav><a href="/">Home</a><a href="/search">Find Your Video</a><a href="/services">Services</a><a href="https://charters.boatspotmedia.com">Charters</a><a href="/apply-creator">Apply as Creator</a>{% if session.get("user_id") %}
   <span class="nav-user">{{ session.get("display_name") or session.get("user_email") }}</span>
   {% if session.get("user_role") == "buyer" %}
     <a href="/buyer/dashboard">Dashboard</a>

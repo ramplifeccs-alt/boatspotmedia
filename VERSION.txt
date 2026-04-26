@@ -1,7 +1,5 @@
-BoatSpotMedia v40.6 Legal Browser Thumbnail Local Time Fix
-- Adds Terms of Service page with marketplace, creator/vendor, products, charters, media licensing, DMCA, liability, and marketplace role language.
-- Adds Terms menu link where possible.
-- Changes Charters menu to https://charters.boatspotmedia.com and adds redirect route.
-- Removes v40.5 visible test markers.
-- Adds browser-generated thumbnails from the original selected video file, uploads them to R2, and saves public thumbnail URL.
-- Sends local file lastModified timestamp to reduce UTC time shift.
+BoatSpotMedia v40.7 Footer Internal Thumb FFprobe Fix
+- Moves Terms out of top menu and keeps it in footer.
+- Adds internal /video-thumbnail/<id> route so thumbnails do not depend on public R2 URL setup.
+- After upload, server downloads R2 video, reads creation_time with ffprobe, and updates recorded_date/time.
+- Generates thumbnail by testing several points in the video and rejecting mostly black frames when possible.
