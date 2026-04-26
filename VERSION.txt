@@ -1,7 +1,3 @@
-BoatSpotMedia v40 Metadata Home Locations Fix
-- Sends browser file timestamp to backend and uses it for recorded_date/recorded_time.
-- Home page shows only the latest 3 uploaded videos.
-- Removes old Latest post / Video preview block by rebuilding home template.
-- Search locations are generated dynamically from active videos only.
-- Deleted batches/videos remove their locations from buyer search once no active video uses that location.
-- Keeps R2 upload pipeline fixes.
+BoatSpotMedia v40.1 Home url_for Fix
+- Fixes public/home.html runtime error caused by invalid conditional inside url_for.
+- Keeps v40 metadata, home latest 3 videos, and dynamic active locations fixes.
