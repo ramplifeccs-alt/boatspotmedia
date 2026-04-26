@@ -1,6 +1,6 @@
-BoatSpotMedia v41.2 Python FFmpeg Binary Fix
-- Fixes Railway missing ffmpeg/ffprobe.
-- Adds imageio-ffmpeg Python dependency, which provides an ffmpeg binary without apt/Nixpacks.
-- Thumbnail engine now uses imageio_ffmpeg.get_ffmpeg_exe() first.
-- Keeps v41.1 thumbnail engine, metadata, View & Buy, Captured by, Terms footer, and R2 cleanup.
-- If ffprobe is unavailable, thumbnail generation still tries deeper seek points: 10/20/30/45/60 seconds.
+BoatSpotMedia v41.3 Force FFmpeg and R2 Delete Fix
+- Forces every creator.py subprocess call from literal ffmpeg/ffprobe to _ffmpeg_bin()/_ffprobe_bin().
+- Adds imageio-ffmpeg dependency and logs actual ffmpeg path used.
+- Adds explicit cancel route /upload/batch/<id>/cancel to delete R2 prefix and DB batch.
+- Adds explicit full delete route /batch/<id>/delete-full to delete R2 prefix and DB batch.
+- Patches existing batch delete code to call _delete_batch_files_from_r2(batch).

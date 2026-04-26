@@ -478,6 +478,11 @@ def _generate_and_attach_thumbnail_for_video(video):
         import os, tempfile, uuid, subprocess, shutil
         from app.services.r2 import get_r2_client, _bucket_name
 
+        try:
+            print("thumbnail engine actual ffmpeg:", _ffmpeg_bin())
+        except Exception:
+            pass
+
         video_key = getattr(video, "r2_video_key", None) or getattr(video, "file_path", None)
         if not video_key:
             print("thumbnail warning: missing r2_video_key/file_path")
@@ -605,17 +610,138 @@ def _generate_and_attach_thumbnail_for_video(video):
         return False
 
 
-def _abort_known_multipart_uploads_for_batch(batch_id, creator_id=None):
+
+def _batch_creator_id_for_prefix(batch):
+    try:
+        creator_id = getattr(batch, "creator_id", None)
+        if creator_id:
+            return creator_id
+    except Exception:
+        pass
+    try:
+        return getattr(current_creator(), "id", None)
+    except Exception:
+        return None
+
+
+def _delete_batch_files_from_r2(batch):
+    try:
+        from app.services.r2 import delete_r2_object, delete_r2_prefix
+        deleted = 0
+        batch_id = getattr(batch, "id", None)
+        creator_id = _batch_creator_id_for_prefix(batch)
+
+        try:
+            from app.models import Video
+            videos = Video.query.filter_by(batch_id=batch_id).all()
+            for v in videos:
+                for attr in ["r2_video_key", "file_path", "r2_thumbnail_key", "thumbnail_path"]:
+                    key = getattr(v, attr, None)
+                    if key and not str(key).startswith("http"):
+                        try:
+                            delete_r2_object(key)
+                            deleted += 1
+                        except Exception as e:
+                            try: print("R2 object delete warning:", key, e)
+                            except Exception: pass
+        except Exception as e:
+            try: print("R2 DB lookup delete warning:", e)
+            except Exception: pass
+
+        if creator_id and batch_id:
+            prefix = f"creators/{creator_id}/batches/{batch_id}/"
+            try:
+                prefix_deleted = delete_r2_prefix(prefix)
+                print("R2 prefix deleted:", prefix, prefix_deleted)
+                deleted += prefix_deleted
+            except Exception as e:
+                try: print("R2 prefix delete warning:", prefix, e)
+                except Exception: pass
+
+        return deleted
+    except Exception as e:
+        try: print("R2 batch cleanup warning:", e)
+        except Exception: pass
+        return 0
+
+
+def _cleanup_cancelled_upload_prefix(batch_id, creator_id=None):
     try:
         from app.services.r2 import delete_r2_prefix
+        if not creator_id:
+            try:
+                creator_id = getattr(current_creator(), "id", None)
+            except Exception:
+                creator_id = None
         if creator_id and batch_id:
-            return delete_r2_prefix(f"creators/{creator_id}/batches/{batch_id}/")
+            prefix = f"creators/{creator_id}/batches/{batch_id}/"
+            deleted = delete_r2_prefix(prefix)
+            print("R2 cancelled upload prefix deleted:", prefix, deleted)
+            return deleted
     except Exception as e:
+        try: print("R2 cancel cleanup warning:", e)
+        except Exception: pass
+    return 0
+
+
+
+@creator_bp.route("/upload/batch/<int:batch_id>/cancel", methods=["POST"])
+@creator_bp.route("/creator/upload/batch/<int:batch_id>/cancel", methods=["POST"])
+def cancel_upload_batch_and_cleanup(batch_id):
+    creator = current_creator()
+    if not creator:
+        return jsonify({"ok": False, "error": "Please log in again."}), 401
+
+    deleted = _cleanup_cancelled_upload_prefix(batch_id, getattr(creator, "id", None))
+
+    try:
+        from app.models import VideoBatch, Video
+        batch = VideoBatch.query.get(batch_id)
+        if batch:
+            try:
+                for v in Video.query.filter_by(batch_id=batch_id).all():
+                    db.session.delete(v)
+            except Exception:
+                pass
+            try:
+                _delete_batch_files_from_r2(batch)
+            except Exception:
+                pass
+            db.session.delete(batch)
+            db.session.commit()
+    except Exception as e:
+        db.session.rollback()
+        try: print("cancel batch DB cleanup warning:", e)
+        except Exception: pass
+
+    return jsonify({"ok": True, "deleted_objects": deleted})
+
+
+@creator_bp.route("/batch/<int:batch_id>/delete-full", methods=["POST"])
+@creator_bp.route("/creator/batch/<int:batch_id>/delete-full", methods=["POST"])
+def delete_batch_full_cleanup(batch_id):
+    creator = current_creator()
+    if not creator:
+        return jsonify({"ok": False, "error": "Please log in again."}), 401
+    try:
+        from app.models import VideoBatch, Video
+        batch = VideoBatch.query.get_or_404(batch_id)
+        deleted = _delete_batch_files_from_r2(batch)
         try:
-            print("multipart cleanup warning:", e)
+            for v in Video.query.filter_by(batch_id=batch_id).all():
+                db.session.delete(v)
         except Exception:
             pass
-    return 0
+        try:
+            _delete_batch_files_from_r2(batch)
+        except Exception:
+            pass
+        db.session.delete(batch)
+        db.session.commit()
+        return jsonify({"ok": True, "deleted_objects": deleted})
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({"ok": False, "error": str(e)}), 500
 
 
 @creator_bp.route("/video/<int:video_id>/generate-thumbnail", methods=["POST"])
@@ -1448,6 +1574,10 @@ def delete_batch(batch_id):
     videos = Video.query.filter_by(batch_id=batch.id, creator_id=creator.id).all()
     for v in videos:
         v.status = "deleted"
+    try:
+        _delete_batch_files_from_r2(batch)
+    except Exception:
+        pass
     batch.status = "deleted"
     db.session.commit()
     return redirect(url_for("creator.batches"))
@@ -1539,6 +1669,10 @@ def cancel_upload_batch(batch_id):
             db.session.delete(v)
         batch = VideoBatch.query.filter_by(id=batch_id, creator_id=creator.id).first()
         if batch:
+            try:
+                _delete_batch_files_from_r2(batch)
+            except Exception:
+                pass
             db.session.delete(batch)
         db.session.commit()
         _recalculate_creator_storage(creator.id)
@@ -1580,7 +1714,7 @@ def regenerate_video_thumbnail(video_id):
 
         def duration(path):
             try:
-                r = subprocess.run(["ffprobe","-v","error","-show_entries","format=duration","-of","json",path], capture_output=True, text=True, timeout=60)
+                r = subprocess.run([_ffprobe_bin(),"-v","error","-show_entries","format=duration","-of","json",path], capture_output=True, text=True, timeout=60)
                 return float(json.loads(r.stdout or "{}").get("format",{}).get("duration") or 0)
             except Exception:
                 return 0
