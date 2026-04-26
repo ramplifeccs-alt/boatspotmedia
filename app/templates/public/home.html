@@ -83,8 +83,9 @@
               {% if video.recorded_date %}{{ video.recorded_date }}{% endif %}
               {% if video.recorded_time %} {{ video.recorded_time }}{% endif %}
             </p>
+            <p style="margin:4px 0 0;color:#6b7280;font-size:14px;"><strong>Captured by:</strong> {{ creator_name(video) if creator_name is defined else 'Creator' }}</p>
             <div class="card-actions">
-              <a class="btn" href="/find-video">Preview</a>
+              <a class="btn" href="/video/{{ video.id }}">View & Buy</a>
             </div>
           </article>
         {% else %}

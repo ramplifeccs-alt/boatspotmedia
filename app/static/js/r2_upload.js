@@ -341,7 +341,7 @@
           }
         }
 
-        setStatus("Generating thumbnails...");
+        setStatus("Generating thumbnails if the browser supports this camera format...");
         const browserThumbs = [];
         for(let i=0; i<files.length; i++){
           try{

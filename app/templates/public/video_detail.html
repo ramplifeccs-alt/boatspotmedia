@@ -1,0 +1,45 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>View & Buy | BoatSpotMedia</title>
+  <style>
+    body{margin:0;font-family:Arial,Helvetica,sans-serif;background:#f3f6fb;color:#111827}
+    .topbar{background:#071426;color:white;padding:16px 24px;display:flex;justify-content:space-between;align-items:center}
+    .topbar a{color:white;text-decoration:none;font-weight:700;margin-left:18px}
+    .brand{font-size:22px;font-weight:900}
+    .wrap{max-width:980px;margin:0 auto;padding:34px 20px 70px}
+    .card{background:white;border-radius:20px;padding:24px;box-shadow:0 12px 34px rgba(15,23,42,.08)}
+    .thumb{width:100%;max-height:520px;object-fit:cover;border-radius:16px;background:#111827}
+    .btn{display:inline-block;background:#2563eb;color:white;text-decoration:none;padding:12px 16px;border-radius:10px;font-weight:800;margin-top:16px}
+    .muted{color:#6b7280}
+  </style>
+</head>
+<body>
+<header class="topbar">
+  <a class="brand" href="/">BoatSpotMedia</a>
+  <nav><a href="/">Home</a><a href="/find-video">Find Your Video</a><a href="/shop">Shop</a></nav>
+</header>
+<main class="wrap">
+  <div class="card">
+    {% set thumb = video_thumb_url(video) if video_thumb_url is defined else None %}
+    {% if thumb or video.r2_thumbnail_key or video.thumbnail_path %}
+      <img class="thumb" src="/video-thumbnail/{{ video.id }}" alt="Boat video thumbnail">
+    {% else %}
+      <div class="thumb" style="display:flex;align-items:center;justify-content:center;color:white;height:360px;">Thumbnail pending</div>
+    {% endif %}
+    <h1>{{ video.location or 'Boat video' }}</h1>
+    <p class="muted">
+      {% if video.recorded_date %}{{ video.recorded_date }}{% endif %}
+      {% if video.recorded_time %} {{ video.recorded_time }}{% endif %}
+    </p>
+    <p><strong>Captured by:</strong> {{ creator_name(video) }}</p>
+    <a class="btn" href="/find-video">Continue to Purchase</a>
+  </div>
+</main>
+<footer style="padding:24px;text-align:center;color:#6b7280;font-size:14px;">
+  <a href="/terms" style="color:#6b7280;text-decoration:none;font-weight:700;">Terms of Service</a>
+</footer>
+</body>
+</html>

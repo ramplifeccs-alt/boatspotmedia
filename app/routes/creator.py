@@ -545,6 +545,23 @@ def _generate_and_attach_thumbnail_for_video(video):
         return False
 
 
+
+@creator_bp.route("/video/<int:video_id>/generate-thumbnail", methods=["POST"])
+def generate_video_thumbnail(video_id):
+    creator = current_creator()
+    if not creator:
+        return jsonify({"ok": False, "error": "Please log in again."}), 401
+    from app.models import Video
+    v = Video.query.get_or_404(video_id)
+    if getattr(v, "creator_id", None) != getattr(creator, "id", None):
+        return jsonify({"ok": False, "error": "Not allowed."}), 403
+    ok = _generate_and_attach_thumbnail_for_video(v)
+    if ok:
+        db.session.commit()
+        return jsonify({"ok": True})
+    return jsonify({"ok": False, "error": "Could not generate thumbnail. Make sure ffmpeg is installed on the server."}), 500
+
+
 @creator_bp.route("/health")
 def health():
     c = current_creator()
@@ -1216,7 +1233,9 @@ def upload_r2_complete():
         # Generate thumbnails and read video metadata from the actual uploaded R2 video.
         try:
             for v in created:
-                _generate_and_attach_thumbnail_for_video(v)
+                has_thumb = bool(getattr(v, "public_thumbnail_url", None) or getattr(v, "thumbnail_url", None) or getattr(v, "thumbnail_path", None) or getattr(v, "r2_thumbnail_key", None))
+                if not has_thumb:
+                    _generate_and_attach_thumbnail_for_video(v)
                 _fill_public_thumbnail_url(v)
             db.session.commit()
         except Exception:

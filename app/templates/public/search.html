@@ -43,7 +43,7 @@
 <b>{{v.location}}</b><br>
 <small>{{ v.recorded_at.strftime('%m/%d/%Y %I:%M %p') if v.recorded_at else "Time pending" }}</small><br>
 <small>Captured by: {{ v.creator.user.display_name if v.creator and v.creator.user else "Creator" }}</small><br><br>
-<a class="btn" href="/preview/{{v.id}}">Open Preview</a>
+<a class="btn" href="/preview/{{v.id}}">Open View & Buy</a>
 </div>
 {% else %}<p>No matching videos.</p>{% endfor %}
 </div>

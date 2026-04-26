@@ -1,6 +1,7 @@
-BoatSpotMedia v40.8 Browser Thumbnail No FFmpeg Fix
-- Fixes thumbnail generation when Railway does not have ffprobe/ffmpeg installed.
-- Generates thumbnails in the browser from the selected original video file.
-- Uploads thumbnail JPG directly to R2 using presigned PUT.
-- Saves thumbnail_key/public_thumbnail_url with the video record.
-- Keeps correct file date/time handling from previous version.
+BoatSpotMedia v40.9 Camera Formats View Buy Fix
+- Adds ffmpeg install support for Railway/Nixpacks via nixpacks.toml and Aptfile.
+- Browser thumbnail remains first attempt; server ffmpeg fallback handles camera formats Safari cannot decode.
+- Adds creator endpoint to regenerate thumbnail.
+- Changes Preview buttons to View & Buy.
+- Adds Captured by: creator name on video cards/detail.
+- Adds simple /video/<id> detail page to avoid preview errors.

@@ -146,6 +146,35 @@ def _public_latest_home_videos(limit=3):
     return q.limit(limit).all()
 
 
+
+def _public_creator_name(video):
+    try:
+        creator = getattr(video, "creator", None)
+        if creator:
+            for attr in ["display_name", "business_name", "name", "username", "instagram"]:
+                val = getattr(creator, attr, None)
+                if val:
+                    return val
+        creator_id = getattr(video, "creator_id", None)
+        if creator_id:
+            try:
+                from app.models import CreatorProfile
+                c = CreatorProfile.query.get(creator_id)
+                if c:
+                    user = getattr(c, "user", None)
+                    for obj in [c, user]:
+                        if obj:
+                            for attr in ["display_name", "business_name", "name", "username", "instagram", "email"]:
+                                val = getattr(obj, attr, None)
+                                if val:
+                                    return val
+            except Exception:
+                pass
+    except Exception:
+        pass
+    return "Creator"
+
+
 @public_bp.route("/")
 def home():
     try:
@@ -161,7 +190,7 @@ def home():
     for v in latest:
         if len(selected) == 3: break
         if v not in selected: selected.append(v)
-    return render_template("public/home.html", latest_videos=_public_latest_home_videos(3), video_locations=_public_video_locations(), video_thumb_url=_public_video_thumb_url)
+    return render_template("public/home.html", latest_videos=_public_latest_home_videos(3), video_locations=_public_video_locations(), video_thumb_url=_public_video_thumb_url, creator_name=_public_creator_name)
 
 
 @public_bp.route("/search")
@@ -664,3 +693,11 @@ def video_thumbnail(video_id):
         return Response(data, mimetype="image/jpeg")
     except Exception:
         abort(404)
+
+
+
+@public_bp.route("/video/<int:video_id>")
+def video_detail(video_id):
+    from app.models import Video
+    video = Video.query.get_or_404(video_id)
+    return render_template("public/video_detail.html", video=video, creator_name=_public_creator_name, video_thumb_url=_public_video_thumb_url)
