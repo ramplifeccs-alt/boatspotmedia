@@ -626,3 +626,15 @@ def video_search():
 @public_bp.route("/api/video-locations")
 def api_video_locations():
     return jsonify({"locations": _dynamic_video_locations()})
+
+
+
+@public_bp.route("/terms")
+def terms():
+    return render_template("public/terms.html")
+
+
+
+@public_bp.route("/charters")
+def charters_redirect():
+    return redirect("https://charters.boatspotmedia.com", code=302)

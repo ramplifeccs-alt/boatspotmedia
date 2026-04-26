@@ -60,6 +60,83 @@
     return total;
   }
 
+
+  function localDateTimeStringFromMs(ms){
+    if(!ms) return null;
+    const d = new Date(ms);
+    const pad = n => String(n).padStart(2, "0");
+    return d.getFullYear() + "-" + pad(d.getMonth()+1) + "-" + pad(d.getDate()) + "T" + pad(d.getHours()) + ":" + pad(d.getMinutes()) + ":" + pad(d.getSeconds());
+  }
+
+  function makeVideoThumbnail(file){
+    return new Promise((resolve)=>{
+      try{
+        const video = document.createElement("video");
+        video.preload = "metadata";
+        video.muted = true;
+        video.playsInline = true;
+        const url = URL.createObjectURL(file);
+
+        const cleanup = ()=>{ try{ URL.revokeObjectURL(url); }catch(e){} };
+
+        video.onloadedmetadata = function(){
+          let seek = 2;
+          if(isFinite(video.duration) && video.duration > 4){
+            seek = video.duration / 2;
+          }
+          try{ video.currentTime = seek; }catch(e){ resolve(null); cleanup(); }
+        };
+
+        video.onseeked = function(){
+          try{
+            const canvas = document.createElement("canvas");
+            canvas.width = 1280;
+            canvas.height = 720;
+            const ctx = canvas.getContext("2d");
+            const vw = video.videoWidth || 1280;
+            const vh = video.videoHeight || 720;
+            const zoom = 1.30;
+            const srcW = vw / zoom;
+            const srcH = vh / zoom;
+            const sx = Math.max(0, (vw - srcW) / 2);
+            const sy = Math.max(0, (vh - srcH) / 2);
+            ctx.drawImage(video, sx, sy, srcW, srcH, 0, 0, canvas.width, canvas.height);
+            canvas.toBlob((blob)=>{
+              cleanup();
+              resolve(blob);
+            }, "image/jpeg", 0.86);
+          }catch(e){
+            cleanup();
+            resolve(null);
+          }
+        };
+
+        video.onerror = function(){ cleanup(); resolve(null); };
+        video.src = url;
+      }catch(e){
+        resolve(null);
+      }
+    });
+  }
+
+  async function uploadBrowserThumbnail(file, batchId){
+    const blob = await makeVideoThumbnail(file);
+    if(!blob) return null;
+
+    const presign = await postJSON("/creator/upload/r2/thumbnail/presign", {
+      batch_id: batchId,
+      filename: file.name + ".jpg"
+    });
+
+    await uploadPUT(presign.url, blob, null);
+    return {
+      thumbnail_key: presign.key,
+      r2_thumbnail_key: presign.key,
+      public_thumbnail_url: presign.public_url || null,
+      thumbnail_url: presign.public_url || null
+    };
+  }
+
   function postJSON(url, payload){
     return fetch(url, {
       method: "POST",
@@ -236,7 +313,7 @@
       const meta = {
         batch_name: formData.get("batch_name"),
         location: formData.get("location"),
-        files: files.map(f => ({name:f.name, size:f.size, type:f.type || "application/octet-stream", last_modified:f.lastModified || null, last_modified_iso:f.lastModified ? new Date(f.lastModified).toISOString() : null}))
+        files: files.map(f => ({name:f.name, size:f.size, type:f.type || "application/octet-stream", last_modified:f.lastModified || null, last_modified_iso:f.lastModified ? new Date(f.lastModified).toISOString() : null, last_modified_local: localDateTimeStringFromMs(f.lastModified)}))
       };
 
       try{
@@ -264,6 +341,16 @@
           }
         }
 
+        setStatus("Generating thumbnails...");
+        const browserThumbs = [];
+        for(let i=0; i<files.length; i++){
+          try{
+            browserThumbs[i] = await uploadBrowserThumbnail(files[i], currentBatchId);
+          }catch(e){
+            browserThumbs[i] = null;
+          }
+        }
+
         setStatus("Saving video records...");
         const completedFiles = files.map((f, i)=>({
           filename: f.name,
@@ -272,6 +359,11 @@
           size: f.size,
           last_modified: f.lastModified || null,
           last_modified_iso: f.lastModified ? new Date(f.lastModified).toISOString() : null,
+          last_modified_local: localDateTimeStringFromMs(f.lastModified),
+          thumbnail_key: (browserThumbs[i] || {}).thumbnail_key,
+          r2_thumbnail_key: (browserThumbs[i] || {}).r2_thumbnail_key,
+          public_thumbnail_url: (browserThumbs[i] || {}).public_thumbnail_url,
+          thumbnail_url: (browserThumbs[i] || {}).thumbnail_url,
           key: (uploads[i] || {}).key || (uploads[i] || {}).r2_video_key || (uploads[i] || {}).r2_key,
           upload: uploads[i] || {}
         }));

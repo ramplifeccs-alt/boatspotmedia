@@ -42,13 +42,13 @@
 </head>
 <body>
   <header class="topbar">
-    <a class="brand" href="/">BoatSpotMedia</a><span style="font-size:11px;color:#94a3b8;">v40.5 home active</span>
+    <a class="brand" href="/">BoatSpotMedia</a>
     <nav class="nav">
       <a href="/">Home</a>
       <a href="/find-video">Find Your Video</a>
       <a href="/shop">Shop</a>
-      <a href="/services">Services</a>
-      <a href="/charters">Charters</a>
+      <a href="/services">Services</a><a href="/terms">Terms</a>
+      <a href="https://charters.boatspotmedia.com">Charters</a>
       {% if account_display_name is defined %}
         <a class="pill" href="{{ account_dashboard_url() }}">{{ account_display_name() }}</a>
       {% endif %}

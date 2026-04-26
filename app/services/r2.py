@@ -73,13 +73,16 @@ def create_presigned_put_url(key, content_type="application/octet-stream", expir
 
 
 def public_url_for_key(key):
-    base = (os.getenv("R2_PUBLIC_URL") or os.getenv("R2_PUBLIC_BASE_URL") or "").strip().rstrip("/")
-    # R2 API endpoint is not a public delivery URL. Return empty instead of storing an invalid public URL.
-    if "cloudflarestorage.com" in base:
+    if not key:
         return ""
+    base = (os.getenv("R2_PUBLIC_URL") or os.getenv("R2_PUBLIC_BASE_URL") or "").strip().rstrip("/")
     if not base:
         return ""
-    return f"{base}/{key}"
+    # Do not store API endpoint URLs as public delivery URLs.
+    if "cloudflarestorage.com" in base:
+        return ""
+    return f"{base}/{str(key).lstrip('/')}"
+
 
 # Backwards compatibility for older routes that import:
 # from app.services.r2 import upload as r2_upload
@@ -153,3 +156,16 @@ def delete_r2_object(key):
     """Delete one object from Cloudflare R2."""
     client = _client()
     return client.delete_object(Bucket=_bucket_name(), Key=key)
+
+
+def create_presigned_put_url_stable(key, content_type="application/octet-stream", expires=3600):
+    client = _client()
+    return client.generate_presigned_url(
+        "put_object",
+        Params={
+            "Bucket": _bucket_name(),
+            "Key": key,
+            "ContentType": content_type or "application/octet-stream",
+        },
+        ExpiresIn=expires,
+    )

@@ -198,6 +198,7 @@ def _normalize_completed_upload_files(data):
                 "upload": upload,
                 "last_modified": item.get("last_modified") or upload.get("last_modified"),
                 "last_modified_iso": item.get("last_modified_iso") or upload.get("last_modified_iso"),
+                "last_modified_local": item.get("last_modified_local") or upload.get("last_modified_local"),
                 "thumbnail_key": item.get("thumbnail_key") or item.get("r2_thumbnail_key") or upload.get("thumbnail_key") or upload.get("r2_thumbnail_key"),
                 "public_thumbnail_url": item.get("public_thumbnail_url") or upload.get("public_thumbnail_url") or upload.get("thumbnail_url"),
             })
@@ -207,17 +208,24 @@ def _normalize_completed_upload_files(data):
 
 def _safe_recorded_date_time_from_file_info(file_info):
     """
-    Prefer the original file timestamp sent by the browser.
-    This is the most reliable value available after direct-to-R2 upload.
+    Prefer the local file timestamp sent by the browser.
+    This avoids UTC shifting and is closer to the time shown on the creator's computer.
     """
     upload = file_info.get("upload") or {}
 
     for source in (file_info, upload):
+        local = source.get("last_modified_local") or source.get("file_last_modified_local")
+        if local:
+            try:
+                dt = datetime.fromisoformat(str(local))
+                return dt.date(), dt.time().replace(microsecond=0)
+            except Exception:
+                pass
+
         iso = source.get("last_modified_iso") or source.get("file_last_modified_iso")
         if iso:
             try:
-                dt = datetime.fromisoformat(str(iso).replace("Z", "+00:00"))
-                # Convert to local naive time shown to user. Browser timestamp is already based on file mtime.
+                dt = datetime.fromisoformat(str(iso).replace("Z", "+00:00")).astimezone()
                 return dt.date(), dt.time().replace(microsecond=0)
             except Exception:
                 pass
@@ -1044,6 +1052,29 @@ def upload_r2_prepare():
         "uploads": uploads,
         "message": "Upload prepared. Browser will upload directly to Cloudflare R2."
     })
+
+
+
+@creator_bp.route("/upload/r2/thumbnail/presign", methods=["POST"])
+def upload_r2_thumbnail_presign():
+    creator = current_creator()
+    if not creator:
+        return jsonify({"ok": False, "error": "Please log in again."}), 401
+
+    import uuid
+    from werkzeug.utils import secure_filename
+    from app.services.r2 import create_presigned_put_url_stable, public_url_for_key
+
+    data = request.get_json(silent=True) or {}
+    batch_id = data.get("batch_id") or "pending"
+    filename = secure_filename(data.get("filename") or "thumb.jpg")
+    if not filename.lower().endswith(".jpg"):
+        filename = filename + ".jpg"
+
+    key = f"creators/{creator.id}/batches/{batch_id}/thumbs/browser_{uuid.uuid4().hex}_{filename}"
+    url = create_presigned_put_url_stable(key, "image/jpeg")
+    public_url = public_url_for_key(key)
+    return jsonify({"ok": True, "url": url, "key": key, "public_url": public_url})
 
 
 @creator_bp.route("/upload/r2/complete", methods=["POST"])
