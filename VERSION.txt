@@ -1,6 +1,4 @@
-BoatSpotMedia v40.4 Dashboard Metadata Thumbnail Fix
-- Removes duplicated top plan/storage block from Creator Dashboard.
-- Keeps correct lower storage card.
-- Improves recorded date/time using browser file.lastModified fields.
-- Generates missing thumbnails after upload by downloading R2 video, extracting middle frame, applying zoom/crop, uploading jpg to R2, and saving thumbnail URL.
-- Home will show actual thumbnails for new uploads after this deploy.
+BoatSpotMedia v40.5 Visible Dashboard Thumb Fix
+- Force-removes duplicated Current Plan / Storage Limit / Max Batch card from creator dashboard.
+- Adds visible v40.5 marker on dashboard/home so deploy can be confirmed.
+- Fills public thumbnail URL from R2 thumbnail key and R2_PUBLIC_BASE_URL.

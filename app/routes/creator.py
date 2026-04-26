@@ -430,6 +430,26 @@ def _generate_and_attach_thumbnail_for_video(video):
         return False
 
 
+
+def _fill_public_thumbnail_url(video):
+    try:
+        import os
+        base = (os.getenv("R2_PUBLIC_BASE_URL") or "").rstrip("/")
+        key = getattr(video, "r2_thumbnail_key", None) or getattr(video, "thumbnail_path", None)
+        if base and key and not str(key).startswith("http"):
+            url = f"{base}/{str(key).lstrip('/')}"
+            cols = set(video.__table__.columns.keys())
+            if "public_thumbnail_url" in cols:
+                video.public_thumbnail_url = url
+            if "thumbnail_url" in cols:
+                video.thumbnail_url = url
+            db.session.add(video)
+            return True
+    except Exception:
+        pass
+    return False
+
+
 @creator_bp.route("/health")
 def health():
     c = current_creator()
@@ -1081,6 +1101,7 @@ def upload_r2_complete():
                 has_thumb = bool(getattr(v, "public_thumbnail_url", None) or getattr(v, "thumbnail_url", None) or getattr(v, "thumbnail_path", None) or getattr(v, "r2_thumbnail_key", None))
                 if not has_thumb:
                     _generate_and_attach_thumbnail_for_video(v)
+                    _fill_public_thumbnail_url(v)
             db.session.commit()
         except Exception:
             db.session.rollback()
