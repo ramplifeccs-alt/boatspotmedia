@@ -1,7 +1,6 @@
-BoatSpotMedia v41.6 Stable Thumbnail Complete Fix
-- Fixes /creator/upload/r2/complete failure by committing DB first and generating thumbnails safely after.
-- Thumbnail engine no longer needs duration or ffprobe.
-- Primary thumbnail method uses ffmpeg video filter: thumbnail,scale,crop.
-- Fallback tries representative frames at 5, 15, 30, 10, 60 seconds.
-- Upload never fails if thumbnail generation fails.
-- Keeps cancel-clean R2 cleanup and existing View & Buy / Captured by / Terms footer features.
+BoatSpotMedia v38.2 Storage + Backend Thumbnail Fix
+- Creator Dashboard storage now sums video table, video_batch table, and creator profile fallback.
+- Recalculates storage when dashboard loads.
+- Adds backend thumbnail regeneration endpoint using ffmpeg from multiple points in the video with 30% zoom.
+- Adds R2 upload_file helper if missing.
+- Keeps cancel upload and creator topbar fixes.
