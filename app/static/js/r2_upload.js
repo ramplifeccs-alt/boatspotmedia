@@ -260,122 +260,231 @@ document.addEventListener("DOMContentLoaded", function(){
 });
 
 
-// BoatSpotMedia enhanced global batch upload progress + cancel cleanup
+
+
+
+// BoatSpotMedia v38.5 single visible upload progress controller.
+// This does NOT change the thumbnail engine.
 (function(){
-  function qs(id){ return document.getElementById(id); }
+  if (window.__BSM_UPLOAD_UI_V385__) return;
+  window.__BSM_UPLOAD_UI_V385__ = true;
 
-  window.BSMUploadProgress = {
-    totalBytes: 0,
-    uploadedBytes: 0,
-    currentFileIndex: 0,
-    totalFiles: 0,
-    currentFileName: "",
-    batchId: null,
-    cancelled: false,
+  function $(sel, root){ return (root || document).querySelector(sel); }
+  function $all(sel, root){ return Array.from((root || document).querySelectorAll(sel)); }
 
-    init: function(files, batchId){
-      this.totalFiles = files ? files.length : 0;
-      this.totalBytes = Array.from(files || []).reduce((s,f)=>s+(f.size||0),0);
-      this.uploadedBytes = 0;
-      this.currentFileIndex = 0;
-      this.batchId = batchId || this.batchId;
-      this.cancelled = false;
-      this.ensureUI();
-      this.render();
-    },
+  function bytes(n){
+    n = Number(n || 0);
+    if (!n) return "0 B";
+    const u = ["B","KB","MB","GB","TB"];
+    let i=0;
+    while(n >= 1024 && i < u.length - 1){ n /= 1024; i++; }
+    return n.toFixed(i ? 2 : 0) + " " + u[i];
+  }
 
-    setCurrentFile: function(index, name){
-      this.currentFileIndex = index || 0;
-      this.currentFileName = name || "";
-      this.render();
-    },
+  function getFiles(){
+    const input = $('input[type="file"]');
+    return input && input.files ? Array.from(input.files) : [];
+  }
 
-    addUploaded: function(bytes){
-      this.uploadedBytes += bytes || 0;
-      if(this.uploadedBytes > this.totalBytes) this.uploadedBytes = this.totalBytes;
-      this.render();
-    },
+  function getUploadButton(){
+    return $('button[type="submit"], input[type="submit"], button#uploadBtn, button[name="upload"], .upload-btn');
+  }
 
-    setUploaded: function(bytes){
-      this.uploadedBytes = Math.max(0, Math.min(bytes || 0, this.totalBytes || 0));
-      this.render();
-    },
+  function removeOldDuplicateProgress(){
+    // Remove duplicate v38.4/new progress boxes and extra generic boxes, keep our v38.5 box only.
+    $all('#bsm-upload-progress-box').forEach(el => el.remove());
+    $all('[id="bsm-upload-progress-box"]').forEach(el => el.remove());
 
-    percent: function(){
-      if(!this.totalBytes) return 0;
-      return Math.round((this.uploadedBytes / this.totalBytes) * 100);
-    },
+    // Hide common old per-file progress areas, but do not remove actual file inputs/forms.
+    $all('.upload-progress, .progress-container, .old-upload-progress').forEach(el => {
+      if (!el.closest('#bsm-upload-v385')) el.style.display = 'none';
+    });
 
-    ensureUI: function(){
-      let box = qs("bsm-upload-progress-box");
-      if(box) return;
+    // Hide progress text from old uploader if it is outside our box and contains "Uploading to BoatSpotMedia".
+    $all('div, p, span').forEach(el => {
+      const t = (el.textContent || '').trim();
+      if (t.startsWith('Uploading to BoatSpotMedia Storage') && !el.closest('#bsm-upload-v385')) {
+        el.style.display = 'none';
+      }
+    });
+  }
 
-      const form = document.querySelector("form") || document.body;
-      box = document.createElement("div");
-      box.id = "bsm-upload-progress-box";
-      box.style.cssText = "margin:18px 0;padding:16px;border:1px solid #dbe3ef;border-radius:14px;background:#fff;box-shadow:0 8px 24px rgba(15,23,42,.08);";
-      box.innerHTML = `
-        <div style="display:flex;justify-content:space-between;gap:12px;align-items:center;margin-bottom:10px;">
-          <strong id="bsm-upload-title">Batch Upload Progress</strong>
-          <button type="button" id="bsm-cancel-upload-btn" style="background:#dc2626;color:white;border:0;border-radius:10px;padding:9px 12px;font-weight:700;">Cancel Upload</button>
+  function ensureBox(){
+    removeOldDuplicateProgress();
+
+    let box = $('#bsm-upload-v385');
+    if (box) return box;
+
+    const btn = getUploadButton();
+    const form = btn ? btn.closest('form') : $('form');
+    box = document.createElement('div');
+    box.id = 'bsm-upload-v385';
+    box.style.cssText = 'display:none;margin:14px 0 18px 0;padding:16px;border:1px solid #dbe3ef;border-radius:14px;background:#fff;box-shadow:0 8px 24px rgba(15,23,42,.10);';
+    box.innerHTML = `
+      <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:10px;">
+        <div>
+          <strong>Batch Upload Progress</strong>
+          <div id="bsm-v385-file" style="font-size:13px;color:#475569;margin-top:4px;">Waiting...</div>
         </div>
-        <div id="bsm-upload-file" style="font-size:14px;color:#475569;margin-bottom:8px;">Waiting...</div>
-        <div style="height:16px;background:#e5e7eb;border-radius:999px;overflow:hidden;">
-          <div id="bsm-upload-bar" style="height:100%;width:0%;background:#2563eb;transition:width .2s ease;"></div>
-        </div>
-        <div id="bsm-upload-percent" style="font-size:13px;color:#475569;margin-top:8px;">0%</div>
-      `;
-      form.parentNode.insertBefore(box, form.nextSibling);
+        <button type="button" id="bsm-v385-cancel" style="background:#dc2626;color:white;border:0;border-radius:10px;padding:9px 12px;font-weight:700;white-space:nowrap;">Cancel Upload</button>
+      </div>
+      <div style="height:18px;background:#e5e7eb;border-radius:999px;overflow:hidden;">
+        <div id="bsm-v385-bar" style="height:100%;width:0%;background:#2563eb;transition:width .15s ease;"></div>
+      </div>
+      <div id="bsm-v385-text" style="font-size:13px;color:#475569;margin-top:8px;">0% uploaded</div>
+    `;
 
-      qs("bsm-cancel-upload-btn").addEventListener("click", async ()=>{
-        this.cancelled = true;
-        const bid = this.batchId || window.currentBatchId || window.BSM_CURRENT_BATCH_ID;
-        if(bid){
-          try{
-            await fetch("/upload/batch/" + bid + "/cancel-clean", {method:"POST"});
-          }catch(e){}
-        }
-        alert("Upload cancelled. Uploaded R2 files for this batch were cleaned when possible.");
-        location.reload();
-      });
-    },
-
-    render: function(){
-      this.ensureUI();
-      const pct = this.percent();
-      const bar = qs("bsm-upload-bar");
-      const percent = qs("bsm-upload-percent");
-      const file = qs("bsm-upload-file");
-      if(bar) bar.style.width = pct + "%";
-      if(percent) percent.textContent = pct + "% uploaded (" + this.formatBytes(this.uploadedBytes) + " / " + this.formatBytes(this.totalBytes) + ")";
-      if(file) file.textContent = this.currentFileName ? ("Uploading file " + this.currentFileIndex + " of " + this.totalFiles + ": " + this.currentFileName) : "Preparing upload...";
-    },
-
-    formatBytes: function(bytes){
-      if(!bytes) return "0 B";
-      const units = ["B","KB","MB","GB","TB"];
-      let i=0, n=bytes;
-      while(n>=1024 && i<units.length-1){ n/=1024; i++; }
-      return n.toFixed(i===0?0:2) + " " + units[i];
+    if (btn && btn.parentNode) {
+      // Put it directly after the Upload button so user sees it immediately.
+      btn.insertAdjacentElement('afterend', box);
+    } else if (form && form.parentNode) {
+      form.parentNode.insertBefore(box, form);
+    } else {
+      document.body.prepend(box);
     }
+
+    $('#bsm-v385-cancel').addEventListener('click', async function(){
+      window.__BSM_UPLOAD_CANCELLED__ = true;
+      const bid = window.currentBatchId || window.BSM_CURRENT_BATCH_ID || window.current_batch_id || null;
+      if (bid) {
+        try { await fetch('/upload/batch/' + bid + '/cancel-clean', {method:'POST'}); } catch(e) {}
+      }
+      alert('Upload cancelled. BoatSpotMedia will clean the uploaded files for this batch when possible.');
+      location.reload();
+    });
+
+    return box;
+  }
+
+  const State = {
+    files: [],
+    total: 0,
+    uploaded: 0,
+    currentIndex: 1,
+    currentFile: '',
+    active: false,
+    lastXHRLoaded: new WeakMap()
   };
 
-  // Hook XHR upload progress globally without replacing existing uploader logic.
-  const OldXHR = window.XMLHttpRequest;
+  function render(){
+    const box = ensureBox();
+    if (!State.active) return;
+    box.style.display = 'block';
+
+    const pct = State.total ? Math.min(100, Math.round((State.uploaded / State.total) * 100)) : 0;
+    const bar = $('#bsm-v385-bar');
+    const text = $('#bsm-v385-text');
+    const file = $('#bsm-v385-file');
+
+    if (bar) bar.style.width = pct + '%';
+    if (text) text.textContent = pct + '% uploaded (' + bytes(State.uploaded) + ' / ' + bytes(State.total) + ')';
+    if (file) file.textContent = State.currentFile ? ('Uploading file ' + State.currentIndex + ' of ' + State.files.length + ': ' + State.currentFile) : 'Preparing upload...';
+  }
+
+  function startUI(){
+    State.files = getFiles();
+    State.total = State.files.reduce((s,f)=>s + (f.size || 0), 0);
+    State.uploaded = 0;
+    State.currentIndex = 1;
+    State.currentFile = State.files[0] ? State.files[0].name : '';
+    State.active = true;
+
+    const btn = getUploadButton();
+    if (btn) {
+      btn.disabled = true;
+      btn.style.opacity = '0.65';
+      btn.style.cursor = 'not-allowed';
+      btn.dataset.originalText = btn.textContent || btn.value || 'Upload Batch';
+      if (btn.tagName === 'INPUT') btn.value = 'Uploading... please wait';
+      else btn.textContent = 'Uploading... please wait';
+    }
+
+    ensureBox();
+    render();
+
+    // Keep box visible if old uploader scrolls/page moves.
+    try { ensureBox().scrollIntoView({behavior:'smooth', block:'center'}); } catch(e) {}
+  }
+
+  document.addEventListener('submit', function(e){
+    const form = e.target;
+    if (!form || !form.querySelector('input[type="file"]')) return;
+    if (State.active) {
+      e.preventDefault();
+      e.stopPropagation();
+      alert('Upload already in progress. Please wait or use Cancel Upload.');
+      return false;
+    }
+    startUI();
+  }, true);
+
+  document.addEventListener('click', function(e){
+    const btn = e.target.closest('button, input[type="submit"]');
+    if (!btn) return;
+    const form = btn.closest('form');
+    if (!form || !form.querySelector('input[type="file"]')) return;
+    if (!State.active) {
+      // Start immediately on click so it is visible before upload requests begin.
+      setTimeout(startUI, 0);
+    }
+  }, true);
+
+  document.addEventListener('change', function(e){
+    if (e.target && e.target.matches('input[type="file"]')) {
+      State.files = getFiles();
+      State.total = State.files.reduce((s,f)=>s + (f.size || 0), 0);
+      State.currentFile = State.files[0] ? State.files[0].name : '';
+      if (State.files.length) {
+        ensureBox().style.display = 'block';
+        const text = $('#bsm-v385-text');
+        const file = $('#bsm-v385-file');
+        if (file) file.textContent = State.files.length + ' file(s) selected';
+        if (text) text.textContent = 'Selected batch size: ' + bytes(State.total);
+      }
+    }
+  });
+
+  // XHR progress hook: global bytes, not per-video UI.
+  const NativeXHR = window.XMLHttpRequest;
   window.XMLHttpRequest = function(){
-    const xhr = new OldXHR();
-    let lastLoaded = 0;
-    if(xhr.upload){
-      xhr.upload.addEventListener("progress", function(e){
-        if(e.lengthComputable){
-          const delta = e.loaded - lastLoaded;
-          lastLoaded = e.loaded;
-          if(delta > 0 && window.BSMUploadProgress){
-            window.BSMUploadProgress.addUploaded(delta);
-          }
+    const xhr = new NativeXHR();
+    if (xhr.upload) {
+      xhr.upload.addEventListener('progress', function(ev){
+        if (!State.active || !ev.lengthComputable) return;
+        const last = State.lastXHRLoaded.get(xhr) || 0;
+        let delta = ev.loaded - last;
+        if (delta < 0) delta = ev.loaded;
+        State.lastXHRLoaded.set(xhr, ev.loaded);
+        State.uploaded += delta;
+        if (State.uploaded > State.total && State.total > 0) State.uploaded = State.total;
+
+        // Guess current file by uploaded bytes.
+        let running = 0;
+        let idx = 1;
+        for (let i=0; i<State.files.length; i++){
+          running += State.files[i].size || 0;
+          if (State.uploaded <= running) { idx = i + 1; break; }
+          idx = i + 1;
         }
+        State.currentIndex = idx;
+        State.currentFile = State.files[idx-1] ? State.files[idx-1].name : State.currentFile;
+        render();
+      });
+      xhr.addEventListener('loadend', function(){
+        State.lastXHRLoaded.delete(xhr);
       });
     }
     return xhr;
   };
+
+  // Fetch cannot expose upload progress, but keep UI alive if uploader uses fetch.
+  const nativeFetch = window.fetch;
+  window.fetch = function(){
+    if (State.active) render();
+    return nativeFetch.apply(this, arguments).finally(function(){
+      if (State.active) render();
+    });
+  };
+
+  window.BSMUploadProgressV385 = State;
 })();

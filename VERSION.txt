@@ -1,10 +1,11 @@
-BoatSpotMedia v38.4 Progress R2 Menu Subdomains Fix
-- Base: v38.3 Dashboard Storage DB Fix.
-- Does not touch thumbnail engine.
-- Adds enhanced global upload progress UI with global batch percent and current file name.
-- Cancel Upload calls /upload/batch/<id>/cancel-clean and deletes R2 batch prefix.
-- Delete Batch deletes videos/thumbnails plus creators/{creator_id}/batches/{batch_id}/ from R2.
-- Services menu redirects to https://services.boatspotmedia.com.
-- Charters menu redirects to https://charters.boatspotmedia.com.
+BoatSpotMedia v38.5 Upload UI Home Menu Fix
+- Base: v38.4; thumbnail engine untouched.
+- Removes duplicate/old progress UI from upload template.
+- Adds one visible progress controller beside the Upload Batch button.
+- Disables Upload button immediately to prevent duplicate clicks.
+- Shows global batch percent and current file for many videos.
+- Keeps cancel-clean endpoint usage for R2 cleanup.
+- Fixes browser tab title to BoatSpotMedia.
 - BoatSpotMedia brand links to home.
-- Creator menu display prefers Instagram/business/display name instead of email and links to dashboard where possible.
+- Creator account display uses Instagram/business/name when available and links to /creator/dashboard.
+- Removes repeated plan storage/max batch lines in upload template.

@@ -139,7 +139,7 @@ def render_creator_template(template_name, **kwargs):
 
 
 def _creator_display_name(creator):
-    """Prefer Instagram/business display name instead of email in menus."""
+    """Prefer Instagram/business/display name instead of email."""
     try:
         user = getattr(creator, "user", None)
         for obj in (creator, user):
@@ -150,10 +150,12 @@ def _creator_display_name(creator):
                 if val:
                     val = str(val).strip()
                     if val:
-                        return val if val.startswith("@") or attr not in ("instagram", "instagram_handle") else "@" + val.lstrip("@")
-            email = getattr(obj, "email", None)
-            if email:
-                return email
+                        if attr in ("instagram", "instagram_handle"):
+                            return "@" + val.lstrip("@")
+                        return val
+        for obj in (user, creator):
+            if obj and getattr(obj, "email", None):
+                return str(getattr(obj, "email"))
     except Exception:
         pass
     return "Creator"
