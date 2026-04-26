@@ -1,56 +1,102 @@
-<!doctype html><html><head>
-  <meta name="viewport" content="width=device-width, initial-scale=1"><meta charset="utf-8"><title><a href="{{ url_for('public.home') }}" style="color:inherit;text-decoration:none;">BoatSpotMedia</a></title><link rel="stylesheet" href="/static/css/style.css"></head><body><header><div><b>BoatSpotMedia</b></div><nav><a href="/">Home</a><a href="/search">Find Your Video</a><a href="/shop">Shop</a><a href="/services">Services</a><a href="/charters">Charters</a><a href="/apply-creator">Apply as Creator</a>{% if session.get("user_id") %}
-  <span class="nav-user">{{ session.get("display_name") or session.get("user_email") }}</span>
-  {% if session.get("user_role") == "buyer" %}
-    <a href="/buyer/dashboard">Dashboard</a>
-  {% elif session.get("user_role") == "creator" %}
-    <a href="/creator/dashboard">Dashboard</a>
-  {% elif session.get("user_role") in ["services", "service"] %}
-    <a href="/service-account/dashboard">Dashboard</a>
-  {% elif session.get("user_role") in ["charter", "charters"] %}
-    <a href="/charters">Dashboard</a>
-  {% endif %}
-  <a href="/logout">Logout</a>
-{% else %}
-  <a href="/login">Login</a>
-{% endif %}</nav></header><div class="container">
-<div class="hero">
-<h1>Find your boat video</h1>
-<p>Search by inlet, date, and approximate time. Buy the original video or request an edited version.</p>
-<a class="btn" href="/search">Find Your Video</a>
-</div>
-<h2>Latest Uploads</h2>
-<div class="grid">
-{% for v in videos %}
-<div class="card">
-  <div class="thumb">{% if v.public_thumbnail_url %}<img src="{{v.public_thumbnail_url}}">{% else %}Preview{% endif %}</div>
-  <b>{{ v.location or "Boat Video" }}</b><br>
-  <small>{{ v.recorded_at.strftime('%m/%d/%Y %I:%M %p') if v.recorded_at else "Time pending" }}</small><br>
-  <small>Captured by: {{ v.creator.user.display_name if v.creator and v.creator.user else "Creator" }}</small><br><br>
-  <a class="btn" href="/preview/{{v.id}}">Preview</a>
-</div>
-{% else %}
-<div class="card">No videos uploaded yet.</div>
-{% endfor %}
-</div>
-</div><script src="/static/js/mobile.js"></script>
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>BoatSpotMedia</title>
+  <style>
+    :root{
+      --nav:#071426;
+      --blue:#2563eb;
+      --bg:#f3f6fb;
+      --card:#ffffff;
+      --text:#111827;
+      --muted:#6b7280;
+    }
+    *{box-sizing:border-box}
+    body{margin:0;font-family:Arial, Helvetica, sans-serif;background:var(--bg);color:var(--text);}
+    .topbar{background:var(--nav);color:white;padding:14px 22px;display:flex;align-items:center;justify-content:space-between;gap:18px;position:sticky;top:0;z-index:10;}
+    .brand{font-size:22px;font-weight:900;color:white;text-decoration:none;letter-spacing:.2px;}
+    .nav{display:flex;align-items:center;gap:20px;flex-wrap:wrap;}
+    .nav a{color:white;text-decoration:none;font-weight:700;font-size:14px;}
+    .nav .pill{background:rgba(255,255,255,.12);padding:8px 12px;border-radius:999px;}
+    .wrap{max-width:1180px;margin:0 auto;padding:28px 20px 60px;}
+    .hero{background:linear-gradient(135deg,#eaf2ff,#ffffff);border-radius:24px;padding:38px 32px;box-shadow:0 12px 35px rgba(15,23,42,.08);margin-bottom:28px;}
+    .hero h1{font-size:38px;margin:0 0 10px;}
+    .hero p{font-size:16px;color:var(--muted);margin:0 0 20px;max-width:720px;line-height:1.5;}
+    .btn{display:inline-block;background:var(--blue);color:white;text-decoration:none;padding:12px 18px;border-radius:12px;font-weight:800;}
+    h2{font-size:26px;margin:26px 0 16px;}
+    .latest-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:20px;}
+    .video-card{background:var(--card);border-radius:20px;padding:14px;box-shadow:0 10px 28px rgba(15,23,42,.09);overflow:hidden;}
+    .thumb{width:100%;height:190px;border-radius:15px;background:#111827;object-fit:cover;display:block;}
+    .thumb-pending{width:100%;height:190px;border-radius:15px;background:#111827;color:white;display:flex;align-items:center;justify-content:center;font-weight:800;}
+    .video-card h3{margin:12px 0 4px;font-size:17px;text-transform:none;}
+    .video-card p{margin:0;color:var(--muted);font-size:14px;line-height:1.4;}
+    .card-actions{margin-top:12px;}
+    @media(max-width:850px){
+      .topbar{align-items:flex-start;flex-direction:column;}
+      .latest-grid{grid-template-columns:1fr;}
+      .hero h1{font-size:30px;}
+    }
+  </style>
+</head>
+<body>
+  <header class="topbar">
+    <a class="brand" href="/">BoatSpotMedia</a>
+    <nav class="nav">
+      <a href="/">Home</a>
+      <a href="/find-video">Find Your Video</a>
+      <a href="/shop">Shop</a>
+      <a href="/services">Services</a>
+      <a href="https://charters.boatspotmedia.com">Charters</a>
+      {% if account_display_name is defined %}
+        <a class="pill" href="{{ account_dashboard_url() }}">{{ account_display_name() }}</a>
+      {% endif %}
+      {% if session is defined and (session.get('creator_id') or session.get('owner_logged_in') or session.get('buyer_id')) %}
+        <a href="/logout">Logout</a>
+      {% else %}
+        <a href="/creator/login">Creator Login</a>
+      {% endif %}
+    </nav>
+  </header>
 
-<section class="home-previews">
-  <h2>Latest Boat Video Previews</h2>
-  <p>Only thumbnails are shown here for visual identification. Search by location, date, and time to find yours.</p>
-  <div class="grid">
-    {% for v in latest_previews %}
-      <div class="card video-card">
-        {% if v.public_thumbnail_url %}
-          <img src="{{ v.public_thumbnail_url }}" alt="Boat video preview" style="width:100%;border-radius:12px;">
+  <main class="wrap">
+    <section class="hero">
+      <h1>Find your boat video</h1>
+      <p>Search by location, date, and approximate time. Buy the original video or request an edited version.</p>
+      <a class="btn" href="/find-video">Find Your Video</a>
+    </section>
+
+    <section>
+      <h2>Latest Uploads</h2>
+      <div class="latest-grid">
+        {% for video in latest_videos[:3] %}
+          <article class="video-card">
+            {% set has_thumb = video.public_thumbnail_url or video.thumbnail_url or video.thumbnail_path or video.r2_thumbnail_key %}
+            {% if has_thumb %}
+              <img class="thumb" src="/video-thumbnail/{{ video.id }}" alt="Boat video thumbnail" loading="lazy">
+            {% else %}
+              <div class="thumb-pending">Thumbnail pending</div>
+            {% endif %}
+            <h3>{{ video.location or 'Boat video' }}</h3>
+            <p>
+              {% if video.recorded_date %}{{ video.recorded_date }}{% endif %}
+              {% if video.recorded_time %} {{ video.recorded_time }}{% endif %}
+            </p>
+            <p style="margin:4px 0 0;color:#6b7280;font-size:14px;"><strong>Captured by:</strong> {{ creator_name(video) if creator_name is defined else 'Creator' }}</p>
+            <div class="card-actions">
+              <a class="btn" href="/video/{{ video.id }}">View & Buy</a>
+            </div>
+          </article>
         {% else %}
-          <div class="placeholder-thumb">Preview</div>
-        {% endif %}
-        <p>{{ v.location or 'Boat video' }}</p>
-        <a class="btn" href="/video-search">Find / Buy Video</a>
+          <p>No videos uploaded yet.</p>
+        {% endfor %}
       </div>
-    {% endfor %}
-  </div>
-</section>
+    </section>
+  </main>
 
-</body></html>
+  <footer style="padding:24px;text-align:center;color:#6b7280;font-size:14px;">
+  </footer>
+
+</body>
+</html>

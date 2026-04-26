@@ -1,6 +1,6 @@
-BoatSpotMedia v38.2 Storage + Backend Thumbnail Fix
-- Creator Dashboard storage now sums video table, video_batch table, and creator profile fallback.
-- Recalculates storage when dashboard loads.
-- Adds backend thumbnail regeneration endpoint using ffmpeg from multiple points in the video with 30% zoom.
-- Adds R2 upload_file helper if missing.
-- Keeps cancel upload and creator topbar fixes.
+BoatSpotMedia v41.1 REAL Thumbnail v38 Engine Patch
+- Base: v41.0 R2 Batch Delete Thumbnail Repair Fix.
+- Surgical patch only; does not revert current app.
+- Restores v38.2-style backend thumbnail generation after upload.
+- Uses ffmpeg multi-seek 10/25/50/75/90% with dark-frame rejection.
+- Keeps metadata date/time, View & Buy, Captured by, Terms footer, current routes, and R2 cleanup work.

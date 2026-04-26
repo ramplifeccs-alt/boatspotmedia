@@ -1,6 +1,7 @@
+from app.services.pricing import creator_video_price_options
 import os
 from datetime import datetime
-from flask import Blueprint, redirect, render_template, request, url_for, session
+from flask import Blueprint, redirect, render_template, request, url_for, session, jsonify, Response, send_file, abort
 from sqlalchemy import text
 from werkzeug.security import generate_password_hash
 from app.models import Video, Location, ServiceAd, CharterListing, User
@@ -19,6 +20,161 @@ def clean_instagram(value):
     return value.strip()
 
 
+
+def _dynamic_video_locations():
+    """Buyer/search locations come only from existing creator uploads."""
+    locations = []
+    try:
+        from app.models import Video
+        rows = db.session.query(Video.location).filter(
+            Video.location.isnot(None),
+            Video.location != "",
+            Video.status != "deleted"
+        ).distinct().order_by(Video.location.asc()).all()
+        locations += [r[0] for r in rows if r and r[0]]
+    except Exception as e:
+        print("video locations warning:", e)
+
+    try:
+        rows = db.session.execute(db.text("""
+            SELECT DISTINCT location
+            FROM video_batch
+            WHERE location IS NOT NULL
+              AND trim(location) <> ''
+              AND COALESCE(status, '') <> 'deleted'
+            ORDER BY location ASC
+        """)).fetchall()
+        locations += [r[0] for r in rows if r and r[0]]
+    except Exception as e:
+        db.session.rollback()
+        print("batch locations warning:", e)
+
+    seen = set()
+    clean = []
+    for loc in locations:
+        value = " ".join(str(loc).strip().split())
+        key = value.lower()
+        if value and key not in seen:
+            seen.add(key)
+            clean.append(value)
+    return clean
+
+
+
+def _attach_price_options_to_videos(videos):
+    try:
+        from app.models import CreatorProfile
+        for v in videos:
+            creator = None
+            try:
+                creator = CreatorProfile.query.get(getattr(v, "creator_id", None))
+            except Exception:
+                creator = None
+            try:
+                v.price_options = creator_video_price_options(creator, v)
+            except Exception:
+                v.price_options = creator_video_price_options(None, v)
+    except Exception as e:
+        print("price option attach warning:", e)
+    return videos
+
+
+
+
+def _public_video_thumb_url(video):
+    """Return the best available public thumbnail URL for home cards."""
+    import os
+    if not video:
+        return None
+
+    for attr in ["public_thumbnail_url", "thumbnail_url"]:
+        try:
+            value = getattr(video, attr, None)
+            if value:
+                return value
+        except Exception:
+            pass
+
+    for attr in ["thumbnail_path", "r2_thumbnail_key"]:
+        try:
+            key = getattr(video, attr, None)
+            if key:
+                if str(key).startswith("http://") or str(key).startswith("https://"):
+                    return key
+                base = (os.getenv("R2_PUBLIC_BASE_URL") or "").rstrip("/")
+                if base:
+                    return f"{base}/{str(key).lstrip('/')}"
+        except Exception:
+            pass
+
+    return None
+
+
+def _public_active_video_query():
+    from app.models import Video
+    q = Video.query
+    if "status" in Video.__table__.columns.keys():
+        q = q.filter(Video.status != "deleted")
+    return q
+
+def _public_video_locations():
+    from app.models import Video
+    cols = Video.__table__.columns.keys()
+    if "location" not in cols:
+        return []
+    q = _public_active_video_query().with_entities(Video.location).filter(Video.location.isnot(None))
+    values = []
+    seen = set()
+    for row in q.all():
+        loc = (row[0] or "").strip()
+        if not loc:
+            continue
+        key = loc.lower()
+        if key not in seen:
+            seen.add(key)
+            values.append(loc)
+    return sorted(values, key=lambda x: x.lower())
+
+def _public_latest_home_videos(limit=3):
+    from app.models import Video
+    q = _public_active_video_query()
+    cols = Video.__table__.columns.keys()
+    if "created_at" in cols:
+        q = q.order_by(Video.created_at.desc())
+    else:
+        q = q.order_by(Video.id.desc())
+    return q.limit(limit).all()
+
+
+
+def _public_creator_name(video):
+    try:
+        creator = getattr(video, "creator", None)
+        if creator:
+            for attr in ["display_name", "business_name", "name", "username", "instagram"]:
+                val = getattr(creator, attr, None)
+                if val:
+                    return val
+        creator_id = getattr(video, "creator_id", None)
+        if creator_id:
+            try:
+                from app.models import CreatorProfile
+                c = CreatorProfile.query.get(creator_id)
+                if c:
+                    user = getattr(c, "user", None)
+                    for obj in [c, user]:
+                        if obj:
+                            for attr in ["display_name", "business_name", "name", "username", "instagram", "email"]:
+                                val = getattr(obj, attr, None)
+                                if val:
+                                    return val
+            except Exception:
+                pass
+    except Exception:
+        pass
+    return "Creator"
+
+
 @public_bp.route("/")
 def home():
     try:
@@ -34,14 +190,14 @@ def home():
     for v in latest:
         if len(selected) == 3: break
         if v not in selected: selected.append(v)
-    return render_template("public/home.html", videos=selected)
+    return render_template("public/home.html", latest_videos=_public_latest_home_videos(3), video_locations=_public_video_locations(), video_thumb_url=_public_video_thumb_url, creator_name=_public_creator_name)
 
 
 @public_bp.route("/search")
 def search_page():
     try: locations = Location.query.order_by(Location.name.asc()).all()
     except Exception: db.session.rollback(); locations = []
-    return render_template("public/search.html", locations=locations, results=None)
+    return render_template("public/search.html", locations=locations, results=None, video_locations=_dynamic_video_locations())
 
 
 @public_bp.route("/search/results")
@@ -50,7 +206,7 @@ def search_results():
     results = []
     try:
         q = Video.query.filter_by(status="active")
-        if location: q = q.filter(Video.location == location)
+        if location: q = q.filter(db.func.lower(Video.location) == location.strip().lower())
         if date_s and start_s and end_s:
             d = datetime.strptime(date_s, "%Y-%m-%d").date()
             start_dt = datetime.combine(d, datetime.strptime(start_s, "%H:%M").time())
@@ -484,7 +640,7 @@ def video_search():
 
     q = Video.query.filter(Video.status == "active")
     if location:
-        q = q.filter(Video.location.ilike(f"%{location}%"))
+        q = q.filter(db.func.lower(Video.location) == location.strip().lower())
     if date:
         q = q.filter(db.func.cast(Video.recorded_date, db.String) == date)
     if start_time:
@@ -492,4 +648,94 @@ def video_search():
     if end_time:
         q = q.filter(Video.recorded_time <= end_time)
     videos = q.order_by(Video.recorded_at.desc().nullslast(), Video.id.desc()).limit(100).all()
-    return render_template("public/video_search.html", videos=videos, location=location, date=date, start_time=start_time, end_time=end_time)
+    return render_template("public/video_search.html", videos=videos, video_locations=_dynamic_video_locations(), location=location, date=date, start_time=start_time, end_time=end_time)
+
+
+
+@public_bp.route("/api/video-locations")
+def api_video_locations():
+    return jsonify({"locations": _dynamic_video_locations()})
+
+
+
+@public_bp.route("/terms")
+def terms():
+    return render_template("public/terms.html")
+
+
+
+@public_bp.route("/charters")
+def charters_redirect():
+    return redirect("https://charters.boatspotmedia.com", code=302)
+
+
+
+@public_bp.route("/video-thumbnail/<int:video_id>")
+def video_thumbnail(video_id):
+    from app.models import Video
+    video = Video.query.get_or_404(video_id)
+
+    # Prefer direct public URL if present.
+    for attr in ["public_thumbnail_url", "thumbnail_url"]:
+        value = getattr(video, attr, None)
+        if value:
+            return redirect(value, code=302)
+
+    key = getattr(video, "r2_thumbnail_key", None) or getattr(video, "thumbnail_path", None)
+
+    # If no thumbnail exists, try to generate it server-side now.
+    if not key:
+        try:
+            from app.routes.creator import _generate_and_attach_thumbnail_for_video
+            from app import db
+            ok = _generate_and_attach_thumbnail_for_video(video)
+            if ok:
+                db.session.commit()
+                key = getattr(video, "r2_thumbnail_key", None) or getattr(video, "thumbnail_path", None)
+        except Exception as e:
+            try: print("on-demand thumbnail generation warning:", e)
+            except Exception: pass
+
+    if not key:
+        abort(404)
+
+    try:
+        from app.services.r2 import get_r2_object_bytes
+        data = get_r2_object_bytes(key)
+        if not data:
+            abort(404)
+        return Response(data, mimetype="image/jpeg")
+    except Exception:
+        abort(404)
+
+
+def video_thumbnail(video_id):
+    from app.models import Video
+    import io, os
+    video = Video.query.get_or_404(video_id)
+
+    # Prefer direct public URL if present.
+    for attr in ["public_thumbnail_url", "thumbnail_url"]:
+        value = getattr(video, attr, None)
+        if value:
+            return redirect(value, code=302)
+
+    key = getattr(video, "r2_thumbnail_key", None) or getattr(video, "thumbnail_path", None)
+    if not key:
+        abort(404)
+
+    try:
+        from app.services.r2 import get_r2_client, _bucket_name
+        obj = get_r2_client().get_object(Bucket=_bucket_name(), Key=key)
+        data = obj["Body"].read()
+        return Response(data, mimetype="image/jpeg")
+    except Exception:
+        abort(404)
+
+
+
+@public_bp.route("/video/<int:video_id>")
+def video_detail(video_id):
+    from app.models import Video
+    video = Video.query.get_or_404(video_id)
+    return render_template("public/video_detail.html", video=video, creator_name=_public_creator_name, video_thumb_url=_public_video_thumb_url)
