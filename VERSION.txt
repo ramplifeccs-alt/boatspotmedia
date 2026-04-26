@@ -1,3 +1,5 @@
-BoatSpotMedia v40.1 Home url_for Fix
-- Fixes public/home.html runtime error caused by invalid conditional inside url_for.
-- Keeps v40 metadata, home latest 3 videos, and dynamic active locations fixes.
+BoatSpotMedia v40.2 Home and Plan Sync Fix
+- Fixes home runtime error by using direct /find-video link instead of missing public.find_video endpoint.
+- Creator dashboard/upload/pricing now use the real plan assigned by Owner.
+- Adds plan snapshot helper so storage limit, max batch limit, and prices stay synced.
+- Keeps v40 metadata, latest 3 videos, and dynamic active locations.

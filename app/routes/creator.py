@@ -54,22 +54,20 @@ def _is_allowed_video_filename(filename):
     return os.path.splitext((filename or "").lower())[1] in ALLOWED_VIDEO_EXTENSIONS
 
 def _creator_default_prices(creator):
-    def num(v, default):
-        try:
-            if v is not None and str(v).strip() != "":
-                return float(v)
-        except Exception:
-            pass
-        return float(default)
-    plan = getattr(creator, "plan", None)
-    original = num(getattr(creator, "default_original_price", None), 40)
-    edited = num(getattr(creator, "default_edited_price", None), 60)
-    bundle = num(getattr(creator, "default_bundle_price", None), 80)
-    if plan:
-        original = num(getattr(plan, "default_original_price", None), original)
-        edited = num(getattr(plan, "default_edited_price", None), edited)
-        bundle = num(getattr(plan, "default_bundle_price", None), bundle)
-    return original, edited, bundle
+    snap = _creator_plan_snapshot(creator)
+    original = snap.get("original_price") or 50
+    edited = snap.get("edited_price")
+    bundle = snap.get("bundle_price")
+    try:
+        edited = float(edited) if edited is not None and str(edited) != "" else 0
+    except Exception:
+        edited = 0
+    try:
+        bundle = float(bundle) if bundle is not None and str(bundle) != "" else 0
+    except Exception:
+        bundle = 0
+    return float(original), edited, bundle
+
 
 def _recalculate_creator_storage(creator_id):
     """Safely recalculate storage without aborting the SQLAlchemy transaction."""
@@ -125,6 +123,7 @@ def render_creator_template(template_name, **kwargs):
     kwargs["creator"] = creator
     kwargs["creator_name"] = creator_display_name(creator)
     kwargs["creator_instagram"] = creator_instagram(creator)
+    kwargs.setdefault('plan_snapshot', _creator_plan_snapshot(kwargs.get('creator')))
     return render_template(template_name, **kwargs)
 
 
@@ -634,6 +633,7 @@ def upload():
         limit_bytes=limit,
         used_gb=round(used / 1024 / 1024 / 1024, 2),
         video_locations=_creator_location_suggestions(),
+        plan_snapshot=_creator_plan_snapshot(creator),
         storage_limit_gb=storage_limit_gb,
         max_batch_gb=max_batch_gb,
         storage_used_gb=storage_used_gb,
@@ -645,60 +645,55 @@ def upload():
 
 
 
-def _creator_plan_limits(creator):
-    """Return safe storage/batch limits for creator panel and uploads.
-    Defaults: 500 GB storage, 128 GB per batch.
-    Reads multiple legacy/new field names so Owner panel changes still show in Creator panel.
-    """
-    def first_number(*values, default=0):
-        for v in values:
+
+def _creator_active_plan(creator):
+    """Return the real plan assigned by Owner, avoiding stale/default plan values."""
+    if not creator:
+        return None
+    try:
+        plan_id = getattr(creator, "plan_id", None)
+        if plan_id:
             try:
-                if v is not None and str(v).strip() != "":
-                    return float(v)
+                from app.models import Plan
+                plan = Plan.query.get(plan_id)
+                if plan:
+                    return plan
+            except Exception:
+                db.session.rollback()
+        plan = getattr(creator, "plan", None)
+        if plan:
+            return plan
+    except Exception:
+        db.session.rollback()
+    return None
+
+
+def _creator_plan_snapshot(creator):
+    plan = _creator_active_plan(creator)
+    def val(obj, names, default=None):
+        for name in names:
+            try:
+                v = getattr(obj, name, None) if obj else None
+                if v is not None and str(v) != "":
+                    return v
             except Exception:
                 pass
-        return float(default)
+        return default
 
-    # Try direct creator columns first
-    storage_limit = first_number(
-        getattr(creator, "storage_limit_gb", None),
-        getattr(creator, "plan_storage_limit_gb", None),
-        getattr(creator, "storage_gb", None),
-        getattr(creator, "plan_storage_gb", None),
-        default=500
-    )
-    batch_limit = first_number(
-        getattr(creator, "max_batch_gb", None),
-        getattr(creator, "max_batch_size_gb", None),
-        getattr(creator, "batch_limit_gb", None),
-        getattr(creator, "plan_batch_limit_gb", None),
-        default=128
-    )
+    return {
+        "plan": plan,
+        "plan_name": val(plan, ["name", "title", "plan_name"], "No plan"),
+        "storage_limit_gb": float(val(plan, ["storage_limit_gb", "storage_gb", "max_storage_gb"], getattr(creator, "storage_limit_gb", 500) or 500)),
+        "max_batch_gb": float(val(plan, ["max_batch_gb", "batch_limit_gb", "upload_limit_gb"], 128)),
+        "original_price": float(val(plan, ["original_price", "default_original_price", "instant_download_price"], getattr(creator, "original_price", getattr(creator, "default_original_price", 50)) or 50)),
+        "edited_price": val(plan, ["edited_price", "default_edited_price"], getattr(creator, "edited_price", getattr(creator, "default_edited_price", None))),
+        "bundle_price": val(plan, ["bundle_price", "default_bundle_price"], getattr(creator, "bundle_price", getattr(creator, "default_bundle_price", None))),
+    }
 
-    # Try related plan object if present
-    plan = getattr(creator, "plan", None)
-    if plan:
-        storage_limit = first_number(
-            getattr(plan, "storage_limit_gb", None),
-            getattr(plan, "plan_storage_limit_gb", None),
-            getattr(plan, "storage_gb", None),
-            getattr(plan, "included_storage_gb", None),
-            storage_limit,
-            default=500
-        )
-        batch_limit = first_number(
-            getattr(plan, "max_batch_gb", None),
-            getattr(plan, "max_batch_size_gb", None),
-            getattr(plan, "batch_limit_gb", None),
-            batch_limit,
-            default=128
-        )
 
-    if storage_limit <= 0:
-        storage_limit = 500
-    if batch_limit <= 0:
-        batch_limit = 128
-    return storage_limit, batch_limit
+def _creator_plan_limits(creator):
+    snap = _creator_plan_snapshot(creator)
+    return snap["storage_limit_gb"], snap["max_batch_gb"]
 
 
 def _creator_storage_used_gb(creator_id):

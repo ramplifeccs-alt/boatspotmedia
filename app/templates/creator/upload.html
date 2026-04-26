@@ -15,6 +15,13 @@
   <div class="card" style="background:#fff;border-radius:16px;padding:22px;box-shadow:0 8px 25px rgba(0,0,0,.08);max-width:980px;">
     <h1>Upload Video Batch</h1>
 
+<div class="card plan-sync-card" style="background:#eef2ff;border:1px solid #c7d2fe;border-radius:14px;padding:14px;margin:14px 0;">
+  <strong>Current Plan:</strong> {{ plan_snapshot.plan_name if plan_snapshot is defined else 'No plan' }}<br>
+  <strong>Storage Limit:</strong> {{ plan_snapshot.storage_limit_gb if plan_snapshot is defined else storage_limit_gb|default(500) }} GB<br>
+  <strong>Max Batch:</strong> {{ plan_snapshot.max_batch_gb if plan_snapshot is defined else max_batch_gb|default(128) }} GB
+</div>
+
+
     <p><strong>Plan storage used:</strong> {{ storage_used_gb|default(used_gb|default(0)) }} GB / {{ storage_limit_gb|default(500) }} GB</p>
     <p><strong>Maximum per batch:</strong> {{ max_batch_gb|default(128) }} GB</p>
 
