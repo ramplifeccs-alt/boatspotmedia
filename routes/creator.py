@@ -45,41 +45,68 @@ def _ffmpeg_duration_seconds(local_video):
         return 0
 
 def _run_ffmpeg_thumbnail(input_path, output_path):
-    import os, subprocess
+    import subprocess
+    import os
+
     ffmpeg = _ffmpeg_bin()
-    duration = _ffmpeg_duration_seconds(input_path)
 
-    if duration and duration > 0:
-        ratios = [0.50, 0.45, 0.55, 0.40, 0.60]
-        seek_points = [max(0.2, duration * r) for r in ratios]
-    else:
-        seek_points = [10, 20, 30, 45, 60]
+    commands = [
 
-    attempts = []
-    for seek in seek_points:
-        attempts.append([
-            ffmpeg, "-y",
-            "-ss", str(seek),
+        # FAST KEYFRAME SEEK (best for HEVC cameras)
+        [
+            ffmpeg,
+            "-y",
+            "-skip_frame", "nokey",
             "-i", input_path,
-            "-map", "0:v:0",
             "-frames:v", "1",
             "-vf", "scale=1664:-1,crop=1280:720",
             "-q:v", "2",
             output_path,
-        ])
+        ],
 
-    for cmd in attempts:
+        # fallback: 50% midpoint approx
+        [
+            ffmpeg,
+            "-y",
+            "-ss", "15",
+            "-i", input_path,
+            "-frames:v", "1",
+            "-vf", "scale=1664:-1,crop=1280:720",
+            "-q:v", "2",
+            output_path,
+        ],
+
+        # fallback: thumbnail filter
+        [
+            ffmpeg,
+            "-y",
+            "-i", input_path,
+            "-vf", "thumbnail,scale=1664:-1,crop=1280:720",
+            "-frames:v", "1",
+            "-q:v", "2",
+            output_path,
+        ],
+    ]
+
+    for cmd in commands:
         try:
             if os.path.exists(output_path):
                 os.remove(output_path)
-            subprocess.run(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True, timeout=30)
+
+            subprocess.run(
+                cmd,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE,
+                timeout=25,
+            )
+
             if os.path.exists(output_path) and os.path.getsize(output_path) > 1000:
-                if not _thumb_image_is_dark(output_path):
-                    return True
+                return True
+
         except Exception:
             pass
-    return False
 
+    return False
 def _generate_and_attach_thumbnail_for_video(video):
     try:
         import os, tempfile, uuid, shutil
