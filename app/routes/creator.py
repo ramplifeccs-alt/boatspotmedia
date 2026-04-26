@@ -1,4 +1,3 @@
-from datetime import datetime, date, time, timezone
 from werkzeug.security import check_password_hash
 import os, tempfile, uuid
 from flask import Blueprint, render_template, request, redirect, url_for, current_app, flash, jsonify, session
@@ -54,29 +53,42 @@ def _is_allowed_video_filename(filename):
     return os.path.splitext((filename or "").lower())[1] in ALLOWED_VIDEO_EXTENSIONS
 
 def _creator_default_prices(creator):
-    snap = _creator_plan_snapshot(creator)
-    original = snap.get("original_price") or 50
-    edited = snap.get("edited_price")
-    bundle = snap.get("bundle_price")
-    try:
-        edited = float(edited) if edited is not None and str(edited) != "" else 0
-    except Exception:
-        edited = 0
-    try:
-        bundle = float(bundle) if bundle is not None and str(bundle) != "" else 0
-    except Exception:
-        bundle = 0
-    return float(original), edited, bundle
-
+    def num(v, default):
+        try:
+            if v is not None and str(v).strip() != "":
+                return float(v)
+        except Exception:
+            pass
+        return float(default)
+    plan = getattr(creator, "plan", None)
+    original = num(getattr(creator, "default_original_price", None), 40)
+    edited = num(getattr(creator, "default_edited_price", None), 60)
+    bundle = num(getattr(creator, "default_bundle_price", None), 80)
+    if plan:
+        original = num(getattr(plan, "default_original_price", None), original)
+        edited = num(getattr(plan, "default_edited_price", None), edited)
+        bundle = num(getattr(plan, "default_bundle_price", None), bundle)
+    return original, edited, bundle
 
 def _recalculate_creator_storage(creator_id):
-    """Safely recalculate storage without aborting the SQLAlchemy transaction."""
     try:
         from app.models import CreatorProfile, Video
         total = int(db.session.query(db.func.coalesce(db.func.sum(Video.file_size_bytes), 0)).filter(
             Video.creator_id == creator_id,
             Video.status != "deleted"
         ).scalar() or 0)
+        try:
+            batch_total = db.session.execute(db.text("""
+                SELECT COALESCE(SUM(
+                    COALESCE(total_size_bytes, size_bytes, file_size_bytes, storage_bytes, 0)
+                ), 0)
+                FROM video_batch
+                WHERE creator_id = :cid
+                  AND COALESCE(status, '') <> 'deleted'
+            """), {"cid": creator_id}).scalar() or 0
+            total = max(total, int(batch_total or 0))
+        except Exception:
+            pass
         c = CreatorProfile.query.get(creator_id)
         if c and hasattr(c, "storage_used_bytes"):
             c.storage_used_bytes = int(total)
@@ -123,444 +135,7 @@ def render_creator_template(template_name, **kwargs):
     kwargs["creator"] = creator
     kwargs["creator_name"] = creator_display_name(creator)
     kwargs["creator_instagram"] = creator_instagram(creator)
-    kwargs.setdefault('plan_snapshot', _creator_plan_snapshot(kwargs.get('creator')))
     return render_template(template_name, **kwargs)
-
-
-def _creator_location_suggestions():
-    try:
-        from app.models import Video
-        rows = db.session.query(Video.location).filter(Video.location.isnot(None), Video.location != "", Video.status != "deleted").distinct().order_by(Video.location.asc()).all()
-        return [" ".join(str(r[0]).strip().split()) for r in rows if r and r[0]]
-    except Exception:
-        db.session.rollback()
-        return []
-
-
-
-def _safe_secure_filename(name):
-    try:
-        return secure_filename(name or "video")
-    except Exception:
-        import re
-        name = str(name or "video")
-        name = re.sub(r"[^A-Za-z0-9_.-]+", "_", name).strip("._")
-        return name or "video"
-
-
-
-def _normalize_completed_upload_files(data):
-    """Accept all frontend payload names for completed uploads."""
-    files = (
-        data.get("files")
-        or data.get("uploaded_files")
-        or data.get("videos")
-        or data.get("uploads")
-        or data.get("uploadedVideos")
-        or []
-    )
-    if isinstance(files, dict):
-        files = list(files.values())
-    normalized = []
-    for item in files:
-        if not isinstance(item, dict):
-            continue
-        upload = item.get("upload") or item.get("uploaded") or item
-        filename = (
-            item.get("filename")
-            or item.get("name")
-            or upload.get("filename")
-            or upload.get("name")
-            or upload.get("original_filename")
-        )
-        key = (
-            item.get("key")
-            or item.get("r2_video_key")
-            or item.get("r2_key")
-            or upload.get("key")
-            or upload.get("r2_video_key")
-            or upload.get("r2_key")
-        )
-        size = (
-            item.get("file_size")
-            or item.get("size")
-            or item.get("file_size_bytes")
-            or upload.get("file_size")
-            or upload.get("size")
-            or upload.get("file_size_bytes")
-            or 0
-        )
-        if filename:
-            normalized.append({
-                "filename": filename,
-                "key": key,
-                "file_size": int(size or 0),
-                "upload": upload,
-                "last_modified": item.get("last_modified") or upload.get("last_modified"),
-                "last_modified_iso": item.get("last_modified_iso") or upload.get("last_modified_iso"),
-                "last_modified_local": item.get("last_modified_local") or upload.get("last_modified_local"),
-                "thumbnail_key": item.get("thumbnail_key") or item.get("r2_thumbnail_key") or upload.get("thumbnail_key") or upload.get("r2_thumbnail_key"),
-                "public_thumbnail_url": item.get("public_thumbnail_url") or upload.get("public_thumbnail_url") or upload.get("thumbnail_url"),
-            })
-    return normalized
-
-
-
-def _safe_recorded_date_time_from_file_info(file_info):
-    """
-    Prefer the local file timestamp sent by the browser.
-    This avoids UTC shifting and is closer to the time shown on the creator's computer.
-    """
-    upload = file_info.get("upload") or {}
-
-    for source in (file_info, upload):
-        local = source.get("last_modified_local") or source.get("file_last_modified_local")
-        if local:
-            try:
-                dt = datetime.fromisoformat(str(local))
-                return dt.date(), dt.time().replace(microsecond=0)
-            except Exception:
-                pass
-
-        iso = source.get("last_modified_iso") or source.get("file_last_modified_iso")
-        if iso:
-            try:
-                dt = datetime.fromisoformat(str(iso).replace("Z", "+00:00")).astimezone()
-                return dt.date(), dt.time().replace(microsecond=0)
-            except Exception:
-                pass
-
-        ms = source.get("last_modified") or source.get("file_last_modified")
-        if ms:
-            try:
-                dt = datetime.fromtimestamp(float(ms) / 1000.0)
-                return dt.date(), dt.time().replace(microsecond=0)
-            except Exception:
-                pass
-
-        recorded_at = source.get("recorded_at") or source.get("created_at") or source.get("media_created_at")
-        if isinstance(recorded_at, datetime):
-            return recorded_at.date(), recorded_at.time().replace(microsecond=0)
-        if isinstance(recorded_at, str) and recorded_at:
-            try:
-                dt = datetime.fromisoformat(recorded_at.replace("Z", "+00:00"))
-                return dt.date(), dt.time().replace(microsecond=0)
-            except Exception:
-                pass
-
-    return date.today(), time(0, 0, 0)
-
-
-def _cleanup_uploaded_r2_files(files):
-    try:
-        from app.services.r2 import delete_r2_object
-        for f in files or []:
-            upload = f.get("upload") or {}
-            key = (
-                f.get("key")
-                or f.get("r2_video_key")
-                or f.get("r2_key")
-                or upload.get("key")
-                or upload.get("r2_video_key")
-                or upload.get("r2_key")
-            )
-            if key:
-                try:
-                    delete_r2_object(key)
-                except Exception:
-                    pass
-    except Exception:
-        pass
-
-
-def _safe_video_create_from_upload(creator_id, batch, file_info, location=None):
-    from app.models import Video
-
-    upload = file_info.get("upload") or {}
-    filename = file_info.get("filename") or file_info.get("name") or upload.get("filename") or upload.get("name") or "video"
-    key = (
-        file_info.get("key")
-        or file_info.get("r2_video_key")
-        or file_info.get("r2_key")
-        or upload.get("key")
-        or upload.get("r2_video_key")
-        or upload.get("r2_key")
-        or filename
-    )
-    size = int(file_info.get("file_size") or file_info.get("size") or upload.get("file_size") or upload.get("size") or 0)
-
-    recorded_date, recorded_time = _safe_recorded_date_time_from_file_info(file_info)
-    original_price = getattr(batch, "original_price", None) or 0
-    edited_price = getattr(batch, "edited_price", None) or 0
-    bundle_price = getattr(batch, "bundle_price", None) or 0
-
-    cols = set(Video.__table__.columns.keys())
-    kwargs = {}
-
-    if "creator_id" in cols:
-        kwargs["creator_id"] = creator_id
-    if "batch_id" in cols:
-        kwargs["batch_id"] = getattr(batch, "id", None)
-    if "location" in cols:
-        kwargs["location"] = location or getattr(batch, "location", None)
-    if "filename" in cols:
-        kwargs["filename"] = filename
-    if "internal_filename" in cols:
-        kwargs["internal_filename"] = filename
-    if "file_path" in cols:
-        kwargs["file_path"] = key
-    if "r2_video_key" in cols:
-        kwargs["r2_video_key"] = key
-    thumb_key = file_info.get("thumbnail_key") or file_info.get("r2_thumbnail_key") or upload.get("thumbnail_key") or upload.get("r2_thumbnail_key")
-    thumb_url = file_info.get("public_thumbnail_url") or upload.get("public_thumbnail_url") or upload.get("thumbnail_url")
-    if thumb_key and "r2_thumbnail_key" in cols:
-        kwargs["r2_thumbnail_key"] = thumb_key
-    if thumb_url and "public_thumbnail_url" in cols:
-        kwargs["public_thumbnail_url"] = thumb_url
-    if thumb_url and "thumbnail_url" in cols:
-        kwargs["thumbnail_url"] = thumb_url
-    if thumb_key and "thumbnail_path" in cols:
-        kwargs["thumbnail_path"] = thumb_key
-    if "file_size_bytes" in cols:
-        kwargs["file_size_bytes"] = size
-    if "recorded_date" in cols:
-        kwargs["recorded_date"] = recorded_date
-    if "recorded_time" in cols:
-        kwargs["recorded_time"] = recorded_time
-    if "recorded_at" in cols:
-        kwargs["recorded_at"] = datetime.combine(recorded_date, recorded_time)
-    if "price" in cols:
-        kwargs["price"] = original_price or 0
-    if "original_price" in cols:
-        kwargs["original_price"] = original_price or 0
-    if "edited_price" in cols:
-        kwargs["edited_price"] = edited_price or 0
-    if "bundle_price" in cols:
-        kwargs["bundle_price"] = bundle_price or 0
-    if "status" in cols:
-        kwargs["status"] = "active"
-    if "created_at" in cols:
-        kwargs["created_at"] = datetime.utcnow()
-
-    return Video(**kwargs)
-
-
-def _r2_public_url_for_key(key):
-    import os
-    if not key:
-        return None
-    if str(key).startswith("http://") or str(key).startswith("https://"):
-        return key
-    base = (os.getenv("R2_PUBLIC_BASE_URL") or "").rstrip("/")
-    if base:
-        return f"{base}/{str(key).lstrip('/')}"
-    return None
-
-
-
-
-def _fill_public_thumbnail_url(video):
-    try:
-        import os
-        base = (os.getenv("R2_PUBLIC_BASE_URL") or "").rstrip("/")
-        key = getattr(video, "r2_thumbnail_key", None) or getattr(video, "thumbnail_path", None)
-        if base and key and not str(key).startswith("http"):
-            url = f"{base}/{str(key).lstrip('/')}"
-            cols = set(video.__table__.columns.keys())
-            if "public_thumbnail_url" in cols:
-                video.public_thumbnail_url = url
-            if "thumbnail_url" in cols:
-                video.thumbnail_url = url
-            db.session.add(video)
-            return True
-    except Exception:
-        pass
-    return False
-
-
-
-def _parse_ffprobe_creation_time(local_video):
-    try:
-        import subprocess, json
-        probe = subprocess.run(
-            [
-                "ffprobe", "-v", "error",
-                "-show_entries", "format_tags=creation_time:stream_tags=creation_time",
-                "-of", "json",
-                local_video
-            ],
-            stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True, timeout=30
-        )
-        data = json.loads(probe.stdout or "{}")
-        candidates = []
-        fmt_tags = ((data.get("format") or {}).get("tags") or {})
-        if fmt_tags.get("creation_time"):
-            candidates.append(fmt_tags.get("creation_time"))
-        for stream in data.get("streams") or []:
-            tags = stream.get("tags") or {}
-            if tags.get("creation_time"):
-                candidates.append(tags.get("creation_time"))
-        for raw in candidates:
-            try:
-                dt = datetime.fromisoformat(str(raw).replace("Z", "+00:00")).astimezone()
-                return dt.date(), dt.time().replace(microsecond=0)
-            except Exception:
-                pass
-    except Exception as e:
-        try: print("optional ffprobe creation_time warning:", e)
-        except Exception: pass
-    return None, None
-
-
-def _probe_video_duration(local_video):
-    try:
-        import subprocess
-        probe = subprocess.run(
-            ["ffprobe", "-v", "error", "-show_entries", "format=duration", "-of", "default=nw=1:nk=1", local_video],
-            stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True, timeout=25
-        )
-        return float((probe.stdout or "0").strip() or 0)
-    except Exception:
-        return 0
-
-
-def _looks_dark_thumbnail(path):
-    try:
-        # Use ffmpeg signalstats if Pillow is unavailable.
-        import os
-        if not os.path.exists(path) or os.path.getsize(path) < 1000:
-            return True
-        try:
-            from PIL import Image, ImageStat
-            img = Image.open(path).convert("L").resize((80, 45))
-            stat = ImageStat.Stat(img)
-            mean = stat.mean[0] if stat.mean else 0
-            extrema = img.getextrema()
-            spread = (extrema[1] - extrema[0]) if extrema else 0
-            return mean < 18 and spread < 45
-        except Exception:
-            return False
-    except Exception:
-        return False
-
-
-def _generate_frame_at(local_video, local_thumb, seek):
-    import subprocess, os
-    if os.path.exists(local_thumb):
-        try: os.remove(local_thumb)
-        except Exception: pass
-    vf = "scale=1664:-1,crop=1280:720"
-    cmd = [
-        "ffmpeg", "-y",
-        "-ss", str(max(0.1, float(seek))),
-        "-i", local_video,
-        "-frames:v", "1",
-        "-vf", vf,
-        "-q:v", "3",
-        local_thumb
-    ]
-    subprocess.run(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True, timeout=80)
-    return os.path.exists(local_thumb) and os.path.getsize(local_thumb) > 1000
-
-
-def _generate_and_attach_thumbnail_for_video(video):
-    """
-    Download video from R2, read creation_time with ffprobe, generate non-black thumbnail,
-    upload thumbnail to R2, and save thumbnail fields.
-    """
-    try:
-        import os, tempfile, uuid, shutil
-        from app.services.r2 import get_r2_client, _bucket_name
-
-        video_key = getattr(video, "r2_video_key", None) or getattr(video, "file_path", None)
-        if not video_key:
-            return False
-
-        client = get_r2_client()
-        bucket = _bucket_name()
-        tmp_dir = tempfile.mkdtemp(prefix="bsm_thumb_")
-        local_video = os.path.join(tmp_dir, "video_input")
-        local_thumb = os.path.join(tmp_dir, "thumb.jpg")
-
-        client.download_file(bucket, video_key, local_video)
-
-        cols = set(video.__table__.columns.keys())
-
-        rd, rt = _parse_ffprobe_creation_time(local_video)
-        if rd and "recorded_date" in cols:
-            video.recorded_date = rd
-        if rt and "recorded_time" in cols:
-            video.recorded_time = rt
-        if rd and rt and "recorded_at" in cols:
-            video.recorded_at = datetime.combine(rd, rt)
-
-        duration = _probe_video_duration(local_video)
-        if duration and duration > 10:
-            seeks = [duration*0.50, duration*0.33, duration*0.66, duration*0.20, duration*0.80, 3, 1]
-        elif duration and duration > 3:
-            seeks = [duration*0.50, duration*0.30, duration*0.70, 2, 1]
-        else:
-            seeks = [1, 0.5, 2]
-
-        good = False
-        for seek in seeks:
-            try:
-                if _generate_frame_at(local_video, local_thumb, seek) and not _looks_dark_thumbnail(local_thumb):
-                    good = True
-                    break
-            except Exception:
-                pass
-
-        if not good:
-            for seek in seeks:
-                try:
-                    if _generate_frame_at(local_video, local_thumb, seek):
-                        good = True
-                        break
-                except Exception:
-                    pass
-
-        if good:
-            filename = getattr(video, "filename", "video") or "video"
-            thumb_key = f"creators/{getattr(video, 'creator_id', 'unknown')}/batches/{getattr(video, 'batch_id', 'unknown')}/thumbs/{uuid.uuid4().hex}_{filename}.jpg"
-            client.upload_file(local_thumb, bucket, thumb_key, ExtraArgs={"ContentType": "image/jpeg"})
-
-            public_url = _r2_public_url_for_key(thumb_key) if "_r2_public_url_for_key" in globals() else None
-            if "r2_thumbnail_key" in cols:
-                video.r2_thumbnail_key = thumb_key
-            if "thumbnail_path" in cols:
-                video.thumbnail_path = thumb_key
-            if public_url and "public_thumbnail_url" in cols:
-                video.public_thumbnail_url = public_url
-            if public_url and "thumbnail_url" in cols:
-                video.thumbnail_url = public_url
-
-        db.session.add(video)
-        try: shutil.rmtree(tmp_dir, ignore_errors=True)
-        except Exception: pass
-        return True
-    except Exception as e:
-        try: print("optional thumbnail/metadata generation warning:", e)
-        except Exception: pass
-        return False
-
-
-
-@creator_bp.route("/video/<int:video_id>/generate-thumbnail", methods=["POST"])
-def generate_video_thumbnail(video_id):
-    creator = current_creator()
-    if not creator:
-        return jsonify({"ok": False, "error": "Please log in again."}), 401
-    from app.models import Video
-    v = Video.query.get_or_404(video_id)
-    if getattr(v, "creator_id", None) != getattr(creator, "id", None):
-        return jsonify({"ok": False, "error": "Not allowed."}), 403
-    ok = _generate_and_attach_thumbnail_for_video(v)
-    if ok:
-        db.session.commit()
-        return jsonify({"ok": True})
-    return jsonify({"ok": False, "error": "Could not generate thumbnail. Make sure ffmpeg is installed on the server."}), 500
-
 
 @creator_bp.route("/health")
 def health():
@@ -636,7 +211,7 @@ def dashboard():
     _ensure_creator_profile_deleted_column()
     creator = current_creator()
     if creator:
-        safe_recalc = _recalculate_creator_storage(creator.id)
+        _recalculate_creator_storage(creator.id)
     storage_limit_gb, max_batch_gb = _creator_plan_limits(creator)
     storage_used_gb = _creator_storage_used_gb(creator.id)
     if not creator:
@@ -870,8 +445,6 @@ def upload():
         used_bytes=used,
         limit_bytes=limit,
         used_gb=round(used / 1024 / 1024 / 1024, 2),
-        video_locations=_creator_location_suggestions(),
-        plan_snapshot=_creator_plan_snapshot(creator),
         storage_limit_gb=storage_limit_gb,
         max_batch_gb=max_batch_gb,
         storage_used_gb=storage_used_gb,
@@ -883,79 +456,97 @@ def upload():
 
 
 
-
-def _creator_active_plan(creator):
-    """Return the real plan assigned by Owner, avoiding stale/default plan values."""
-    if not creator:
-        return None
-    try:
-        plan_id = getattr(creator, "plan_id", None)
-        if plan_id:
+def _creator_plan_limits(creator):
+    """Return safe storage/batch limits for creator panel and uploads.
+    Defaults: 500 GB storage, 128 GB per batch.
+    Reads multiple legacy/new field names so Owner panel changes still show in Creator panel.
+    """
+    def first_number(*values, default=0):
+        for v in values:
             try:
-                from app.models import Plan
-                plan = Plan.query.get(plan_id)
-                if plan:
-                    return plan
-            except Exception:
-                db.session.rollback()
-        plan = getattr(creator, "plan", None)
-        if plan:
-            return plan
-    except Exception:
-        db.session.rollback()
-    return None
-
-
-def _creator_plan_snapshot(creator):
-    plan = _creator_active_plan(creator)
-    def val(obj, names, default=None):
-        for name in names:
-            try:
-                v = getattr(obj, name, None) if obj else None
-                if v is not None and str(v) != "":
-                    return v
+                if v is not None and str(v).strip() != "":
+                    return float(v)
             except Exception:
                 pass
-        return default
+        return float(default)
 
-    return {
-        "plan": plan,
-        "plan_name": val(plan, ["name", "title", "plan_name"], "No plan"),
-        "storage_limit_gb": float(val(plan, ["storage_limit_gb", "storage_gb", "max_storage_gb"], getattr(creator, "storage_limit_gb", 500) or 500)),
-        "max_batch_gb": float(val(plan, ["max_batch_gb", "batch_limit_gb", "upload_limit_gb"], 128)),
-        "original_price": float(val(plan, ["original_price", "default_original_price", "instant_download_price"], getattr(creator, "original_price", getattr(creator, "default_original_price", 50)) or 50)),
-        "edited_price": val(plan, ["edited_price", "default_edited_price"], getattr(creator, "edited_price", getattr(creator, "default_edited_price", None))),
-        "bundle_price": val(plan, ["bundle_price", "default_bundle_price"], getattr(creator, "bundle_price", getattr(creator, "default_bundle_price", None))),
-    }
+    # Try direct creator columns first
+    storage_limit = first_number(
+        getattr(creator, "storage_limit_gb", None),
+        getattr(creator, "plan_storage_limit_gb", None),
+        getattr(creator, "storage_gb", None),
+        getattr(creator, "plan_storage_gb", None),
+        default=500
+    )
+    batch_limit = first_number(
+        getattr(creator, "max_batch_gb", None),
+        getattr(creator, "max_batch_size_gb", None),
+        getattr(creator, "batch_limit_gb", None),
+        getattr(creator, "plan_batch_limit_gb", None),
+        default=128
+    )
 
+    # Try related plan object if present
+    plan = getattr(creator, "plan", None)
+    if plan:
+        storage_limit = first_number(
+            getattr(plan, "storage_limit_gb", None),
+            getattr(plan, "plan_storage_limit_gb", None),
+            getattr(plan, "storage_gb", None),
+            getattr(plan, "included_storage_gb", None),
+            storage_limit,
+            default=500
+        )
+        batch_limit = first_number(
+            getattr(plan, "max_batch_gb", None),
+            getattr(plan, "max_batch_size_gb", None),
+            getattr(plan, "batch_limit_gb", None),
+            batch_limit,
+            default=128
+        )
 
-def _creator_plan_limits(creator):
-    snap = _creator_plan_snapshot(creator)
-    return snap["storage_limit_gb"], snap["max_batch_gb"]
+    if storage_limit <= 0:
+        storage_limit = 500
+    if batch_limit <= 0:
+        batch_limit = 128
+    return storage_limit, batch_limit
 
 
 def _creator_storage_used_gb(creator_id):
-    """Safe dashboard storage calculation.
-    Uses video.file_size_bytes and profile fallback only. Avoids broken SQL against unknown batch columns.
+    """Robust storage calculation shown in Creator Dashboard.
+    Sums video.file_size_bytes, video_batch total fields, and creator_profile.storage_used_bytes fallback.
     """
     total = 0
     try:
         from app.models import Video
-        total = int(db.session.query(db.func.coalesce(db.func.sum(Video.file_size_bytes), 0)).filter(
+        total += int(db.session.query(db.func.coalesce(db.func.sum(Video.file_size_bytes), 0)).filter(
             Video.creator_id == creator_id,
             Video.status != "deleted"
         ).scalar() or 0)
     except Exception as e:
-        db.session.rollback()
         print("storage video sum warning:", e)
 
+    # Some older batches store the total size only on video_batch.
+    try:
+        rows = db.session.execute(db.text("""
+            SELECT COALESCE(SUM(
+                COALESCE(total_size_bytes, size_bytes, file_size_bytes, storage_bytes, 0)
+            ), 0)
+            FROM video_batch
+            WHERE creator_id = :cid
+              AND COALESCE(status, '') <> 'deleted'
+        """), {"cid": creator_id}).scalar() or 0
+        total = max(total, int(rows or 0))
+    except Exception as e:
+        print("storage batch sum warning:", e)
+
+    # Fallback to profile storage_used_bytes if it is larger.
     try:
         from app.models import CreatorProfile
         c = CreatorProfile.query.get(creator_id)
         if c and getattr(c, "storage_used_bytes", None):
             total = max(total, int(c.storage_used_bytes or 0))
     except Exception as e:
-        db.session.rollback()
         print("storage profile warning:", e)
 
     return round(float(total) / (1024 ** 3), 2)
@@ -1158,101 +749,7 @@ def upload_r2_prepare():
     })
 
 
-
-@creator_bp.route("/upload/r2/thumbnail/presign", methods=["POST"])
-def upload_r2_thumbnail_presign():
-    creator = current_creator()
-    if not creator:
-        return jsonify({"ok": False, "error": "Please log in again."}), 401
-
-    import uuid
-    from werkzeug.utils import secure_filename
-    from app.services.r2 import create_presigned_put_url_stable, public_url_for_key
-
-    data = request.get_json(silent=True) or {}
-    batch_id = data.get("batch_id") or "pending"
-    filename = secure_filename(data.get("filename") or "thumb.jpg")
-    if not filename.lower().endswith(".jpg"):
-        filename = filename + ".jpg"
-
-    key = f"creators/{creator.id}/batches/{batch_id}/thumbs/browser_{uuid.uuid4().hex}_{filename}"
-    url = create_presigned_put_url_stable(key, "image/jpeg")
-    public_url = public_url_for_key(key)
-    return jsonify({"ok": True, "url": url, "key": key, "public_url": public_url})
-
-
 @creator_bp.route("/upload/r2/complete", methods=["POST"])
-def upload_r2_complete():
-    creator = current_creator()
-    if not creator:
-        return jsonify({"ok": False, "error": "Please log in again."}), 401
-
-    data = request.get_json(silent=True) or {}
-    batch_id = data.get("batch_id") or data.get("batchId")
-    files = _normalize_completed_upload_files(data)
-
-    if not files:
-        return jsonify({
-            "ok": False,
-            "error": "No uploaded videos received.",
-            "debug_keys": list(data.keys())
-        }), 400
-
-    try:
-        from app.models import VideoBatch
-    except Exception:
-        VideoBatch = None
-
-    batch = None
-    if VideoBatch is not None and batch_id:
-        batch = VideoBatch.query.get(batch_id)
-
-    if batch is None:
-        return jsonify({"ok": False, "error": "Upload batch was not found. Please refresh and try again."}), 400
-
-    try:
-        created = []
-        for file_info in files:
-            v = _safe_video_create_from_upload(creator.id, batch, file_info, location=getattr(batch, "location", None))
-            db.session.add(v)
-            created.append(v)
-
-        # Mark batch active/complete when those columns exist.
-        try:
-            if hasattr(batch, "status"):
-                batch.status = "active"
-            if hasattr(batch, "completed_at"):
-                batch.completed_at = datetime.utcnow()
-            if hasattr(batch, "total_size_bytes"):
-                batch.total_size_bytes = sum(int(f.get("file_size") or 0) for f in files)
-        except Exception:
-            pass
-
-        db.session.commit()
-
-        # Generate thumbnails and read video metadata from the actual uploaded R2 video.
-        try:
-            for v in created:
-                has_thumb = bool(getattr(v, "public_thumbnail_url", None) or getattr(v, "thumbnail_url", None) or getattr(v, "thumbnail_path", None) or getattr(v, "r2_thumbnail_key", None))
-                if not has_thumb:
-                    _generate_and_attach_thumbnail_for_video(v)
-                _fill_public_thumbnail_url(v)
-            db.session.commit()
-        except Exception:
-            db.session.rollback()
-
-        try:
-            _recalculate_creator_storage(creator.id)
-        except Exception:
-            db.session.rollback()
-
-        return jsonify({"ok": True, "message": "Videos saved.", "count": len(created), "batch_id": getattr(batch, "id", None)})
-    except Exception as e:
-        db.session.rollback()
-        _cleanup_uploaded_r2_files(files if "files" in locals() else uploaded if "uploaded" in locals() else [])
-        return jsonify({"ok": False, "error": "Videos uploaded, but database save failed. Uploaded R2 files were cleaned up automatically: " + str(e)}), 500
-
-
 def upload_r2_complete():
     _ensure_video_upload_columns()
     creator = current_creator()
@@ -1284,6 +781,7 @@ def upload_r2_complete():
     _ensure_batch_exists_for_upload(batch.id, creator.id, getattr(batch, 'name', ''), location or getattr(batch, 'location', ''))
 
     default_original_price, default_edited_price, default_bundle_price = _creator_default_prices(creator)
+    from datetime import datetime, timezone
     for item in uploaded:
         key = item.get("key")
         if not key:
@@ -1300,13 +798,6 @@ def upload_r2_complete():
                 recorded_time = recorded_at.time()
         except Exception:
             recorded_at = None
-
-        if recorded_date is None or recorded_time is None:
-            fallback_date, fallback_time = _safe_recorded_date_time_from_file_info(item if 'item' in locals() else {})
-            recorded_date = recorded_date or fallback_date
-            recorded_time = recorded_time or fallback_time
-        if recorded_at is None:
-            recorded_at = datetime.combine(recorded_date, recorded_time)
 
         thumb_key = item.get("thumbnail_key")
         v = Video(
@@ -1336,8 +827,7 @@ def upload_r2_complete():
         db.session.commit()
     except Exception as e:
         db.session.rollback()
-        _cleanup_uploaded_r2_files(files if "files" in locals() else uploaded if "uploaded" in locals() else [])
-        return jsonify({"ok": False, "error": "Videos uploaded, but database save failed. Uploaded R2 files were cleaned up automatically: " + str(e)}), 500
+        return jsonify({"ok": False, "error": "Videos uploaded, but database save failed: " + str(e)}), 500
 
     return jsonify({
         "ok": True,
@@ -1555,114 +1045,3 @@ def regenerate_video_thumbnail(video_id):
     except Exception as e:
         db.session.rollback()
         return jsonify({"ok": False, "error": str(e)}), 500
-
-
-
-@creator_bp.route("/upload/r2/multipart/init", methods=["POST"])
-def upload_r2_multipart_init():
-    creator = current_creator()
-    if not creator:
-        return jsonify({"ok": False, "error": "Please log in again."}), 401
-
-    data = request.get_json(silent=True) or {}
-    filename = _safe_secure_filename(data.get("filename") or "video")
-    key = data.get("key")
-    batch_id = data.get("batch_id")
-    content_type = data.get("content_type") or "application/octet-stream"
-
-    if not key:
-        import uuid
-        key = f"creators/{creator.id}/batches/{batch_id or 'pending'}/{uuid.uuid4().hex}_{filename}"
-
-    try:
-        from app.services.r2 import create_multipart_upload
-        result = create_multipart_upload(key, content_type=content_type)
-        return jsonify({"ok": True, "upload_id": result["UploadId"], "key": key})
-    except Exception as e:
-        return jsonify({"ok": False, "error": str(e)}), 500
-
-
-def upload_r2_multipart_init():
-    creator = current_creator()
-    if not creator:
-        return jsonify({"ok": False, "error": "Please log in again."}), 401
-
-    data = request.get_json(silent=True) or {}
-    filename = _safe_secure_filename(data.get("filename") or "video")
-    key = data.get("key")
-    batch_id = data.get("batch_id")
-    content_type = data.get("content_type") or "application/octet-stream"
-
-    if not key:
-        import uuid
-        key = f"creators/{creator.id}/batches/{batch_id or 'pending'}/{uuid.uuid4().hex}_{filename}"
-
-    try:
-        from app.services.r2 import create_multipart_upload
-        result = create_multipart_upload(key, content_type=content_type)
-        return jsonify({"ok": True, "upload_id": result["UploadId"], "key": key})
-    except Exception as e:
-        return jsonify({"ok": False, "error": str(e)}), 500
-
-
-@creator_bp.route("/upload/r2/multipart/part", methods=["POST"])
-def upload_r2_multipart_part():
-    creator = current_creator()
-    if not creator:
-        return jsonify({"ok": False, "error": "Please log in again."}), 401
-
-    data = request.get_json(silent=True) or {}
-    key = data.get("key")
-    upload_id = data.get("upload_id")
-    part_number = int(data.get("part_number") or 1)
-
-    try:
-        from app.services.r2 import presign_upload_part
-        url = presign_upload_part(key, upload_id, part_number)
-        return jsonify({"ok": True, "url": url})
-    except Exception as e:
-        return jsonify({"ok": False, "error": str(e)}), 500
-
-
-@creator_bp.route("/upload/r2/multipart/complete", methods=["POST"])
-def upload_r2_multipart_complete():
-    creator = current_creator()
-    if not creator:
-        return jsonify({"ok": False, "error": "Please log in again."}), 401
-
-    data = request.get_json(silent=True) or {}
-    key = data.get("key")
-    upload_id = data.get("upload_id")
-    parts = data.get("parts") or []
-
-    try:
-        from app.services.r2 import complete_multipart_upload
-        complete_multipart_upload(key, upload_id, parts)
-        return jsonify({"ok": True, "key": key})
-    except Exception as e:
-        return jsonify({"ok": False, "error": str(e)}), 500
-
-
-@creator_bp.route("/upload/r2/multipart/abort", methods=["POST"])
-def upload_r2_multipart_abort():
-    creator = current_creator()
-    if not creator:
-        return jsonify({"ok": False, "error": "Please log in again."}), 401
-
-    data = request.get_json(silent=True) or {}
-    try:
-        from app.services.r2 import abort_multipart_upload
-        abort_multipart_upload(data.get("key"), data.get("upload_id"))
-        return jsonify({"ok": True})
-    except Exception as e:
-        return jsonify({"ok": False, "error": str(e)}), 500
-
-
-
-@creator_bp.route("/upload/r2/multipart/status", methods=["GET"])
-def upload_r2_multipart_status():
-    try:
-        from app.services.r2 import create_multipart_upload, presign_upload_part, complete_multipart_upload, abort_multipart_upload
-        return jsonify({"ok": True, "multipart": True})
-    except Exception as e:
-        return jsonify({"ok": True, "multipart": False, "error": str(e)})

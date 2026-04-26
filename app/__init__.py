@@ -1,4 +1,4 @@
-from flask import Flask, session, url_for
+from flask import Flask
 from config import Config
 from .services.db import db
 
@@ -56,89 +56,6 @@ def create_app():
             return {"latest_previews": _home_preview_videos()}
         except Exception:
             return {"latest_previews": []}
-
-
-    @flask_app.context_processor
-    def inject_account_menu():
-        def account_display_name():
-            try:
-                # Prefer business/creator display names when available.
-                role = session.get("role") or session.get("account_type") or ""
-                email = session.get("user_email") or session.get("email") or ""
-                user_id = session.get("user_id")
-                creator_id = session.get("creator_id")
-
-                if role == "creator" or creator_id:
-                    try:
-                        from app.models import CreatorProfile, User
-                        q = CreatorProfile.query
-                        c = None
-                        if creator_id:
-                            c = q.get(creator_id)
-                        if not c and user_id:
-                            c = q.filter_by(user_id=user_id).first()
-                        if c:
-                            for attr in ["business_name", "brand_name", "display_name", "instagram", "name"]:
-                                val = getattr(c, attr, None)
-                                if val:
-                                    return str(val)
-                            if getattr(c, "user", None) and getattr(c.user, "email", None):
-                                return c.user.email
-                    except Exception:
-                        pass
-
-                # Generic user fallback.
-                try:
-                    from app.models import User
-                    if user_id:
-                        u = User.query.get(user_id)
-                        if u:
-                            for attr in ["business_name", "company_name", "display_name", "name", "full_name", "username", "email"]:
-                                val = getattr(u, attr, None)
-                                if val:
-                                    return str(val)
-                except Exception:
-                    pass
-
-                return email or "My Account"
-            except Exception:
-                return "My Account"
-
-        def account_dashboard_url():
-            role = (session.get("role") or session.get("account_type") or "").lower()
-
-            try:
-                if role == "creator" or session.get("creator_id"):
-                    return url_for("creator.dashboard")
-                if role == "owner":
-                    return url_for("owner.applications")
-                if role == "buyer":
-                    return url_for("public.buyer_dashboard")
-                if role == "service":
-                    return url_for("public.services_dashboard")
-                if role == "charter":
-                    return url_for("public.charters_dashboard")
-            except Exception:
-                pass
-
-            # Fallbacks to routes that often exist in the project.
-            for endpoint in [
-                "creator.dashboard",
-                "public.buyer_dashboard",
-                "public.services_dashboard",
-                "public.charters_dashboard",
-                "public.home"
-            ]:
-                try:
-                    return url_for(endpoint)
-                except Exception:
-                    continue
-            return "/"
-
-        return {
-            "account_display_name": account_display_name,
-            "account_dashboard_url": account_dashboard_url
-        }
 
     return flask_app
 
