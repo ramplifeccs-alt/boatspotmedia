@@ -198,6 +198,8 @@ def _normalize_completed_upload_files(data):
                 "upload": upload,
                 "last_modified": item.get("last_modified") or upload.get("last_modified"),
                 "last_modified_iso": item.get("last_modified_iso") or upload.get("last_modified_iso"),
+                "thumbnail_key": item.get("thumbnail_key") or item.get("r2_thumbnail_key") or upload.get("thumbnail_key") or upload.get("r2_thumbnail_key"),
+                "public_thumbnail_url": item.get("public_thumbnail_url") or upload.get("public_thumbnail_url") or upload.get("thumbnail_url"),
             })
     return normalized
 
@@ -301,6 +303,16 @@ def _safe_video_create_from_upload(creator_id, batch, file_info, location=None):
         kwargs["file_path"] = key
     if "r2_video_key" in cols:
         kwargs["r2_video_key"] = key
+    thumb_key = file_info.get("thumbnail_key") or file_info.get("r2_thumbnail_key") or upload.get("thumbnail_key") or upload.get("r2_thumbnail_key")
+    thumb_url = file_info.get("public_thumbnail_url") or upload.get("public_thumbnail_url") or upload.get("thumbnail_url")
+    if thumb_key and "r2_thumbnail_key" in cols:
+        kwargs["r2_thumbnail_key"] = thumb_key
+    if thumb_url and "public_thumbnail_url" in cols:
+        kwargs["public_thumbnail_url"] = thumb_url
+    if thumb_url and "thumbnail_url" in cols:
+        kwargs["thumbnail_url"] = thumb_url
+    if thumb_key and "thumbnail_path" in cols:
+        kwargs["thumbnail_path"] = thumb_key
     if "file_size_bytes" in cols:
         kwargs["file_size_bytes"] = size
     if "recorded_date" in cols:

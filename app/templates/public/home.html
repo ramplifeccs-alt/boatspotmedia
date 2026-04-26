@@ -1,30 +1,97 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>BoatSpotMedia</title>
+  <style>
+    :root{
+      --nav:#071426;
+      --blue:#2563eb;
+      --bg:#f3f6fb;
+      --card:#ffffff;
+      --text:#111827;
+      --muted:#6b7280;
+    }
+    *{box-sizing:border-box}
+    body{margin:0;font-family:Arial, Helvetica, sans-serif;background:var(--bg);color:var(--text);}
+    .topbar{background:var(--nav);color:white;padding:14px 22px;display:flex;align-items:center;justify-content:space-between;gap:18px;position:sticky;top:0;z-index:10;}
+    .brand{font-size:22px;font-weight:900;color:white;text-decoration:none;letter-spacing:.2px;}
+    .nav{display:flex;align-items:center;gap:20px;flex-wrap:wrap;}
+    .nav a{color:white;text-decoration:none;font-weight:700;font-size:14px;}
+    .nav .pill{background:rgba(255,255,255,.12);padding:8px 12px;border-radius:999px;}
+    .wrap{max-width:1180px;margin:0 auto;padding:28px 20px 60px;}
+    .hero{background:linear-gradient(135deg,#eaf2ff,#ffffff);border-radius:24px;padding:38px 32px;box-shadow:0 12px 35px rgba(15,23,42,.08);margin-bottom:28px;}
+    .hero h1{font-size:38px;margin:0 0 10px;}
+    .hero p{font-size:16px;color:var(--muted);margin:0 0 20px;max-width:720px;line-height:1.5;}
+    .btn{display:inline-block;background:var(--blue);color:white;text-decoration:none;padding:12px 18px;border-radius:12px;font-weight:800;}
+    h2{font-size:26px;margin:26px 0 16px;}
+    .latest-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:20px;}
+    .video-card{background:var(--card);border-radius:20px;padding:14px;box-shadow:0 10px 28px rgba(15,23,42,.09);overflow:hidden;}
+    .thumb{width:100%;height:190px;border-radius:15px;background:#111827;object-fit:cover;display:block;}
+    .thumb-pending{width:100%;height:190px;border-radius:15px;background:#111827;color:white;display:flex;align-items:center;justify-content:center;font-weight:800;}
+    .video-card h3{margin:12px 0 4px;font-size:17px;text-transform:none;}
+    .video-card p{margin:0;color:var(--muted);font-size:14px;line-height:1.4;}
+    .card-actions{margin-top:12px;}
+    @media(max-width:850px){
+      .topbar{align-items:flex-start;flex-direction:column;}
+      .latest-grid{grid-template-columns:1fr;}
+      .hero h1{font-size:30px;}
+    }
+  </style>
+</head>
+<body>
+  <header class="topbar">
+    <a class="brand" href="/">BoatSpotMedia</a>
+    <nav class="nav">
+      <a href="/">Home</a>
+      <a href="/find-video">Find Your Video</a>
+      <a href="/shop">Shop</a>
+      <a href="/services">Services</a>
+      <a href="/charters">Charters</a>
+      {% if account_display_name is defined %}
+        <a class="pill" href="{{ account_dashboard_url() }}">{{ account_display_name() }}</a>
+      {% endif %}
+      {% if session is defined and (session.get('creator_id') or session.get('owner_logged_in') or session.get('buyer_id')) %}
+        <a href="/logout">Logout</a>
+      {% else %}
+        <a href="/creator/login">Creator Login</a>
+      {% endif %}
+    </nav>
+  </header>
 
-<section class="hero" style="padding:32px 24px;background:#f8fafc;border-radius:18px;margin-bottom:24px;">
-  <h1>Find your boat video</h1>
-  <p>Search by location, date, and approximate time. Buy the original video or request an edited version.</p>
-  <a href="/find-video" style="display:inline-block;background:#2563eb;color:white;padding:12px 16px;border-radius:10px;text-decoration:none;font-weight:700;">Find Your Video</a>
-</section>
+  <main class="wrap">
+    <section class="hero">
+      <h1>Find your boat video</h1>
+      <p>Search by location, date, and approximate time. Buy the original video or request an edited version.</p>
+      <a class="btn" href="/find-video">Find Your Video</a>
+    </section>
 
-<section>
-  <h2>Latest Uploads</h2>
-  <div class="latest-grid" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:18px;">
-    {% for video in latest_videos[:3] %}
-      <div class="video-card" style="background:white;border-radius:16px;padding:14px;box-shadow:0 8px 22px rgba(0,0,0,.08);">
-        {% set thumb = video.public_thumbnail_url or video.thumbnail_url or video.thumbnail_path or '' %}
-        {% if thumb %}
-          <img src="{{ thumb }}" alt="Boat video thumbnail" style="width:100%;height:160px;object-fit:cover;border-radius:12px;background:#111827;">
+    <section>
+      <h2>Latest Uploads</h2>
+      <div class="latest-grid">
+        {% for video in latest_videos[:3] %}
+          {% set thumb = video_thumb_url(video) if video_thumb_url is defined else (video.public_thumbnail_url or video.thumbnail_url or video.thumbnail_path or '') %}
+          <article class="video-card">
+            {% if thumb %}
+              <img class="thumb" src="{{ thumb }}" alt="Boat video thumbnail" loading="lazy">
+            {% else %}
+              <div class="thumb-pending">Thumbnail pending</div>
+            {% endif %}
+            <h3>{{ video.location or 'Boat video' }}</h3>
+            <p>
+              {% if video.recorded_date %}{{ video.recorded_date }}{% endif %}
+              {% if video.recorded_time %} {{ video.recorded_time }}{% endif %}
+            </p>
+            <div class="card-actions">
+              <a class="btn" href="/find-video">Preview</a>
+            </div>
+          </article>
         {% else %}
-          <div style="width:100%;height:160px;border-radius:12px;background:#111827;display:flex;align-items:center;justify-content:center;color:#fff;">Thumbnail pending</div>
-        {% endif %}
-        <h3 style="margin:12px 0 4px;">{{ video.location or 'Boat video' }}</h3>
-        <p style="margin:0;color:#6b7280;font-size:14px;">
-          {% if video.recorded_date %}{{ video.recorded_date }}{% endif %}
-          {% if video.recorded_time %} {{ video.recorded_time }}{% endif %}
-        </p>
-        <a href="/find-video" style="display:inline-block;margin-top:10px;background:#2563eb;color:white;padding:9px 12px;border-radius:8px;text-decoration:none;">Preview</a>
+          <p>No videos uploaded yet.</p>
+        {% endfor %}
       </div>
-    {% else %}
-      <p>No videos uploaded yet.</p>
-    {% endfor %}
-  </div>
-</section>
+    </section>
+  </main>
+</body>
+</html>

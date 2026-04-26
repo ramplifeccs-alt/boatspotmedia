@@ -80,6 +80,36 @@ def _attach_price_options_to_videos(videos):
 
 
 
+
+def _public_video_thumb_url(video):
+    """Return the best available public thumbnail URL for home cards."""
+    import os
+    if not video:
+        return None
+
+    for attr in ["public_thumbnail_url", "thumbnail_url"]:
+        try:
+            value = getattr(video, attr, None)
+            if value:
+                return value
+        except Exception:
+            pass
+
+    for attr in ["thumbnail_path", "r2_thumbnail_key"]:
+        try:
+            key = getattr(video, attr, None)
+            if key:
+                if str(key).startswith("http://") or str(key).startswith("https://"):
+                    return key
+                base = (os.getenv("R2_PUBLIC_BASE_URL") or "").rstrip("/")
+                if base:
+                    return f"{base}/{str(key).lstrip('/')}"
+        except Exception:
+            pass
+
+    return None
+
+
 def _public_active_video_query():
     from app.models import Video
     q = Video.query
@@ -131,7 +161,7 @@ def home():
     for v in latest:
         if len(selected) == 3: break
         if v not in selected: selected.append(v)
-    return render_template("public/home.html", latest_videos=_public_latest_home_videos(3), video_locations=_public_video_locations())
+    return render_template("public/home.html", latest_videos=_public_latest_home_videos(3), video_locations=_public_video_locations(), video_thumb_url=_public_video_thumb_url)
 
 
 @public_bp.route("/search")
