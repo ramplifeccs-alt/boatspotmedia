@@ -401,216 +401,6 @@ def _ffprobe_bin():
     return fp or "ffprobe"
 
 
-def _thumb_image_is_dark(path):
-    try:
-        from PIL import Image, ImageStat
-        img = Image.open(path).convert("L").resize((80, 45))
-        stat = ImageStat.Stat(img)
-        mean = stat.mean[0] if stat.mean else 0
-        lo, hi = img.getextrema()
-        return mean < 18 and (hi - lo) < 45
-    except Exception:
-        return False
-
-
-def _get_video_duration_seconds(local_video):
-    try:
-        import subprocess
-        result = subprocess.run(
-            [_ffprobe_bin(), "-v", "error", "-show_entries", "format=duration", "-of", "default=nw=1:nk=1", local_video],
-            stdout=subprocess.PIPE,
-            stderr=subprocess.PIPE,
-            text=True,
-            timeout=30,
-        )
-        return float((result.stdout or "0").strip() or 0)
-    except Exception as e:
-        try:
-            print("thumbnail duration ffprobe warning:", e)
-        except Exception:
-            pass
-        return 0
-
-
-def _get_video_creation_datetime(local_video):
-    try:
-        import subprocess, json
-        result = subprocess.run(
-            [
-                _ffprobe_bin(), "-v", "error",
-                "-show_entries", "format_tags=creation_time:stream_tags=creation_time",
-                "-of", "json",
-                local_video,
-            ],
-            stdout=subprocess.PIPE,
-            stderr=subprocess.PIPE,
-            text=True,
-            timeout=30,
-        )
-        data = json.loads(result.stdout or "{}")
-        values = []
-        fmt_tags = ((data.get("format") or {}).get("tags") or {})
-        if fmt_tags.get("creation_time"):
-            values.append(fmt_tags["creation_time"])
-        for s in data.get("streams") or []:
-            tags = s.get("tags") or {}
-            if tags.get("creation_time"):
-                values.append(tags["creation_time"])
-        for value in values:
-            try:
-                return datetime.fromisoformat(str(value).replace("Z", "+00:00")).astimezone()
-            except Exception:
-                pass
-    except Exception as e:
-        try:
-            print("thumbnail metadata ffprobe warning:", e)
-        except Exception:
-            pass
-    return None
-
-
-def _generate_and_attach_thumbnail_for_video(video):
-    """
-    v38.2-style backend thumbnail engine restored into current app:
-    R2 download -> ffmpeg frame extraction -> R2 thumbnail upload -> DB fields saved.
-    """
-    try:
-        import os, tempfile, uuid, subprocess, shutil
-        from app.services.r2 import get_r2_client, _bucket_name
-
-        try:
-            print("thumbnail engine actual ffmpeg:", _ffmpeg_bin())
-        except Exception:
-            pass
-
-        video_key = getattr(video, "r2_video_key", None) or getattr(video, "file_path", None)
-        if not video_key:
-            print("thumbnail warning: missing r2_video_key/file_path")
-            return False
-
-        client = get_r2_client()
-        bucket = _bucket_name()
-        try:
-            print("thumbnail engine using ffmpeg:", _ffmpeg_bin())
-        except Exception:
-            pass
-        tmp_dir = tempfile.mkdtemp(prefix="bsm_v38_thumb_")
-        local_video = os.path.join(tmp_dir, "input_video")
-        local_thumb = os.path.join(tmp_dir, "thumb.jpg")
-
-        try:
-            client.download_file(bucket, video_key, local_video)
-        except Exception as e:
-            print("thumbnail warning: could not download R2 video:", e)
-            shutil.rmtree(tmp_dir, ignore_errors=True)
-            return False
-
-        dt = _get_video_creation_datetime(local_video)
-        if dt:
-            cols = set(video.__table__.columns.keys())
-            if "recorded_date" in cols:
-                video.recorded_date = dt.date()
-            if "recorded_time" in cols:
-                video.recorded_time = dt.time().replace(microsecond=0)
-            if "recorded_at" in cols:
-                video.recorded_at = datetime.combine(video.recorded_date, video.recorded_time)
-
-        duration = _get_video_duration_seconds(local_video)
-        if duration and duration > 12:
-            seek_points = [duration * 0.10, duration * 0.25, duration * 0.50, duration * 0.75, duration * 0.90, 3, 1]
-        elif duration and duration > 4:
-            seek_points = [duration * 0.25, duration * 0.50, duration * 0.75, 2, 1]
-        else:
-            seek_points = [10, 20, 30, 45, 60, 2, 1, 0.5]
-
-        good = False
-        last_error = ""
-        for seek in seek_points:
-            try:
-                if os.path.exists(local_thumb):
-                    os.remove(local_thumb)
-                cmd = [
-                    "ffmpeg", "-y",
-                    "-ss", str(max(0.1, float(seek))),
-                    "-i", local_video,
-                    "-frames:v", "1",
-                    "-vf", "scale=1664:-1,crop=1280:720",
-                    "-q:v", "3",
-                    local_thumb,
-                ]
-                result = subprocess.run(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True, timeout=90)
-                last_error = result.stderr[-500:] if result.stderr else ""
-                if os.path.exists(local_thumb) and os.path.getsize(local_thumb) > 1000:
-                    if not _thumb_image_is_dark(local_thumb):
-                        good = True
-                        break
-            except Exception as e:
-                last_error = str(e)
-
-        if not good:
-            for seek in seek_points:
-                try:
-                    if os.path.exists(local_thumb):
-                        os.remove(local_thumb)
-                    cmd = [
-                        "ffmpeg", "-y",
-                        "-ss", str(max(0.1, float(seek))),
-                        "-i", local_video,
-                        "-frames:v", "1",
-                        "-vf", "scale=1664:-1,crop=1280:720",
-                        "-q:v", "3",
-                        local_thumb,
-                    ]
-                    subprocess.run(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True, timeout=90)
-                    if os.path.exists(local_thumb) and os.path.getsize(local_thumb) > 1000:
-                        good = True
-                        break
-                except Exception as e:
-                    last_error = str(e)
-
-        if not good:
-            print("thumbnail warning: no valid frame generated:", last_error)
-            shutil.rmtree(tmp_dir, ignore_errors=True)
-            return False
-
-        filename = getattr(video, "filename", None) or getattr(video, "internal_filename", None) or "video"
-        thumb_key = f"creators/{getattr(video, 'creator_id', 'unknown')}/batches/{getattr(video, 'batch_id', 'unknown')}/thumbs/{uuid.uuid4().hex}_{filename}.jpg"
-
-        try:
-            client.upload_file(local_thumb, bucket, thumb_key, ExtraArgs={"ContentType": "image/jpeg"})
-        except Exception as e:
-            print("thumbnail warning: could not upload thumbnail to R2:", e)
-            shutil.rmtree(tmp_dir, ignore_errors=True)
-            return False
-
-        try:
-            public_url = _r2_public_url_for_key(thumb_key) if "_r2_public_url_for_key" in globals() else None
-        except Exception:
-            public_url = None
-
-        cols = set(video.__table__.columns.keys())
-        if "r2_thumbnail_key" in cols:
-            video.r2_thumbnail_key = thumb_key
-        if "thumbnail_path" in cols:
-            video.thumbnail_path = thumb_key
-        if public_url and "public_thumbnail_url" in cols:
-            video.public_thumbnail_url = public_url
-        if public_url and "thumbnail_url" in cols:
-            video.thumbnail_url = public_url
-
-        db.session.add(video)
-        shutil.rmtree(tmp_dir, ignore_errors=True)
-        return True
-
-    except Exception as e:
-        try:
-            print("thumbnail engine v38.2 restore warning:", e)
-        except Exception:
-            pass
-        return False
-
-
-
 def _batch_creator_id_for_prefix(batch):
     try:
         creator_id = getattr(batch, "creator_id", None)
@@ -683,6 +473,196 @@ def _cleanup_cancelled_upload_prefix(batch_id, creator_id=None):
         except Exception: pass
     return 0
 
+
+
+def _thumb_image_is_dark(path):
+    """
+    Simple dark-frame detector. If Pillow is unavailable, do not reject the frame.
+    """
+    try:
+        from PIL import Image, ImageStat
+        img = Image.open(path).convert("L").resize((80, 45))
+        stat = ImageStat.Stat(img)
+        mean = stat.mean[0] if stat.mean else 0
+        lo, hi = img.getextrema()
+        return mean < 18 and (hi - lo) < 45
+    except Exception:
+        return False
+
+
+def _ffmpeg_bin():
+    try:
+        import imageio_ffmpeg
+        path = imageio_ffmpeg.get_ffmpeg_exe()
+        if path:
+            return path
+    except Exception as e:
+        try:
+            print("imageio-ffmpeg lookup warning:", e)
+        except Exception:
+            pass
+    return "ffmpeg"
+
+
+def _generate_and_attach_thumbnail_for_video(video):
+    """
+    Final thumbnail engine:
+    - uses imageio-ffmpeg binary directly
+    - does NOT call ffprobe at all
+    - tries many deeper seek points
+    - saves thumbnail fields in DB
+    """
+    try:
+        import os, tempfile, uuid, subprocess, shutil
+        from app.services.r2 import get_r2_client, _bucket_name
+
+        video_key = getattr(video, "r2_video_key", None) or getattr(video, "file_path", None)
+        if not video_key:
+            print("thumbnail warning: missing video key")
+            return False
+
+        ffmpeg = _ffmpeg_bin()
+        print("thumbnail final engine ffmpeg:", ffmpeg)
+
+        client = get_r2_client()
+        bucket = _bucket_name()
+
+        tmp_dir = tempfile.mkdtemp(prefix="bsm_thumb_final_")
+        local_video = os.path.join(tmp_dir, "input_video")
+        local_thumb = os.path.join(tmp_dir, "thumb.jpg")
+
+        client.download_file(bucket, video_key, local_video)
+
+        # Do not use ffprobe. Some Railway images don't have it.
+        # These deeper fixed points work better for camera clips with black/opening frames.
+        seek_points = [1, 2, 5, 10, 15, 20, 30, 45, 60, 90, 120]
+
+        good = False
+        last_error = ""
+        for seek in seek_points:
+            try:
+                if os.path.exists(local_thumb):
+                    os.remove(local_thumb)
+
+                cmd = [
+                    ffmpeg, "-y",
+                    "-ss", str(seek),
+                    "-i", local_video,
+                    "-frames:v", "1",
+                    "-vf", "scale=1664:-1,crop=1280:720",
+                    "-q:v", "3",
+                    local_thumb,
+                ]
+                result = subprocess.run(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True, timeout=120)
+                last_error = result.stderr[-1000:] if result.stderr else ""
+
+                if os.path.exists(local_thumb) and os.path.getsize(local_thumb) > 1000:
+                    if not _thumb_image_is_dark(local_thumb):
+                        print("thumbnail generated at second:", seek)
+                        good = True
+                        break
+            except Exception as e:
+                last_error = str(e)
+
+        # Last resort: accept any frame even if dark.
+        if not good:
+            for seek in seek_points:
+                try:
+                    if os.path.exists(local_thumb):
+                        os.remove(local_thumb)
+
+                    cmd = [
+                        ffmpeg, "-y",
+                        "-ss", str(seek),
+                        "-i", local_video,
+                        "-frames:v", "1",
+                        "-vf", "scale=1664:-1,crop=1280:720",
+                        "-q:v", "3",
+                        local_thumb,
+                    ]
+                    subprocess.run(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True, timeout=120)
+                    if os.path.exists(local_thumb) and os.path.getsize(local_thumb) > 1000:
+                        print("thumbnail generated fallback at second:", seek)
+                        good = True
+                        break
+                except Exception as e:
+                    last_error = str(e)
+
+        if not good:
+            print("thumbnail final warning: no valid frame generated:", last_error)
+            shutil.rmtree(tmp_dir, ignore_errors=True)
+            return False
+
+        filename = getattr(video, "filename", None) or getattr(video, "internal_filename", None) or "video"
+        thumb_key = f"creators/{getattr(video, 'creator_id', 'unknown')}/batches/{getattr(video, 'batch_id', 'unknown')}/thumbs/{uuid.uuid4().hex}_{filename}.jpg"
+
+        client.upload_file(local_thumb, bucket, thumb_key, ExtraArgs={"ContentType": "image/jpeg"})
+
+        try:
+            public_url = _r2_public_url_for_key(thumb_key) if "_r2_public_url_for_key" in globals() else None
+        except Exception:
+            public_url = None
+
+        cols = set(video.__table__.columns.keys())
+        if "r2_thumbnail_key" in cols:
+            video.r2_thumbnail_key = thumb_key
+        if "thumbnail_path" in cols:
+            video.thumbnail_path = thumb_key
+        if public_url and "public_thumbnail_url" in cols:
+            video.public_thumbnail_url = public_url
+        if public_url and "thumbnail_url" in cols:
+            video.thumbnail_url = public_url
+
+        db.session.add(video)
+        shutil.rmtree(tmp_dir, ignore_errors=True)
+        return True
+
+    except Exception as e:
+        try:
+            print("thumbnail final engine warning:", e)
+        except Exception:
+            pass
+        return False
+
+
+@creator_bp.route("/upload/batch/<int:batch_id>/cancel-clean", methods=["POST"])
+@creator_bp.route("/creator/upload/batch/<int:batch_id>/cancel-clean", methods=["POST"])
+def cancel_upload_batch_clean(batch_id):
+    creator = current_creator()
+    if not creator:
+        return jsonify({"ok": False, "error": "Please log in again."}), 401
+
+    deleted = 0
+    try:
+        from app.services.r2 import delete_r2_prefix
+        prefix = f"creators/{creator.id}/batches/{batch_id}/"
+        deleted = delete_r2_prefix(prefix)
+        print("cancel upload deleted R2 prefix:", prefix, deleted)
+    except Exception as e:
+        try:
+            print("cancel upload R2 cleanup warning:", e)
+        except Exception:
+            pass
+
+    try:
+        from app.models import VideoBatch, Video
+        batch = VideoBatch.query.get(batch_id)
+        if batch:
+            try:
+                for v in Video.query.filter_by(batch_id=batch_id).all():
+                    db.session.delete(v)
+            except Exception:
+                pass
+            db.session.delete(batch)
+            db.session.commit()
+    except Exception as e:
+        db.session.rollback()
+        try:
+            print("cancel upload DB cleanup warning:", e)
+        except Exception:
+            pass
+
+    return jsonify({"ok": True, "deleted_objects": deleted})
 
 
 @creator_bp.route("/upload/batch/<int:batch_id>/cancel", methods=["POST"])

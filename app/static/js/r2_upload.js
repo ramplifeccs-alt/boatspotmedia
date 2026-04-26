@@ -257,7 +257,7 @@
 
     if(currentBatchId){
       try{
-        await fetch("/upload/batch/" + currentBatchId + "/cancel", {method:"POST"});
+        await fetch("/upload/batch/" + currentBatchId + "/cancel-clean", {method:"POST"});
       }catch(e){}
     }
     alert("Upload cancelled.");

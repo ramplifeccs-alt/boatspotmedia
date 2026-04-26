@@ -1,6 +1,7 @@
-BoatSpotMedia v41.3 Force FFmpeg and R2 Delete Fix
-- Forces every creator.py subprocess call from literal ffmpeg/ffprobe to _ffmpeg_bin()/_ffprobe_bin().
-- Adds imageio-ffmpeg dependency and logs actual ffmpeg path used.
-- Adds explicit cancel route /upload/batch/<id>/cancel to delete R2 prefix and DB batch.
-- Adds explicit full delete route /batch/<id>/delete-full to delete R2 prefix and DB batch.
-- Patches existing batch delete code to call _delete_batch_files_from_r2(batch).
+BoatSpotMedia v41.4 Final Thumb Cancel Cleanup Fix
+- Removes duplicate old thumbnail engines.
+- Uses one final thumbnail engine with imageio-ffmpeg only; no ffprobe dependency.
+- Tries deeper seek points: 1,2,5,10,15,20,30,45,60,90,120 seconds.
+- Adds clear log: thumbnail final engine ffmpeg.
+- Adds cancel-clean endpoint that deletes R2 prefix creators/{creator_id}/batches/{batch_id}/.
+- JS cancel upload points to cancel-clean endpoint.
