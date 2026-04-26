@@ -208,38 +208,38 @@ def _normalize_completed_upload_files(data):
 def _safe_recorded_date_time_from_file_info(file_info):
     """
     Prefer the original file timestamp sent by the browser.
-    This prevents using upload time as the recorded time.
+    This is the most reliable value available after direct-to-R2 upload.
     """
-    # 1) ISO timestamp from JS: new Date(file.lastModified).toISOString()
-    iso = file_info.get("last_modified_iso") or file_info.get("file_last_modified_iso")
-    if iso:
-        try:
-            dt = datetime.fromisoformat(str(iso).replace("Z", "+00:00"))
-            return dt.date(), dt.time().replace(microsecond=0)
-        except Exception:
-            pass
+    upload = file_info.get("upload") or {}
 
-    # 2) Milliseconds timestamp from JS File.lastModified
-    ms = file_info.get("last_modified") or file_info.get("file_last_modified")
-    if ms:
-        try:
-            dt = datetime.fromtimestamp(float(ms) / 1000.0)
-            return dt.date(), dt.time().replace(microsecond=0)
-        except Exception:
-            pass
+    for source in (file_info, upload):
+        iso = source.get("last_modified_iso") or source.get("file_last_modified_iso")
+        if iso:
+            try:
+                dt = datetime.fromisoformat(str(iso).replace("Z", "+00:00"))
+                # Convert to local naive time shown to user. Browser timestamp is already based on file mtime.
+                return dt.date(), dt.time().replace(microsecond=0)
+            except Exception:
+                pass
 
-    # 3) Existing metadata fields if backend extracted them
-    recorded_at = file_info.get("recorded_at") or file_info.get("created_at") or file_info.get("media_created_at")
-    if isinstance(recorded_at, datetime):
-        return recorded_at.date(), recorded_at.time().replace(microsecond=0)
-    if isinstance(recorded_at, str) and recorded_at:
-        try:
-            dt = datetime.fromisoformat(recorded_at.replace("Z", "+00:00"))
-            return dt.date(), dt.time().replace(microsecond=0)
-        except Exception:
-            pass
+        ms = source.get("last_modified") or source.get("file_last_modified")
+        if ms:
+            try:
+                dt = datetime.fromtimestamp(float(ms) / 1000.0)
+                return dt.date(), dt.time().replace(microsecond=0)
+            except Exception:
+                pass
 
-    # Last fallback only so DB can save; later metadata extraction can improve this.
+        recorded_at = source.get("recorded_at") or source.get("created_at") or source.get("media_created_at")
+        if isinstance(recorded_at, datetime):
+            return recorded_at.date(), recorded_at.time().replace(microsecond=0)
+        if isinstance(recorded_at, str) and recorded_at:
+            try:
+                dt = datetime.fromisoformat(recorded_at.replace("Z", "+00:00"))
+                return dt.date(), dt.time().replace(microsecond=0)
+            except Exception:
+                pass
+
     return date.today(), time(0, 0, 0)
 
 
@@ -335,6 +335,100 @@ def _safe_video_create_from_upload(creator_id, batch, file_info, location=None):
         kwargs["created_at"] = datetime.utcnow()
 
     return Video(**kwargs)
+
+
+def _r2_public_url_for_key(key):
+    import os
+    if not key:
+        return None
+    if str(key).startswith("http://") or str(key).startswith("https://"):
+        return key
+    base = (os.getenv("R2_PUBLIC_BASE_URL") or "").rstrip("/")
+    if base:
+        return f"{base}/{str(key).lstrip('/')}"
+    return None
+
+
+def _generate_and_attach_thumbnail_for_video(video):
+    """
+    Best-effort thumbnail generator for videos uploaded direct to R2.
+    Downloads the uploaded object temporarily, extracts a frame near the middle,
+    applies a mild zoom/crop, uploads jpg to R2, and saves thumbnail fields.
+    """
+    try:
+        import os, tempfile, subprocess, uuid
+        from app.services.r2 import get_r2_client, _bucket_name
+
+        video_key = getattr(video, "r2_video_key", None) or getattr(video, "file_path", None)
+        if not video_key:
+            return False
+
+        client = get_r2_client()
+        bucket = _bucket_name()
+
+        tmp_dir = tempfile.mkdtemp(prefix="bsm_thumb_")
+        local_video = os.path.join(tmp_dir, "video_input")
+        local_thumb = os.path.join(tmp_dir, "thumb.jpg")
+
+        client.download_file(bucket, video_key, local_video)
+
+        # Get duration if possible, otherwise use 2 seconds.
+        duration = 0
+        try:
+            probe = subprocess.run(
+                ["ffprobe", "-v", "error", "-show_entries", "format=duration", "-of", "default=nw=1:nk=1", local_video],
+                stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True, timeout=25
+            )
+            duration = float((probe.stdout or "0").strip() or 0)
+        except Exception:
+            duration = 0
+
+        seek = max(1, duration / 2) if duration else 2
+
+        # Zoom/crop: scale larger then crop center back to 1280x720. Keeps 16:9 visual preview.
+        vf = "scale=1664:-1,crop=1280:720"
+        cmd = [
+            "ffmpeg", "-y",
+            "-ss", str(seek),
+            "-i", local_video,
+            "-frames:v", "1",
+            "-vf", vf,
+            "-q:v", "3",
+            local_thumb
+        ]
+        subprocess.run(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True, timeout=60)
+
+        if not os.path.exists(local_thumb) or os.path.getsize(local_thumb) < 1000:
+            # Try early frame fallback
+            cmd[2] = "1"
+            subprocess.run(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True, timeout=60)
+
+        if not os.path.exists(local_thumb) or os.path.getsize(local_thumb) < 1000:
+            return False
+
+        thumb_key = f"creators/{getattr(video, 'creator_id', 'unknown')}/batches/{getattr(video, 'batch_id', 'unknown')}/thumbs/{uuid.uuid4().hex}_{getattr(video, 'filename', 'video')}.jpg"
+        client.upload_file(local_thumb, bucket, thumb_key, ExtraArgs={"ContentType": "image/jpeg"})
+
+        public_url = _r2_public_url_for_key(thumb_key)
+        cols = set(video.__table__.columns.keys())
+        if "r2_thumbnail_key" in cols:
+            video.r2_thumbnail_key = thumb_key
+        if "thumbnail_path" in cols:
+            video.thumbnail_path = thumb_key
+        if public_url and "public_thumbnail_url" in cols:
+            video.public_thumbnail_url = public_url
+        if public_url and "thumbnail_url" in cols:
+            video.thumbnail_url = public_url
+
+        db.session.add(video)
+        return True
+    except Exception as e:
+        try:
+            print("thumbnail generation warning:", e)
+        except Exception:
+            pass
+        return False
+
 
 @creator_bp.route("/health")
 def health():
@@ -980,6 +1074,16 @@ def upload_r2_complete():
             pass
 
         db.session.commit()
+
+        # Generate missing thumbnails for newly saved videos.
+        try:
+            for v in created:
+                has_thumb = bool(getattr(v, "public_thumbnail_url", None) or getattr(v, "thumbnail_url", None) or getattr(v, "thumbnail_path", None) or getattr(v, "r2_thumbnail_key", None))
+                if not has_thumb:
+                    _generate_and_attach_thumbnail_for_video(v)
+            db.session.commit()
+        except Exception:
+            db.session.rollback()
 
         try:
             _recalculate_creator_storage(creator.id)

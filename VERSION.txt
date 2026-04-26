@@ -1,7 +1,6 @@
-BoatSpotMedia v40.3 Restore Home and Thumbnails Fix
-- Restores styled public home with dark menu, colors, and hero.
-- Keeps only latest 3 uploads on home.
-- Removes old extra blocks.
-- Home uses public_thumbnail_url, thumbnail_url, thumbnail_path, or r2_thumbnail_key.
-- Builds thumbnail URL from R2_PUBLIC_BASE_URL when only the R2 key exists.
-- Preserves thumbnail fields when saving video records.
+BoatSpotMedia v40.4 Dashboard Metadata Thumbnail Fix
+- Removes duplicated top plan/storage block from Creator Dashboard.
+- Keeps correct lower storage card.
+- Improves recorded date/time using browser file.lastModified fields.
+- Generates missing thumbnails after upload by downloading R2 video, extracting middle frame, applying zoom/crop, uploading jpg to R2, and saving thumbnail URL.
+- Home will show actual thumbnails for new uploads after this deploy.

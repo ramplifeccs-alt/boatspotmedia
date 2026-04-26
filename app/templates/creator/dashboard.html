@@ -11,11 +11,6 @@
   </div>
 </div><div class="sidebar-layout"><div class="sidebar"><h2>{{ creator_name or 'Creator' }}</h2>{% if creator_instagram %}<small>@{{ creator_instagram }}</small><br><br>{% endif %}<a href="/creator/dashboard">Dashboard</a><a href="/creator/upload">Uploads</a><a href="/creator/batches">Batches</a><a href="/creator/orders">Orders</a><a href="/creator/products">Products</a><a href="/creator/pricing">Pricing</a><a href="/creator/settings">Settings</a><br><a href="/creator/logout">Log out</a></div><div class="content"><h1>Creator Dashboard</h1>
 
-<div class="card plan-sync-card" style="background:#eef2ff;border:1px solid #c7d2fe;border-radius:14px;padding:14px;margin:14px 0;">
-  <strong>Current Plan:</strong> {{ plan_snapshot.plan_name if plan_snapshot is defined else 'No plan' }}<br>
-  <strong>Storage Limit:</strong> {{ plan_snapshot.storage_limit_gb if plan_snapshot is defined else storage_limit_gb|default(500) }} GB<br>
-  <strong>Max Batch:</strong> {{ plan_snapshot.max_batch_gb if plan_snapshot is defined else max_batch_gb|default(128) }} GB
-</div>
 <div class="card storage-card" style="background:#fff;border-radius:14px;padding:16px;margin:14px 0;box-shadow:0 6px 20px rgba(0,0,0,.06);"><h3>Storage Used</h3><p><strong>{{ storage_used_gb|default(0) }} GB</strong> used of <strong>{{ storage_limit_gb|default(500) }} GB</strong></p><p>Maximum per batch: <strong>{{ max_batch_gb|default(128) }} GB</strong></p></div><div class="grid"><div class="card"><h3>Storage</h3><p>{{creator.storage_used_gb}} GB used</p><p>{{creator.storage_remaining_gb}} GB remaining</p><small>Plan storage: {{creator.storage_limit_gb}} GB</small></div><div class="card"><h3>Published Videos</h3><p>{{videos_count}}</p></div><div class="card"><h3>Total Clicks</h3><p>{{stats.clicks_lifetime if stats else 0}}</p><small>Global video preview clicks</small></div></div></div></div><script src="/static/js/mobile.js"></script>
 </body></html>
 <script>
