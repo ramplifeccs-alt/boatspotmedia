@@ -487,115 +487,68 @@ def _thumb_image_is_dark(path):
         return False
 
 
-def _duration_from_ffmpeg_output(local_video):
+def _run_ffmpeg_thumbnail(input_path, output_path):
     """
-    Get duration using ffmpeg itself, not ffprobe.
-    imageio-ffmpeg provides ffmpeg, but not ffprobe.
-    """
-    try:
-        import subprocess, re
-        ffmpeg = _ffmpeg_bin()
-        result = subprocess.run(
-            [ffmpeg, "-hide_banner", "-i", local_video],
-            stdout=subprocess.PIPE,
-            stderr=subprocess.PIPE,
-            text=True,
-            timeout=45,
-        )
-        text = (result.stderr or "") + "\n" + (result.stdout or "")
-        m = re.search(r"Duration:\s*(\d+):(\d+):(\d+(?:\.\d+)?)", text)
-        if not m:
-            print("thumbnail duration warning: no Duration found in ffmpeg output")
-            return 0
-        hours = int(m.group(1))
-        minutes = int(m.group(2))
-        seconds = float(m.group(3))
-        return hours * 3600 + minutes * 60 + seconds
-    except Exception as e:
-        try:
-            print("thumbnail duration ffmpeg warning:", e)
-        except Exception:
-            pass
-        return 0
-
-
-def _extract_midpoint_thumbnail(local_video, local_thumb):
-    """
-    Extract thumbnail from the middle of each unique video.
-    Primary target is 50% duration. If that frame is black, try near-midpoint offsets.
+    Stable thumbnail generator.
+    Primary method uses ffmpeg thumbnail filter, which selects a representative frame
+    without needing duration or ffprobe. Fallback tries midpoint-style static positions.
     """
     import os, subprocess
 
     ffmpeg = _ffmpeg_bin()
-    duration = _duration_from_ffmpeg_output(local_video)
+    print("thumbnail stable ffmpeg:", ffmpeg)
 
-    if duration and duration > 0:
-        ratios = [0.50, 0.45, 0.55, 0.40, 0.60, 0.35, 0.65]
-        seek_points = [max(0.1, duration * r) for r in ratios]
-        print("thumbnail midpoint duration:", duration, "seek:", seek_points[0])
-    else:
-        # Only fallback if ffmpeg cannot read duration.
-        seek_points = [10, 20, 30, 45, 60, 2, 1]
-        print("thumbnail midpoint duration unavailable, fallback seeks:", seek_points)
+    attempts = [
+        # Select representative frame from a sampled set. No duration needed.
+        [ffmpeg, "-y", "-i", input_path, "-vf", "thumbnail,scale=1664:-1,crop=1280:720", "-frames:v", "1", "-q:v", "3", output_path],
+        # Try later frames by skipping a little before applying thumbnail filter.
+        [ffmpeg, "-y", "-ss", "5", "-i", input_path, "-vf", "thumbnail,scale=1664:-1,crop=1280:720", "-frames:v", "1", "-q:v", "3", output_path],
+        [ffmpeg, "-y", "-ss", "15", "-i", input_path, "-vf", "thumbnail,scale=1664:-1,crop=1280:720", "-frames:v", "1", "-q:v", "3", output_path],
+        [ffmpeg, "-y", "-ss", "30", "-i", input_path, "-vf", "thumbnail,scale=1664:-1,crop=1280:720", "-frames:v", "1", "-q:v", "3", output_path],
+        # Direct frame fallback if thumbnail filter cannot decode the codec.
+        [ffmpeg, "-y", "-ss", "10", "-i", input_path, "-frames:v", "1", "-vf", "scale=1664:-1,crop=1280:720", "-q:v", "3", output_path],
+        [ffmpeg, "-y", "-ss", "30", "-i", input_path, "-frames:v", "1", "-vf", "scale=1664:-1,crop=1280:720", "-q:v", "3", output_path],
+        [ffmpeg, "-y", "-ss", "60", "-i", input_path, "-frames:v", "1", "-vf", "scale=1664:-1,crop=1280:720", "-q:v", "3", output_path],
+    ]
 
     last_error = ""
-    for seek in seek_points:
+    for cmd in attempts:
         try:
-            if os.path.exists(local_thumb):
-                os.remove(local_thumb)
-
-            # Accurate seek: place -ss AFTER -i. Slower but better for camera files/keyframes.
-            cmd = [
-                ffmpeg, "-y",
-                "-i", local_video,
-                "-ss", str(seek),
-                "-frames:v", "1",
-                "-vf", "scale=1664:-1,crop=1280:720",
-                "-q:v", "3",
-                local_thumb,
-            ]
-            result = subprocess.run(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True, timeout=180)
-            last_error = result.stderr[-1000:] if result.stderr else ""
-
-            if os.path.exists(local_thumb) and os.path.getsize(local_thumb) > 1000:
-                if not _thumb_image_is_dark(local_thumb):
-                    print("thumbnail midpoint generated at:", seek)
+            if os.path.exists(output_path):
+                os.remove(output_path)
+            result = subprocess.run(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True, timeout=240)
+            last_error = (result.stderr or "")[-1200:]
+            if os.path.exists(output_path) and os.path.getsize(output_path) > 1000:
+                if not _thumb_image_is_dark(output_path):
+                    print("thumbnail stable generated ok:", " ".join(str(x) for x in cmd[:6]))
                     return True
         except Exception as e:
             last_error = str(e)
 
-    # Last resort: accept a generated image even if dark.
-    for seek in seek_points:
+    # Last resort: accept any generated jpg.
+    for cmd in attempts:
         try:
-            if os.path.exists(local_thumb):
-                os.remove(local_thumb)
-            cmd = [
-                ffmpeg, "-y",
-                "-i", local_video,
-                "-ss", str(seek),
-                "-frames:v", "1",
-                "-vf", "scale=1664:-1,crop=1280:720",
-                "-q:v", "3",
-                local_thumb,
-            ]
-            subprocess.run(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True, timeout=180)
-            if os.path.exists(local_thumb) and os.path.getsize(local_thumb) > 1000:
-                print("thumbnail midpoint fallback accepted at:", seek)
+            if os.path.exists(output_path):
+                os.remove(output_path)
+            subprocess.run(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True, timeout=240)
+            if os.path.exists(output_path) and os.path.getsize(output_path) > 1000:
+                print("thumbnail stable fallback accepted")
                 return True
         except Exception as e:
             last_error = str(e)
 
-    print("thumbnail midpoint warning: no valid frame generated:", last_error)
+    print("thumbnail stable warning: no frame generated:", last_error)
     return False
 
 
 def _generate_and_attach_thumbnail_for_video(video):
     """
-    Final midpoint thumbnail engine:
-    - downloads original video from R2
-    - reads duration using ffmpeg output
-    - captures frame at 50% of that video's duration
-    - stores thumbnail back in R2 and DB
+    Safe thumbnail engine:
+    - never raises to upload flow
+    - downloads original from R2
+    - generates JPG with ffmpeg thumbnail filter
+    - uploads thumbnail to R2
+    - saves DB fields
     """
     try:
         import os, tempfile, uuid, shutil
@@ -603,21 +556,24 @@ def _generate_and_attach_thumbnail_for_video(video):
 
         video_key = getattr(video, "r2_video_key", None) or getattr(video, "file_path", None)
         if not video_key:
-            print("thumbnail midpoint warning: missing video key")
+            print("thumbnail stable warning: missing video key")
             return False
-
-        print("thumbnail midpoint engine ffmpeg:", _ffmpeg_bin())
 
         client = get_r2_client()
         bucket = _bucket_name()
 
-        tmp_dir = tempfile.mkdtemp(prefix="bsm_thumb_midpoint_")
+        tmp_dir = tempfile.mkdtemp(prefix="bsm_thumb_stable_")
         local_video = os.path.join(tmp_dir, "input_video")
         local_thumb = os.path.join(tmp_dir, "thumb.jpg")
 
-        client.download_file(bucket, video_key, local_video)
+        try:
+            client.download_file(bucket, video_key, local_video)
+        except Exception as e:
+            print("thumbnail stable download warning:", e)
+            shutil.rmtree(tmp_dir, ignore_errors=True)
+            return False
 
-        ok = _extract_midpoint_thumbnail(local_video, local_thumb)
+        ok = _run_ffmpeg_thumbnail(local_video, local_thumb)
         if not ok:
             shutil.rmtree(tmp_dir, ignore_errors=True)
             return False
@@ -625,7 +581,12 @@ def _generate_and_attach_thumbnail_for_video(video):
         filename = getattr(video, "filename", None) or getattr(video, "internal_filename", None) or "video"
         thumb_key = f"creators/{getattr(video, 'creator_id', 'unknown')}/batches/{getattr(video, 'batch_id', 'unknown')}/thumbs/{uuid.uuid4().hex}_{filename}.jpg"
 
-        client.upload_file(local_thumb, bucket, thumb_key, ExtraArgs={"ContentType": "image/jpeg"})
+        try:
+            client.upload_file(local_thumb, bucket, thumb_key, ExtraArgs={"ContentType": "image/jpeg"})
+        except Exception as e:
+            print("thumbnail stable upload warning:", e)
+            shutil.rmtree(tmp_dir, ignore_errors=True)
+            return False
 
         try:
             public_url = _r2_public_url_for_key(thumb_key) if "_r2_public_url_for_key" in globals() else None
@@ -648,7 +609,7 @@ def _generate_and_attach_thumbnail_for_video(video):
 
     except Exception as e:
         try:
-            print("thumbnail midpoint engine warning:", e)
+            print("thumbnail stable engine warning:", e)
         except Exception:
             pass
         return False
@@ -1421,7 +1382,6 @@ def upload_r2_complete():
         for file_info in files:
             v = _safe_video_create_from_upload(creator.id, batch, file_info, location=getattr(batch, "location", None))
             db.session.add(v)
-            _generate_and_attach_thumbnail_for_video(v)
             created.append(v)
 
         # Mark batch active/complete when those columns exist.
@@ -1436,6 +1396,29 @@ def upload_r2_complete():
             pass
 
         db.session.commit()
+
+        # Safe thumbnail generation after DB commit. Upload must not fail if thumbnail fails.
+        try:
+            for v in created:
+                try:
+                    _generate_and_attach_thumbnail_for_video(v)
+                    try:
+                        _fill_public_thumbnail_url(v)
+                    except Exception:
+                        pass
+                except Exception as thumb_e:
+                    try:
+                        print("thumbnail stable per-video warning:", thumb_e)
+                    except Exception:
+                        pass
+            db.session.commit()
+        except Exception as e:
+            db.session.rollback()
+            try:
+                print("thumbnail stable post-commit warning:", e)
+            except Exception:
+                pass
+
 
         # Generate thumbnails and read video metadata from the actual uploaded R2 video.
         try:
