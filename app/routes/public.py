@@ -673,6 +673,44 @@ def charters_redirect():
 @public_bp.route("/video-thumbnail/<int:video_id>")
 def video_thumbnail(video_id):
     from app.models import Video
+    video = Video.query.get_or_404(video_id)
+
+    # Prefer direct public URL if present.
+    for attr in ["public_thumbnail_url", "thumbnail_url"]:
+        value = getattr(video, attr, None)
+        if value:
+            return redirect(value, code=302)
+
+    key = getattr(video, "r2_thumbnail_key", None) or getattr(video, "thumbnail_path", None)
+
+    # If no thumbnail exists, try to generate it server-side now.
+    if not key:
+        try:
+            from app.routes.creator import _generate_and_attach_thumbnail_for_video
+            from app import db
+            ok = _generate_and_attach_thumbnail_for_video(video)
+            if ok:
+                db.session.commit()
+                key = getattr(video, "r2_thumbnail_key", None) or getattr(video, "thumbnail_path", None)
+        except Exception as e:
+            try: print("on-demand thumbnail generation warning:", e)
+            except Exception: pass
+
+    if not key:
+        abort(404)
+
+    try:
+        from app.services.r2 import get_r2_object_bytes
+        data = get_r2_object_bytes(key)
+        if not data:
+            abort(404)
+        return Response(data, mimetype="image/jpeg")
+    except Exception:
+        abort(404)
+
+
+def video_thumbnail(video_id):
+    from app.models import Video
     import io, os
     video = Video.query.get_or_404(video_id)
 

@@ -1,7 +1,6 @@
-BoatSpotMedia v40.9 Camera Formats View Buy Fix
-- Adds ffmpeg install support for Railway/Nixpacks via nixpacks.toml and Aptfile.
-- Browser thumbnail remains first attempt; server ffmpeg fallback handles camera formats Safari cannot decode.
-- Adds creator endpoint to regenerate thumbnail.
-- Changes Preview buttons to View & Buy.
-- Adds Captured by: creator name on video cards/detail.
-- Adds simple /video/<id> detail page to avoid preview errors.
+BoatSpotMedia v41.0 R2 Batch Delete Thumbnail Repair Fix
+- Deletes R2 video files and thumbnails when a creator deletes a batch.
+- Adds best-effort cleanup by DB keys plus creators/{creator_id}/batches/{batch_id}/ prefix.
+- Adds /creator/batch/<id>/cleanup-r2 endpoint for manual R2 cleanup if needed.
+- Adds on-demand /video-thumbnail/<id> repair: if no thumbnail exists, tries to generate it server-side and then serves it.
+- Keeps ffmpeg install support for Railway/Nixpacks.

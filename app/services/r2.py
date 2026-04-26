@@ -76,17 +76,11 @@ def public_url_for_key(key):
     if not key:
         return ""
     base = (os.getenv("R2_PUBLIC_URL") or os.getenv("R2_PUBLIC_BASE_URL") or "").strip().rstrip("/")
-    if not base:
-        return ""
-    # Do not store API endpoint URLs as public delivery URLs.
-    if "cloudflarestorage.com" in base:
+    if not base or "cloudflarestorage.com" in base:
         return ""
     return f"{base}/{str(key).lstrip('/')}"
 
 
-# Backwards compatibility for older routes that import:
-# from app.services.r2 import upload as r2_upload
-# New v35 uploader uses presigned URLs, but this keeps app booting.
 def upload(file_obj, key, content_type="application/octet-stream"):
     client = r2_client()
     client.upload_fileobj(
@@ -169,3 +163,34 @@ def create_presigned_put_url_stable(key, content_type="application/octet-stream"
         },
         ExpiresIn=expires,
     )
+
+
+def delete_r2_prefix(prefix):
+    """Delete all objects under a prefix. Used when deleting a failed/test batch."""
+    if not prefix:
+        return 0
+    client = _client()
+    bucket = _bucket_name()
+    deleted = 0
+    token = None
+    while True:
+        kwargs = {"Bucket": bucket, "Prefix": prefix}
+        if token:
+            kwargs["ContinuationToken"] = token
+        resp = client.list_objects_v2(**kwargs)
+        objs = resp.get("Contents") or []
+        if objs:
+            delete_payload = {"Objects": [{"Key": o["Key"]} for o in objs]}
+            client.delete_objects(Bucket=bucket, Delete=delete_payload)
+            deleted += len(objs)
+        if not resp.get("IsTruncated"):
+            break
+        token = resp.get("NextContinuationToken")
+    return deleted
+
+
+def get_r2_object_bytes(key):
+    if not key:
+        return None
+    obj = _client().get_object(Bucket=_bucket_name(), Key=key)
+    return obj["Body"].read()
