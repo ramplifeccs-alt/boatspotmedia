@@ -71,32 +71,32 @@ def _creator_default_prices(creator):
     return original, edited, bundle
 
 def _recalculate_creator_storage(creator_id):
+    """Safe storage recalculation using only video.file_size_bytes."""
     try:
-        from app.models import CreatorProfile, Video
-        total = int(db.session.query(db.func.coalesce(db.func.sum(Video.file_size_bytes), 0)).filter(
-            Video.creator_id == creator_id,
-            Video.status != "deleted"
-        ).scalar() or 0)
+        from sqlalchemy import text
+        used = db.session.execute(text("""
+            SELECT COALESCE(SUM(COALESCE(file_size_bytes, 0)), 0)
+            FROM video
+            WHERE creator_id = :cid
+              AND COALESCE(status, '') <> 'deleted'
+        """), {"cid": creator_id}).scalar() or 0
+
         try:
-            batch_total = db.session.execute(db.text("""
-                SELECT COALESCE(SUM(
-                    COALESCE(total_size_bytes, size_bytes, file_size_bytes, storage_bytes, 0)
-                ), 0)
-                FROM video_batch
-                WHERE creator_id = :cid
-                  AND COALESCE(status, '') <> 'deleted'
-            """), {"cid": creator_id}).scalar() or 0
-            total = max(total, int(batch_total or 0))
+            from app.models import CreatorProfile
+            creator = CreatorProfile.query.get(creator_id)
+            if creator and hasattr(creator, "storage_used_bytes"):
+                creator.storage_used_bytes = int(used)
+                db.session.add(creator)
+                db.session.commit()
+        except Exception:
+            db.session.rollback()
+        return int(used)
+    except Exception as e:
+        print("storage recalculation warning:", e)
+        try:
+            db.session.rollback()
         except Exception:
             pass
-        c = CreatorProfile.query.get(creator_id)
-        if c and hasattr(c, "storage_used_bytes"):
-            c.storage_used_bytes = int(total)
-            db.session.commit()
-        return int(total)
-    except Exception as e:
-        db.session.rollback()
-        print("storage recalculation warning:", e)
         return 0
 
 
@@ -217,6 +217,10 @@ def dashboard():
     if not creator:
         flash('Please log in with an approved creator account.', 'error')
         return redirect(url_for('creator.login'))
+    try:
+        db.session.rollback()
+    except Exception:
+        pass
     stats = CreatorClickStats.query.filter_by(creator_id=creator.id).first()
     if not stats:
         stats = CreatorClickStats(creator_id=creator.id)
@@ -530,15 +534,19 @@ def _creator_storage_used_gb(creator_id):
     try:
         rows = db.session.execute(db.text("""
             SELECT COALESCE(SUM(
-                COALESCE(total_size_bytes, size_bytes, file_size_bytes, storage_bytes, 0)
+                COALESCE(file_size_bytes, 0)
             ), 0)
-            FROM video_batch
+            FROM video
             WHERE creator_id = :cid
               AND COALESCE(status, '') <> 'deleted'
         """), {"cid": creator_id}).scalar() or 0
         total = max(total, int(rows or 0))
     except Exception as e:
         print("storage batch sum warning:", e)
+        try:
+            db.session.rollback()
+        except Exception:
+            pass
 
     # Fallback to profile storage_used_bytes if it is larger.
     try:

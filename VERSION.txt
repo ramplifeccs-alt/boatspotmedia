@@ -1,6 +1,6 @@
-BoatSpotMedia v38.2 Storage + Backend Thumbnail Fix
-- Creator Dashboard storage now sums video table, video_batch table, and creator profile fallback.
-- Recalculates storage when dashboard loads.
-- Adds backend thumbnail regeneration endpoint using ffmpeg from multiple points in the video with 30% zoom.
-- Adds R2 upload_file helper if missing.
-- Keeps cancel upload and creator topbar fixes.
+BoatSpotMedia v38.3 Dashboard Storage DB Fix
+- Base: v38.2 STORAGE_BACKEND_THUMBNAIL_FIX.
+- Fixes /creator/dashboard error caused by missing size_bytes/storage_bytes/total_size_bytes columns.
+- Storage now sums video.file_size_bytes only.
+- Adds db.session.rollback() after storage warnings to prevent InFailedSqlTransaction.
+- Keeps v38.2 thumbnail engine intact.
