@@ -493,3 +493,14 @@ def video_search():
         q = q.filter(Video.recorded_time <= end_time)
     videos = q.order_by(Video.recorded_at.desc().nullslast(), Video.id.desc()).limit(100).all()
     return render_template("public/video_search.html", videos=videos, location=location, date=date, start_time=start_time, end_time=end_time)
+
+
+
+@public_bp.route("/services")
+def services_redirect():
+    return redirect("https://services.boatspotmedia.com", code=302)
+
+
+@public_bp.route("/charters")
+def charters_redirect():
+    return redirect("https://charters.boatspotmedia.com", code=302)

@@ -137,6 +137,142 @@ def render_creator_template(template_name, **kwargs):
     kwargs["creator_instagram"] = creator_instagram(creator)
     return render_template(template_name, **kwargs)
 
+
+def _creator_display_name(creator):
+    """Prefer Instagram/business display name instead of email in menus."""
+    try:
+        user = getattr(creator, "user", None)
+        for obj in (creator, user):
+            if not obj:
+                continue
+            for attr in ("instagram", "instagram_handle", "business_name", "display_name", "name", "username"):
+                val = getattr(obj, attr, None)
+                if val:
+                    val = str(val).strip()
+                    if val:
+                        return val if val.startswith("@") or attr not in ("instagram", "instagram_handle") else "@" + val.lstrip("@")
+            email = getattr(obj, "email", None)
+            if email:
+                return email
+    except Exception:
+        pass
+    return "Creator"
+
+
+def _delete_batch_files_from_r2(batch):
+    """Delete all files and thumbnails for a batch from R2."""
+    try:
+        from app.services.r2 import delete_r2_object, delete_r2_prefix
+        deleted = 0
+        batch_id = getattr(batch, "id", None)
+        creator_id = getattr(batch, "creator_id", None) or getattr(batch, "creator_profile_id", None)
+
+        try:
+            from app.models import Video
+            videos = Video.query.filter_by(batch_id=batch_id).all()
+            for v in videos:
+                for attr in ("r2_video_key", "file_path", "r2_thumbnail_key", "thumbnail_path"):
+                    key = getattr(v, attr, None)
+                    if key and not str(key).startswith("http"):
+                        try:
+                            delete_r2_object(key)
+                            deleted += 1
+                        except Exception as e:
+                            try: print("R2 object delete warning:", key, e)
+                            except Exception: pass
+        except Exception as e:
+            try: print("R2 DB key cleanup warning:", e)
+            except Exception: pass
+
+        if creator_id and batch_id:
+            prefix = f"creators/{creator_id}/batches/{batch_id}/"
+            try:
+                count = delete_r2_prefix(prefix)
+                deleted += count
+                print("R2 batch prefix deleted:", prefix, count)
+            except Exception as e:
+                try: print("R2 prefix delete warning:", prefix, e)
+                except Exception: pass
+        return deleted
+    except Exception as e:
+        try: print("R2 batch cleanup warning:", e)
+        except Exception: pass
+        return 0
+
+
+def _cleanup_upload_prefix(batch_id, creator_id):
+    try:
+        from app.services.r2 import delete_r2_prefix
+        if batch_id and creator_id:
+            prefix = f"creators/{creator_id}/batches/{batch_id}/"
+            count = delete_r2_prefix(prefix)
+            print("R2 upload cancel prefix deleted:", prefix, count)
+            return count
+    except Exception as e:
+        try: print("R2 upload cancel cleanup warning:", e)
+        except Exception: pass
+    return 0
+
+
+
+
+@creator_bp.app_context_processor
+def inject_creator_menu_helpers():
+    return {
+        "creator_display_name": _creator_display_name
+    }
+
+
+@creator_bp.route("/upload/batch/<int:batch_id>/cancel-clean", methods=["POST"])
+@creator_bp.route("/creator/upload/batch/<int:batch_id>/cancel-clean", methods=["POST"])
+def cancel_upload_batch_clean(batch_id):
+    creator = current_creator()
+    if not creator:
+        return jsonify({"ok": False, "error": "Please log in again."}), 401
+    deleted = _cleanup_upload_prefix(batch_id, getattr(creator, "id", None))
+    try:
+        from app.models import VideoBatch, Video
+        batch = VideoBatch.query.get(batch_id)
+        if batch:
+            for v in Video.query.filter_by(batch_id=batch_id).all():
+                db.session.delete(v)
+            try:
+                _delete_batch_files_from_r2(batch)
+            except Exception:
+                pass
+            db.session.delete(batch)
+            db.session.commit()
+    except Exception as e:
+        db.session.rollback()
+        try: print("cancel upload DB cleanup warning:", e)
+        except Exception: pass
+    return jsonify({"ok": True, "deleted_objects": deleted})
+
+
+@creator_bp.route("/batch/<int:batch_id>/delete-full", methods=["POST"])
+@creator_bp.route("/creator/batch/<int:batch_id>/delete-full", methods=["POST"])
+def delete_batch_full_cleanup(batch_id):
+    creator = current_creator()
+    if not creator:
+        return jsonify({"ok": False, "error": "Please log in again."}), 401
+    try:
+        from app.models import VideoBatch, Video
+        batch = VideoBatch.query.get_or_404(batch_id)
+        deleted = _delete_batch_files_from_r2(batch)
+        for v in Video.query.filter_by(batch_id=batch_id).all():
+            db.session.delete(v)
+        try:
+            _delete_batch_files_from_r2(batch)
+        except Exception:
+            pass
+        db.session.delete(batch)
+        db.session.commit()
+        return jsonify({"ok": True, "deleted_objects": deleted})
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({"ok": False, "error": str(e)}), 500
+
+
 @creator_bp.route("/health")
 def health():
     c = current_creator()
@@ -875,6 +1011,10 @@ def delete_batch(batch_id):
     videos = Video.query.filter_by(batch_id=batch.id, creator_id=creator.id).all()
     for v in videos:
         v.status = "deleted"
+    try:
+        _delete_batch_files_from_r2(batch)
+    except Exception:
+        pass
     batch.status = "deleted"
     db.session.commit()
     return redirect(url_for("creator.batches"))
@@ -966,6 +1106,10 @@ def cancel_upload_batch(batch_id):
             db.session.delete(v)
         batch = VideoBatch.query.filter_by(id=batch_id, creator_id=creator.id).first()
         if batch:
+            try:
+                _delete_batch_files_from_r2(batch)
+            except Exception:
+                pass
             db.session.delete(batch)
         db.session.commit()
         _recalculate_creator_storage(creator.id)

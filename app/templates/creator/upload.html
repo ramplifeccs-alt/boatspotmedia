@@ -11,7 +11,7 @@
   <div style="display:flex;align-items:center;gap:12px;font-size:14px;">
     <a href="{{ url_for('public.home') }}" style="color:white;text-decoration:none;">Home</a>
     <a href="/shop" style="color:white;text-decoration:none;">Products</a>
-    <span>{% if creator and creator.user %}{{ creator.user.email }}{% elif session.get('user_email') %}{{ session.get('user_email') }}{% endif %}</span>
+    <span>{% if creator and creator.user %}{{ creator_display_name(creator) if creator is defined else 'Creator' }}{% elif session.get('user_email') %}{{ session.get('user_email') }}{% endif %}</span>
     <a href="/logout" style="color:white;text-decoration:none;">Logout</a>
   </div>
 </div>

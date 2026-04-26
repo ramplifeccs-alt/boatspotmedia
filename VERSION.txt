@@ -1,6 +1,10 @@
-BoatSpotMedia v38.3 Dashboard Storage DB Fix
-- Base: v38.2 STORAGE_BACKEND_THUMBNAIL_FIX.
-- Fixes /creator/dashboard error caused by missing size_bytes/storage_bytes/total_size_bytes columns.
-- Storage now sums video.file_size_bytes only.
-- Adds db.session.rollback() after storage warnings to prevent InFailedSqlTransaction.
-- Keeps v38.2 thumbnail engine intact.
+BoatSpotMedia v38.4 Progress R2 Menu Subdomains Fix
+- Base: v38.3 Dashboard Storage DB Fix.
+- Does not touch thumbnail engine.
+- Adds enhanced global upload progress UI with global batch percent and current file name.
+- Cancel Upload calls /upload/batch/<id>/cancel-clean and deletes R2 batch prefix.
+- Delete Batch deletes videos/thumbnails plus creators/{creator_id}/batches/{batch_id}/ from R2.
+- Services menu redirects to https://services.boatspotmedia.com.
+- Charters menu redirects to https://charters.boatspotmedia.com.
+- BoatSpotMedia brand links to home.
+- Creator menu display prefers Instagram/business/display name instead of email and links to dashboard where possible.

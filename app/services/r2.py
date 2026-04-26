@@ -67,3 +67,39 @@ def upload_file(local_path, key, content_type="application/octet-stream"):
     with open(local_path, "rb") as f:
         client.put_object(Bucket=bucket, Key=key, Body=f, ContentType=content_type)
     return key
+
+
+def delete_r2_object(key):
+    if not key:
+        return False
+    _client().delete_object(Bucket=_bucket_name(), Key=key)
+    return True
+
+
+def delete_r2_prefix(prefix):
+    if not prefix:
+        return 0
+    client = _client()
+    bucket = _bucket_name()
+    deleted = 0
+    token = None
+    while True:
+        kwargs = {"Bucket": bucket, "Prefix": prefix}
+        if token:
+            kwargs["ContinuationToken"] = token
+        resp = client.list_objects_v2(**kwargs)
+        objects = resp.get("Contents") or []
+        if objects:
+            client.delete_objects(Bucket=bucket, Delete={"Objects": [{"Key": o["Key"]} for o in objects]})
+            deleted += len(objects)
+        if not resp.get("IsTruncated"):
+            break
+        token = resp.get("NextContinuationToken")
+    return deleted
+
+
+def abort_multipart_upload(key, upload_id):
+    if not key or not upload_id:
+        return False
+    _client().abort_multipart_upload(Bucket=_bucket_name(), Key=key, UploadId=upload_id)
+    return True
