@@ -1,7 +1,7 @@
-BoatSpotMedia v41.4 Final Thumb Cancel Cleanup Fix
-- Removes duplicate old thumbnail engines.
-- Uses one final thumbnail engine with imageio-ffmpeg only; no ffprobe dependency.
-- Tries deeper seek points: 1,2,5,10,15,20,30,45,60,90,120 seconds.
-- Adds clear log: thumbnail final engine ffmpeg.
-- Adds cancel-clean endpoint that deletes R2 prefix creators/{creator_id}/batches/{batch_id}/.
-- JS cancel upload points to cancel-clean endpoint.
+BoatSpotMedia v41.5 Midpoint Thumbnail Fix
+- Thumbnail is now captured from the middle of each unique video.
+- Reads video duration using ffmpeg output, not ffprobe.
+- Captures exact 50% duration frame first.
+- If 50% is dark, tries 45%, 55%, 40%, 60%, 35%, 65%.
+- Uses accurate seek with -ss after -i for camera/keyframe files.
+- Keeps current R2 cleanup and upload fixes.

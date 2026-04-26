@@ -380,20 +380,6 @@ def _fill_public_thumbnail_url(video):
 
 
 
-def _ffmpeg_bin():
-    try:
-        import imageio_ffmpeg
-        path = imageio_ffmpeg.get_ffmpeg_exe()
-        if path:
-            return path
-    except Exception as e:
-        try:
-            print("imageio-ffmpeg lookup warning:", e)
-        except Exception:
-            pass
-    return "ffmpeg"
-
-
 def _ffprobe_bin():
     # imageio-ffmpeg ships ffmpeg, not always ffprobe. If ffprobe is missing, metadata/duration can be skipped.
     import shutil, os
@@ -475,21 +461,6 @@ def _cleanup_cancelled_upload_prefix(batch_id, creator_id=None):
 
 
 
-def _thumb_image_is_dark(path):
-    """
-    Simple dark-frame detector. If Pillow is unavailable, do not reject the frame.
-    """
-    try:
-        from PIL import Image, ImageStat
-        img = Image.open(path).convert("L").resize((80, 45))
-        stat = ImageStat.Stat(img)
-        mean = stat.mean[0] if stat.mean else 0
-        lo, hi = img.getextrema()
-        return mean < 18 and (hi - lo) < 45
-    except Exception:
-        return False
-
-
 def _ffmpeg_bin():
     try:
         import imageio_ffmpeg
@@ -504,92 +475,150 @@ def _ffmpeg_bin():
     return "ffmpeg"
 
 
-def _generate_and_attach_thumbnail_for_video(video):
+def _thumb_image_is_dark(path):
+    try:
+        from PIL import Image, ImageStat
+        img = Image.open(path).convert("L").resize((80, 45))
+        stat = ImageStat.Stat(img)
+        mean = stat.mean[0] if stat.mean else 0
+        lo, hi = img.getextrema()
+        return mean < 18 and (hi - lo) < 45
+    except Exception:
+        return False
+
+
+def _duration_from_ffmpeg_output(local_video):
     """
-    Final thumbnail engine:
-    - uses imageio-ffmpeg binary directly
-    - does NOT call ffprobe at all
-    - tries many deeper seek points
-    - saves thumbnail fields in DB
+    Get duration using ffmpeg itself, not ffprobe.
+    imageio-ffmpeg provides ffmpeg, but not ffprobe.
     """
     try:
-        import os, tempfile, uuid, subprocess, shutil
+        import subprocess, re
+        ffmpeg = _ffmpeg_bin()
+        result = subprocess.run(
+            [ffmpeg, "-hide_banner", "-i", local_video],
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            text=True,
+            timeout=45,
+        )
+        text = (result.stderr or "") + "\n" + (result.stdout or "")
+        m = re.search(r"Duration:\s*(\d+):(\d+):(\d+(?:\.\d+)?)", text)
+        if not m:
+            print("thumbnail duration warning: no Duration found in ffmpeg output")
+            return 0
+        hours = int(m.group(1))
+        minutes = int(m.group(2))
+        seconds = float(m.group(3))
+        return hours * 3600 + minutes * 60 + seconds
+    except Exception as e:
+        try:
+            print("thumbnail duration ffmpeg warning:", e)
+        except Exception:
+            pass
+        return 0
+
+
+def _extract_midpoint_thumbnail(local_video, local_thumb):
+    """
+    Extract thumbnail from the middle of each unique video.
+    Primary target is 50% duration. If that frame is black, try near-midpoint offsets.
+    """
+    import os, subprocess
+
+    ffmpeg = _ffmpeg_bin()
+    duration = _duration_from_ffmpeg_output(local_video)
+
+    if duration and duration > 0:
+        ratios = [0.50, 0.45, 0.55, 0.40, 0.60, 0.35, 0.65]
+        seek_points = [max(0.1, duration * r) for r in ratios]
+        print("thumbnail midpoint duration:", duration, "seek:", seek_points[0])
+    else:
+        # Only fallback if ffmpeg cannot read duration.
+        seek_points = [10, 20, 30, 45, 60, 2, 1]
+        print("thumbnail midpoint duration unavailable, fallback seeks:", seek_points)
+
+    last_error = ""
+    for seek in seek_points:
+        try:
+            if os.path.exists(local_thumb):
+                os.remove(local_thumb)
+
+            # Accurate seek: place -ss AFTER -i. Slower but better for camera files/keyframes.
+            cmd = [
+                ffmpeg, "-y",
+                "-i", local_video,
+                "-ss", str(seek),
+                "-frames:v", "1",
+                "-vf", "scale=1664:-1,crop=1280:720",
+                "-q:v", "3",
+                local_thumb,
+            ]
+            result = subprocess.run(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True, timeout=180)
+            last_error = result.stderr[-1000:] if result.stderr else ""
+
+            if os.path.exists(local_thumb) and os.path.getsize(local_thumb) > 1000:
+                if not _thumb_image_is_dark(local_thumb):
+                    print("thumbnail midpoint generated at:", seek)
+                    return True
+        except Exception as e:
+            last_error = str(e)
+
+    # Last resort: accept a generated image even if dark.
+    for seek in seek_points:
+        try:
+            if os.path.exists(local_thumb):
+                os.remove(local_thumb)
+            cmd = [
+                ffmpeg, "-y",
+                "-i", local_video,
+                "-ss", str(seek),
+                "-frames:v", "1",
+                "-vf", "scale=1664:-1,crop=1280:720",
+                "-q:v", "3",
+                local_thumb,
+            ]
+            subprocess.run(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True, timeout=180)
+            if os.path.exists(local_thumb) and os.path.getsize(local_thumb) > 1000:
+                print("thumbnail midpoint fallback accepted at:", seek)
+                return True
+        except Exception as e:
+            last_error = str(e)
+
+    print("thumbnail midpoint warning: no valid frame generated:", last_error)
+    return False
+
+
+def _generate_and_attach_thumbnail_for_video(video):
+    """
+    Final midpoint thumbnail engine:
+    - downloads original video from R2
+    - reads duration using ffmpeg output
+    - captures frame at 50% of that video's duration
+    - stores thumbnail back in R2 and DB
+    """
+    try:
+        import os, tempfile, uuid, shutil
         from app.services.r2 import get_r2_client, _bucket_name
 
         video_key = getattr(video, "r2_video_key", None) or getattr(video, "file_path", None)
         if not video_key:
-            print("thumbnail warning: missing video key")
+            print("thumbnail midpoint warning: missing video key")
             return False
 
-        ffmpeg = _ffmpeg_bin()
-        print("thumbnail final engine ffmpeg:", ffmpeg)
+        print("thumbnail midpoint engine ffmpeg:", _ffmpeg_bin())
 
         client = get_r2_client()
         bucket = _bucket_name()
 
-        tmp_dir = tempfile.mkdtemp(prefix="bsm_thumb_final_")
+        tmp_dir = tempfile.mkdtemp(prefix="bsm_thumb_midpoint_")
         local_video = os.path.join(tmp_dir, "input_video")
         local_thumb = os.path.join(tmp_dir, "thumb.jpg")
 
         client.download_file(bucket, video_key, local_video)
 
-        # Do not use ffprobe. Some Railway images don't have it.
-        # These deeper fixed points work better for camera clips with black/opening frames.
-        seek_points = [1, 2, 5, 10, 15, 20, 30, 45, 60, 90, 120]
-
-        good = False
-        last_error = ""
-        for seek in seek_points:
-            try:
-                if os.path.exists(local_thumb):
-                    os.remove(local_thumb)
-
-                cmd = [
-                    ffmpeg, "-y",
-                    "-ss", str(seek),
-                    "-i", local_video,
-                    "-frames:v", "1",
-                    "-vf", "scale=1664:-1,crop=1280:720",
-                    "-q:v", "3",
-                    local_thumb,
-                ]
-                result = subprocess.run(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True, timeout=120)
-                last_error = result.stderr[-1000:] if result.stderr else ""
-
-                if os.path.exists(local_thumb) and os.path.getsize(local_thumb) > 1000:
-                    if not _thumb_image_is_dark(local_thumb):
-                        print("thumbnail generated at second:", seek)
-                        good = True
-                        break
-            except Exception as e:
-                last_error = str(e)
-
-        # Last resort: accept any frame even if dark.
-        if not good:
-            for seek in seek_points:
-                try:
-                    if os.path.exists(local_thumb):
-                        os.remove(local_thumb)
-
-                    cmd = [
-                        ffmpeg, "-y",
-                        "-ss", str(seek),
-                        "-i", local_video,
-                        "-frames:v", "1",
-                        "-vf", "scale=1664:-1,crop=1280:720",
-                        "-q:v", "3",
-                        local_thumb,
-                    ]
-                    subprocess.run(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True, timeout=120)
-                    if os.path.exists(local_thumb) and os.path.getsize(local_thumb) > 1000:
-                        print("thumbnail generated fallback at second:", seek)
-                        good = True
-                        break
-                except Exception as e:
-                    last_error = str(e)
-
-        if not good:
-            print("thumbnail final warning: no valid frame generated:", last_error)
+        ok = _extract_midpoint_thumbnail(local_video, local_thumb)
+        if not ok:
             shutil.rmtree(tmp_dir, ignore_errors=True)
             return False
 
@@ -619,11 +648,10 @@ def _generate_and_attach_thumbnail_for_video(video):
 
     except Exception as e:
         try:
-            print("thumbnail final engine warning:", e)
+            print("thumbnail midpoint engine warning:", e)
         except Exception:
             pass
         return False
-
 
 @creator_bp.route("/upload/batch/<int:batch_id>/cancel-clean", methods=["POST"])
 @creator_bp.route("/creator/upload/batch/<int:batch_id>/cancel-clean", methods=["POST"])
