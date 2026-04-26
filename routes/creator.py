@@ -1,5 +1,6 @@
 
-from flask import Blueprint, jsonify, request, current_app
+from flask import Blueprint, jsonify, request, current_app, render_template
+from flask_login import login_required
 from app import db
 
 creator_bp = Blueprint("creator", __name__)
@@ -160,6 +161,12 @@ def _schedule_thumbnail_generation(video_ids):
         t.start()
     except Exception:
         pass
+
+@creator_bp.route("/creator/upload")
+@login_required
+def creator_upload():
+    return render_template("creator/upload.html")
+
 
 @creator_bp.route("/creator/upload/r2/complete", methods=["POST"])
 def upload_r2_complete():
