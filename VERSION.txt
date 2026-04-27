@@ -1,10 +1,7 @@
-BoatSpotMedia v38.8 Location Menu Time Storage R2 Fix
-- Base: v38.7; thumbnail engine untouched.
-- Search locations now come from active video.location strings, not Location objects.
-- Buyer search time input is America/New_York and converts to UTC for recorded_at search.
-- Displayed recorded_at times convert from UTC to America/New_York.
-- Creator login stores display_name in session, so home/header shows creator name/Instagram instead of email.
-- Header account pill is clickable and goes to dashboard.
-- Storage used counts only active videos and removes deleted storage fallback.
-- Delete batch helper no longer calls itself recursively and deletes common R2 prefixes.
-- Batches list hides deleted/cancelled batches.
+BoatSpotMedia v39 Logo Header Favicon Fix
+Base used: boatspotmedia_v38_8_LOCATION_MENU_TIME_STORAGE_R2_FIX.zip
+- Adds logo image asset from provided screenshot.
+- Adds favicon.ico, favicon-32.png, favicon-16.png, favicon-64.png, and apple-touch-icon.png.
+- Favicon uses icon-only crop without the BoatSpotMedia letters.
+- Replaces common BoatSpotMedia header text with clickable logo linked to home.
+- Does not touch thumbnails, search, video date/time, upload completion, or R2 cleanup logic.

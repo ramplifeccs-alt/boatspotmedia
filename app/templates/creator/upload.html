@@ -5,6 +5,16 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>BoatSpotMedia</title>
   <link rel="stylesheet" href="/static/css/style.css">
+
+<link rel="icon" href="{{ url_for('static', filename='favicon.ico') }}">
+<link rel="icon" type="image/png" sizes="32x32" href="{{ url_for('static', filename='favicon-32.png') }}">
+<link rel="apple-touch-icon" href="{{ url_for('static', filename='apple-touch-icon.png') }}">
+
+<style>
+.brand-logo-link{display:flex;align-items:center;text-decoration:none;}
+.brand-logo-img{height:42px;max-width:220px;object-fit:contain;}
+@media(max-width:700px){.brand-logo-img{height:34px;max-width:170px;}}
+</style>
 </head>
 <body><div class="creator-topbar" style="display:flex;justify-content:space-between;align-items:center;gap:12px;padding:12px 18px;background:#0b1220;color:#fff;margin:-1px -1px 16px -1px;">
   <div><a href="{{ url_for('public.home') }}" style="color:white;text-decoration:none;font-weight:800;">BoatSpotMedia</a></div>

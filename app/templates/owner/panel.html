@@ -1,5 +1,15 @@
 <!doctype html>
 <html><head>
-  <meta name="viewport" content="width=device-width, initial-scale=1"><meta charset="utf-8"><title>BoatSpotMedia</title><link rel="stylesheet" href="/static/css/style.css"></head>
+  <meta name="viewport" content="width=device-width, initial-scale=1"><meta charset="utf-8"><title>BoatSpotMedia</title><link rel="stylesheet" href="/static/css/style.css">
+<link rel="icon" href="{{ url_for('static', filename='favicon.ico') }}">
+<link rel="icon" type="image/png" sizes="32x32" href="{{ url_for('static', filename='favicon-32.png') }}">
+<link rel="apple-touch-icon" href="{{ url_for('static', filename='apple-touch-icon.png') }}">
+
+<style>
+.brand-logo-link{display:flex;align-items:center;text-decoration:none;}
+.brand-logo-img{height:42px;max-width:220px;object-fit:contain;}
+@media(max-width:700px){.brand-logo-img{height:34px;max-width:170px;}}
+</style>
+</head>
 <body><div class="container"><h1>Owner Panel</h1><a class="btn" href="/owner/applications">Open Creator Applications</a></div><script src="/static/js/mobile.js"></script>
 </body></html>
