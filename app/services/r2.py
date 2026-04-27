@@ -103,3 +103,25 @@ def abort_multipart_upload(key, upload_id):
         return False
     _client().abort_multipart_upload(Bucket=_bucket_name(), Key=key, UploadId=upload_id)
     return True
+
+
+def delete_r2_candidates(keys=None, prefixes=None):
+    deleted = 0
+    keys = keys or []
+    prefixes = prefixes or []
+    for key in keys:
+        if key and not str(key).startswith("http"):
+            try:
+                delete_r2_object(str(key))
+                deleted += 1
+            except Exception as e:
+                try: print("R2 candidate key delete warning:", key, e)
+                except Exception: pass
+    for prefix in prefixes:
+        if prefix:
+            try:
+                deleted += delete_r2_prefix(str(prefix))
+            except Exception as e:
+                try: print("R2 candidate prefix delete warning:", prefix, e)
+                except Exception: pass
+    return deleted

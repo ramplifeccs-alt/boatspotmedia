@@ -1,7 +1,13 @@
-BoatSpotMedia v39 Logo Header Favicon Fix
-Base used: boatspotmedia_v38_8_LOCATION_MENU_TIME_STORAGE_R2_FIX.zip
-- Adds logo image asset from provided screenshot.
-- Adds favicon.ico, favicon-32.png, favicon-16.png, favicon-64.png, and apple-touch-icon.png.
-- Favicon uses icon-only crop without the BoatSpotMedia letters.
-- Replaces common BoatSpotMedia header text with clickable logo linked to home.
-- Does not touch thumbnails, search, video date/time, upload completion, or R2 cleanup logic.
+BoatSpotMedia v39.1 Logo + R2 Cancel/Delete Fix
+Base used: boatspotmedia_v39_logo_header_favicon_fix.zip
+- Header logo updated to horizontal BoatSpotMedia wordmark from new image.
+- Existing favicon/icon kept.
+- Does not touch thumbnails.
+- Does not touch working search/date/time logic.
+- Adds stronger R2 cleanup:
+  - deletes direct DB keys from many possible Video attributes
+  - scans Video row string fields for R2-looking keys
+  - deletes common batch prefixes
+  - marks batch and videos as deleted
+- Cancel Upload calls /r2-clean/batch/<id> when possible, otherwise /r2-clean/current-upload.
+- Delete Batch routes/forms are reinforced to use R2 cleanup.

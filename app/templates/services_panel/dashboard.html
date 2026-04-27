@@ -6,8 +6,8 @@
 
 <style>
 .brand-logo-link{display:flex;align-items:center;text-decoration:none;}
-.brand-logo-img{height:42px;max-width:220px;object-fit:contain;}
-@media(max-width:700px){.brand-logo-img{height:34px;max-width:170px;}}
+.brand-logo-img{height:34px;max-width:260px;object-fit:contain;}
+@media(max-width:700px){.brand-logo-img{height:28px;max-width:210px;}}
 </style>
 </head><body><div class="sidebar-layout"><div class="sidebar"><h2>Services</h2><a href="/service-account/dashboard">Dashboard</a><a href="/service-account/ads">Ads</a><a href="/service-account/billing">Billing</a><a href="https://services.boatspotmedia.com">Public Services</a></div><div class="content"><h1>Services Dashboard</h1><div class="grid"><div class="card"><h3>Balance</h3><p>${{acct.balance}}</p></div><div class="card"><h3>Total Clicks</h3><p>{{total_clicks}}</p></div><div class="card"><h3>Active Ads</h3><p>{{ads|selectattr('active')|list|length}}</p></div></div></div></div><script src="/static/js/mobile.js"></script>
 </body></html>
