@@ -19,6 +19,71 @@ def clean_instagram(value):
     return value.strip()
 
 
+
+def _public_video_locations():
+    """Buyer locations come only from active videos uploaded by creators."""
+    try:
+        rows = db.session.execute(text("""
+            SELECT DISTINCT TRIM(location) AS location
+            FROM video
+            WHERE location IS NOT NULL
+              AND TRIM(location) <> ''
+              AND COALESCE(status, '') NOT IN ('deleted','cancelled','canceled')
+            ORDER BY TRIM(location)
+        """)).fetchall()
+        return [r[0] for r in rows if r and r[0]]
+    except Exception as e:
+        try:
+            print("public locations warning:", e)
+            db.session.rollback()
+        except Exception:
+            pass
+        return []
+
+
+def _ny_dt(dt):
+    """Display DB UTC timestamps in America/New_York."""
+    if not dt:
+        return None
+    try:
+        from zoneinfo import ZoneInfo
+        if getattr(dt, "tzinfo", None) is None:
+            dt = dt.replace(tzinfo=ZoneInfo("UTC"))
+        return dt.astimezone(ZoneInfo("America/New_York"))
+    except Exception:
+        try:
+            from datetime import timedelta
+            return dt - timedelta(hours=5)
+        except Exception:
+            return dt
+
+
+def _session_dashboard_url():
+    role = session.get("user_role") or session.get("role")
+    if role == "creator":
+        return "/creator/dashboard"
+    if role == "buyer":
+        return "/buyer/dashboard"
+    if role in ["services", "service"]:
+        return "/service-account/dashboard"
+    if role in ["charter", "charters", "charter_provider"]:
+        return "https://charters.boatspotmedia.com"
+    return "/login"
+
+
+def _session_display_name():
+    return session.get("display_name") or session.get("creator_name") or session.get("user_email") or "Dashboard"
+
+
+@public_bp.app_context_processor
+def inject_public_helpers():
+    return {
+        "ny_dt": _ny_dt,
+        "session_dashboard_url": _session_dashboard_url,
+        "session_display_name": _session_display_name
+    }
+
+
 @public_bp.route("/")
 def home():
     try:
@@ -39,7 +104,7 @@ def home():
 
 @public_bp.route("/search")
 def search_page():
-    try: locations = Location.query.order_by(Location.name.asc()).all()
+    try: locations = _public_video_locations()
     except Exception: db.session.rollback(); locations = []
     return render_template("public/search.html", locations=locations, video_locations=locations, results=None)
 
@@ -52,14 +117,17 @@ def search_results():
         q = Video.query.filter_by(status="active")
         if location: q = q.filter(Video.location == location)
         if date_s and start_s and end_s:
+            from zoneinfo import ZoneInfo
             d = datetime.strptime(date_s, "%Y-%m-%d").date()
-            start_dt = datetime.combine(d, datetime.strptime(start_s, "%H:%M").time())
-            end_dt = datetime.combine(d, datetime.strptime(end_s, "%H:%M").time())
+            start_local = datetime.combine(d, datetime.strptime(start_s, "%H:%M").time()).replace(tzinfo=ZoneInfo("America/New_York"))
+            end_local = datetime.combine(d, datetime.strptime(end_s, "%H:%M").time()).replace(tzinfo=ZoneInfo("America/New_York"))
+            start_dt = start_local.astimezone(ZoneInfo("UTC")).replace(tzinfo=None)
+            end_dt = end_local.astimezone(ZoneInfo("UTC")).replace(tzinfo=None)
             q = q.filter(Video.recorded_at >= start_dt, Video.recorded_at <= end_dt)
         results = q.order_by(Video.recorded_at.asc()).limit(200).all()
     except Exception:
         db.session.rollback()
-    try: locations = Location.query.order_by(Location.name.asc()).all()
+    try: locations = _public_video_locations()
     except Exception: db.session.rollback(); locations = []
     return render_template("public/search.html", locations=locations, video_locations=locations, results=results)
 

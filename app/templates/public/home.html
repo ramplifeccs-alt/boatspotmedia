@@ -1,6 +1,6 @@
 <!doctype html><html><head>
-  <meta name="viewport" content="width=device-width, initial-scale=1"><meta charset="utf-8"><title>BoatSpotMedia</title><link rel="stylesheet" href="/static/css/style.css"></head><body><header><div><b>BoatSpotMedia</b></div><nav><a href="/">Home</a><a href="/search">Find Your Video</a><a href="/shop">Shop</a><a href="https://services.boatspotmedia.com">Services</a><a href="https://charters.boatspotmedia.com">Charters</a><a href="/apply-creator">Apply as Creator</a>{% if session.get("user_id") %}
-  <span class="nav-user">{{ session.get("display_name") or session.get("user_email") }}</span>
+  <meta name="viewport" content="width=device-width, initial-scale=1"><meta charset="utf-8"><title>BoatSpotMedia</title><link rel="stylesheet" href="/static/css/style.css"></head><body><header><div><a href="/" style="color:inherit;text-decoration:none;"><b>BoatSpotMedia</b></a></div><nav><a href="/">Home</a><a href="/search">Find Your Video</a><a href="/shop">Shop</a><a href="https://services.boatspotmedia.com">Services</a><a href="https://charters.boatspotmedia.com">Charters</a><a href="/apply-creator">Apply as Creator</a>{% if session.get("user_id") %}
+  <a class="nav-user" href="{{ session_dashboard_url() }}" style="text-decoration:none;">{{ session_display_name() }}</a>
   {% if session.get("user_role") == "buyer" %}
     <a href="/buyer/dashboard">Dashboard</a>
   {% elif session.get("user_role") == "creator" %}
@@ -25,7 +25,7 @@
 <div class="card">
   <div class="thumb">{% if v.public_thumbnail_url %}<img src="{{v.public_thumbnail_url}}">{% else %}Preview{% endif %}</div>
   <b>{{ v.location or "Boat Video" }}</b><br>
-  <small>{{ v.recorded_at.strftime('%m/%d/%Y %I:%M %p') if v.recorded_at else "Time pending" }}</small><br>
+  <small>{{ ny_dt(v.recorded_at).strftime('%m/%d/%Y %I:%M %p') if v.recorded_at else "Time pending" }}</small><br>
   <small>Captured by: {{ v.creator.user.display_name if v.creator and v.creator.user else "Creator" }}</small><br><br>
   <a class="btn" href="/preview/{{v.id}}">Preview</a>
 </div>

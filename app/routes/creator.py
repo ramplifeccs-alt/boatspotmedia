@@ -71,22 +71,15 @@ def _creator_default_prices(creator):
     return original, edited, bundle
 
 def _recalculate_creator_storage(creator_id):
-    """Safe storage recalculation using only video.file_size_bytes."""
+    """Recalculate storage from active videos only and update profile."""
     try:
-        from sqlalchemy import text
-        used = db.session.execute(text("""
-            SELECT COALESCE(SUM(COALESCE(file_size_bytes, 0)), 0)
-            FROM video
-            WHERE creator_id = :cid
-              AND COALESCE(status, '') <> 'deleted'
-        """), {"cid": creator_id}).scalar() or 0
-
+        used = _creator_used_storage_bytes(creator_id)
         try:
             from app.models import CreatorProfile
-            creator = CreatorProfile.query.get(creator_id)
-            if creator and hasattr(creator, "storage_used_bytes"):
-                creator.storage_used_bytes = int(used)
-                db.session.add(creator)
+            c = CreatorProfile.query.get(creator_id)
+            if c and hasattr(c, "storage_used_bytes"):
+                c.storage_used_bytes = int(used)
+                db.session.add(c)
                 db.session.commit()
         except Exception:
             db.session.rollback()
@@ -98,7 +91,6 @@ def _recalculate_creator_storage(creator_id):
         except Exception:
             pass
         return 0
-
 
 def current_creator():
     _ensure_creator_profile_deleted_column()
@@ -214,12 +206,13 @@ def _creator_known_locations():
 
 
 def _delete_batch_files_from_r2(batch):
-    """Delete all batch files/thumbnails from R2 and mark records deleted."""
+    """Delete all batch files/thumbnails from R2 and mark DB rows deleted. No recursion."""
     try:
         from app.services.r2 import delete_r2_object, delete_r2_prefix
         deleted = 0
         batch_id = getattr(batch, "id", None)
         creator_id = getattr(batch, "creator_id", None) or getattr(batch, "creator_profile_id", None)
+
         try:
             from app.models import Video
             videos = Video.query.filter_by(batch_id=batch_id).all()
@@ -230,43 +223,49 @@ def _delete_batch_files_from_r2(batch):
                         try:
                             delete_r2_object(key)
                             deleted += 1
-                        except Exception:
-                            pass
-                try:
-                    if hasattr(v, "status"):
-                        v.status = "deleted"
-                        db.session.add(v)
-                    else:
-                        db.session.delete(v)
-                except Exception:
-                    pass
-        except Exception:
-            pass
-        if creator_id and batch_id:
+                        except Exception as e:
+                            try:
+                                print("R2 object delete warning:", key, e)
+                            except Exception:
+                                pass
+                if hasattr(v, "status"):
+                    v.status = "deleted"
+                    db.session.add(v)
+                else:
+                    db.session.delete(v)
+        except Exception as e:
             try:
-                deleted += delete_r2_prefix(f"creators/{creator_id}/batches/{batch_id}/")
+                print("R2 DB key cleanup warning:", e)
             except Exception:
                 pass
-        try:
-            if hasattr(batch, "status"):
+
+        if creator_id and batch_id:
+            for prefix in (
+                f"creators/{creator_id}/batches/{batch_id}/",
+                f"creator/{creator_id}/batch/{batch_id}/",
+                f"batches/{batch_id}/",
+            ):
                 try:
-                    _delete_batch_files_from_r2(batch)
-                except Exception:
-                    pass
+                    deleted += delete_r2_prefix(prefix)
+                except Exception as e:
+                    try:
+                        print("R2 prefix delete warning:", prefix, e)
+                    except Exception:
+                        pass
+
+        if batch:
+            if hasattr(batch, "status"):
                 batch.status = "deleted"
                 db.session.add(batch)
             else:
-                try:
-                    _delete_batch_files_from_r2(batch)
-                except Exception:
-                    pass
                 db.session.delete(batch)
+        return deleted
+    except Exception as e:
+        try:
+            print("R2 batch cleanup warning:", e)
         except Exception:
             pass
-        return deleted
-    except Exception:
         return 0
-
 
 def _cleanup_upload_prefix(batch_id, creator_id):
     try:
@@ -277,6 +276,21 @@ def _cleanup_upload_prefix(batch_id, creator_id):
         pass
     return 0
 
+
+def _ny_dt(dt):
+    if not dt:
+        return None
+    try:
+        from zoneinfo import ZoneInfo
+        if getattr(dt, "tzinfo", None) is None:
+            dt = dt.replace(tzinfo=ZoneInfo("UTC"))
+        return dt.astimezone(ZoneInfo("America/New_York"))
+    except Exception:
+        try:
+            from datetime import timedelta
+            return dt - timedelta(hours=5)
+        except Exception:
+            return dt
 
 @creator_bp.route("/upload/batch/<int:batch_id>/cancel-clean", methods=["POST"])
 @creator_bp.route("/creator/upload/batch/<int:batch_id>/cancel-clean", methods=["POST"])
@@ -392,6 +406,9 @@ def login():
         session["user_email"] = user.email
         session["creator_id"] = creator.id
         session["role"] = "creator"
+        session["user_role"] = "creator"
+        session["display_name"] = creator_display_name(creator)
+        session["creator_name"] = creator_display_name(creator)
         return redirect(url_for("creator.dashboard"))
 
     return render_template("creator/login.html")
@@ -629,9 +646,11 @@ def _creator_storage_limit_bytes(creator):
 
 def _creator_used_storage_bytes(creator_id):
     from app.models import Video
-    total = db.session.query(db.func.coalesce(db.func.sum(Video.file_size_bytes), 0)).filter_by(creator_id=creator_id).scalar()
+    total = db.session.query(db.func.coalesce(db.func.sum(Video.file_size_bytes), 0)).filter(
+        Video.creator_id == creator_id,
+        db.or_(Video.status == None, ~Video.status.in_(["deleted", "cancelled", "canceled"]))
+    ).scalar()
     return int(total or 0)
-
 
 @creator_bp.route("/upload", methods=["GET"])
 def upload():
@@ -716,48 +735,17 @@ def _creator_plan_limits(creator):
 
 
 def _creator_storage_used_gb(creator_id):
-    """Robust storage calculation shown in Creator Dashboard.
-    Sums video.file_size_bytes, video_batch total fields, and creator_profile.storage_used_bytes fallback.
-    """
-    total = 0
+    """Storage shown in dashboard/upload: active videos only."""
     try:
-        from app.models import Video
-        total += int(db.session.query(db.func.coalesce(db.func.sum(Video.file_size_bytes), 0)).filter(
-            Video.creator_id == creator_id,
-            Video.status != "deleted"
-        ).scalar() or 0)
+        used = _creator_used_storage_bytes(creator_id)
+        return round(float(used) / (1024 ** 3), 2)
     except Exception as e:
-        print("storage video sum warning:", e)
-
-    # Some older batches store the total size only on video_batch.
-    try:
-        rows = db.session.execute(db.text("""
-            SELECT COALESCE(SUM(
-                COALESCE(file_size_bytes, 0)
-            ), 0)
-            FROM video
-            WHERE creator_id = :cid
-              AND COALESCE(status, '') <> 'deleted'
-        """), {"cid": creator_id}).scalar() or 0
-        total = max(total, int(rows or 0))
-    except Exception as e:
-        print("storage batch sum warning:", e)
         try:
+            print("storage used gb warning:", e)
             db.session.rollback()
         except Exception:
             pass
-
-    # Fallback to profile storage_used_bytes if it is larger.
-    try:
-        from app.models import CreatorProfile
-        c = CreatorProfile.query.get(creator_id)
-        if c and getattr(c, "storage_used_bytes", None):
-            total = max(total, int(c.storage_used_bytes or 0))
-    except Exception as e:
-        print("storage profile warning:", e)
-
-    return round(float(total) / (1024 ** 3), 2)
-
+        return 0
 
 def _ensure_batch_exists_for_upload(batch_id, creator_id, batch_name="", location=""):
     """Guarantee video_batch row exists before inserting videos."""
@@ -1049,7 +1037,7 @@ def batches():
     if not creator:
         return redirect("/creator/login")
     from app.models import VideoBatch
-    batches = VideoBatch.query.filter_by(creator_id=creator.id).order_by(VideoBatch.id.desc()).all()
+    batches = VideoBatch.query.filter(VideoBatch.creator_id == creator.id, db.or_(VideoBatch.status == None, ~VideoBatch.status.in_(["deleted", "cancelled", "canceled"]))).order_by(VideoBatch.id.desc()).all()
     return render_template("creator/batches.html", batches=batches)
 
 
@@ -1078,12 +1066,12 @@ def delete_batch(batch_id):
         _delete_batch_files_from_r2(batch)
     except Exception:
         pass
-    try:
-        _delete_batch_files_from_r2(batch)
-    except Exception:
-        pass
     batch.status = "deleted"
     db.session.commit()
+    try:
+        _recalculate_creator_storage(creator.id)
+    except Exception:
+        pass
     return redirect(url_for("creator.batches"))
 
 
