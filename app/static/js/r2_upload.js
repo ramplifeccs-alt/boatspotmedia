@@ -347,7 +347,7 @@ document.addEventListener("DOMContentLoaded", function(){
       window.__BSM_UPLOAD_CANCELLED__ = true;
       const bid = window.currentBatchId || window.BSM_CURRENT_BATCH_ID || window.current_batch_id || null;
       if (bid) {
-        try { await fetch('/upload/batch/' + bid + '/cancel-clean', {method:'POST'}); } catch(e) {}
+        try { await fetch('/r2-clean/batch/' + bid, {method:'POST'}); } catch(e) {}
       }
       alert('Upload cancelled. BoatSpotMedia will clean the uploaded files for this batch when possible.');
       location.reload();
@@ -530,7 +530,33 @@ document.addEventListener("DOMContentLoaded", function(){
     if(text.indexOf('cancel upload') === -1) return;
     var bid = window.currentBatchId || window.BSM_CURRENT_BATCH_ID || window.current_batch_id || null;
     if(bid){
-      try{ await fetch('/upload/batch/' + bid + '/cancel-clean', {method:'POST'}); }catch(err){}
+      try{ await fetch('/r2-clean/batch/' + bid, {method:'POST'}); }catch(err){}
     }
   }, true);
+})();
+
+
+
+// BoatSpotMedia v38.7 completion popup and redirect
+(function(){
+  if(window.__BSM_V387_COMPLETE__) return;
+  window.__BSM_V387_COMPLETE__ = true;
+  const oldFetch = window.fetch;
+  window.fetch = function(){
+    const args = arguments;
+    return oldFetch.apply(this, args).then(function(resp){
+      try{
+        const url = String(args[0] || "");
+        if((url.includes("/creator/upload/r2/complete") || url.includes("/upload/r2/complete")) && resp && resp.ok){
+          setTimeout(function(){
+            const box = document.getElementById("bsm-upload-v385") || document.getElementById("bsm-upload-progress-box");
+            if(box) box.style.display = "none";
+            alert("Upload completed successfully. Your files were saved.");
+            window.location.href = "/creator/batches";
+          }, 500);
+        }
+      }catch(e){}
+      return resp;
+    });
+  };
 })();

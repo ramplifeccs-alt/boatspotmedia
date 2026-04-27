@@ -41,7 +41,7 @@ def home():
 def search_page():
     try: locations = Location.query.order_by(Location.name.asc()).all()
     except Exception: db.session.rollback(); locations = []
-    return render_template("public/search.html", locations=locations, results=None)
+    return render_template("public/search.html", locations=locations, video_locations=locations, results=None)
 
 
 @public_bp.route("/search/results")
@@ -61,7 +61,7 @@ def search_results():
         db.session.rollback()
     try: locations = Location.query.order_by(Location.name.asc()).all()
     except Exception: db.session.rollback(); locations = []
-    return render_template("public/search.html", locations=locations, results=results)
+    return render_template("public/search.html", locations=locations, video_locations=locations, results=results)
 
 
 @public_bp.route("/preview/<int:video_id>")

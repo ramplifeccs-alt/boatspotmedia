@@ -1,9 +1,8 @@
-BoatSpotMedia v38.6 Storage Cancel Location Fix
-- Base: v38.5; thumbnail engine untouched.
-- Upload completion hides progress, shows success popup, redirects to /creator/batches.
-- Cancel Upload and Delete Batch clean R2 and mark records deleted.
-- Storage counts active videos only and excludes deleted/cancelled.
-- Buyer location list comes only from active creator-uploaded video locations. Admin does not enter locations.
-- Creator location field has suggestions from existing active locations.
-- Upload page text changed to Creator Storage Usage.
+BoatSpotMedia v38.7 Safe Search R2 Menu Fix
+- Base: v38.6; thumbnail engine untouched.
+- Fixes /search UndefinedError by removing available_buyer_locations() from public templates.
+- Search location dropdown uses locations/video_locations from public route.
+- Adds safe /r2-clean/batch/<id> endpoint for R2 cleanup.
+- Cancel upload JS points to /r2-clean/batch/<id>.
+- Upload complete hides progress, shows popup, redirects to /creator/batches.
 - Browser title fixed to BoatSpotMedia.

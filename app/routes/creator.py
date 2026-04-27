@@ -1268,3 +1268,66 @@ def regenerate_video_thumbnail(video_id):
     except Exception as e:
         db.session.rollback()
         return jsonify({"ok": False, "error": str(e)}), 500
+
+
+@creator_bp.route("/r2-clean/batch/<int:batch_id>", methods=["POST"])
+def r2_clean_batch_safe(batch_id):
+    creator = current_creator()
+    if not creator:
+        return jsonify({"ok": False, "error": "Please log in again."}), 401
+
+    deleted = 0
+    try:
+        from app.models import VideoBatch, Video
+        from app.services.r2 import delete_r2_object, delete_r2_prefix
+
+        batch = VideoBatch.query.get(batch_id)
+        creator_id = getattr(batch, "creator_id", None) or getattr(batch, "creator_profile_id", None) or getattr(creator, "id", None)
+
+        for v in Video.query.filter_by(batch_id=batch_id).all():
+            for attr in ("r2_video_key", "r2_thumbnail_key", "file_path", "thumbnail_path"):
+                key = getattr(v, attr, None)
+                if key and not str(key).startswith("http"):
+                    try:
+                        delete_r2_object(key)
+                        deleted += 1
+                    except Exception as e:
+                        try:
+                            print("R2 object delete warning:", key, e)
+                        except Exception:
+                            pass
+            try:
+                if hasattr(v, "status"):
+                    v.status = "deleted"
+                    db.session.add(v)
+                else:
+                    db.session.delete(v)
+            except Exception:
+                pass
+
+        if creator_id:
+            for prefix in (
+                f"creators/{creator_id}/batches/{batch_id}/",
+                f"creator/{creator_id}/batch/{batch_id}/",
+                f"batches/{batch_id}/",
+            ):
+                try:
+                    deleted += delete_r2_prefix(prefix)
+                except Exception as e:
+                    try:
+                        print("R2 prefix delete warning:", prefix, e)
+                    except Exception:
+                        pass
+
+        if batch:
+            if hasattr(batch, "status"):
+                batch.status = "deleted"
+                db.session.add(batch)
+            else:
+                db.session.delete(batch)
+
+        db.session.commit()
+        return jsonify({"ok": True, "deleted_objects": deleted})
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({"ok": False, "error": str(e)}), 500
