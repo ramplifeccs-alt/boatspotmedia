@@ -138,6 +138,14 @@ def render_creator_template(template_name, **kwargs):
     return render_template(template_name, **kwargs)
 
 
+@creator_bp.app_context_processor
+def inject_creator_menu_helpers():
+    return {
+        "creator_display_name": _creator_display_name
+    }
+
+
+
 def _creator_display_name(creator):
     """Prefer Instagram/business/display name instead of email."""
     try:
@@ -150,25 +158,68 @@ def _creator_display_name(creator):
                 if val:
                     val = str(val).strip()
                     if val:
-                        if attr in ("instagram", "instagram_handle"):
-                            return "@" + val.lstrip("@")
-                        return val
+                        return ("@" + val.lstrip("@")) if attr in ("instagram", "instagram_handle") else val
         for obj in (user, creator):
             if obj and getattr(obj, "email", None):
                 return str(getattr(obj, "email"))
     except Exception:
         pass
-    return "Creator"
+    return "Dashboard"
+
+
+def _active_storage_used_bytes(creator_id):
+    """Count only active videos, excluding deleted/cancelled."""
+    try:
+        from sqlalchemy import text
+        used = db.session.execute(text("""
+            SELECT COALESCE(SUM(COALESCE(file_size_bytes, 0)), 0)
+            FROM video
+            WHERE creator_id = :cid
+              AND COALESCE(status, '') NOT IN ('deleted','cancelled','canceled')
+        """), {"cid": creator_id}).scalar() or 0
+        return int(used)
+    except Exception as e:
+        try:
+            print("active storage used warning:", e)
+            db.session.rollback()
+        except Exception:
+            pass
+        return 0
+
+
+def _available_buyer_locations():
+    """Buyer location list comes only from active videos uploaded by creators."""
+    try:
+        from sqlalchemy import text
+        rows = db.session.execute(text("""
+            SELECT DISTINCT TRIM(location) AS location
+            FROM video
+            WHERE location IS NOT NULL
+              AND TRIM(location) <> ''
+              AND COALESCE(status, '') NOT IN ('deleted','cancelled','canceled')
+            ORDER BY TRIM(location)
+        """)).fetchall()
+        return [r[0] for r in rows if r and r[0]]
+    except Exception as e:
+        try:
+            print("buyer locations warning:", e)
+            db.session.rollback()
+        except Exception:
+            pass
+        return []
+
+
+def _creator_known_locations():
+    return _available_buyer_locations()
 
 
 def _delete_batch_files_from_r2(batch):
-    """Delete all files and thumbnails for a batch from R2."""
+    """Delete all batch files/thumbnails from R2 and mark records deleted."""
     try:
         from app.services.r2 import delete_r2_object, delete_r2_prefix
         deleted = 0
         batch_id = getattr(batch, "id", None)
         creator_id = getattr(batch, "creator_id", None) or getattr(batch, "creator_profile_id", None)
-
         try:
             from app.models import Video
             videos = Video.query.filter_by(batch_id=batch_id).all()
@@ -179,26 +230,41 @@ def _delete_batch_files_from_r2(batch):
                         try:
                             delete_r2_object(key)
                             deleted += 1
-                        except Exception as e:
-                            try: print("R2 object delete warning:", key, e)
-                            except Exception: pass
-        except Exception as e:
-            try: print("R2 DB key cleanup warning:", e)
-            except Exception: pass
-
+                        except Exception:
+                            pass
+                try:
+                    if hasattr(v, "status"):
+                        v.status = "deleted"
+                        db.session.add(v)
+                    else:
+                        db.session.delete(v)
+                except Exception:
+                    pass
+        except Exception:
+            pass
         if creator_id and batch_id:
-            prefix = f"creators/{creator_id}/batches/{batch_id}/"
             try:
-                count = delete_r2_prefix(prefix)
-                deleted += count
-                print("R2 batch prefix deleted:", prefix, count)
-            except Exception as e:
-                try: print("R2 prefix delete warning:", prefix, e)
-                except Exception: pass
+                deleted += delete_r2_prefix(f"creators/{creator_id}/batches/{batch_id}/")
+            except Exception:
+                pass
+        try:
+            if hasattr(batch, "status"):
+                try:
+                    _delete_batch_files_from_r2(batch)
+                except Exception:
+                    pass
+                batch.status = "deleted"
+                db.session.add(batch)
+            else:
+                try:
+                    _delete_batch_files_from_r2(batch)
+                except Exception:
+                    pass
+                db.session.delete(batch)
+        except Exception:
+            pass
         return deleted
-    except Exception as e:
-        try: print("R2 batch cleanup warning:", e)
-        except Exception: pass
+    except Exception:
         return 0
 
 
@@ -206,23 +272,10 @@ def _cleanup_upload_prefix(batch_id, creator_id):
     try:
         from app.services.r2 import delete_r2_prefix
         if batch_id and creator_id:
-            prefix = f"creators/{creator_id}/batches/{batch_id}/"
-            count = delete_r2_prefix(prefix)
-            print("R2 upload cancel prefix deleted:", prefix, count)
-            return count
-    except Exception as e:
-        try: print("R2 upload cancel cleanup warning:", e)
-        except Exception: pass
+            return delete_r2_prefix(f"creators/{creator_id}/batches/{batch_id}/")
+    except Exception:
+        pass
     return 0
-
-
-
-
-@creator_bp.app_context_processor
-def inject_creator_menu_helpers():
-    return {
-        "creator_display_name": _creator_display_name
-    }
 
 
 @creator_bp.route("/upload/batch/<int:batch_id>/cancel-clean", methods=["POST"])
@@ -238,6 +291,10 @@ def cancel_upload_batch_clean(batch_id):
         if batch:
             for v in Video.query.filter_by(batch_id=batch_id).all():
                 db.session.delete(v)
+            try:
+                _delete_batch_files_from_r2(batch)
+            except Exception:
+                pass
             try:
                 _delete_batch_files_from_r2(batch)
             except Exception:
@@ -263,6 +320,10 @@ def delete_batch_full_cleanup(batch_id):
         deleted = _delete_batch_files_from_r2(batch)
         for v in Video.query.filter_by(batch_id=batch_id).all():
             db.session.delete(v)
+        try:
+            _delete_batch_files_from_r2(batch)
+        except Exception:
+            pass
         try:
             _delete_batch_files_from_r2(batch)
         except Exception:
@@ -1017,6 +1078,10 @@ def delete_batch(batch_id):
         _delete_batch_files_from_r2(batch)
     except Exception:
         pass
+    try:
+        _delete_batch_files_from_r2(batch)
+    except Exception:
+        pass
     batch.status = "deleted"
     db.session.commit()
     return redirect(url_for("creator.batches"))
@@ -1108,6 +1173,10 @@ def cancel_upload_batch(batch_id):
             db.session.delete(v)
         batch = VideoBatch.query.filter_by(id=batch_id, creator_id=creator.id).first()
         if batch:
+            try:
+                _delete_batch_files_from_r2(batch)
+            except Exception:
+                pass
             try:
                 _delete_batch_files_from_r2(batch)
             except Exception:

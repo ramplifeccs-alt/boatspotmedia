@@ -41,3 +41,9 @@ function regenerateThumbnail(videoId){
 <script src="{{ url_for('static', filename='js/r2_upload.js') }}"></script>
 
 <!-- Upload will start once. Please do not click twice; progress appears beside the upload button. -->
+
+<datalist id="creator-location-list">
+  {% for loc in creator_known_locations() %}
+    <option value="{{ loc }}"></option>
+  {% endfor %}
+</datalist>

@@ -17,7 +17,12 @@
 <h1>Search Boat Videos</h1>
 <form action="/search/results">
 <label>Location</label>
-<select name="location">{% for l in locations %}<option>{{l.name}}</option>{% endfor %}</select>
+<select name="location">
+  <option value="">Select location with available videos</option>
+  {% for loc in video_locations or available_buyer_locations() %}
+    <option value="{{ loc }}">{{ loc }}</option>
+  {% endfor %}
+</select>
 <label>Date</label><input type="date" name="date">
 <label>From</label><input type="time" name="start_time">
 <label>To</label><input type="time" name="end_time">

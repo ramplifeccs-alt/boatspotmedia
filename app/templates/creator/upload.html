@@ -29,8 +29,8 @@
   <div class="content">
     <h1>Upload Video Batch</h1>
     <div class="card">
-      <h3>BoatSpotMedia Storage Upload</h3>
-      <p>Files upload directly to BoatSpotMedia Storage. Railway only saves the batch/video records.</p>
+      <h3>Creator Storage Usage</h3>
+      <p>Your videos upload directly to BoatSpotMedia secure storage. Keep original camera files for accurate date, time, and search results.</p>
       <p>Plan storage used: <strong>{{ used_gb }} GB</strong> / <strong>{{ limit_gb }} GB</strong></p>
       <p>Maximum per batch: {{ max_batch_gb|default(128) }} GB</strong></p>
       <div class="progress-shell"><div class="progress-bar" style="width: {{ (used_bytes / limit_bytes * 100) if limit_bytes else 0 }}%"></div></div>
@@ -48,7 +48,7 @@ Batch name</label>
       <input type="text" name="batch_name" placeholder="Example: Boca Raton Inlet - Sunday morning">
 
       <label>Location</label>
-      <input type="text" name="location" list="locations" placeholder="Boca Raton Inlet">
+      <input type="text" name="location" list="locations" placeholder="Boca Raton Inlet" list="creator-location-list">
       <datalist id="locations">
         <option value="Boca Raton Inlet">
         <option value="Hillsboro Inlet">

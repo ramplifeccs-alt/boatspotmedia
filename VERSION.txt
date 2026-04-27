@@ -1,11 +1,9 @@
-BoatSpotMedia v38.5 Upload UI Home Menu Fix
-- Base: v38.4; thumbnail engine untouched.
-- Removes duplicate/old progress UI from upload template.
-- Adds one visible progress controller beside the Upload Batch button.
-- Disables Upload button immediately to prevent duplicate clicks.
-- Shows global batch percent and current file for many videos.
-- Keeps cancel-clean endpoint usage for R2 cleanup.
-- Fixes browser tab title to BoatSpotMedia.
-- BoatSpotMedia brand links to home.
-- Creator account display uses Instagram/business/name when available and links to /creator/dashboard.
-- Removes repeated plan storage/max batch lines in upload template.
+BoatSpotMedia v38.6 Storage Cancel Location Fix
+- Base: v38.5; thumbnail engine untouched.
+- Upload completion hides progress, shows success popup, redirects to /creator/batches.
+- Cancel Upload and Delete Batch clean R2 and mark records deleted.
+- Storage counts active videos only and excludes deleted/cancelled.
+- Buyer location list comes only from active creator-uploaded video locations. Admin does not enter locations.
+- Creator location field has suggestions from existing active locations.
+- Upload page text changed to Creator Storage Usage.
+- Browser title fixed to BoatSpotMedia.
