@@ -1,7 +1,5 @@
-app/models.py
 app/routes/creator.py
 app/templates/creator/upload.html
 app/templates/creator/pricing.html
 app/templates/public/preview.html
 app/routes/payments.py
-app/templates/buyer/cart.html

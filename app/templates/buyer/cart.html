@@ -8,7 +8,7 @@
 <input type="hidden" name="video_id" value="{{v.id}}">
 <b>{{v.location}}</b><br>
 Captured by: {{v.creator.user.display_name if v.creator and v.creator.user else "Creator"}}<br>
-{% if v.original_price and v.original_price|float > 0 %}Price: ${{v.original_price}}{% else %}Creator price not configured{% endif %}
+Price: ${{v.original_price}}
 {% if discounts.get(v.id) %}<div class="success">Second clip discount applied: {{discounts.get(v.id)}}% off</div>{% endif %}
 </div>
 {% endfor %}

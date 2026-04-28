@@ -53,60 +53,7 @@ def _is_allowed_video_filename(filename):
     return os.path.splitext((filename or "").lower())[1] in ALLOWED_VIDEO_EXTENSIONS
 
 def _creator_default_prices(creator):
-    """
-    Return prices configured by THIS creator in Video Pricing.
-    No platform hardcoded fallback prices.
-    Missing options return 0 and will not show to buyers.
-    delivery_type:
-      instant = original instant download
-      edited = edited delivery
-      bundle = original + edited combo
-    """
-    original = 0.0
-    edited = 0.0
-    bundle = 0.0
-
-    try:
-        presets = VideoPricingPreset.query.filter_by(
-            creator_id=creator.id,
-            active=True
-        ).order_by(VideoPricingPreset.is_default.desc(), VideoPricingPreset.id.asc()).all()
-
-        for p in presets:
-            try:
-                price = float(p.price or 0)
-            except Exception:
-                price = 0.0
-            if price <= 0:
-                continue
-
-            dtype = (p.delivery_type or "").lower().strip()
-
-            if dtype in ("instant", "original", "download", "original_download") and original <= 0:
-                original = price
-            elif dtype in ("edited", "edit", "edited_delivery") and edited <= 0:
-                edited = price
-            elif dtype in ("bundle", "combo", "original_edited", "original_plus_edited") and bundle <= 0:
-                bundle = price
-
-        # Optional creator fields only if they exist and are set by creator.
-        def get_num(attr):
-            try:
-                val = getattr(creator, attr, None)
-                if val not in (None, "", 0, "0"):
-                    return float(val)
-            except Exception:
-                pass
-            return 0.0
-
-        original = original or get_num("default_original_price")
-        edited = edited or get_num("default_edited_price")
-        bundle = bundle or get_num("default_bundle_price")
-
-    except Exception:
-        pass
-
-    return original, edited, bundle
+    return _creator_video_prices_from_pricing_page(creator)
 
 
 def _recalculate_creator_storage(creator_id):
@@ -613,6 +560,50 @@ def _bsm_latest_incomplete_batch_for_creator_v388(creator):
             pass
     return None
 
+
+def _creator_video_prices_from_pricing_page(creator):
+    """
+    Read the creator's own Pricing page options.
+    No platform/default prices.
+    Maps active pricing presets to Video fields only as configured by creator.
+    """
+    original_price = 0.0
+    edited_price = 0.0
+    bundle_price = 0.0
+    try:
+        presets = VideoPricingPreset.query.filter_by(creator_id=creator.id, active=True).order_by(
+            VideoPricingPreset.is_default.desc(),
+            VideoPricingPreset.id.asc()
+        ).all()
+
+        for p in presets:
+            try:
+                price = float(p.price or 0)
+            except Exception:
+                price = 0.0
+            if price <= 0:
+                continue
+
+            dtype = (getattr(p, "delivery_type", "") or "").lower().strip()
+            title = (getattr(p, "title", "") or "").lower().strip()
+            label = dtype + " " + title
+
+            if any(x in label for x in ["bundle", "combo", "original +", "original plus"]):
+                if bundle_price <= 0:
+                    bundle_price = price
+            elif any(x in label for x in ["edit", "edited", "instagram", "short", "reel"]):
+                if edited_price <= 0:
+                    edited_price = price
+            else:
+                # instant/original/download/default = original purchase option
+                if original_price <= 0:
+                    original_price = price
+    except Exception:
+        pass
+
+    return original_price, edited_price, bundle_price
+
+
 @creator_bp.route("/creator/batch/delete-latest-incomplete", methods=["POST"])
 @creator_bp.route("/batch/delete-latest-incomplete", methods=["POST"])
 def bsm_delete_latest_incomplete_batch_v388():
@@ -942,7 +933,7 @@ def pricing():
             p = VideoPricingPreset(creator_id=creator.id)
             db.session.add(p)
 
-        p.title = request.form.get("title") or "Video Price"
+        p.title = request.form.get("title") or "Default Video Price"
         p.description = request.form.get("description")
         p.price = float(request.form.get("price") or 0)
         p.delivery_type = request.form.get("delivery_type") or "instant"
@@ -1245,7 +1236,7 @@ def upload_r2_prepare():
     location = (data.get("location") or "").strip()
     batch_name = (data.get("batch_name") or "").strip() or "New video batch"
 
-    original_price, edited_price, bundle_price = _creator_default_prices(creator)
+    original_price, edited_price, bundle_price = _creator_video_prices_from_pricing_page(creator)
 
     if not files:
         return jsonify({"ok": False, "error": "Choose at least one video file."}), 400
@@ -1351,7 +1342,7 @@ def upload_r2_complete():
     uploaded = data.get("uploaded", [])
     location = (data.get("location") or "").strip()
 
-    original_price, edited_price, bundle_price = _creator_default_prices(creator)
+    original_price, edited_price, bundle_price = _creator_video_prices_from_pricing_page(creator)
 
     batch = VideoBatch.query.filter_by(id=batch_id, creator_id=creator.id).first()
     if not batch:

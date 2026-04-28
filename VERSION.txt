@@ -1,14 +1,12 @@
-BoatSpotMedia v39.0 Creator Pricing Real Fix
-Base: boatspotmedia_v38_9_RESTORE_SEARCH_CREATOR_PRICES_ONLY.zip
-Fixes:
-- Removes hardcoded default video prices 40/60/80 from models and creator pricing logic.
-- Upload no longer controls video prices per batch.
-- Uploaded videos receive the creator's active Pricing options:
-  instant/original -> original_price
-  edited -> edited_price
-  bundle/combo -> bundle_price
-- Buyer preview only shows options that creator configured with price > 0.
-- Edited/bundle checkout no longer falls back to original price.
+BoatSpotMedia v39.1 Pricing Presets Only + Upload Restore
+Base: boatspotmedia_v38_8_SAFE_INCOMPLETE_ONLY_DELETE_FIX.zip
+Fix:
+- Upload page restored from stable base; no blank upload block.
+- Video preview shows only prices configured by creator in Creator > Pricing.
+- If creator creates one price, buyer sees one option.
+- If creator creates edited/combo prices, buyer sees those too.
+- No platform-created 3-option package.
+- Removes 40/60/80 defaults from models/logic where detected.
 Not touched:
 - search
 - logo/header
