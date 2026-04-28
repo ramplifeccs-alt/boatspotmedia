@@ -471,6 +471,56 @@ def _creator_current_batch_id_from_request():
 
 
 
+def _current_upload_batch_id():
+    """Find current upload batch id from request/session or latest active empty/uploading batch."""
+    for source in (
+        request.get_json(silent=True) if request.is_json else None,
+        request.form,
+        request.args,
+    ):
+        try:
+            if source:
+                for k in ("batch_id", "batchId", "id"):
+                    val = source.get(k)
+                    if val:
+                        return int(val)
+        except Exception:
+            pass
+
+    try:
+        val = session.get("current_upload_batch_id") or session.get("upload_batch_id") or session.get("last_batch_id")
+        if val:
+            return int(val)
+    except Exception:
+        pass
+
+    # Last-resort fallback: latest non-deleted creator batch, especially empty/uploading ghost batch.
+    try:
+        creator = current_creator()
+        if creator:
+            from app.models import VideoBatch, Video
+            batches = VideoBatch.query.filter(
+                VideoBatch.creator_id == creator.id,
+                db.or_(VideoBatch.status == None, ~VideoBatch.status.in_(["deleted", "cancelled", "canceled"]))
+            ).order_by(VideoBatch.id.desc()).limit(5).all()
+            for b in batches:
+                active_count = Video.query.filter(
+                    Video.batch_id == b.id,
+                    db.or_(Video.status == None, ~Video.status.in_(["deleted", "cancelled", "canceled"]))
+                ).count()
+                if active_count == 0 or str(getattr(b, "status", "")).lower() in ("uploading", "pending", "active", ""):
+                    return int(b.id)
+            if batches:
+                return int(batches[0].id)
+    except Exception as e:
+        try:
+            print("current upload batch fallback warning:", e)
+        except Exception:
+            pass
+
+    return None
+
+
 @creator_bp.route("/r2-clean/batch/<int:batch_id>", methods=["POST"])
 @creator_bp.route("/upload/batch/<int:batch_id>/cancel-clean", methods=["POST"])
 @creator_bp.route("/creator/upload/batch/<int:batch_id>/cancel-clean", methods=["POST"])

@@ -665,3 +665,91 @@ document.addEventListener("DOMContentLoaded", function(){
     }
   }, true);
 })();
+
+
+
+// BoatSpotMedia v39.5 Cancel Upload definitive R2 cleanup.
+// Captures batch_id from any upload response, then Cancel Upload cleans the exact batch.
+(function(){
+  if(window.__BSM_V395_CANCEL_FIX__) return;
+  window.__BSM_V395_CANCEL_FIX__ = true;
+
+  function rememberBatchIdFromData(data){
+    try{
+      if(!data || typeof data !== "object") return;
+      const possible =
+        data.batch_id || data.batchId || data.id ||
+        (data.batch && (data.batch.id || data.batch.batch_id)) ||
+        (data.data && (data.data.batch_id || data.data.batchId || data.data.id));
+      if(possible){
+        window.currentBatchId = possible;
+        window.BSM_CURRENT_BATCH_ID = possible;
+        window.current_batch_id = possible;
+        try { sessionStorage.setItem("bsm_current_batch_id", String(possible)); } catch(e){}
+        console.log("BoatSpotMedia remembered batch id:", possible);
+      }
+    }catch(e){}
+  }
+
+  function getBatchId(){
+    return window.currentBatchId || window.BSM_CURRENT_BATCH_ID || window.current_batch_id ||
+           window.createdBatchId || window.batchId ||
+           (function(){ try { return sessionStorage.getItem("bsm_current_batch_id"); } catch(e){ return null; } })() ||
+           (document.querySelector("[data-batch-id]") && document.querySelector("[data-batch-id]").getAttribute("data-batch-id"));
+  }
+
+  // Capture batch_id from fetch JSON responses without breaking the original response.
+  const nativeFetch = window.fetch;
+  window.fetch = function(){
+    const args = arguments;
+    return nativeFetch.apply(this, args).then(function(resp){
+      try{
+        const url = String(args[0] || "");
+        if(
+          url.includes("batch") ||
+          url.includes("upload") ||
+          url.includes("/r2/") ||
+          url.includes("/creator/")
+        ){
+          resp.clone().json().then(rememberBatchIdFromData).catch(function(){});
+        }
+      }catch(e){}
+      return resp;
+    });
+  };
+
+  async function cleanCurrentUpload(){
+    const bid = getBatchId();
+    try{
+      if(bid){
+        const r = await nativeFetch("/r2-clean/batch/" + bid, {method:"POST"});
+        try { console.log("BoatSpotMedia cancel cleanup result:", await r.clone().json()); } catch(e){}
+        return r;
+      }
+      const r = await nativeFetch("/r2-clean/current-upload", {method:"POST"});
+      try { console.log("BoatSpotMedia fallback cancel cleanup result:", await r.clone().json()); } catch(e){}
+      return r;
+    }catch(e){
+      console.warn("BoatSpotMedia cancel cleanup failed", e);
+    }
+  }
+
+  // High-priority cancel handler: cleans before reload/navigation.
+  document.addEventListener("click", function(e){
+    const btn = e.target.closest("button,a,input");
+    if(!btn) return;
+    const text = (btn.textContent || btn.value || "").toLowerCase();
+    if(!text.includes("cancel upload")) return;
+
+    e.preventDefault();
+    e.stopPropagation();
+
+    (async function(){
+      await cleanCurrentUpload();
+      alert("Upload cancelled. Uploaded files and batch records were removed.");
+      window.location.href = "/creator/batches";
+    })();
+
+    return false;
+  }, true);
+})();

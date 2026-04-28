@@ -1,11 +1,10 @@
-BoatSpotMedia v39.4 Full R2 Cleanup Real Fix
-Base used: boatspotmedia_v39_3_r2_cancel_delete_logo_username_fix.zip
-- Uses R2_BUCKET_NAME primary, fallback boatspotmedia-videos.
-- Adds robust R2 cleanup endpoints:
-  /r2-clean/batch/<id>
-  /r2-clean/current-upload
-  /cancel-upload
-- Cancel Upload and Delete Batch delete DB keys plus common R2 prefixes.
-- Marks batch/videos as deleted after cleanup.
-- Keeps working search, time/date, and thumbnails untouched.
-- Adds global logo-header asset and replaces common brand text.
+BoatSpotMedia v39.5 Cancel Upload R2 Fix
+Base used: v39.4 full R2 cleanup real fix.
+- Does not touch thumbnails.
+- Does not touch search.
+- Does not touch New York date/time logic.
+- Delete Batch remains as working from v39.4.
+- Fixes Cancel Upload by capturing batch_id from upload responses.
+- Stores batch_id in window/sessionStorage and calls /r2-clean/batch/<id>.
+- Backend /r2-clean/current-upload now falls back to latest active/empty uploading creator batch.
+- Cancelled upload redirects to /creator/batches after cleanup.
