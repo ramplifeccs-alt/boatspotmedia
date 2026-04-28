@@ -1,8 +1,18 @@
-BoatSpotMedia v38.9 Restore Search + Creator Prices Only
-Base used: boatspotmedia_v38_8_SAFE_INCOMPLETE_ONLY_DELETE_FIX.zip
-- Restores working search by using v38.8 stable base.
-- Does NOT modify search templates/routes.
-- Does NOT use the mockup image as logo.
-- Does NOT modify header/logo.
-- Only removes visible hardcoded buyer/public default prices ($40/$50/$60/$80) and obvious hardcoded route price literals.
-- Keeps safe incomplete batch cleanup from base.
+BoatSpotMedia v39.0 Creator Pricing Real Fix
+Base: boatspotmedia_v38_9_RESTORE_SEARCH_CREATOR_PRICES_ONLY.zip
+Fixes:
+- Removes hardcoded default video prices 40/60/80 from models and creator pricing logic.
+- Upload no longer controls video prices per batch.
+- Uploaded videos receive the creator's active Pricing options:
+  instant/original -> original_price
+  edited -> edited_price
+  bundle/combo -> bundle_price
+- Buyer preview only shows options that creator configured with price > 0.
+- Edited/bundle checkout no longer falls back to original price.
+Not touched:
+- search
+- logo/header
+- R2 cleanup
+- thumbnails
+- New York time/date
+- login/dashboard routes

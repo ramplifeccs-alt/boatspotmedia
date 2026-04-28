@@ -22,8 +22,23 @@
 {% if video.creator.second_clip_discount_percent %}
 <div class="notice">Buy another clip from this creator and get {{video.creator.second_clip_discount_percent}}% off the next video.</div>
 {% endif %}
-<p><b>Original:</b> ${{video.original_price}}</p>
-<a class="btn" href="/buyer/cart?videos={{video.id}}">Add to Cart</a>
+<div class="video-purchase-options">
+{% if video.original_price and video.original_price|float > 0 %}
+  <p><b>Original 4K download:</b> ${{ video.original_price }}</p>
+  <a class="btn" href="/checkout/video/{{ video.id }}?package=original">Buy Original</a>
+{% endif %}
+{% if video.edited_price and video.edited_price|float > 0 %}
+  <p><b>Edited video:</b> ${{ video.edited_price }}</p>
+  <a class="btn secondary" href="/checkout/video/{{ video.id }}?package=edited">Buy Edited</a>
+{% endif %}
+{% if video.bundle_price and video.bundle_price|float > 0 %}
+  <p><b>Original + edited combo:</b> ${{ video.bundle_price }}</p>
+  <a class="btn secondary" href="/checkout/video/{{ video.id }}?package=bundle">Buy Combo</a>
+{% endif %}
+{% if (not video.original_price or video.original_price|float <= 0) and (not video.edited_price or video.edited_price|float <= 0) and (not video.bundle_price or video.bundle_price|float <= 0) %}
+  <div class="notice">This creator has not configured purchase options for this video yet.</div>
+{% endif %}
+</div>
 </div>
 </div><script src="/static/js/mobile.js"></script>
 </body></html>

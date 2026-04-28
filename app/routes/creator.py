@@ -53,22 +53,61 @@ def _is_allowed_video_filename(filename):
     return os.path.splitext((filename or "").lower())[1] in ALLOWED_VIDEO_EXTENSIONS
 
 def _creator_default_prices(creator):
-    def num(v, default):
-        try:
-            if v is not None and str(v).strip() != "":
-                return float(v)
-        except Exception:
-            pass
-        return float(default)
-    plan = getattr(creator, "plan", None)
-    original = num(getattr(creator, "default_original_price", None), 40)
-    edited = num(getattr(creator, "default_edited_price", None), 60)
-    bundle = num(getattr(creator, "default_bundle_price", None), 80)
-    if plan:
-        original = num(getattr(plan, "default_original_price", None), original)
-        edited = num(getattr(plan, "default_edited_price", None), edited)
-        bundle = num(getattr(plan, "default_bundle_price", None), bundle)
+    """
+    Return prices configured by THIS creator in Video Pricing.
+    No platform hardcoded fallback prices.
+    Missing options return 0 and will not show to buyers.
+    delivery_type:
+      instant = original instant download
+      edited = edited delivery
+      bundle = original + edited combo
+    """
+    original = 0.0
+    edited = 0.0
+    bundle = 0.0
+
+    try:
+        presets = VideoPricingPreset.query.filter_by(
+            creator_id=creator.id,
+            active=True
+        ).order_by(VideoPricingPreset.is_default.desc(), VideoPricingPreset.id.asc()).all()
+
+        for p in presets:
+            try:
+                price = float(p.price or 0)
+            except Exception:
+                price = 0.0
+            if price <= 0:
+                continue
+
+            dtype = (p.delivery_type or "").lower().strip()
+
+            if dtype in ("instant", "original", "download", "original_download") and original <= 0:
+                original = price
+            elif dtype in ("edited", "edit", "edited_delivery") and edited <= 0:
+                edited = price
+            elif dtype in ("bundle", "combo", "original_edited", "original_plus_edited") and bundle <= 0:
+                bundle = price
+
+        # Optional creator fields only if they exist and are set by creator.
+        def get_num(attr):
+            try:
+                val = getattr(creator, attr, None)
+                if val not in (None, "", 0, "0"):
+                    return float(val)
+            except Exception:
+                pass
+            return 0.0
+
+        original = original or get_num("default_original_price")
+        edited = edited or get_num("default_edited_price")
+        bundle = bundle or get_num("default_bundle_price")
+
+    except Exception:
+        pass
+
     return original, edited, bundle
+
 
 def _recalculate_creator_storage(creator_id):
     """Recalculate storage from active videos only and update profile."""
@@ -903,9 +942,9 @@ def pricing():
             p = VideoPricingPreset(creator_id=creator.id)
             db.session.add(p)
 
-        p.title = request.form.get("title") or "Default Video Price"
+        p.title = request.form.get("title") or "Video Price"
         p.description = request.form.get("description")
-        p.price = float(request.form.get("price") or 40)
+        p.price = float(request.form.get("price") or 0)
         p.delivery_type = request.form.get("delivery_type") or "instant"
         p.is_default = bool(request.form.get("is_default"))
         p.active = True
@@ -1206,12 +1245,7 @@ def upload_r2_prepare():
     location = (data.get("location") or "").strip()
     batch_name = (data.get("batch_name") or "").strip() or "New video batch"
 
-    try:
-        original_price = float(data.get("original_price") or 0)
-        edited_price = float(data.get("edited_price") or 0)
-        bundle_price = float(data.get("bundle_price") or 0)
-    except Exception:
-        return jsonify({"ok": False, "error": "Invalid price."}), 400
+    original_price, edited_price, bundle_price = _creator_default_prices(creator)
 
     if not files:
         return jsonify({"ok": False, "error": "Choose at least one video file."}), 400
@@ -1317,12 +1351,7 @@ def upload_r2_complete():
     uploaded = data.get("uploaded", [])
     location = (data.get("location") or "").strip()
 
-    try:
-        original_price = float(data.get("original_price") or 0)
-        edited_price = float(data.get("edited_price") or 0)
-        bundle_price = float(data.get("bundle_price") or 0)
-    except Exception:
-        return jsonify({"ok": False, "error": "Invalid price."}), 400
+    original_price, edited_price, bundle_price = _creator_default_prices(creator)
 
     batch = VideoBatch.query.filter_by(id=batch_id, creator_id=creator.id).first()
     if not batch:

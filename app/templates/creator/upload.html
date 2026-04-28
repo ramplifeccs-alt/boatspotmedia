@@ -57,20 +57,12 @@ Batch name</label>
         <option value="Port Everglades">
       </datalist>
 
-      <div class="form-row">
-        <div>
-          <label>Original 4K price</label>
-          <input type="number" name="original_price" step="0.01" value="40">
-        </div>
-        <div>
-          <label>Edited video price</label>
-          <input type="number" name="edited_price" step="0.01" value="60">
-        </div>
-        <div>
-          <label>Bundle price</label>
-          <input type="number" name="bundle_price" step="0.01" value="80">
-        </div>
+      <div class="notice" style="margin:12px 0;">
+        Video prices are controlled from your <a href="/creator/pricing">Pricing</a> page and apply to all uploaded videos.
       </div>
+      <input type="hidden" name="original_price" value="0">
+      <input type="hidden" name="edited_price" value="0">
+      <input type="hidden" name="bundle_price" value="0">
 
       <label><div id="upload-warning-original-files" style="background:#fff3cd;border:1px solid #facc15;border-radius:12px;padding:14px;margin:14px 0;"><strong>IMPORTANT:</strong><br>Upload original camera files only. Do not edit original files before uploading. BoatSpotMedia reads the original file date and time to match boats correctly by location, date, and time. Make sure your camera date and time are correct.<br><br>Edited videos are okay later because edited delivery is not instant.</div>
 Choose video files</label>

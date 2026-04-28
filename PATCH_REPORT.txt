@@ -1,17 +1,7 @@
-app/templates/public/home.html
-app/templates/public/search.html
+app/models.py
+app/routes/creator.py
+app/templates/creator/upload.html
+app/templates/creator/pricing.html
 app/templates/public/preview.html
-app/templates/public/apply_creator.html
-app/templates/public/services.html
-app/templates/public/charters.html
-app/templates/public/shop.html
-app/templates/public/login_selector.html
-app/templates/public/generic_login.html
-app/templates/public/product_detail.html
-app/templates/public/generic_register.html
+app/routes/payments.py
 app/templates/buyer/cart.html
-app/templates/owner/login.html
-app/templates/advertiser/dashboard.html
-app/templates/charters/dashboard.html
-app/templates/public/search.html visual
-app/templates/public/video_search.html visual

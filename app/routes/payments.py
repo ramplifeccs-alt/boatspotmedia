@@ -76,10 +76,10 @@ def checkout_video(video_id):
     video = Video.query.get_or_404(video_id)
     package = request.args.get("package", "original")
     if package == "edited":
-        amount = getattr(video, "edited_price", None) or getattr(video, "original_price", 0)
+        amount = getattr(video, "edited_price", None) or 0
         title = "Edited Video"
     elif package == "bundle":
-        amount = getattr(video, "bundle_price", None) or getattr(video, "original_price", 0)
+        amount = getattr(video, "bundle_price", None) or 0
         title = "Original + Edited Video"
     else:
         amount = getattr(video, "original_price", None) or 0
