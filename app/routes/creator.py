@@ -521,6 +521,54 @@ def _current_upload_batch_id():
     return None
 
 
+
+
+@creator_bp.route("/r2-clean/cancel-manifest", methods=["POST"])
+def r2_clean_cancel_manifest_v397():
+    """
+    Cancel Upload fix:
+    Direct-to-R2 uploads can leave objects before Video rows exist.
+    This endpoint deletes exact keys/prefixes captured by the browser during upload.
+    """
+    creator = current_creator()
+    if not creator:
+        return jsonify({"ok": False, "error": "Please log in again."}), 401
+
+    data = request.get_json(silent=True) or {}
+    keys = data.get("keys") or []
+    prefixes = data.get("prefixes") or []
+    batch_id = data.get("batch_id") or data.get("batchId")
+
+    try:
+        from app.services.r2 import delete_r2_candidates
+        deleted = delete_r2_candidates(keys=keys, prefixes=prefixes)
+
+        if batch_id:
+            try:
+                deleted += _r2_delete_batch_strong(int(batch_id), getattr(creator, "id", None))
+                _mark_batch_and_videos_deleted(int(batch_id))
+            except Exception as e:
+                try:
+                    print("cancel manifest batch cleanup warning:", e)
+                except Exception:
+                    pass
+
+        try:
+            db.session.commit()
+        except Exception:
+            db.session.rollback()
+
+        return jsonify({
+            "ok": True,
+            "deleted_objects": deleted,
+            "keys_received": len(keys),
+            "prefixes_received": len(prefixes),
+            "batch_id": batch_id,
+        })
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({"ok": False, "error": str(e)}), 500
+
 @creator_bp.route("/r2-clean/batch/<int:batch_id>", methods=["POST"])
 @creator_bp.route("/upload/batch/<int:batch_id>/cancel-clean", methods=["POST"])
 @creator_bp.route("/creator/upload/batch/<int:batch_id>/cancel-clean", methods=["POST"])

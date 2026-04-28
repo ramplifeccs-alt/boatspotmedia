@@ -1,4 +1,10 @@
-BoatSpotMedia v39.6 Template Syntax Fix
-- Base: v39.5 Cancel Upload R2 Fix.
-- Fixes Jinja TemplateSyntaxError caused by escaped quotes in creator/upload.html.
-- Does not touch thumbnails, search, time/date, or R2 logic from v39.5.
+BoatSpotMedia v39.7 Cancel Upload Manifest R2 Fix
+Base: v39.6 Template Syntax Fix.
+- Does not touch thumbnails.
+- Does not touch search.
+- Does not touch New York time/date.
+- Delete Batch remains working.
+- Fixes Cancel Upload for direct-to-R2 uploads before DB Video rows exist.
+- Browser captures exact R2 keys/prefixes from upload/init/sign/multipart/complete responses.
+- Cancel Upload sends captured manifest to /r2-clean/cancel-manifest.
+- Backend deletes exact keys/prefixes and marks batch/videos deleted.

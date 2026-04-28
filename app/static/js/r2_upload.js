@@ -504,6 +504,7 @@ document.addEventListener("DOMContentLoaded", function(){
     var box = findProgressBox();
     if(box) box.style.display = 'none';
     setTimeout(function(){
+      try{ if(window.BSM_CLEAR_UPLOAD_MANIFEST) window.BSM_CLEAR_UPLOAD_MANIFEST(); }catch(e){}
       alert('Upload completed successfully. Your files were saved.');
       window.location.href = '/creator/batches';
     }, 250);
@@ -551,7 +552,8 @@ document.addEventListener("DOMContentLoaded", function(){
           setTimeout(function(){
             const box = document.getElementById("bsm-upload-v385") || document.getElementById("bsm-upload-progress-box");
             if(box) box.style.display = "none";
-            alert("Upload completed successfully. Your files were saved.");
+            try{ if(window.BSM_CLEAR_UPLOAD_MANIFEST) window.BSM_CLEAR_UPLOAD_MANIFEST(); }catch(e){}
+      alert("Upload completed successfully. Your files were saved.");
             window.location.href = "/creator/batches";
           }, 500);
         }
@@ -752,4 +754,212 @@ document.addEventListener("DOMContentLoaded", function(){
 
     return false;
   }, true);
+})();
+
+
+
+// BoatSpotMedia v39.7 Cancel Upload Manifest R2 Fix
+// Captures exact R2 keys/prefixes during direct upload and deletes them on Cancel Upload.
+(function(){
+  if(window.__BSM_V397_CANCEL_MANIFEST__) return;
+  window.__BSM_V397_CANCEL_MANIFEST__ = true;
+
+  const STORE_KEY = "bsm_upload_manifest_v397";
+
+  function loadManifest(){
+    try{
+      return JSON.parse(sessionStorage.getItem(STORE_KEY) || '{"keys":[],"prefixes":[],"batch_id":null}');
+    }catch(e){
+      return {keys:[], prefixes:[], batch_id:null};
+    }
+  }
+
+  function saveManifest(m){
+    try{
+      m.keys = Array.from(new Set((m.keys || []).filter(Boolean)));
+      m.prefixes = Array.from(new Set((m.prefixes || []).filter(Boolean)));
+      sessionStorage.setItem(STORE_KEY, JSON.stringify(m));
+    }catch(e){}
+  }
+
+  function rememberKey(key){
+    if(!key || typeof key !== "string") return;
+    if(key.startsWith("http")) return;
+    if(!key.includes("/")) return;
+    const m = loadManifest();
+    m.keys.push(key);
+    saveManifest(m);
+  }
+
+  function rememberPrefix(prefix){
+    if(!prefix || typeof prefix !== "string") return;
+    const m = loadManifest();
+    m.prefixes.push(prefix);
+    saveManifest(m);
+  }
+
+  function rememberBatchId(id){
+    if(!id) return;
+    const m = loadManifest();
+    m.batch_id = id;
+    saveManifest(m);
+    window.currentBatchId = id;
+    window.BSM_CURRENT_BATCH_ID = id;
+    window.current_batch_id = id;
+    try{ sessionStorage.setItem("bsm_current_batch_id", String(id)); }catch(e){}
+  }
+
+  function scanData(data){
+    try{
+      if(!data || typeof data !== "object") return;
+
+      const possibleBatch =
+        data.batch_id || data.batchId || data.id ||
+        (data.batch && (data.batch.id || data.batch.batch_id)) ||
+        (data.data && (data.data.batch_id || data.data.batchId || data.data.id));
+
+      if(possibleBatch) rememberBatchId(possibleBatch);
+
+      const keyNames = [
+        "key","Key","object_key","objectKey","r2_key","r2Key","r2_video_key","r2VideoKey",
+        "video_key","videoKey","thumbnail_key","thumbnailKey","thumb_key","thumbKey",
+        "file_path","filePath","path","storage_key","storageKey","upload_key","uploadKey"
+      ];
+
+      function walk(obj){
+        if(!obj) return;
+        if(Array.isArray(obj)){
+          obj.forEach(walk);
+          return;
+        }
+        if(typeof obj === "object"){
+          for(const [k,v] of Object.entries(obj)){
+            if(typeof v === "string"){
+              if(keyNames.includes(k) || /key|path/i.test(k)){
+                rememberKey(v);
+              }
+              if(/prefix/i.test(k)){
+                rememberPrefix(v);
+              }
+            }else if(v && typeof v === "object"){
+              walk(v);
+            }
+          }
+        }
+      }
+      walk(data);
+
+      const m = loadManifest();
+      if(m.batch_id){
+        const creatorId = data.creator_id || data.creatorId || window.creatorId || window.CREATOR_ID;
+        m.prefixes.push("batches/" + m.batch_id + "/");
+        m.prefixes.push("batch/" + m.batch_id + "/");
+        if(creatorId){
+          m.prefixes.push("creators/" + creatorId + "/batches/" + m.batch_id + "/");
+          m.prefixes.push("uploads/" + creatorId + "/" + m.batch_id + "/");
+          m.prefixes.push("videos/" + creatorId + "/" + m.batch_id + "/");
+          m.prefixes.push("thumbs/" + creatorId + "/" + m.batch_id + "/");
+          m.prefixes.push("previews/" + creatorId + "/" + m.batch_id + "/");
+        }
+        saveManifest(m);
+      }
+    }catch(e){}
+  }
+
+  // Capture all JSON responses from upload/init/sign/complete endpoints.
+  const nativeFetch = window.fetch;
+  window.fetch = function(){
+    const args = arguments;
+    return nativeFetch.apply(this, args).then(function(resp){
+      try{
+        const url = String(args[0] || "");
+        if(/upload|batch|r2|multipart|sign|complete|creator/i.test(url)){
+          resp.clone().json().then(scanData).catch(function(){});
+        }
+      }catch(e){}
+      return resp;
+    });
+  };
+
+  // Capture XHR JSON responses too, in case uploader uses XMLHttpRequest.
+  const NativeXHR = window.XMLHttpRequest;
+  window.XMLHttpRequest = function(){
+    const xhr = new NativeXHR();
+    xhr.addEventListener("loadend", function(){
+      try{
+        const txt = xhr.responseText;
+        if(txt && txt.trim().startsWith("{")){
+          scanData(JSON.parse(txt));
+        }
+      }catch(e){}
+    });
+    return xhr;
+  };
+
+  function getBatchId(){
+    const m = loadManifest();
+    return m.batch_id || window.currentBatchId || window.BSM_CURRENT_BATCH_ID || window.current_batch_id ||
+      (function(){ try{return sessionStorage.getItem("bsm_current_batch_id");}catch(e){return null;} })() ||
+      (document.querySelector("[data-batch-id]") && document.querySelector("[data-batch-id]").getAttribute("data-batch-id"));
+  }
+
+  async function cancelCleanup(){
+    const m = loadManifest();
+    const bid = getBatchId();
+    if(bid) m.batch_id = bid;
+
+    try{
+      // First delete exact captured keys/prefixes.
+      await nativeFetch("/r2-clean/cancel-manifest", {
+        method:"POST",
+        headers: {"Content-Type":"application/json"},
+        body: JSON.stringify(m)
+      });
+    }catch(e){
+      console.warn("cancel manifest cleanup failed", e);
+    }
+
+    try{
+      // Then delete by batch fallback, if known.
+      if(bid){
+        await nativeFetch("/r2-clean/batch/" + bid, {method:"POST"});
+      }else{
+        await nativeFetch("/r2-clean/current-upload", {method:"POST"});
+      }
+    }catch(e){
+      console.warn("cancel batch cleanup failed", e);
+    }
+
+    try{
+      sessionStorage.removeItem(STORE_KEY);
+      sessionStorage.removeItem("bsm_current_batch_id");
+    }catch(e){}
+  }
+
+  // Highest priority cancel handler.
+  document.addEventListener("click", function(e){
+    const btn = e.target.closest("button,a,input");
+    if(!btn) return;
+    const text = (btn.textContent || btn.value || "").toLowerCase();
+    if(!text.includes("cancel upload")) return;
+
+    e.preventDefault();
+    e.stopPropagation();
+
+    (async function(){
+      await cancelCleanup();
+      alert("Upload cancelled. Uploaded files were removed from storage.");
+      window.location.href = "/creator/batches";
+    })();
+
+    return false;
+  }, true);
+
+  // Clear manifest after a successful complete redirect flow.
+  window.BSM_CLEAR_UPLOAD_MANIFEST = function(){
+    try{
+      sessionStorage.removeItem(STORE_KEY);
+      sessionStorage.removeItem("bsm_current_batch_id");
+    }catch(e){}
+  };
 })();
