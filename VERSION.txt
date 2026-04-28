@@ -1,15 +1,6 @@
-BoatSpotMedia v38.8 Ghost Batch Delete Button Fix
-Base: v38.8 stable/R2 cleanup line.
-Purpose:
-- Adds manual cleanup route for incomplete/ghost batches:
-  POST /creator/batch/<batch_id>/delete-incomplete
-- Adds a visible "Delete incomplete batch" button inside creator batch pages.
-- Button uses R2 cleanup helper and marks videos/batch deleted.
-Not touched:
-- login
-- dashboard
-- upload process
-- search
-- thumbnails
-- New York time/date
-- logo
+BoatSpotMedia v38.8 Ghost Button Visible Fix
+Base: v38.8 ghost cleanup line.
+- Adds/keeps backend route /creator/batch/<batch_id>/delete-incomplete.
+- Adds visible Delete incomplete batch button to creator templates with batch loops/list.
+- Intended to show on creator batches list, not only batch detail.
+- Does not touch login, dashboard routes, upload logic, search, thumbnails, time/date, logo.
