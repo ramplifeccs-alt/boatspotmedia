@@ -69,10 +69,37 @@ def upload_file(local_path, key, content_type="application/octet-stream"):
     return key
 
 
+def abort_multipart_upload(key, upload_id):
+    if not key or not upload_id:
+        return False
+    _client().abort_multipart_upload(Bucket=_bucket_name(), Key=key, UploadId=upload_id)
+    return True
+
+
+def _bucket_name():
+    import os
+    return (
+        os.environ.get("R2_BUCKET_NAME")
+        or os.environ.get("R2_BUCKET")
+        or os.environ.get("CLOUDFLARE_R2_BUCKET")
+        or "boatspotmedia-videos"
+    )
+
+def _client():
+    import os, boto3
+    return boto3.client(
+        "s3",
+        endpoint_url=f"https://{os.environ.get('R2_ACCOUNT_ID')}.r2.cloudflarestorage.com",
+        aws_access_key_id=os.environ.get("R2_ACCESS_KEY_ID"),
+        aws_secret_access_key=os.environ.get("R2_SECRET_ACCESS_KEY"),
+        region_name="auto",
+    )
+
+
 def delete_r2_object(key):
     if not key:
         return False
-    _client().delete_object(Bucket=_bucket_name(), Key=key)
+    _client().delete_object(Bucket=_bucket_name(), Key=str(key))
     return True
 
 
@@ -84,13 +111,16 @@ def delete_r2_prefix(prefix):
     deleted = 0
     token = None
     while True:
-        kwargs = {"Bucket": bucket, "Prefix": prefix}
+        kwargs = {"Bucket": bucket, "Prefix": str(prefix)}
         if token:
             kwargs["ContinuationToken"] = token
         resp = client.list_objects_v2(**kwargs)
         objects = resp.get("Contents") or []
         if objects:
-            client.delete_objects(Bucket=bucket, Delete={"Objects": [{"Key": o["Key"]} for o in objects]})
+            client.delete_objects(
+                Bucket=bucket,
+                Delete={"Objects": [{"Key": o["Key"]} for o in objects]},
+            )
             deleted += len(objects)
         if not resp.get("IsTruncated"):
             break
@@ -98,30 +128,25 @@ def delete_r2_prefix(prefix):
     return deleted
 
 
-def abort_multipart_upload(key, upload_id):
-    if not key or not upload_id:
-        return False
-    _client().abort_multipart_upload(Bucket=_bucket_name(), Key=key, UploadId=upload_id)
-    return True
-
-
 def delete_r2_candidates(keys=None, prefixes=None):
     deleted = 0
-    keys = keys or []
-    prefixes = prefixes or []
-    for key in keys:
+    for key in (keys or []):
         if key and not str(key).startswith("http"):
             try:
                 delete_r2_object(str(key))
                 deleted += 1
             except Exception as e:
-                try: print("R2 candidate key delete warning:", key, e)
-                except Exception: pass
-    for prefix in prefixes:
+                try:
+                    print("R2 key delete warning:", key, e)
+                except Exception:
+                    pass
+    for prefix in (prefixes or []):
         if prefix:
             try:
                 deleted += delete_r2_prefix(str(prefix))
             except Exception as e:
-                try: print("R2 candidate prefix delete warning:", prefix, e)
-                except Exception: pass
+                try:
+                    print("R2 prefix delete warning:", prefix, e)
+                except Exception:
+                    pass
     return deleted

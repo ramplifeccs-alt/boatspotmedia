@@ -1,13 +1,11 @@
-BoatSpotMedia v39.1 Logo + R2 Cancel/Delete Fix
-Base used: boatspotmedia_v39_logo_header_favicon_fix.zip
-- Header logo updated to horizontal BoatSpotMedia wordmark from new image.
-- Existing favicon/icon kept.
-- Does not touch thumbnails.
-- Does not touch working search/date/time logic.
-- Adds stronger R2 cleanup:
-  - deletes direct DB keys from many possible Video attributes
-  - scans Video row string fields for R2-looking keys
-  - deletes common batch prefixes
-  - marks batch and videos as deleted
-- Cancel Upload calls /r2-clean/batch/<id> when possible, otherwise /r2-clean/current-upload.
-- Delete Batch routes/forms are reinforced to use R2 cleanup.
+BoatSpotMedia v39.4 Full R2 Cleanup Real Fix
+Base used: boatspotmedia_v39_3_r2_cancel_delete_logo_username_fix.zip
+- Uses R2_BUCKET_NAME primary, fallback boatspotmedia-videos.
+- Adds robust R2 cleanup endpoints:
+  /r2-clean/batch/<id>
+  /r2-clean/current-upload
+  /cancel-upload
+- Cancel Upload and Delete Batch delete DB keys plus common R2 prefixes.
+- Marks batch/videos as deleted after cleanup.
+- Keeps working search, time/date, and thumbnails untouched.
+- Adds global logo-header asset and replaces common brand text.

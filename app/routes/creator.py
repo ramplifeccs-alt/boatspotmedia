@@ -25,15 +25,26 @@ def creator_instagram(creator):
     return ""
 
 def creator_display_name(creator):
+    """Creator display name for menus: Instagram/business/name first, email last."""
     try:
-        if creator.user and creator.user.display_name and creator.user.display_name != "None":
-            return creator.user.display_name
+        user = getattr(creator, "user", None)
+        for obj in (creator, user):
+            if not obj:
+                continue
+            for attr in ("instagram_username", "instagram", "instagram_handle", "business_name", "display_name", "name", "username"):
+                val = getattr(obj, attr, None)
+                if val:
+                    val = str(val).strip()
+                    if val:
+                        if attr in ("instagram_username", "instagram", "instagram_handle"):
+                            return "@" + val.lstrip("@")
+                        return val
+        for obj in (user, creator):
+            if obj and getattr(obj, "email", None):
+                return str(getattr(obj, "email"))
     except Exception:
         pass
-
-    ig = creator_instagram(creator)
-    return ig or "Creator"
-
+    return "Dashboard"
 
 def _ensure_creator_profile_deleted_column():
     """Create creator_profile.deleted before ORM queries reference it."""
@@ -259,9 +270,25 @@ def _delete_batch_files_from_r2(batch):
                     _r2_delete_batch_strong(batch.id, creator.id)
                 except Exception:
                     pass
+                try:
+                    _r2_delete_batch_strong(batch.id, creator.id)
+                except Exception:
+                    pass
+                try:
+                    _r2_delete_batch_strong(batch.id, creator.id)
+                except Exception:
+                    pass
                 batch.status = "deleted"
                 db.session.add(batch)
             else:
+                try:
+                    _r2_delete_batch_strong(batch.id, creator.id)
+                except Exception:
+                    pass
+                try:
+                    _r2_delete_batch_strong(batch.id, creator.id)
+                except Exception:
+                    pass
                 try:
                     _r2_delete_batch_strong(batch.id, creator.id)
                 except Exception:
@@ -389,9 +416,25 @@ def _mark_batch_and_videos_deleted(batch_id):
                     _r2_delete_batch_strong(batch.id, creator.id)
                 except Exception:
                     pass
+                try:
+                    _r2_delete_batch_strong(batch.id, creator.id)
+                except Exception:
+                    pass
+                try:
+                    _r2_delete_batch_strong(batch.id, creator.id)
+                except Exception:
+                    pass
                 batch.status = "deleted"
                 db.session.add(batch)
             else:
+                try:
+                    _r2_delete_batch_strong(batch.id, creator.id)
+                except Exception:
+                    pass
+                try:
+                    _r2_delete_batch_strong(batch.id, creator.id)
+                except Exception:
+                    pass
                 try:
                     _r2_delete_batch_strong(batch.id, creator.id)
                 except Exception:
@@ -425,6 +468,106 @@ def _creator_current_batch_id_from_request():
         pass
     return None
 
+
+
+
+@creator_bp.route("/r2-clean/batch/<int:batch_id>", methods=["POST"])
+@creator_bp.route("/upload/batch/<int:batch_id>/cancel-clean", methods=["POST"])
+@creator_bp.route("/creator/upload/batch/<int:batch_id>/cancel-clean", methods=["POST"])
+@creator_bp.route("/batch/<int:batch_id>/delete-full", methods=["POST"])
+@creator_bp.route("/creator/batch/<int:batch_id>/delete-full", methods=["POST"])
+def r2_clean_batch_v394(batch_id):
+    creator = current_creator()
+    if not creator:
+        return jsonify({"ok": False, "error": "Please log in again."}), 401
+    try:
+        from app.models import VideoBatch
+        batch = VideoBatch.query.get(batch_id)
+        creator_id = getattr(batch, "creator_id", None) or getattr(batch, "creator_profile_id", None) or getattr(creator, "id", None)
+        deleted = _r2_delete_batch_strong(batch_id, creator_id)
+        _mark_batch_and_videos_deleted(batch_id)
+        db.session.commit()
+        try:
+            _recalculate_creator_storage(getattr(creator, "id", None))
+        except Exception:
+            pass
+        return jsonify({"ok": True, "deleted_objects": deleted})
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({"ok": False, "error": str(e)}), 500
+
+
+@creator_bp.route("/r2-clean/current-upload", methods=["POST"])
+@creator_bp.route("/cancel-upload", methods=["POST"])
+def r2_clean_current_upload_v394():
+    creator = current_creator()
+    if not creator:
+        return jsonify({"ok": False, "error": "Please log in again."}), 401
+    batch_id = _current_upload_batch_id()
+    if not batch_id:
+        return jsonify({"ok": False, "error": "No batch id found"}), 400
+    try:
+        deleted = _r2_delete_batch_strong(batch_id, getattr(creator, "id", None))
+        _mark_batch_and_videos_deleted(batch_id)
+        db.session.commit()
+        try:
+            session.pop("current_upload_batch_id", None)
+            session.pop("upload_batch_id", None)
+        except Exception:
+            pass
+        return jsonify({"ok": True, "batch_id": batch_id, "deleted_objects": deleted})
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({"ok": False, "error": str(e)}), 500
+
+@creator_bp.route("/r2-clean/batch/<int:batch_id>", methods=["POST"])
+@creator_bp.route("/upload/batch/<int:batch_id>/cancel-clean", methods=["POST"])
+@creator_bp.route("/creator/upload/batch/<int:batch_id>/cancel-clean", methods=["POST"])
+@creator_bp.route("/batch/<int:batch_id>/delete-full", methods=["POST"])
+@creator_bp.route("/creator/batch/<int:batch_id>/delete-full", methods=["POST"])
+def r2_clean_batch_v393(batch_id):
+    creator = current_creator()
+    if not creator:
+        return jsonify({"ok": False, "error": "Please log in again."}), 401
+    try:
+        from app.models import VideoBatch
+        batch = VideoBatch.query.get(batch_id)
+        creator_id = getattr(batch, "creator_id", None) or getattr(batch, "creator_profile_id", None) or getattr(creator, "id", None)
+        deleted = _r2_delete_batch_strong(batch_id, creator_id)
+        _mark_batch_and_videos_deleted(batch_id)
+        db.session.commit()
+        try:
+            _recalculate_creator_storage(getattr(creator, "id", None))
+        except Exception:
+            pass
+        return jsonify({"ok": True, "deleted_objects": deleted})
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({"ok": False, "error": str(e)}), 500
+
+
+@creator_bp.route("/r2-clean/current-upload", methods=["POST"])
+@creator_bp.route("/cancel-upload", methods=["POST"])
+def r2_clean_current_upload_v393():
+    creator = current_creator()
+    if not creator:
+        return jsonify({"ok": False, "error": "Please log in again."}), 401
+    batch_id = _current_upload_batch_id()
+    if not batch_id:
+        return jsonify({"ok": False, "error": "No batch id found"}), 400
+    try:
+        deleted = _r2_delete_batch_strong(batch_id, getattr(creator, "id", None))
+        _mark_batch_and_videos_deleted(batch_id)
+        db.session.commit()
+        try:
+            session.pop("current_upload_batch_id", None)
+            session.pop("upload_batch_id", None)
+        except Exception:
+            pass
+        return jsonify({"ok": True, "batch_id": batch_id, "deleted_objects": deleted})
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({"ok": False, "error": str(e)}), 500
 
 @creator_bp.route("/r2-clean/batch/<int:batch_id>", methods=["POST"])
 @creator_bp.route("/upload/batch/<int:batch_id>/cancel-clean", methods=["POST"])
@@ -495,6 +638,14 @@ def cancel_upload_batch_clean(batch_id):
                 _r2_delete_batch_strong(batch.id, creator.id)
             except Exception:
                 pass
+            try:
+                _r2_delete_batch_strong(batch.id, creator.id)
+            except Exception:
+                pass
+            try:
+                _r2_delete_batch_strong(batch.id, creator.id)
+            except Exception:
+                pass
             db.session.delete(batch)
             db.session.commit()
     except Exception as e:
@@ -522,6 +673,14 @@ def delete_batch_full_cleanup(batch_id):
             pass
         try:
             _delete_batch_files_from_r2(batch)
+        except Exception:
+            pass
+        try:
+            _r2_delete_batch_strong(batch.id, creator.id)
+        except Exception:
+            pass
+        try:
+            _r2_delete_batch_strong(batch.id, creator.id)
         except Exception:
             pass
         try:
@@ -1256,6 +1415,14 @@ def delete_batch(batch_id):
         _r2_delete_batch_strong(batch.id, creator.id)
     except Exception:
         pass
+    try:
+        _r2_delete_batch_strong(batch.id, creator.id)
+    except Exception:
+        pass
+    try:
+        _r2_delete_batch_strong(batch.id, creator.id)
+    except Exception:
+        pass
     batch.status = "deleted"
     db.session.commit()
     try:
@@ -1357,6 +1524,14 @@ def cancel_upload_batch(batch_id):
                 pass
             try:
                 _delete_batch_files_from_r2(batch)
+            except Exception:
+                pass
+            try:
+                _r2_delete_batch_strong(batch.id, creator.id)
+            except Exception:
+                pass
+            try:
+                _r2_delete_batch_strong(batch.id, creator.id)
             except Exception:
                 pass
             try:
@@ -1507,9 +1682,25 @@ def r2_clean_batch_safe(batch_id):
                     _r2_delete_batch_strong(batch.id, creator.id)
                 except Exception:
                     pass
+                try:
+                    _r2_delete_batch_strong(batch.id, creator.id)
+                except Exception:
+                    pass
+                try:
+                    _r2_delete_batch_strong(batch.id, creator.id)
+                except Exception:
+                    pass
                 batch.status = "deleted"
                 db.session.add(batch)
             else:
+                try:
+                    _r2_delete_batch_strong(batch.id, creator.id)
+                except Exception:
+                    pass
+                try:
+                    _r2_delete_batch_strong(batch.id, creator.id)
+                except Exception:
+                    pass
                 try:
                     _r2_delete_batch_strong(batch.id, creator.id)
                 except Exception:

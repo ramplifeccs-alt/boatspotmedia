@@ -595,3 +595,73 @@ document.addEventListener("DOMContentLoaded", function(){
     }
   }, true);
 })();
+
+
+
+// BoatSpotMedia v39.3 strong R2 cleanup on cancel/delete
+(function(){
+  if(window.__BSM_V393_R2_CLEAN__) return;
+  window.__BSM_V393_R2_CLEAN__ = true;
+
+  function getBatchId(){
+    return window.currentBatchId || window.BSM_CURRENT_BATCH_ID || window.current_batch_id ||
+           window.createdBatchId || window.batchId ||
+           (document.querySelector("[data-batch-id]") && document.querySelector("[data-batch-id]").getAttribute("data-batch-id"));
+  }
+
+  async function cleanBatch(){
+    const bid = getBatchId();
+    try{
+      if(bid){
+        return await fetch("/r2-clean/batch/" + bid, {method:"POST"});
+      }
+      return await fetch("/r2-clean/current-upload", {method:"POST"});
+    }catch(e){
+      console.warn("R2 cleanup request failed", e);
+    }
+  }
+
+  document.addEventListener("click", function(e){
+    const btn = e.target.closest("button,a,input");
+    if(!btn) return;
+    const text = (btn.textContent || btn.value || "").toLowerCase();
+    if(text.includes("cancel upload") || text.includes("delete batch")){
+      cleanBatch();
+    }
+  }, true);
+})();
+
+
+
+// BoatSpotMedia v39.4 strong R2 cleanup on cancel/delete
+(function(){
+  if(window.__BSM_V394_R2_CLEAN__) return;
+  window.__BSM_V394_R2_CLEAN__ = true;
+
+  function getBatchId(){
+    return window.currentBatchId || window.BSM_CURRENT_BATCH_ID || window.current_batch_id ||
+           window.createdBatchId || window.batchId ||
+           (document.querySelector("[data-batch-id]") && document.querySelector("[data-batch-id]").getAttribute("data-batch-id"));
+  }
+
+  async function cleanBatch(){
+    const bid = getBatchId();
+    try{
+      if(bid){
+        return await fetch("/r2-clean/batch/" + bid, {method:"POST"});
+      }
+      return await fetch("/r2-clean/current-upload", {method:"POST"});
+    }catch(e){
+      console.warn("R2 cleanup request failed", e);
+    }
+  }
+
+  document.addEventListener("click", function(e){
+    const btn = e.target.closest("button,a,input");
+    if(!btn) return;
+    const text = (btn.textContent || btn.value || "").toLowerCase();
+    if(text.includes("cancel upload") || text.includes("delete batch")){
+      cleanBatch();
+    }
+  }, true);
+})();
