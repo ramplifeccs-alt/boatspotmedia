@@ -47,7 +47,7 @@
     </div>
 
     <div id="cancelUploadPanel" style="margin:12px 0;">
-  <button type="button" id="cancelUploadBtn" style="display:none;background:#dc2626;color:#fff;border:0;border-radius:10px;padding:10px 14px;font-weight:700;" id="bsm-cancel-upload-btn" data-batch-id="{{ batch.id if batch is defined else \'\' }}">Cancel Upload</button>
+  <button type="button" id="cancelUploadBtn" style="display:none;background:#dc2626;color:#fff;border:0;border-radius:10px;padding:10px 14px;font-weight:700;" id="bsm-cancel-upload-btn" data-batch-id="{{ batch.id if batch is defined else '' }}">Cancel Upload</button>
   <span style="font-size:13px;color:#6b7280;margin-left:8px;">Use this if you selected the wrong files. It will stop the upload and remove this batch if it was created.</span>
 </div><form id="r2UploadForm" class="card">
       <label>
@@ -96,7 +96,7 @@ Choose video files</label>
         <div id="fileProgressList"></div>
       </div>
       <div id="uploadResult"></div>
-    <button type="button" id="cancelUploadBtn" style="display:none;background:#dc2626;color:#fff;border:0;border-radius:10px;padding:10px 14px;margin-left:8px;" id="bsm-cancel-upload-btn" data-batch-id="{{ batch.id if batch is defined else \'\' }}">Cancel Upload</button>
+    <button type="button" id="cancelUploadBtn" style="display:none;background:#dc2626;color:#fff;border:0;border-radius:10px;padding:10px 14px;margin-left:8px;" id="bsm-cancel-upload-btn" data-batch-id="{{ batch.id if batch is defined else '' }}">Cancel Upload</button>
 <script>
 let boatspotCancelUpload=false; let boatspotCurrentBatchId=null;
 document.addEventListener("click",function(e){if(e.target&&e.target.id==="cancelUploadBtn"){boatspotCancelUpload=true;e.target.disabled=true;e.target.textContent="Cancelling..."; if(boatspotCurrentBatchId){fetch("/creator/upload/batch/"+boatspotCurrentBatchId+"/cancel",{method:"POST"}).then(r=>r.json()).then(d=>{alert(d.message||d.error||"Upload cancelled");location.reload();});}else{alert("Upload cancelled before saving the batch.");location.reload();}}});
