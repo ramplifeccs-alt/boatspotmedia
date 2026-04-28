@@ -385,6 +385,115 @@ def _delete_batch_r2_objects(batch):
 
 
 
+
+def _latest_creator_batch_id_for_cancel():
+    """Find the latest active/ghost batch for Cancel Upload."""
+    # request/session first
+    for source in (
+        request.get_json(silent=True) if request.is_json else None,
+        request.form,
+        request.args,
+    ):
+        try:
+            if source:
+                for k in ("batch_id", "batchId", "id"):
+                    val = source.get(k)
+                    if val:
+                        return int(val)
+        except Exception:
+            pass
+    try:
+        val = session.get("current_upload_batch_id") or session.get("upload_batch_id") or session.get("last_batch_id")
+        if val:
+            return int(val)
+    except Exception:
+        pass
+
+    # fallback: newest active batch for this creator
+    try:
+        creator = current_creator()
+        if not creator:
+            return None
+        from app.models import VideoBatch
+        q = VideoBatch.query
+        filters = []
+        if hasattr(VideoBatch, "creator_id"):
+            filters.append(VideoBatch.creator_id == creator.id)
+        if hasattr(VideoBatch, "creator_profile_id"):
+            filters.append(VideoBatch.creator_profile_id == creator.id)
+        if filters:
+            q = q.filter(db.or_(*filters))
+        if hasattr(VideoBatch, "status"):
+            q = q.filter(db.or_(VideoBatch.status == None, ~VideoBatch.status.in_(["deleted", "cancelled", "canceled"])))
+        batch = q.order_by(VideoBatch.id.desc()).first()
+        if batch:
+            return int(batch.id)
+    except Exception as e:
+        try:
+            print("latest cancel batch lookup warning:", e)
+        except Exception:
+            pass
+    return None
+
+
+@creator_bp.route("/cancel-upload-run-delete-batch", methods=["POST"])
+def cancel_upload_run_delete_batch_v388():
+    """
+    Cancel Upload uses the same cleanup logic as Delete Batch.
+    This removes the ghost batch and R2 files when the user confirms cancellation.
+    """
+    batch_id = _latest_creator_batch_id_for_cancel()
+    if not batch_id:
+        return jsonify({"ok": False, "error": "No active batch found"}), 400
+
+    # Prefer the existing R2 delete endpoint from the R2 delete fix.
+    try:
+        if "r2_clean_batch_v388_delete_only" in globals():
+            return r2_clean_batch_v388_delete_only(batch_id)
+    except Exception as e:
+        try:
+            print("delegated delete batch cleanup warning:", e)
+        except Exception:
+            pass
+
+    # Fallback: direct cleanup with the same helper.
+    try:
+        from app.models import VideoBatch, Video
+        batch = VideoBatch.query.get_or_404(batch_id)
+        deleted = 0
+        try:
+            deleted = _delete_batch_r2_objects(batch)
+        except Exception as e:
+            try:
+                print("fallback R2 cleanup warning:", e)
+            except Exception:
+                pass
+
+        for v in Video.query.filter_by(batch_id=batch_id).all():
+            if hasattr(v, "status"):
+                v.status = "deleted"
+                db.session.add(v)
+            else:
+                db.session.delete(v)
+
+        if hasattr(batch, "status"):
+            batch.status = "deleted"
+            db.session.add(batch)
+        else:
+            db.session.delete(batch)
+
+        db.session.commit()
+        try:
+            session.pop("current_upload_batch_id", None)
+            session.pop("upload_batch_id", None)
+            session.pop("last_batch_id", None)
+        except Exception:
+            pass
+        return jsonify({"ok": True, "batch_id": batch_id, "deleted_objects": deleted})
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({"ok": False, "error": str(e)}), 500
+
 @creator_bp.route("/r2-clean/batch/<int:batch_id>", methods=["POST"])
 def r2_clean_batch_v388_delete_only(batch_id):
     creator = current_creator()

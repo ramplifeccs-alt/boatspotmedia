@@ -1,7 +1,6 @@
-BoatSpotMedia v38.8 R2 Delete Only Fix
-Base: v38.8 stable.
+BoatSpotMedia v38.8 Cancel Runs Delete Batch Fix
+Base: v38.8 R2 Delete Only Fix.
 Only changes:
-- app/services/r2.py: reliable delete helpers using R2_BUCKET_NAME/fallback boatspotmedia-videos.
-- app/routes/creator.py: Delete Batch cleanup deletes DB keys and common R2 prefixes.
-- Adds /r2-clean/batch/<id> endpoint.
-Not touched: templates, JS, login, dashboard, upload UI, thumbnails, search, New York time/date, logo.
+- app/routes/creator.py: adds /cancel-upload-run-delete-batch that finds latest creator batch and runs same R2 cleanup as Delete Batch.
+- app/static/js/r2_upload.js: Cancel Upload popup; OK calls /cancel-upload-run-delete-batch; Cancel/No continues upload.
+Not touched: templates, login, dashboard, search, thumbnails, time/date, logo.
