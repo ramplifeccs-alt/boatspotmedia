@@ -1,16 +1,14 @@
-BoatSpotMedia v39.1 Pricing Presets Only + Upload Restore
-Base: boatspotmedia_v38_8_SAFE_INCOMPLETE_ONLY_DELETE_FIX.zip
+BoatSpotMedia v39.2 Pricing Updates Existing Videos
+Base: v39.1 Pricing Presets Only + Upload Restore.
 Fix:
-- Upload page restored from stable base; no blank upload block.
-- Video preview shows only prices configured by creator in Creator > Pricing.
-- If creator creates one price, buyer sees one option.
-- If creator creates edited/combo prices, buyer sees those too.
-- No platform-created 3-option package.
-- Removes 40/60/80 defaults from models/logic where detected.
+- When creator saves/updates Pricing, the new global creator prices are applied to already-uploaded active videos too.
+- Existing published videos now update to the creator's current pricing options.
+- Deleted/cancelled videos are ignored.
 Not touched:
 - search
 - logo/header
 - R2 cleanup
+- upload processing
 - thumbnails
 - New York time/date
 - login/dashboard routes
