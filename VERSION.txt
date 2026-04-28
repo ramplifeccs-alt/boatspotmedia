@@ -1,9 +1,9 @@
-BoatSpotMedia v39.2 Pricing Updates Existing Videos
-Base: v39.1 Pricing Presets Only + Upload Restore.
+BoatSpotMedia v39.3 Pricing Update Once Fix
+Base: v39.2 Pricing Updates Existing Videos.
 Fix:
-- When creator saves/updates Pricing, the new global creator prices are applied to already-uploaded active videos too.
-- Existing published videos now update to the creator's current pricing options.
-- Deleted/cancelled videos are ignored.
+- Removes duplicate repeated calls to _apply_creator_pricing_to_existing_videos.
+- Pricing changes now update existing videos once per save.
+- Removes repeated log spam.
 Not touched:
 - search
 - logo/header

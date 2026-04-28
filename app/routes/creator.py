@@ -67,10 +67,7 @@ def _recalculate_creator_storage(creator_id):
                 c.storage_used_bytes = int(used)
                 db.session.add(c)
                 db.session.commit()
-                try:
-                    _apply_creator_pricing_to_existing_videos(creator)
-                except Exception:
-                    pass
+                _apply_creator_pricing_to_existing_videos(creator)
         except Exception:
             db.session.rollback()
         return int(used)
@@ -612,7 +609,7 @@ def _creator_video_prices_from_pricing_page(creator):
 def _apply_creator_pricing_to_existing_videos(creator):
     """
     When creator changes Pricing, update already-published videos too.
-    Keeps pricing global per creator, not per batch.
+    Runs once per pricing save. No repeated log spam.
     """
     try:
         from app.models import Video
@@ -627,37 +624,30 @@ def _apply_creator_pricing_to_existing_videos(creator):
         if filters:
             q = q.filter(db.or_(*filters))
 
-        # Do not update deleted/cancelled videos.
         if hasattr(Video, "status"):
             q = q.filter(db.or_(Video.status == None, ~Video.status.in_(["deleted", "cancelled", "canceled"])))
 
         updated = 0
         for v in q.all():
-            if hasattr(v, "original_price"):
+            changed = False
+            if hasattr(v, "original_price") and v.original_price != original_price:
                 v.original_price = original_price
-            if hasattr(v, "edited_price"):
+                changed = True
+            if hasattr(v, "edited_price") and v.edited_price != edited_price:
                 v.edited_price = edited_price
-            if hasattr(v, "bundle_price"):
+                changed = True
+            if hasattr(v, "bundle_price") and v.bundle_price != bundle_price:
                 v.bundle_price = bundle_price
-            db.session.add(v)
-            updated += 1
+                changed = True
+            if changed:
+                db.session.add(v)
+                updated += 1
 
         db.session.commit()
-        try:
-            _apply_creator_pricing_to_existing_videos(creator)
-        except Exception:
-            pass
-        try:
-            print("Creator pricing applied to existing videos:", {"creator_id": creator.id, "updated": updated, "original": original_price, "edited": edited_price, "bundle": bundle_price})
-        except Exception:
-            pass
+        _apply_creator_pricing_to_existing_videos(creator)
         return updated
-    except Exception as e:
+    except Exception:
         db.session.rollback()
-        try:
-            print("apply creator pricing existing videos warning:", e)
-        except Exception:
-            pass
         return 0
 
 
@@ -1000,10 +990,7 @@ def pricing():
         creator.second_clip_discount_percent = int(request.form.get("second_clip_discount_percent") or creator.second_clip_discount_percent or 0)
 
         db.session.commit()
-        try:
-            _apply_creator_pricing_to_existing_videos(creator)
-        except Exception:
-            pass
+        _apply_creator_pricing_to_existing_videos(creator)
         return redirect(url_for("creator.pricing"))
 
     presets = VideoPricingPreset.query.filter_by(creator_id=creator.id, active=True).order_by(VideoPricingPreset.id.desc()).all()
@@ -1018,10 +1005,7 @@ def delete_pricing(preset_id):
     p = VideoPricingPreset.query.filter_by(id=preset_id, creator_id=creator.id).first_or_404()
     p.active = False
     db.session.commit()
-    try:
-        _apply_creator_pricing_to_existing_videos(creator)
-    except Exception:
-        pass
+    _apply_creator_pricing_to_existing_videos(creator)
     return redirect(url_for("creator.pricing"))
 
 @creator_bp.route("/settings", methods=["GET", "POST"])
@@ -1039,10 +1023,7 @@ def settings():
                 creator.storage_limit_gb = plan.storage_limit_gb
                 creator.commission_rate = plan.commission_rate
                 db.session.commit()
-                try:
-                    _apply_creator_pricing_to_existing_videos(creator)
-                except Exception:
-                    pass
+                _apply_creator_pricing_to_existing_videos(creator)
             return redirect(url_for("creator.settings"))
 
         if creator.user:
@@ -1050,10 +1031,6 @@ def settings():
             creator.user.email = request.form.get("email") or creator.user.email
 
         db.session.commit()
-        try:
-            _apply_creator_pricing_to_existing_videos(creator)
-        except Exception:
-            pass
         return redirect(url_for("creator.settings"))
 
     plans = StoragePlan.query.filter_by(active=True).order_by(StoragePlan.storage_limit_gb.asc()).all()
