@@ -1,0 +1,2 @@
+Patched templates:
+app/templates/creator/batch_detail.html

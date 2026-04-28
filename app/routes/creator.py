@@ -436,6 +436,68 @@ def _latest_creator_batch_id_for_cancel():
     return None
 
 
+
+@creator_bp.route("/batch/<int:batch_id>/delete-incomplete", methods=["POST"])
+@creator_bp.route("/creator/batch/<int:batch_id>/delete-incomplete", methods=["POST"])
+def delete_incomplete_batch_v388(batch_id):
+    """
+    Manual cleanup for ghost/incomplete batches left after Cancel Upload.
+    Uses the same R2 cleanup helper as Delete Batch when available.
+    """
+    creator = current_creator()
+    if not creator:
+        try:
+            flash("Please log in again.", "error")
+        except Exception:
+            pass
+        return redirect("/login")
+
+    try:
+        from app.models import VideoBatch, Video
+        batch = VideoBatch.query.get_or_404(batch_id)
+
+        # Run R2 cleanup if helper exists from R2 delete fix.
+        deleted = 0
+        try:
+            deleted = _delete_batch_r2_objects(batch)
+        except Exception as e:
+            try:
+                print("manual incomplete batch R2 cleanup warning:", e)
+            except Exception:
+                pass
+
+        # Mark/delete videos
+        for v in Video.query.filter_by(batch_id=batch_id).all():
+            if hasattr(v, "status"):
+                v.status = "deleted"
+                db.session.add(v)
+            else:
+                db.session.delete(v)
+
+        # Mark/delete batch
+        if hasattr(batch, "status"):
+            batch.status = "deleted"
+            db.session.add(batch)
+        else:
+            db.session.delete(batch)
+
+        db.session.commit()
+
+        try:
+            flash(f"Incomplete batch deleted. R2 objects removed: {deleted}", "success")
+        except Exception:
+            pass
+
+    except Exception as e:
+        db.session.rollback()
+        try:
+            flash(f"Could not delete incomplete batch: {e}", "error")
+        except Exception:
+            pass
+
+    return redirect("/creator/batches")
+
+
 @creator_bp.route("/cancel-upload-run-delete-batch", methods=["POST"])
 def cancel_upload_run_delete_batch_v388():
     """
