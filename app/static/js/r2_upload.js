@@ -963,3 +963,69 @@ document.addEventListener("DOMContentLoaded", function(){
     }catch(e){}
   };
 })();
+
+
+
+// BoatSpotMedia v39.8 Cancel Upload = Confirm + Delete Batch cleanup flow
+(function(){
+  if(window.__BSM_V398_CANCEL_DELETE_FLOW__) return;
+  window.__BSM_V398_CANCEL_DELETE_FLOW__ = true;
+
+  let cancelRequested = false;
+
+  function getBatchId(){
+    return window.currentBatchId || window.BSM_CURRENT_BATCH_ID || window.current_batch_id ||
+           window.createdBatchId || window.batchId ||
+           (function(){ try{return sessionStorage.getItem("bsm_current_batch_id");}catch(e){return null;} })() ||
+           (function(){ try{const m=JSON.parse(sessionStorage.getItem("bsm_upload_manifest_v397")||"{}"); return m.batch_id;}catch(e){return null;} })() ||
+           (document.querySelector("[data-batch-id]") && document.querySelector("[data-batch-id]").getAttribute("data-batch-id"));
+  }
+
+  function abortActiveRequests(){
+    cancelRequested = true;
+    try{ window.__BSM_UPLOAD_CANCELLED__ = true; }catch(e){}
+    // Best effort: older upload scripts often check these globals.
+    try{ window.cancelUpload = true; }catch(e){}
+    try{ window.uploadCancelled = true; }catch(e){}
+  }
+
+  async function runDeleteBatchCleanup(){
+    const bid = getBatchId();
+    if(bid){
+      return fetch("/r2-clean/batch/" + bid, {method:"POST"});
+    }
+    return fetch("/cancel-upload-delete-current", {method:"POST"});
+  }
+
+  async function handleCancelUpload(e){
+    const btn = e.target.closest("button,a,input");
+    if(!btn) return;
+    const text = (btn.textContent || btn.value || "").toLowerCase();
+    if(!text.includes("cancel upload")) return;
+
+    e.preventDefault();
+    e.stopPropagation();
+
+    const ok = confirm("Are you sure you want to cancel this batch?");
+    if(!ok){
+      // User chose Cancel/No: keep upload running.
+      return false;
+    }
+
+    abortActiveRequests();
+
+    try{
+      const resp = await runDeleteBatchCleanup();
+      try{ console.log("Cancel Upload delete-batch cleanup:", await resp.clone().json()); }catch(err){}
+    }catch(err){
+      console.warn("Cancel Upload cleanup failed:", err);
+    }
+
+    alert("Batch cancelled and removed.");
+    window.location.href = "/creator/batches";
+    return false;
+  }
+
+  // Capture phase: runs before old cancel handlers, so we can stop them if user says No.
+  document.addEventListener("click", handleCancelUpload, true);
+})();

@@ -523,6 +523,55 @@ def _current_upload_batch_id():
 
 
 
+
+@creator_bp.route("/cancel-upload-delete-current", methods=["POST"])
+def cancel_upload_delete_current_v398():
+    """
+    Cancel Upload confirmation flow:
+    find the current batch and run the same cleanup used by Delete Batch.
+    """
+    batch_id = _current_upload_batch_id()
+    if not batch_id:
+        return jsonify({"ok": False, "error": "No active batch id found"}), 400
+
+    # Use the same delete-batch cleanup route if available.
+    try:
+        if "r2_clean_batch_v394" in globals():
+            return r2_clean_batch_v394(batch_id)
+        if "r2_clean_batch_v393" in globals():
+            return r2_clean_batch_v393(batch_id)
+        if "r2_clean_batch_safe" in globals():
+            return r2_clean_batch_safe(batch_id)
+        if "r2_clean_batch_strong_route" in globals():
+            return r2_clean_batch_strong_route(batch_id)
+        if "r2_clean_batch_v397" in globals():
+            return r2_clean_batch_v397(batch_id)
+    except Exception as e:
+        try:
+            print("cancel current delegating cleanup warning:", e)
+        except Exception:
+            pass
+
+    # Fallback: direct cleanup helpers used by delete batch.
+    try:
+        creator = current_creator()
+        if not creator:
+            return jsonify({"ok": False, "error": "Please log in again."}), 401
+        deleted = 0
+        try:
+            deleted += _r2_delete_batch_strong(batch_id, getattr(creator, "id", None))
+        except Exception:
+            pass
+        try:
+            _mark_batch_and_videos_deleted(batch_id)
+        except Exception:
+            pass
+        db.session.commit()
+        return jsonify({"ok": True, "batch_id": batch_id, "deleted_objects": deleted})
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({"ok": False, "error": str(e)}), 500
+
 @creator_bp.route("/r2-clean/cancel-manifest", methods=["POST"])
 def r2_clean_cancel_manifest_v397():
     """

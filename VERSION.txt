@@ -1,10 +1,9 @@
-BoatSpotMedia v39.7 Cancel Upload Manifest R2 Fix
-Base: v39.6 Template Syntax Fix.
+BoatSpotMedia v39.8 Cancel Uses Delete Batch Flow
+Base used: boatspotmedia_v39_7_cancel_manifest_r2_fix.zip
 - Does not touch thumbnails.
 - Does not touch search.
 - Does not touch New York time/date.
-- Delete Batch remains working.
-- Fixes Cancel Upload for direct-to-R2 uploads before DB Video rows exist.
-- Browser captures exact R2 keys/prefixes from upload/init/sign/multipart/complete responses.
-- Cancel Upload sends captured manifest to /r2-clean/cancel-manifest.
-- Backend deletes exact keys/prefixes and marks batch/videos deleted.
+- Cancel Upload now shows confirmation popup.
+- If user chooses Cancel/No, upload continues.
+- If user chooses OK/Yes, it calls the same R2 cleanup endpoint used by Delete Batch: /r2-clean/batch/<batch_id>.
+- If batch_id is not visible in JS, it calls /cancel-upload-delete-current, which finds current batch and runs delete cleanup.
