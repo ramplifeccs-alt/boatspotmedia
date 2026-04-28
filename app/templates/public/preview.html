@@ -23,19 +23,20 @@
 <div class="notice">Buy another clip from this creator and get {{video.creator.second_clip_discount_percent}}% off the next video.</div>
 {% endif %}
 <div class="video-purchase-options">
-{% if video.original_price and video.original_price|float > 0 %}
-  <p><b>Original 4K download:</b> ${{ video.original_price }}</p>
-  <a class="btn" href="/checkout/video/{{ video.id }}?package=original">Buy Original</a>
-{% endif %}
-{% if video.edited_price and video.edited_price|float > 0 %}
-  <p><b>Edited video:</b> ${{ video.edited_price }}</p>
-  <a class="btn secondary" href="/checkout/video/{{ video.id }}?package=edited">Buy Edited</a>
-{% endif %}
-{% if video.bundle_price and video.bundle_price|float > 0 %}
-  <p><b>Original + edited combo:</b> ${{ video.bundle_price }}</p>
-  <a class="btn secondary" href="/checkout/video/{{ video.id }}?package=bundle">Buy Combo</a>
-{% endif %}
-{% if (not video.original_price or video.original_price|float <= 0) and (not video.edited_price or video.edited_price|float <= 0) and (not video.bundle_price or video.bundle_price|float <= 0) %}
+{% set options = purchase_options if purchase_options is defined else [] %}
+{% if options %}
+  {% for option in options %}
+    <div class="purchase-option" style="margin:16px 0;">
+      <p><b>{{ option.title }}:</b> ${{ "%.2f"|format(option.price) }}</p>
+      {% if option.description %}
+        <p style="margin-top:-8px;color:#555;font-size:14px;">{{ option.description }}</p>
+      {% endif %}
+      <a class="btn {% if not loop.first %}secondary{% endif %}" href="/checkout/video/{{ video.id }}?package={{ option.package }}{% if option.id %}&price_id={{ option.id }}{% endif %}">
+        Buy {{ option.title }}
+      </a>
+    </div>
+  {% endfor %}
+{% else %}
   <div class="notice">This creator has not configured purchase options for this video yet.</div>
 {% endif %}
 </div>

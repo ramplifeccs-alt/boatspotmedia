@@ -57,6 +57,26 @@ def create_checkout_session(item_type, item_id, title, description, amount, meta
     return checkout.url, None
 
 
+
+def _price_from_creator_preset(video, price_id):
+    try:
+        if not price_id:
+            return None
+        from app.models import VideoPricingPreset
+        creator_id = getattr(video, "creator_id", None) or getattr(video, "creator_profile_id", None)
+        preset = VideoPricingPreset.query.get(int(price_id))
+        if not preset:
+            return None
+        if creator_id and getattr(preset, "creator_id", None) != creator_id:
+            return None
+        if getattr(preset, "active", True) is False:
+            return None
+        price = float(preset.price or 0)
+        return price if price > 0 else None
+    except Exception:
+        return None
+
+
 @payments_bp.route("/checkout/product/<int:product_id>")
 def checkout_product(product_id):
     from app.models import Product
@@ -75,6 +95,7 @@ def checkout_video(video_id):
     from app.models import Video
     video = Video.query.get_or_404(video_id)
     package = request.args.get("package", "original")
+    preset_amount = _price_from_creator_preset(video, request.args.get("price_id"))
     if package == "edited":
         amount = getattr(video, "edited_price", None) or 0
         title = "Edited Video"

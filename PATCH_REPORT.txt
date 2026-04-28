@@ -1,5 +1,3 @@
-app/routes/creator.py
-app/templates/creator/upload.html
-app/templates/creator/pricing.html
+app/routes/public.py
 app/templates/public/preview.html
 app/routes/payments.py

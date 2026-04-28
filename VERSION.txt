@@ -1,10 +1,10 @@
-BoatSpotMedia v39.4 Pricing Background Update Fix
-Base: v39.3 Pricing Update Once Fix.
+BoatSpotMedia v39.5 Buyer Preview Creator Price Labels
+Base: boatspotmedia_v39_4_PRICING_BACKGROUND_UPDATE_FIX.zip
 Fix:
-- Saving Pricing no longer updates existing videos inside the request.
-- Existing videos are updated in a background thread.
-- Background job commits in chunks to avoid long DB locks.
-- Prevents page/site freeze when creator changes prices.
+- Buyer preview now shows creator's Pricing title and description.
+- No hardcoded labels like Original 4K download / Edited video / Combo.
+- Buy button uses the creator pricing option title.
+- Checkout link includes price_id so the exact configured price can be used.
 Not touched:
 - search
 - logo/header
@@ -13,4 +13,3 @@ Not touched:
 - thumbnails
 - New York time/date
 - login/dashboard routes
-- buyer preview pricing behavior from v39.1/v39.3
