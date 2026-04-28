@@ -292,59 +292,6 @@ def _ny_dt(dt):
         except Exception:
             return dt
 
-def _current_upload_batch_id():
-    # 1. request body / args
-    for source in (
-        request.get_json(silent=True) if request.is_json else None,
-        request.form,
-        request.args,
-    ):
-        try:
-            if source:
-                for k in ("batch_id", "batchId", "id"):
-                    val = source.get(k)
-                    if val:
-                        return int(val)
-        except Exception:
-            pass
-
-    # 2. session
-    try:
-        val = session.get("current_upload_batch_id") or session.get("upload_batch_id") or session.get("last_batch_id")
-        if val:
-            return int(val)
-    except Exception:
-        pass
-
-    # 3. fallback: last active batch of creator. This fixes Cancel Upload ghost batches.
-    try:
-        creator = current_creator()
-        if creator:
-            from app.models import VideoBatch
-            q = VideoBatch.query
-
-            if hasattr(VideoBatch, "creator_id"):
-                q = q.filter(VideoBatch.creator_id == creator.id)
-            elif hasattr(VideoBatch, "creator_profile_id"):
-                q = q.filter(VideoBatch.creator_profile_id == creator.id)
-
-            if hasattr(VideoBatch, "status"):
-                q = q.filter(
-                    db.or_(
-                        VideoBatch.status == None,
-                        ~VideoBatch.status.in_(["deleted", "cancelled", "canceled"])
-                    )
-                )
-
-            batch = q.order_by(VideoBatch.id.desc()).first()
-            if batch:
-                return int(batch.id)
-    except Exception:
-        pass
-
-    return None
-
-
 @creator_bp.route("/upload/batch/<int:batch_id>/cancel-clean", methods=["POST"])
 @creator_bp.route("/creator/upload/batch/<int:batch_id>/cancel-clean", methods=["POST"])
 def cancel_upload_batch_clean(batch_id):

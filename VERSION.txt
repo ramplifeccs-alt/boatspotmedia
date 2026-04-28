@@ -1,5 +1,10 @@
-BoatSpotMedia v38.8 Cancel Upload Only Fix
-Base: boatspotmedia_v38_8_LOCATION_MENU_TIME_STORAGE_R2_FIX.zip
-Only changed: app/routes/creator.py
-Purpose: Cancel Upload fallback finds the latest active creator batch if no batch_id is sent.
-Not touched: templates, JS, thumbnails, search, New York time/date, logo, routes.
+BoatSpotMedia v38.8 Location Menu Time Storage R2 Fix
+- Base: v38.7; thumbnail engine untouched.
+- Search locations now come from active video.location strings, not Location objects.
+- Buyer search time input is America/New_York and converts to UTC for recorded_at search.
+- Displayed recorded_at times convert from UTC to America/New_York.
+- Creator login stores display_name in session, so home/header shows creator name/Instagram instead of email.
+- Header account pill is clickable and goes to dashboard.
+- Storage used counts only active videos and removes deleted storage fallback.
+- Delete batch helper no longer calls itself recursively and deletes common R2 prefixes.
+- Batches list hides deleted/cancelled batches.
