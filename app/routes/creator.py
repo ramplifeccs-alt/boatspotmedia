@@ -67,7 +67,10 @@ def _recalculate_creator_storage(creator_id):
                 c.storage_used_bytes = int(used)
                 db.session.add(c)
                 db.session.commit()
-                _apply_creator_pricing_to_existing_videos(creator)
+                try:
+                    _schedule_creator_pricing_update(creator)
+                except Exception:
+                    pass
         except Exception:
             db.session.rollback()
         return int(used)
@@ -606,13 +609,17 @@ def _creator_video_prices_from_pricing_page(creator):
 
 
 
-def _apply_creator_pricing_to_existing_videos(creator):
+def _apply_creator_pricing_to_existing_videos_by_id(creator_id):
     """
-    When creator changes Pricing, update already-published videos too.
-    Runs once per pricing save. No repeated log spam.
+    Background job: update already-published videos after Pricing changes.
+    Does not block the Save Price request.
     """
     try:
-        from app.models import Video
+        from app.models import CreatorProfile, Video
+        creator = CreatorProfile.query.get(creator_id)
+        if not creator:
+            return 0
+
         original_price, edited_price, bundle_price = _creator_video_prices_from_pricing_page(creator)
 
         q = Video.query
@@ -628,7 +635,7 @@ def _apply_creator_pricing_to_existing_videos(creator):
             q = q.filter(db.or_(Video.status == None, ~Video.status.in_(["deleted", "cancelled", "canceled"])))
 
         updated = 0
-        for v in q.all():
+        for v in q.yield_per(100):
             changed = False
             if hasattr(v, "original_price") and v.original_price != original_price:
                 v.original_price = original_price
@@ -643,12 +650,61 @@ def _apply_creator_pricing_to_existing_videos(creator):
                 db.session.add(v)
                 updated += 1
 
+            # Commit in small chunks to avoid long locks.
+            if updated and updated % 100 == 0:
+                db.session.commit()
+                try:
+                    _schedule_creator_pricing_update(creator)
+                except Exception:
+                    pass
+
         db.session.commit()
-        _apply_creator_pricing_to_existing_videos(creator)
+        try:
+            print("Creator pricing background update complete:", {"creator_id": creator_id, "updated": updated})
+        except Exception:
+            pass
         return updated
-    except Exception:
+    except Exception as e:
         db.session.rollback()
+        try:
+            print("Creator pricing background update warning:", e)
+        except Exception:
+            pass
         return 0
+
+
+def _schedule_creator_pricing_update(creator):
+    """
+    Schedule existing-video price updates in a background thread.
+    Keeps Save Price fast and prevents the site from freezing.
+    """
+    try:
+        import threading
+        from flask import current_app
+        app = current_app._get_current_object()
+        creator_id = creator.id
+
+        def worker():
+            with app.app_context():
+                _apply_creator_pricing_to_existing_videos_by_id(creator_id)
+
+        t = threading.Thread(target=worker, daemon=True)
+        t.start()
+        return True
+    except Exception as e:
+        try:
+            print("schedule pricing update warning:", e)
+        except Exception:
+            pass
+        return False
+
+
+def _apply_creator_pricing_to_existing_videos(creator):
+    """
+    Backward-compatible wrapper.
+    It no longer updates synchronously; it schedules background update.
+    """
+    return _schedule_creator_pricing_update(creator)
 
 
 @creator_bp.route("/creator/batch/delete-latest-incomplete", methods=["POST"])
@@ -990,7 +1046,10 @@ def pricing():
         creator.second_clip_discount_percent = int(request.form.get("second_clip_discount_percent") or creator.second_clip_discount_percent or 0)
 
         db.session.commit()
-        _apply_creator_pricing_to_existing_videos(creator)
+        try:
+            _schedule_creator_pricing_update(creator)
+        except Exception:
+            pass
         return redirect(url_for("creator.pricing"))
 
     presets = VideoPricingPreset.query.filter_by(creator_id=creator.id, active=True).order_by(VideoPricingPreset.id.desc()).all()
@@ -1005,7 +1064,10 @@ def delete_pricing(preset_id):
     p = VideoPricingPreset.query.filter_by(id=preset_id, creator_id=creator.id).first_or_404()
     p.active = False
     db.session.commit()
-    _apply_creator_pricing_to_existing_videos(creator)
+    try:
+        _schedule_creator_pricing_update(creator)
+    except Exception:
+        pass
     return redirect(url_for("creator.pricing"))
 
 @creator_bp.route("/settings", methods=["GET", "POST"])
@@ -1023,7 +1085,10 @@ def settings():
                 creator.storage_limit_gb = plan.storage_limit_gb
                 creator.commission_rate = plan.commission_rate
                 db.session.commit()
-                _apply_creator_pricing_to_existing_videos(creator)
+                try:
+                    _schedule_creator_pricing_update(creator)
+                except Exception:
+                    pass
             return redirect(url_for("creator.settings"))
 
         if creator.user:

@@ -1,9 +1,10 @@
-BoatSpotMedia v39.3 Pricing Update Once Fix
-Base: v39.2 Pricing Updates Existing Videos.
+BoatSpotMedia v39.4 Pricing Background Update Fix
+Base: v39.3 Pricing Update Once Fix.
 Fix:
-- Removes duplicate repeated calls to _apply_creator_pricing_to_existing_videos.
-- Pricing changes now update existing videos once per save.
-- Removes repeated log spam.
+- Saving Pricing no longer updates existing videos inside the request.
+- Existing videos are updated in a background thread.
+- Background job commits in chunks to avoid long DB locks.
+- Prevents page/site freeze when creator changes prices.
 Not touched:
 - search
 - logo/header
@@ -12,3 +13,4 @@ Not touched:
 - thumbnails
 - New York time/date
 - login/dashboard routes
+- buyer preview pricing behavior from v39.1/v39.3
