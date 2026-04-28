@@ -1,10 +1,6 @@
-BoatSpotMedia v39.9 Single Cancel Handler + Logo Fix
-Base used: boatspotmedia_v39_4_full_r2_cleanup_real_fix.zip
-- Keeps Delete Batch cleanup logic that works.
-- Removes old stacked JS cancel handlers to stop multiple popups.
-- Adds ONE Cancel Upload confirmation popup.
-- If user clicks No/Cancel, upload continues.
-- If user clicks OK, calls /r2-clean/batch/<id> or /cancel-upload-delete-current.
-- Backend finds latest active/ghost batch for creator if JS has no batch id.
-- New logo-header.png installed from latest image.
-- Does not touch thumbnails, search, or New York time/date.
+BoatSpotMedia v40 Route Links Fix
+Base: v39.9 Single Cancel Handler + Logo Fix.
+- Fixes /creator/dashboard 404 by adding compatibility alias route.
+- Fixes /creator/login 404 by adding compatibility alias route.
+- Does not touch R2 cleanup, thumbnails, search, or New York time/date logic.
+- Keeps latest logo/header files.

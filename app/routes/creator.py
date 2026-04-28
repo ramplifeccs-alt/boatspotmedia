@@ -497,6 +497,26 @@ def _current_upload_batch_id():
     return None
 
 
+
+# BoatSpotMedia v40 compatibility aliases for older/newer menu links.
+@creator_bp.route("/creator/dashboard")
+def creator_dashboard_alias_v40():
+    try:
+        return redirect(url_for("creator.dashboard"))
+    except Exception:
+        try:
+            return redirect("/dashboard")
+        except Exception:
+            return redirect("/login")
+
+
+@creator_bp.route("/creator/login")
+def creator_login_alias_v40():
+    try:
+        return redirect(url_for("creator.login"))
+    except Exception:
+        return redirect("/login")
+
 @creator_bp.route("/r2-clean/batch/<int:batch_id>", methods=["POST"])
 @creator_bp.route("/upload/batch/<int:batch_id>/cancel-clean", methods=["POST"])
 @creator_bp.route("/creator/upload/batch/<int:batch_id>/cancel-clean", methods=["POST"])
