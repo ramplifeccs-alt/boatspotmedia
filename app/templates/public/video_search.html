@@ -1,31 +1,43 @@
-{% extends "public/base.html" %}
-{% block content %}
-<div class="bsm-search-shell">
-  <h1 class="bsm-search-title">Find Your Boat Video Instantly 🌊</h1>
-  <p class="bsm-search-subtitle">Search by location, date, and approximate time.</p>
-  <form method="GET" action="/search">
-    <label class="bsm-form-label">Location</label>
-    <div class="bsm-input-wrap"><span class="bsm-input-icon">📍</span>
-      <select name="location" required>
-        <option value="">Select filming location</option>
-        {% for loc in locations or video_locations or [] %}
-          <option value="{{ loc }}" {% if request.args.get('location') == loc %}selected{% endif %}>{{ loc }}</option>
-        {% endfor %}
-      </select>
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>BoatSpotMedia</title>
+  <link rel="stylesheet" href="/static/css/style.css">
+</head>
+<body>
+<nav class="topnav"><a href="/">Home</a><a href="/video-search">Find Your Video</a><a href="/shop">Shop</a><a href="https://services.boatspotmedia.com">Services</a><a href="https://charters.boatspotmedia.com">Charters</a></nav>
+<div class="content">
+  <h1>Find Your Video</h1>
+  <form class="card" method="get">
+    <label>Location</label>
+    <input name="location" value="{{ location }}" placeholder="Boca Raton Inlet">
+    <div class="form-row">
+      <div><label>Date</label><input type="date" name="date" value="{{ date }}"></div>
+      <div><label>Start time</label><input type="time" name="start_time" value="{{ start_time }}"></div>
+      <div><label>End time</label><input type="time" name="end_time" value="{{ end_time }}"></div>
     </div>
-    <label class="bsm-form-label">Date</label>
-    <div class="bsm-input-wrap"><span class="bsm-input-icon">🗓️</span><input type="date" name="date" value="{{ request.args.get('date','') }}" required></div>
-    <div class="bsm-time-row">
-      <div><label class="bsm-form-label">From</label><div class="bsm-input-wrap"><span class="bsm-input-icon">🕘</span><input type="time" name="from_time" value="{{ request.args.get('from_time', request.args.get('time_from','')) }}"></div></div>
-      <div><label class="bsm-form-label">To</label><div class="bsm-input-wrap"><span class="bsm-input-icon">🕘</span><input type="time" name="to_time" value="{{ request.args.get('to_time', request.args.get('time_to','')) }}"></div></div>
-    </div>
-    <button class="bsm-search-button" type="submit">⌕ Find My Video</button>
-    <div class="bsm-search-trust"><span class="bsm-input-icon">🛡️</span><div><strong>Thousands of boats filmed every week.</strong><br><span>Find yours in seconds.</span></div></div>
+    <button class="btn">Search</button>
   </form>
-  {% if results is defined and results %}
-    <div style="margin-top:28px;">
-    {% for video in results %}<div class="result-card">{{ video }}</div>{% endfor %}
-    </div>
-  {% endif %}
+
+  <div class="grid">
+    {% for v in videos %}
+      <div class="card video-card">
+        {% if v.public_thumbnail_url %}
+          <img src="{{ v.public_thumbnail_url }}" alt="Video preview" style="width:100%;border-radius:12px;">
+        {% else %}
+          <div class="placeholder-thumb">Preview</div>
+        {% endif %}
+        <h3>{{ v.location or 'Boat video' }}</h3>
+        <p>{{ v.recorded_at or '' }}</p>
+        <a class="btn" href="/checkout/video/{{ v.id }}">Buy Original</a>
+        <a class="btn" href="/checkout/video/{{ v.id }}?package=edited">Order Edited</a>
+        <a class="btn" href="/checkout/video/{{ v.id }}?package=bundle">Original + Edited</a>
+      </div>
+    {% else %}
+      <div class="card">No videos found.</div>
+    {% endfor %}
+  </div>
 </div>
-{% endblock %}
+</body>
+</html>

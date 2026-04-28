@@ -1,31 +1,47 @@
-{% extends "public/base.html" %}
-{% block content %}
-<div class="bsm-search-shell">
-  <h1 class="bsm-search-title">Find Your Boat Video Instantly 🌊</h1>
-  <p class="bsm-search-subtitle">Search by location, date, and approximate time.</p>
-  <form method="GET" action="/search">
-    <label class="bsm-form-label">Location</label>
-    <div class="bsm-input-wrap"><span class="bsm-input-icon">📍</span>
-      <select name="location" required>
-        <option value="">Select filming location</option>
-        {% for loc in locations or video_locations or [] %}
-          <option value="{{ loc }}" {% if request.args.get('location') == loc %}selected{% endif %}>{{ loc }}</option>
-        {% endfor %}
-      </select>
-    </div>
-    <label class="bsm-form-label">Date</label>
-    <div class="bsm-input-wrap"><span class="bsm-input-icon">🗓️</span><input type="date" name="date" value="{{ request.args.get('date','') }}" required></div>
-    <div class="bsm-time-row">
-      <div><label class="bsm-form-label">From</label><div class="bsm-input-wrap"><span class="bsm-input-icon">🕘</span><input type="time" name="from_time" value="{{ request.args.get('from_time', request.args.get('time_from','')) }}"></div></div>
-      <div><label class="bsm-form-label">To</label><div class="bsm-input-wrap"><span class="bsm-input-icon">🕘</span><input type="time" name="to_time" value="{{ request.args.get('to_time', request.args.get('time_to','')) }}"></div></div>
-    </div>
-    <button class="bsm-search-button" type="submit">⌕ Find My Video</button>
-    <div class="bsm-search-trust"><span class="bsm-input-icon">🛡️</span><div><strong>Thousands of boats filmed every week.</strong><br><span>Find yours in seconds.</span></div></div>
-  </form>
-  {% if results is defined and results %}
-    <div style="margin-top:28px;">
-    {% for video in results %}<div class="result-card">{{ video }}</div>{% endfor %}
-    </div>
+<!doctype html><html><head>
+  <meta name="viewport" content="width=device-width, initial-scale=1"><meta charset="utf-8"><title>BoatSpotMedia</title><link rel="stylesheet" href="/static/css/style.css"></head><body><header><div><a href="/" style="color:inherit;text-decoration:none;"><b>BoatSpotMedia</b></a></div><nav><a href="/">Home</a><a href="/search">Find Your Video</a><a href="/shop">Shop</a><a href="https://services.boatspotmedia.com">Services</a><a href="https://charters.boatspotmedia.com">Charters</a><a href="/apply-creator">Apply as Creator</a>{% if session.get("user_id") %}
+  <a class="nav-user" href="{{ session_dashboard_url() }}" style="text-decoration:none;">{{ session_display_name() }}</a>
+  {% if session.get("user_role") == "buyer" %}
+    <a href="/buyer/dashboard">Dashboard</a>
+  {% elif session.get("user_role") == "creator" %}
+    <a href="/creator/dashboard">Dashboard</a>
+  {% elif session.get("user_role") in ["services", "service"] %}
+    <a href="/service-account/dashboard">Dashboard</a>
+  {% elif session.get("user_role") in ["charter", "charters"] %}
+    <a href="https://charters.boatspotmedia.com">Dashboard</a>
   {% endif %}
+  <a href="/logout">Logout</a>
+{% else %}
+  <a href="/login">Login</a>
+{% endif %}</nav></header><div class="container">
+<h1>Search Boat Videos</h1>
+<form action="/search/results">
+<label>Location</label>
+<select name="location">
+  <option value="">Select location with available videos</option>
+  {% for loc in (video_locations if video_locations is defined else locations) %}
+    <option value="{{ loc }}">{{ loc }}</option>
+  {% endfor %}
+</select>
+<label>Date</label><input type="date" name="date">
+<label>From</label><input type="time" name="start_time">
+<label>To</label><input type="time" name="end_time">
+<button class="btn">Search</button>
+</form>
+
+{% if results is not none %}
+<h2>Results</h2>
+<div class="grid">
+{% for v in results %}
+<div class="card">
+<div class="thumb">{% if v.public_thumbnail_url %}<img src="{{v.public_thumbnail_url}}">{% else %}Thumbnail{% endif %}</div>
+<b>{{v.location}}</b><br>
+<small>{{ ny_dt(v.recorded_at).strftime('%m/%d/%Y %I:%M %p') if v.recorded_at else "Time pending" }}</small><br>
+<small>Captured by: {{ v.creator.user.display_name if v.creator and v.creator.user else "Creator" }}</small><br><br>
+<a class="btn" href="/preview/{{v.id}}">Open Preview</a>
 </div>
-{% endblock %}
+{% else %}<p>No matching videos.</p>{% endfor %}
+</div>
+{% endif %}
+</div><script src="/static/js/mobile.js"></script>
+</body></html>

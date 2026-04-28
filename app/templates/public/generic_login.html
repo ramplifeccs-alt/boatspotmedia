@@ -3,7 +3,7 @@
 <head>
   <meta name="viewport" content="width=device-width, initial-scale=1"><meta charset="utf-8"><title>BoatSpotMedia</title><link rel="stylesheet" href="/static/css/style.css"></head>
 <body>
-<header><div><a href="/" class="bsm-global-logo-link"><img src="{{ url_for('static', filename='img/logo-header.png') }}" alt="BoatSpotMedia" class="bsm-global-logo-img"></a></div><nav><a href="/">Home</a>{% if session.get("user_id") %}
+<header><div><a href="/" style="color:inherit;text-decoration:none;"><b>BoatSpotMedia</b></a></div><nav><a href="/">Home</a>{% if session.get("user_id") %}
   <a class="nav-user" href="{{ session_dashboard_url() }}" style="text-decoration:none;">{{ session_display_name() }}</a>
   {% if session.get("user_role") == "buyer" %}
     <a href="/buyer/dashboard">Dashboard</a>
