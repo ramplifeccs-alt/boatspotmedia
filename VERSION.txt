@@ -1,7 +1,15 @@
-BoatSpotMedia v38.8 Safe Incomplete Only Delete Fix
-Base: v38.8 Floating Ghost Cleanup Button.
-- The button no longer deletes the latest good batch.
-- It deletes only batches that are incomplete/cancelled/failed/uploading, empty, or without valid active video keys.
-- If no incomplete batch exists, it returns: No incomplete batch found. Nothing was deleted.
-- Good batches with active videos are protected.
-- Does not touch login, dashboard, upload logic, search, thumbnails, time/date, or logo.
+BoatSpotMedia v38.8 Logo Header + Batch Button Fix
+Base: v38.8 Safe Incomplete Only Delete Fix.
+Changes:
+- Delete incomplete batch button now appears only on Batches page.
+- Adds latest logo as static/img/logo-header.png.
+- Replaces common BoatSpotMedia header text with clickable logo linking to Home.
+- Header/nav background set to same navy tone as logo.
+Not touched:
+- R2 cleanup logic
+- login
+- dashboard routes
+- upload logic
+- search
+- thumbnails
+- New York time/date

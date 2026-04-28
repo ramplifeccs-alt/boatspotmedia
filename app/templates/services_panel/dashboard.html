@@ -1,3 +1,12 @@
 <!doctype html><html><head>
-  <meta name="viewport" content="width=device-width, initial-scale=1"><meta charset="utf-8"><title>BoatSpotMedia</title><link rel="stylesheet" href="/static/css/style.css"></head><body><div class="sidebar-layout"><div class="sidebar"><h2>Services</h2><a href="/service-account/dashboard">Dashboard</a><a href="/service-account/ads">Ads</a><a href="/service-account/billing">Billing</a><a href="https://services.boatspotmedia.com">Public Services</a></div><div class="content"><h1>Services Dashboard</h1><div class="grid"><div class="card"><h3>Balance</h3><p>${{acct.balance}}</p></div><div class="card"><h3>Total Clicks</h3><p>{{total_clicks}}</p></div><div class="card"><h3>Active Ads</h3><p>{{ads|selectattr('active')|list|length}}</p></div></div></div></div><script src="/static/js/mobile.js"></script>
+  <meta name="viewport" content="width=device-width, initial-scale=1"><meta charset="utf-8"><title>BoatSpotMedia</title><link rel="stylesheet" href="/static/css/style.css"><style>
+:root{--bsm-header-navy:#071a3a;}
+header,.header,.topbar,.navbar,.site-header,.nav,nav{
+  background:#071a3a !important;
+}
+.brand-logo-link{display:flex;align-items:center;text-decoration:none;}
+.brand-logo-img{height:42px;max-width:290px;object-fit:contain;display:block;}
+@media(max-width:700px){.brand-logo-img{height:32px;max-width:220px;}}
+</style>
+</head><body><div class="sidebar-layout"><div class="sidebar"><h2>Services</h2><a href="/service-account/dashboard">Dashboard</a><a href="/service-account/ads">Ads</a><a href="/service-account/billing">Billing</a><a href="https://services.boatspotmedia.com">Public Services</a></div><div class="content"><h1>Services Dashboard</h1><div class="grid"><div class="card"><h3>Balance</h3><p>${{acct.balance}}</p></div><div class="card"><h3>Total Clicks</h3><p>{{total_clicks}}</p></div><div class="card"><h3>Active Ads</h3><p>{{ads|selectattr('active')|list|length}}</p></div></div></div></div><script src="/static/js/mobile.js"></script>
 </body></html>

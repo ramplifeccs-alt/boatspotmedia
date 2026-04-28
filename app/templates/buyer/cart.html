@@ -1,5 +1,16 @@
 <!doctype html><html><head>
-  <meta name="viewport" content="width=device-width, initial-scale=1"><meta charset="utf-8"><title>BoatSpotMedia</title><link rel="stylesheet" href="/static/css/style.css"></head><body><header><div><a href="/" style="color:inherit;text-decoration:none;"><b>BoatSpotMedia</b></a></div><nav><a href="/">Home</a><a href="/search">Find Your Video</a><a href="https://services.boatspotmedia.com">Services</a><a href="https://charters.boatspotmedia.com">Charters</a><a href="/apply-creator">Apply as Creator</a></nav></header><div class="container">
+  <meta name="viewport" content="width=device-width, initial-scale=1"><meta charset="utf-8"><title>BoatSpotMedia</title><link rel="stylesheet" href="/static/css/style.css"><style>
+:root{--bsm-header-navy:#071a3a;}
+header,.header,.topbar,.navbar,.site-header,.nav,nav{
+  background:#071a3a !important;
+}
+.brand-logo-link{display:flex;align-items:center;text-decoration:none;}
+.brand-logo-img{height:42px;max-width:290px;object-fit:contain;display:block;}
+@media(max-width:700px){.brand-logo-img{height:32px;max-width:220px;}}
+</style>
+</head><body><header><div><a href="/" class="brand-logo-link" style="display:flex;align-items:center;text-decoration:none;">
+  <img src="{{ url_for('static', filename='img/logo-header.png') }}" alt="BoatSpotMedia" class="brand-logo-img" style="height:42px;max-width:290px;object-fit:contain;display:block;">
+</a></div><nav><a href="/">Home</a><a href="/search">Find Your Video</a><a href="https://services.boatspotmedia.com">Services</a><a href="https://charters.boatspotmedia.com">Charters</a><a href="/apply-creator">Apply as Creator</a></nav></header><div class="container">
 <h1>Cart</h1>
 <form action="/buyer/checkout" method="post">
 <label>Your Email</label><input type="email" name="buyer_email" required>

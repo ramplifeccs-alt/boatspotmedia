@@ -332,3 +332,13 @@ form{
 .placeholder-thumb{height:180px;border-radius:12px;background:#dfe6f3;display:flex;align-items:center;justify-content:center;font-weight:700;color:#344}
 .home-previews{padding:28px 0}
 .video-card img{aspect-ratio:16/9;object-fit:cover}
+
+
+/* BoatSpotMedia logo/header patch v38.8 */
+:root{--bsm-header-navy:#071a3a;}
+header,.header,.topbar,.navbar,.site-header,.nav,nav{
+  background:#071a3a !important;
+}
+.brand-logo-link{display:flex;align-items:center;text-decoration:none;}
+.brand-logo-img{height:42px;max-width:290px;object-fit:contain;display:block;}
+@media(max-width:700px){.brand-logo-img{height:32px;max-width:220px;}}
