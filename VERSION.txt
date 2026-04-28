@@ -1,6 +1,7 @@
-BoatSpotMedia v38.8 Floating Ghost Cleanup Button
-Base: v38.8.
-- Adds a JS-injected visible button on batch/batches pages through static/js/mobile.js.
-- Button says Delete latest incomplete batch.
-- Route /creator/batch/delete-latest-incomplete deletes latest active batch for creator from R2 + DB.
-- Does not touch templates, login, dashboard routes, upload logic, search, thumbnails, time/date, logo.
+BoatSpotMedia v38.8 Safe Incomplete Only Delete Fix
+Base: v38.8 Floating Ghost Cleanup Button.
+- The button no longer deletes the latest good batch.
+- It deletes only batches that are incomplete/cancelled/failed/uploading, empty, or without valid active video keys.
+- If no incomplete batch exists, it returns: No incomplete batch found. Nothing was deleted.
+- Good batches with active videos are protected.
+- Does not touch login, dashboard, upload logic, search, thumbnails, time/date, or logo.

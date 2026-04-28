@@ -492,6 +492,88 @@ def _bsm_latest_active_batch_for_creator_v388(creator):
 
 
 
+
+def _bsm_batch_is_incomplete_v388(batch):
+    """
+    Only allow manual ghost cleanup for truly incomplete/cancelled batches.
+    Never delete a normal completed batch with active videos.
+    """
+    try:
+        from app.models import Video
+        status = str(getattr(batch, "status", "") or "").lower().strip()
+        incomplete_statuses = {"uploading", "pending", "cancelled", "canceled", "incomplete", "failed", "error", "draft"}
+        if status in incomplete_statuses:
+            return True
+
+        videos = Video.query.filter_by(batch_id=batch.id).all()
+
+        # No videos at all = ghost/incomplete batch.
+        if not videos:
+            return True
+
+        active_videos = []
+        for v in videos:
+            v_status = str(getattr(v, "status", "") or "").lower().strip()
+            if v_status in {"deleted", "cancelled", "canceled", "failed", "error"}:
+                continue
+            active_videos.append(v)
+
+        # Only deleted/cancelled/failed videos = incomplete.
+        if not active_videos:
+            return True
+
+        # If all active videos are missing real R2/video key/path, treat as incomplete.
+        valid_count = 0
+        key_attrs = (
+            "r2_video_key", "r2_key", "video_key", "file_path",
+            "r2_video_path", "storage_key", "storage_path", "object_key"
+        )
+        for v in active_videos:
+            for attr in key_attrs:
+                val = getattr(v, attr, None)
+                if val and isinstance(val, str) and "/" in val:
+                    valid_count += 1
+                    break
+
+        if valid_count == 0:
+            return True
+
+        # Has active videos with real keys = good batch. Do NOT delete.
+        return False
+    except Exception as e:
+        try:
+            print("incomplete batch check warning:", e)
+        except Exception:
+            pass
+        # Fail safe: do not delete if unsure.
+        return False
+
+
+def _bsm_latest_incomplete_batch_for_creator_v388(creator):
+    try:
+        from app.models import VideoBatch
+        q = VideoBatch.query
+        filters = []
+        if hasattr(VideoBatch, "creator_id"):
+            filters.append(VideoBatch.creator_id == creator.id)
+        if hasattr(VideoBatch, "creator_profile_id"):
+            filters.append(VideoBatch.creator_profile_id == creator.id)
+        if filters:
+            q = q.filter(db.or_(*filters))
+        if hasattr(VideoBatch, "status"):
+            q = q.filter(db.or_(VideoBatch.status == None, ~VideoBatch.status.in_(["deleted"])))
+
+        # Check recent batches only, newest first. Delete only if incomplete.
+        for batch in q.order_by(VideoBatch.id.desc()).limit(20).all():
+            if _bsm_batch_is_incomplete_v388(batch):
+                return batch
+    except Exception as e:
+        try:
+            print("latest incomplete batch lookup warning:", e)
+        except Exception:
+            pass
+    return None
+
 @creator_bp.route("/creator/batch/delete-latest-incomplete", methods=["POST"])
 @creator_bp.route("/batch/delete-latest-incomplete", methods=["POST"])
 def bsm_delete_latest_incomplete_batch_v388():
@@ -499,9 +581,13 @@ def bsm_delete_latest_incomplete_batch_v388():
     if not creator:
         return jsonify({"ok": False, "error": "Please log in again."}), 401
     try:
-        batch = _bsm_latest_active_batch_for_creator_v388(creator)
+        batch = _bsm_latest_incomplete_batch_for_creator_v388(creator)
         if not batch:
-            return jsonify({"ok": False, "error": "No active batch found"}), 404
+            return jsonify({
+                "ok": False,
+                "safe": True,
+                "error": "No incomplete batch found. Nothing was deleted."
+            }), 404
         deleted = _bsm_delete_batch_r2_and_db_v388(batch)
         return jsonify({"ok": True, "batch_id": batch.id, "deleted_objects": deleted})
     except Exception as e:
@@ -517,6 +603,12 @@ def bsm_delete_specific_incomplete_batch_v388(batch_id):
     try:
         from app.models import VideoBatch
         batch = VideoBatch.query.get_or_404(batch_id)
+        if not _bsm_batch_is_incomplete_v388(batch):
+            return jsonify({
+                "ok": False,
+                "safe": True,
+                "error": "This batch has active videos and was not deleted."
+            }), 400
         deleted = _bsm_delete_batch_r2_and_db_v388(batch)
         return jsonify({"ok": True, "batch_id": batch.id, "deleted_objects": deleted})
     except Exception as e:
