@@ -54,16 +54,3 @@ function regenerateThumbnail(videoId){
     .catch(()=>alert("Could not regenerate thumbnail."));
 }
 </script>
-
-
-<!-- BoatSpotMedia ghost/incomplete batch cleanup -->
-<div class="bsm-ghost-cleanup" style="margin-top:10px;padding:10px;border:1px solid #fecaca;background:#fff1f2;border-radius:10px;color:#991b1b;font-size:13px;">
-  <strong>Incomplete / cancelled upload?</strong><br>
-  If this batch was cancelled or has missing videos, delete it here to remove storage files from R2.
-  <form method="POST" action="/creator/batch/{{ batch.id }}/delete-incomplete" style="margin-top:8px;" onsubmit="return confirm('Delete this incomplete batch and remove its R2 files?');">
-    <button type="submit" style="background:#dc2626;color:white;border:0;border-radius:8px;padding:8px 10px;font-weight:700;">
-      Delete incomplete batch
-    </button>
-  </form>
-</div>
-

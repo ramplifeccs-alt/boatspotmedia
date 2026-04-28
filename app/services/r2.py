@@ -85,6 +85,7 @@ def _bucket_name():
         or "boatspotmedia-videos"
     )
 
+
 def _client():
     import os, boto3
     return boto3.client(
@@ -94,6 +95,7 @@ def _client():
         aws_secret_access_key=os.environ.get("R2_SECRET_ACCESS_KEY"),
         region_name="auto",
     )
+
 
 
 def delete_r2_object(key):
@@ -117,10 +119,7 @@ def delete_r2_prefix(prefix):
         resp = client.list_objects_v2(**kwargs)
         objects = resp.get("Contents") or []
         if objects:
-            client.delete_objects(
-                Bucket=bucket,
-                Delete={"Objects": [{"Key": o["Key"]} for o in objects]},
-            )
+            client.delete_objects(Bucket=bucket, Delete={"Objects": [{"Key": o["Key"]} for o in objects]})
             deleted += len(objects)
         if not resp.get("IsTruncated"):
             break
@@ -136,17 +135,13 @@ def delete_r2_candidates(keys=None, prefixes=None):
                 delete_r2_object(str(key))
                 deleted += 1
             except Exception as e:
-                try:
-                    print("R2 key delete warning:", key, e)
-                except Exception:
-                    pass
+                try: print("R2 key delete warning:", key, e)
+                except Exception: pass
     for prefix in (prefixes or []):
         if prefix:
             try:
                 deleted += delete_r2_prefix(str(prefix))
             except Exception as e:
-                try:
-                    print("R2 prefix delete warning:", prefix, e)
-                except Exception:
-                    pass
+                try: print("R2 prefix delete warning:", prefix, e)
+                except Exception: pass
     return deleted

@@ -1,6 +1,6 @@
-BoatSpotMedia v38.8 Ghost Button Visible Fix
-Base: v38.8 ghost cleanup line.
-- Adds/keeps backend route /creator/batch/<batch_id>/delete-incomplete.
-- Adds visible Delete incomplete batch button to creator templates with batch loops/list.
-- Intended to show on creator batches list, not only batch detail.
-- Does not touch login, dashboard routes, upload logic, search, thumbnails, time/date, logo.
+BoatSpotMedia v38.8 Floating Ghost Cleanup Button
+Base: v38.8.
+- Adds a JS-injected visible button on batch/batches pages through static/js/mobile.js.
+- Button says Delete latest incomplete batch.
+- Route /creator/batch/delete-latest-incomplete deletes latest active batch for creator from R2 + DB.
+- Does not touch templates, login, dashboard routes, upload logic, search, thumbnails, time/date, logo.

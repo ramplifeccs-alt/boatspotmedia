@@ -386,34 +386,93 @@ def _delete_batch_r2_objects(batch):
 
 
 
-def _latest_creator_batch_id_for_cancel():
-    """Find the latest active/ghost batch for Cancel Upload."""
-    # request/session first
-    for source in (
-        request.get_json(silent=True) if request.is_json else None,
-        request.form,
-        request.args,
-    ):
+def _bsm_r2_keys_for_batch_v388(batch_id):
+    keys = set()
+    try:
+        from app.models import Video
+        for v in Video.query.filter_by(batch_id=batch_id).all():
+            for attr in ("r2_video_key","r2_thumbnail_key","r2_key","thumbnail_key","video_key","thumb_key","file_path","thumbnail_path","storage_key","storage_path","object_key","preview_key","preview_path"):
+                val = getattr(v, attr, None)
+                if val:
+                    val = str(val)
+                    if "/" in val and not val.startswith("http"):
+                        keys.add(val)
+            try:
+                for val in vars(v).values():
+                    if isinstance(val, str) and "/" in val and not val.startswith("http"):
+                        low = val.lower()
+                        if any(x in low for x in ("thumb","preview","upload","creator","batch",".mp4",".mov",".m4v",".jpg",".jpeg",".png")):
+                            keys.add(val)
+            except Exception:
+                pass
+    except Exception as e:
+        try: print("bsm r2 keys warning:", e)
+        except Exception: pass
+    return list(keys)
+
+
+def _bsm_r2_prefixes_for_batch_v388(batch_id, creator_id=None):
+    prefixes = [
+        f"batches/{batch_id}/",
+        f"batch/{batch_id}/",
+        f"uploads/batches/{batch_id}/",
+        f"videos/batches/{batch_id}/",
+        f"thumbs/batches/{batch_id}/",
+        f"previews/batches/{batch_id}/",
+    ]
+    if creator_id:
+        prefixes += [
+            f"creators/{creator_id}/batches/{batch_id}/",
+            f"creators/{creator_id}/batch/{batch_id}/",
+            f"creator/{creator_id}/batches/{batch_id}/",
+            f"creator/{creator_id}/batch/{batch_id}/",
+            f"uploads/{creator_id}/{batch_id}/",
+            f"videos/{creator_id}/{batch_id}/",
+            f"thumbs/{creator_id}/{batch_id}/",
+            f"previews/{creator_id}/{batch_id}/",
+        ]
+    return prefixes
+
+
+def _bsm_delete_batch_r2_and_db_v388(batch):
+    deleted = 0
+    try:
+        from app.models import Video
+        from app.services.r2 import delete_r2_candidates
+        batch_id = getattr(batch, "id", None)
+        creator_id = getattr(batch, "creator_id", None) or getattr(batch, "creator_profile_id", None)
+        keys = _bsm_r2_keys_for_batch_v388(batch_id)
+        prefixes = _bsm_r2_prefixes_for_batch_v388(batch_id, creator_id)
+        deleted = delete_r2_candidates(keys=keys, prefixes=prefixes)
+
+        for v in Video.query.filter_by(batch_id=batch_id).all():
+            if hasattr(v, "status"):
+                v.status = "deleted"
+                db.session.add(v)
+            else:
+                db.session.delete(v)
+
+        if hasattr(batch, "status"):
+            batch.status = "deleted"
+            db.session.add(batch)
+        else:
+            db.session.delete(batch)
+
+        db.session.commit()
         try:
-            if source:
-                for k in ("batch_id", "batchId", "id"):
-                    val = source.get(k)
-                    if val:
-                        return int(val)
+            print("BSM manual cleanup deleted", deleted, "R2 objects for batch", batch_id)
         except Exception:
             pass
-    try:
-        val = session.get("current_upload_batch_id") or session.get("upload_batch_id") or session.get("last_batch_id")
-        if val:
-            return int(val)
-    except Exception:
-        pass
+    except Exception as e:
+        db.session.rollback()
+        try: print("BSM manual cleanup warning:", e)
+        except Exception: pass
+        raise
+    return deleted
 
-    # fallback: newest active batch for this creator
+
+def _bsm_latest_active_batch_for_creator_v388(creator):
     try:
-        creator = current_creator()
-        if not creator:
-            return None
         from app.models import VideoBatch
         q = VideoBatch.query
         filters = []
@@ -424,137 +483,45 @@ def _latest_creator_batch_id_for_cancel():
         if filters:
             q = q.filter(db.or_(*filters))
         if hasattr(VideoBatch, "status"):
-            q = q.filter(db.or_(VideoBatch.status == None, ~VideoBatch.status.in_(["deleted", "cancelled", "canceled"])))
-        batch = q.order_by(VideoBatch.id.desc()).first()
-        if batch:
-            return int(batch.id)
+            q = q.filter(db.or_(VideoBatch.status == None, ~VideoBatch.status.in_(["deleted","cancelled","canceled"])))
+        return q.order_by(VideoBatch.id.desc()).first()
     except Exception as e:
-        try:
-            print("latest cancel batch lookup warning:", e)
-        except Exception:
-            pass
-    return None
+        try: print("BSM latest batch warning:", e)
+        except Exception: pass
+        return None
 
 
 
-@creator_bp.route("/batch/<int:batch_id>/delete-incomplete", methods=["POST"])
-@creator_bp.route("/creator/batch/<int:batch_id>/delete-incomplete", methods=["POST"])
-def delete_incomplete_batch_v388(batch_id):
-    """
-    Manual cleanup for ghost/incomplete batches left after Cancel Upload.
-    Uses the same R2 cleanup helper as Delete Batch when available.
-    """
+@creator_bp.route("/creator/batch/delete-latest-incomplete", methods=["POST"])
+@creator_bp.route("/batch/delete-latest-incomplete", methods=["POST"])
+def bsm_delete_latest_incomplete_batch_v388():
     creator = current_creator()
     if not creator:
-        try:
-            flash("Please log in again.", "error")
-        except Exception:
-            pass
-        return redirect("/login")
-
+        return jsonify({"ok": False, "error": "Please log in again."}), 401
     try:
-        from app.models import VideoBatch, Video
-        batch = VideoBatch.query.get_or_404(batch_id)
-
-        # Run R2 cleanup if helper exists from R2 delete fix.
-        deleted = 0
-        try:
-            deleted = _delete_batch_r2_objects(batch)
-        except Exception as e:
-            try:
-                print("manual incomplete batch R2 cleanup warning:", e)
-            except Exception:
-                pass
-
-        # Mark/delete videos
-        for v in Video.query.filter_by(batch_id=batch_id).all():
-            if hasattr(v, "status"):
-                v.status = "deleted"
-                db.session.add(v)
-            else:
-                db.session.delete(v)
-
-        # Mark/delete batch
-        if hasattr(batch, "status"):
-            batch.status = "deleted"
-            db.session.add(batch)
-        else:
-            db.session.delete(batch)
-
-        db.session.commit()
-
-        try:
-            flash(f"Incomplete batch deleted. R2 objects removed: {deleted}", "success")
-        except Exception:
-            pass
-
+        batch = _bsm_latest_active_batch_for_creator_v388(creator)
+        if not batch:
+            return jsonify({"ok": False, "error": "No active batch found"}), 404
+        deleted = _bsm_delete_batch_r2_and_db_v388(batch)
+        return jsonify({"ok": True, "batch_id": batch.id, "deleted_objects": deleted})
     except Exception as e:
-        db.session.rollback()
-        try:
-            flash(f"Could not delete incomplete batch: {e}", "error")
-        except Exception:
-            pass
-
-    return redirect("/creator/batches")
-
-
-@creator_bp.route("/cancel-upload-run-delete-batch", methods=["POST"])
-def cancel_upload_run_delete_batch_v388():
-    """
-    Cancel Upload uses the same cleanup logic as Delete Batch.
-    This removes the ghost batch and R2 files when the user confirms cancellation.
-    """
-    batch_id = _latest_creator_batch_id_for_cancel()
-    if not batch_id:
-        return jsonify({"ok": False, "error": "No active batch found"}), 400
-
-    # Prefer the existing R2 delete endpoint from the R2 delete fix.
-    try:
-        if "r2_clean_batch_v388_delete_only" in globals():
-            return r2_clean_batch_v388_delete_only(batch_id)
-    except Exception as e:
-        try:
-            print("delegated delete batch cleanup warning:", e)
-        except Exception:
-            pass
-
-    # Fallback: direct cleanup with the same helper.
-    try:
-        from app.models import VideoBatch, Video
-        batch = VideoBatch.query.get_or_404(batch_id)
-        deleted = 0
-        try:
-            deleted = _delete_batch_r2_objects(batch)
-        except Exception as e:
-            try:
-                print("fallback R2 cleanup warning:", e)
-            except Exception:
-                pass
-
-        for v in Video.query.filter_by(batch_id=batch_id).all():
-            if hasattr(v, "status"):
-                v.status = "deleted"
-                db.session.add(v)
-            else:
-                db.session.delete(v)
-
-        if hasattr(batch, "status"):
-            batch.status = "deleted"
-            db.session.add(batch)
-        else:
-            db.session.delete(batch)
-
-        db.session.commit()
-        try:
-            session.pop("current_upload_batch_id", None)
-            session.pop("upload_batch_id", None)
-            session.pop("last_batch_id", None)
-        except Exception:
-            pass
-        return jsonify({"ok": True, "batch_id": batch_id, "deleted_objects": deleted})
-    except Exception as e:
-        db.session.rollback()
         return jsonify({"ok": False, "error": str(e)}), 500
+
+
+@creator_bp.route("/creator/batch/<int:batch_id>/delete-incomplete", methods=["POST"])
+@creator_bp.route("/batch/<int:batch_id>/delete-incomplete", methods=["POST"])
+def bsm_delete_specific_incomplete_batch_v388(batch_id):
+    creator = current_creator()
+    if not creator:
+        return jsonify({"ok": False, "error": "Please log in again."}), 401
+    try:
+        from app.models import VideoBatch
+        batch = VideoBatch.query.get_or_404(batch_id)
+        deleted = _bsm_delete_batch_r2_and_db_v388(batch)
+        return jsonify({"ok": True, "batch_id": batch.id, "deleted_objects": deleted})
+    except Exception as e:
+        return jsonify({"ok": False, "error": str(e)}), 500
+
 
 @creator_bp.route("/r2-clean/batch/<int:batch_id>", methods=["POST"])
 def r2_clean_batch_v388_delete_only(batch_id):
