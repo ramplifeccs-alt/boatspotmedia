@@ -85,6 +85,7 @@ def _bucket_name():
         or "boatspotmedia-videos"
     )
 
+
 def _client():
     import os, boto3
     return boto3.client(
@@ -94,6 +95,7 @@ def _client():
         aws_secret_access_key=os.environ.get("R2_SECRET_ACCESS_KEY"),
         region_name="auto",
     )
+
 
 
 def delete_r2_object(key):

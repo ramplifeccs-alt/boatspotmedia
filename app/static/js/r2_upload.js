@@ -491,452 +491,60 @@ document.addEventListener("DOMContentLoaded", function(){
 
 
 
-// BoatSpotMedia v38.6 final upload completion + cancel cleanup
+
+
+
+// BoatSpotMedia v39.9 SINGLE Cancel Upload handler.
+// One popup only. If OK, use the same backend cleanup as Delete Batch.
 (function(){
-  if(window.__BSM_V386_FINALIZER__) return;
-  window.__BSM_V386_FINALIZER__ = true;
+  if(window.__BSM_V399_SINGLE_CANCEL__) return;
+  window.__BSM_V399_SINGLE_CANCEL__ = true;
 
-  function findProgressBox(){
-    return document.getElementById('bsm-upload-v385') || document.getElementById('bsm-upload-progress-box');
-  }
+  const STORE_KEY = "bsm_current_batch_id";
 
-  function finishUploadAndGoBatches(){
-    var box = findProgressBox();
-    if(box) box.style.display = 'none';
-    setTimeout(function(){
-      try{ if(window.BSM_CLEAR_UPLOAD_MANIFEST) window.BSM_CLEAR_UPLOAD_MANIFEST(); }catch(e){}
-      alert('Upload completed successfully. Your files were saved.');
-      window.location.href = '/creator/batches';
-    }, 250);
-  }
-
-  var nativeFetch = window.fetch;
-  window.fetch = function(){
-    var args = arguments;
-    return nativeFetch.apply(this, args).then(function(resp){
-      try{
-        var url = String(args[0] || '');
-        if((url.indexOf('/creator/upload/r2/complete') !== -1 || url.indexOf('/upload/r2/complete') !== -1) && resp && resp.ok){
-          setTimeout(finishUploadAndGoBatches, 500);
-        }
-      }catch(e){}
-      return resp;
-    });
-  };
-
-  document.addEventListener('click', async function(e){
-    var btn = e.target.closest('button, a, input');
-    if(!btn) return;
-    var text = (btn.textContent || btn.value || '').toLowerCase();
-    if(text.indexOf('cancel upload') === -1) return;
-    var bid = window.currentBatchId || window.BSM_CURRENT_BATCH_ID || window.current_batch_id || null;
-    if(bid){
-      try{ await fetch('/r2-clean/batch/' + bid, {method:'POST'}); }catch(err){}
-    }
-  }, true);
-})();
-
-
-
-// BoatSpotMedia v38.7 completion popup and redirect
-(function(){
-  if(window.__BSM_V387_COMPLETE__) return;
-  window.__BSM_V387_COMPLETE__ = true;
-  const oldFetch = window.fetch;
-  window.fetch = function(){
-    const args = arguments;
-    return oldFetch.apply(this, args).then(function(resp){
-      try{
-        const url = String(args[0] || "");
-        if((url.includes("/creator/upload/r2/complete") || url.includes("/upload/r2/complete")) && resp && resp.ok){
-          setTimeout(function(){
-            const box = document.getElementById("bsm-upload-v385") || document.getElementById("bsm-upload-progress-box");
-            if(box) box.style.display = "none";
-            try{ if(window.BSM_CLEAR_UPLOAD_MANIFEST) window.BSM_CLEAR_UPLOAD_MANIFEST(); }catch(e){}
-      alert("Upload completed successfully. Your files were saved.");
-            window.location.href = "/creator/batches";
-          }, 500);
-        }
-      }catch(e){}
-      return resp;
-    });
-  };
-})();
-
-
-
-// BoatSpotMedia v39.1 stronger cancel/delete R2 cleanup
-(function(){
-  if(window.__BSM_V391_R2_CLEAN__) return;
-  window.__BSM_V391_R2_CLEAN__ = true;
-
-  function getBatchId(){
-    return window.currentBatchId || window.BSM_CURRENT_BATCH_ID || window.current_batch_id ||
-           window.createdBatchId || window.batchId ||
-           (document.querySelector("[data-batch-id]") && document.querySelector("[data-batch-id]").getAttribute("data-batch-id"));
-  }
-
-  async function cleanBatch(){
-    const bid = getBatchId();
-    try{
-      if(bid){
-        return await fetch("/r2-clean/batch/" + bid, {method:"POST"});
-      }
-      return await fetch("/r2-clean/current-upload", {method:"POST"});
-    }catch(e){
-      console.warn("R2 cleanup request failed", e);
-    }
-  }
-
-  document.addEventListener("click", function(e){
-    const btn = e.target.closest("button,a,input");
-    if(!btn) return;
-    const text = (btn.textContent || btn.value || "").toLowerCase();
-    if(text.includes("cancel upload") || text.includes("delete batch")){
-      cleanBatch();
-    }
-  }, true);
-})();
-
-
-
-// BoatSpotMedia v39.3 strong R2 cleanup on cancel/delete
-(function(){
-  if(window.__BSM_V393_R2_CLEAN__) return;
-  window.__BSM_V393_R2_CLEAN__ = true;
-
-  function getBatchId(){
-    return window.currentBatchId || window.BSM_CURRENT_BATCH_ID || window.current_batch_id ||
-           window.createdBatchId || window.batchId ||
-           (document.querySelector("[data-batch-id]") && document.querySelector("[data-batch-id]").getAttribute("data-batch-id"));
-  }
-
-  async function cleanBatch(){
-    const bid = getBatchId();
-    try{
-      if(bid){
-        return await fetch("/r2-clean/batch/" + bid, {method:"POST"});
-      }
-      return await fetch("/r2-clean/current-upload", {method:"POST"});
-    }catch(e){
-      console.warn("R2 cleanup request failed", e);
-    }
-  }
-
-  document.addEventListener("click", function(e){
-    const btn = e.target.closest("button,a,input");
-    if(!btn) return;
-    const text = (btn.textContent || btn.value || "").toLowerCase();
-    if(text.includes("cancel upload") || text.includes("delete batch")){
-      cleanBatch();
-    }
-  }, true);
-})();
-
-
-
-// BoatSpotMedia v39.4 strong R2 cleanup on cancel/delete
-(function(){
-  if(window.__BSM_V394_R2_CLEAN__) return;
-  window.__BSM_V394_R2_CLEAN__ = true;
-
-  function getBatchId(){
-    return window.currentBatchId || window.BSM_CURRENT_BATCH_ID || window.current_batch_id ||
-           window.createdBatchId || window.batchId ||
-           (document.querySelector("[data-batch-id]") && document.querySelector("[data-batch-id]").getAttribute("data-batch-id"));
-  }
-
-  async function cleanBatch(){
-    const bid = getBatchId();
-    try{
-      if(bid){
-        return await fetch("/r2-clean/batch/" + bid, {method:"POST"});
-      }
-      return await fetch("/r2-clean/current-upload", {method:"POST"});
-    }catch(e){
-      console.warn("R2 cleanup request failed", e);
-    }
-  }
-
-  document.addEventListener("click", function(e){
-    const btn = e.target.closest("button,a,input");
-    if(!btn) return;
-    const text = (btn.textContent || btn.value || "").toLowerCase();
-    if(text.includes("cancel upload") || text.includes("delete batch")){
-      cleanBatch();
-    }
-  }, true);
-})();
-
-
-
-// BoatSpotMedia v39.5 Cancel Upload definitive R2 cleanup.
-// Captures batch_id from any upload response, then Cancel Upload cleans the exact batch.
-(function(){
-  if(window.__BSM_V395_CANCEL_FIX__) return;
-  window.__BSM_V395_CANCEL_FIX__ = true;
-
-  function rememberBatchIdFromData(data){
+  function rememberBatchId(data){
     try{
       if(!data || typeof data !== "object") return;
-      const possible =
-        data.batch_id || data.batchId || data.id ||
+      const id = data.batch_id || data.batchId || data.id ||
         (data.batch && (data.batch.id || data.batch.batch_id)) ||
         (data.data && (data.data.batch_id || data.data.batchId || data.data.id));
-      if(possible){
-        window.currentBatchId = possible;
-        window.BSM_CURRENT_BATCH_ID = possible;
-        window.current_batch_id = possible;
-        try { sessionStorage.setItem("bsm_current_batch_id", String(possible)); } catch(e){}
-        console.log("BoatSpotMedia remembered batch id:", possible);
+      if(id){
+        window.currentBatchId = id;
+        window.BSM_CURRENT_BATCH_ID = id;
+        window.current_batch_id = id;
+        sessionStorage.setItem(STORE_KEY, String(id));
       }
     }catch(e){}
   }
 
-  function getBatchId(){
-    return window.currentBatchId || window.BSM_CURRENT_BATCH_ID || window.current_batch_id ||
-           window.createdBatchId || window.batchId ||
-           (function(){ try { return sessionStorage.getItem("bsm_current_batch_id"); } catch(e){ return null; } })() ||
-           (document.querySelector("[data-batch-id]") && document.querySelector("[data-batch-id]").getAttribute("data-batch-id"));
-  }
-
-  // Capture batch_id from fetch JSON responses without breaking the original response.
   const nativeFetch = window.fetch;
   window.fetch = function(){
     const args = arguments;
     return nativeFetch.apply(this, args).then(function(resp){
       try{
         const url = String(args[0] || "");
-        if(
-          url.includes("batch") ||
-          url.includes("upload") ||
-          url.includes("/r2/") ||
-          url.includes("/creator/")
-        ){
-          resp.clone().json().then(rememberBatchIdFromData).catch(function(){});
+        if(/upload|batch|r2|creator|complete|sign|multipart/i.test(url)){
+          resp.clone().json().then(rememberBatchId).catch(function(){});
         }
       }catch(e){}
       return resp;
     });
-  };
-
-  async function cleanCurrentUpload(){
-    const bid = getBatchId();
-    try{
-      if(bid){
-        const r = await nativeFetch("/r2-clean/batch/" + bid, {method:"POST"});
-        try { console.log("BoatSpotMedia cancel cleanup result:", await r.clone().json()); } catch(e){}
-        return r;
-      }
-      const r = await nativeFetch("/r2-clean/current-upload", {method:"POST"});
-      try { console.log("BoatSpotMedia fallback cancel cleanup result:", await r.clone().json()); } catch(e){}
-      return r;
-    }catch(e){
-      console.warn("BoatSpotMedia cancel cleanup failed", e);
-    }
-  }
-
-  // High-priority cancel handler: cleans before reload/navigation.
-  document.addEventListener("click", function(e){
-    const btn = e.target.closest("button,a,input");
-    if(!btn) return;
-    const text = (btn.textContent || btn.value || "").toLowerCase();
-    if(!text.includes("cancel upload")) return;
-
-    e.preventDefault();
-    e.stopPropagation();
-
-    (async function(){
-      await cleanCurrentUpload();
-      alert("Upload cancelled. Uploaded files and batch records were removed.");
-      window.location.href = "/creator/batches";
-    })();
-
-    return false;
-  }, true);
-})();
-
-
-
-// BoatSpotMedia v39.7 Cancel Upload Manifest R2 Fix
-// Captures exact R2 keys/prefixes during direct upload and deletes them on Cancel Upload.
-(function(){
-  if(window.__BSM_V397_CANCEL_MANIFEST__) return;
-  window.__BSM_V397_CANCEL_MANIFEST__ = true;
-
-  const STORE_KEY = "bsm_upload_manifest_v397";
-
-  function loadManifest(){
-    try{
-      return JSON.parse(sessionStorage.getItem(STORE_KEY) || '{"keys":[],"prefixes":[],"batch_id":null}');
-    }catch(e){
-      return {keys:[], prefixes:[], batch_id:null};
-    }
-  }
-
-  function saveManifest(m){
-    try{
-      m.keys = Array.from(new Set((m.keys || []).filter(Boolean)));
-      m.prefixes = Array.from(new Set((m.prefixes || []).filter(Boolean)));
-      sessionStorage.setItem(STORE_KEY, JSON.stringify(m));
-    }catch(e){}
-  }
-
-  function rememberKey(key){
-    if(!key || typeof key !== "string") return;
-    if(key.startsWith("http")) return;
-    if(!key.includes("/")) return;
-    const m = loadManifest();
-    m.keys.push(key);
-    saveManifest(m);
-  }
-
-  function rememberPrefix(prefix){
-    if(!prefix || typeof prefix !== "string") return;
-    const m = loadManifest();
-    m.prefixes.push(prefix);
-    saveManifest(m);
-  }
-
-  function rememberBatchId(id){
-    if(!id) return;
-    const m = loadManifest();
-    m.batch_id = id;
-    saveManifest(m);
-    window.currentBatchId = id;
-    window.BSM_CURRENT_BATCH_ID = id;
-    window.current_batch_id = id;
-    try{ sessionStorage.setItem("bsm_current_batch_id", String(id)); }catch(e){}
-  }
-
-  function scanData(data){
-    try{
-      if(!data || typeof data !== "object") return;
-
-      const possibleBatch =
-        data.batch_id || data.batchId || data.id ||
-        (data.batch && (data.batch.id || data.batch.batch_id)) ||
-        (data.data && (data.data.batch_id || data.data.batchId || data.data.id));
-
-      if(possibleBatch) rememberBatchId(possibleBatch);
-
-      const keyNames = [
-        "key","Key","object_key","objectKey","r2_key","r2Key","r2_video_key","r2VideoKey",
-        "video_key","videoKey","thumbnail_key","thumbnailKey","thumb_key","thumbKey",
-        "file_path","filePath","path","storage_key","storageKey","upload_key","uploadKey"
-      ];
-
-      function walk(obj){
-        if(!obj) return;
-        if(Array.isArray(obj)){
-          obj.forEach(walk);
-          return;
-        }
-        if(typeof obj === "object"){
-          for(const [k,v] of Object.entries(obj)){
-            if(typeof v === "string"){
-              if(keyNames.includes(k) || /key|path/i.test(k)){
-                rememberKey(v);
-              }
-              if(/prefix/i.test(k)){
-                rememberPrefix(v);
-              }
-            }else if(v && typeof v === "object"){
-              walk(v);
-            }
-          }
-        }
-      }
-      walk(data);
-
-      const m = loadManifest();
-      if(m.batch_id){
-        const creatorId = data.creator_id || data.creatorId || window.creatorId || window.CREATOR_ID;
-        m.prefixes.push("batches/" + m.batch_id + "/");
-        m.prefixes.push("batch/" + m.batch_id + "/");
-        if(creatorId){
-          m.prefixes.push("creators/" + creatorId + "/batches/" + m.batch_id + "/");
-          m.prefixes.push("uploads/" + creatorId + "/" + m.batch_id + "/");
-          m.prefixes.push("videos/" + creatorId + "/" + m.batch_id + "/");
-          m.prefixes.push("thumbs/" + creatorId + "/" + m.batch_id + "/");
-          m.prefixes.push("previews/" + creatorId + "/" + m.batch_id + "/");
-        }
-        saveManifest(m);
-      }
-    }catch(e){}
-  }
-
-  // Capture all JSON responses from upload/init/sign/complete endpoints.
-  const nativeFetch = window.fetch;
-  window.fetch = function(){
-    const args = arguments;
-    return nativeFetch.apply(this, args).then(function(resp){
-      try{
-        const url = String(args[0] || "");
-        if(/upload|batch|r2|multipart|sign|complete|creator/i.test(url)){
-          resp.clone().json().then(scanData).catch(function(){});
-        }
-      }catch(e){}
-      return resp;
-    });
-  };
-
-  // Capture XHR JSON responses too, in case uploader uses XMLHttpRequest.
-  const NativeXHR = window.XMLHttpRequest;
-  window.XMLHttpRequest = function(){
-    const xhr = new NativeXHR();
-    xhr.addEventListener("loadend", function(){
-      try{
-        const txt = xhr.responseText;
-        if(txt && txt.trim().startsWith("{")){
-          scanData(JSON.parse(txt));
-        }
-      }catch(e){}
-    });
-    return xhr;
   };
 
   function getBatchId(){
-    const m = loadManifest();
-    return m.batch_id || window.currentBatchId || window.BSM_CURRENT_BATCH_ID || window.current_batch_id ||
-      (function(){ try{return sessionStorage.getItem("bsm_current_batch_id");}catch(e){return null;} })() ||
+    return window.currentBatchId || window.BSM_CURRENT_BATCH_ID || window.current_batch_id ||
+      (function(){ try{return sessionStorage.getItem(STORE_KEY);}catch(e){return null;} })() ||
       (document.querySelector("[data-batch-id]") && document.querySelector("[data-batch-id]").getAttribute("data-batch-id"));
   }
 
-  async function cancelCleanup(){
-    const m = loadManifest();
+  async function cleanup(){
     const bid = getBatchId();
-    if(bid) m.batch_id = bid;
-
-    try{
-      // First delete exact captured keys/prefixes.
-      await nativeFetch("/r2-clean/cancel-manifest", {
-        method:"POST",
-        headers: {"Content-Type":"application/json"},
-        body: JSON.stringify(m)
-      });
-    }catch(e){
-      console.warn("cancel manifest cleanup failed", e);
+    if(bid){
+      return nativeFetch("/r2-clean/batch/" + bid, {method:"POST"});
     }
-
-    try{
-      // Then delete by batch fallback, if known.
-      if(bid){
-        await nativeFetch("/r2-clean/batch/" + bid, {method:"POST"});
-      }else{
-        await nativeFetch("/r2-clean/current-upload", {method:"POST"});
-      }
-    }catch(e){
-      console.warn("cancel batch cleanup failed", e);
-    }
-
-    try{
-      sessionStorage.removeItem(STORE_KEY);
-      sessionStorage.removeItem("bsm_current_batch_id");
-    }catch(e){}
+    return nativeFetch("/cancel-upload-delete-current", {method:"POST"});
   }
 
-  // Highest priority cancel handler.
   document.addEventListener("click", function(e){
     const btn = e.target.closest("button,a,input");
     if(!btn) return;
@@ -944,88 +552,29 @@ document.addEventListener("DOMContentLoaded", function(){
     if(!text.includes("cancel upload")) return;
 
     e.preventDefault();
-    e.stopPropagation();
+    e.stopImmediatePropagation();
+
+    const ok = window.confirm("Are you sure you want to cancel this batch?");
+    if(!ok){
+      return false;
+    }
+
+    // Stop any uploader loops if they check these flags.
+    window.__BSM_UPLOAD_CANCELLED__ = true;
+    window.cancelUpload = true;
+    window.uploadCancelled = true;
 
     (async function(){
-      await cancelCleanup();
-      alert("Upload cancelled. Uploaded files were removed from storage.");
+      try{
+        const resp = await cleanup();
+        try{ console.log("Cancel Upload cleanup:", await resp.clone().json()); }catch(err){}
+      }catch(err){
+        console.warn("Cancel Upload cleanup failed:", err);
+      }
+      try{ sessionStorage.removeItem(STORE_KEY); }catch(e){}
       window.location.href = "/creator/batches";
     })();
 
     return false;
   }, true);
-
-  // Clear manifest after a successful complete redirect flow.
-  window.BSM_CLEAR_UPLOAD_MANIFEST = function(){
-    try{
-      sessionStorage.removeItem(STORE_KEY);
-      sessionStorage.removeItem("bsm_current_batch_id");
-    }catch(e){}
-  };
-})();
-
-
-
-// BoatSpotMedia v39.8 Cancel Upload = Confirm + Delete Batch cleanup flow
-(function(){
-  if(window.__BSM_V398_CANCEL_DELETE_FLOW__) return;
-  window.__BSM_V398_CANCEL_DELETE_FLOW__ = true;
-
-  let cancelRequested = false;
-
-  function getBatchId(){
-    return window.currentBatchId || window.BSM_CURRENT_BATCH_ID || window.current_batch_id ||
-           window.createdBatchId || window.batchId ||
-           (function(){ try{return sessionStorage.getItem("bsm_current_batch_id");}catch(e){return null;} })() ||
-           (function(){ try{const m=JSON.parse(sessionStorage.getItem("bsm_upload_manifest_v397")||"{}"); return m.batch_id;}catch(e){return null;} })() ||
-           (document.querySelector("[data-batch-id]") && document.querySelector("[data-batch-id]").getAttribute("data-batch-id"));
-  }
-
-  function abortActiveRequests(){
-    cancelRequested = true;
-    try{ window.__BSM_UPLOAD_CANCELLED__ = true; }catch(e){}
-    // Best effort: older upload scripts often check these globals.
-    try{ window.cancelUpload = true; }catch(e){}
-    try{ window.uploadCancelled = true; }catch(e){}
-  }
-
-  async function runDeleteBatchCleanup(){
-    const bid = getBatchId();
-    if(bid){
-      return fetch("/r2-clean/batch/" + bid, {method:"POST"});
-    }
-    return fetch("/cancel-upload-delete-current", {method:"POST"});
-  }
-
-  async function handleCancelUpload(e){
-    const btn = e.target.closest("button,a,input");
-    if(!btn) return;
-    const text = (btn.textContent || btn.value || "").toLowerCase();
-    if(!text.includes("cancel upload")) return;
-
-    e.preventDefault();
-    e.stopPropagation();
-
-    const ok = confirm("Are you sure you want to cancel this batch?");
-    if(!ok){
-      // User chose Cancel/No: keep upload running.
-      return false;
-    }
-
-    abortActiveRequests();
-
-    try{
-      const resp = await runDeleteBatchCleanup();
-      try{ console.log("Cancel Upload delete-batch cleanup:", await resp.clone().json()); }catch(err){}
-    }catch(err){
-      console.warn("Cancel Upload cleanup failed:", err);
-    }
-
-    alert("Batch cancelled and removed.");
-    window.location.href = "/creator/batches";
-    return false;
-  }
-
-  // Capture phase: runs before old cancel handlers, so we can stop them if user says No.
-  document.addEventListener("click", handleCancelUpload, true);
 })();

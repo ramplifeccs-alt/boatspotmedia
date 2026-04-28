@@ -1,9 +1,10 @@
-BoatSpotMedia v39.8 Cancel Uses Delete Batch Flow
-Base used: boatspotmedia_v39_7_cancel_manifest_r2_fix.zip
-- Does not touch thumbnails.
-- Does not touch search.
-- Does not touch New York time/date.
-- Cancel Upload now shows confirmation popup.
-- If user chooses Cancel/No, upload continues.
-- If user chooses OK/Yes, it calls the same R2 cleanup endpoint used by Delete Batch: /r2-clean/batch/<batch_id>.
-- If batch_id is not visible in JS, it calls /cancel-upload-delete-current, which finds current batch and runs delete cleanup.
+BoatSpotMedia v39.9 Single Cancel Handler + Logo Fix
+Base used: boatspotmedia_v39_4_full_r2_cleanup_real_fix.zip
+- Keeps Delete Batch cleanup logic that works.
+- Removes old stacked JS cancel handlers to stop multiple popups.
+- Adds ONE Cancel Upload confirmation popup.
+- If user clicks No/Cancel, upload continues.
+- If user clicks OK, calls /r2-clean/batch/<id> or /cancel-upload-delete-current.
+- Backend finds latest active/ghost batch for creator if JS has no batch id.
+- New logo-header.png installed from latest image.
+- Does not touch thumbnails, search, or New York time/date.
