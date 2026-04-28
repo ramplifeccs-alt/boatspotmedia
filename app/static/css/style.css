@@ -333,12 +333,21 @@ form{
 .home-previews{padding:28px 0}
 .video-card img{aspect-ratio:16/9;object-fit:cover}
 
-
-/* BoatSpotMedia logo/header patch v38.8 */
-:root{--bsm-header-navy:#071a3a;}
-header,.header,.topbar,.navbar,.site-header,.nav,nav{
-  background:#071a3a !important;
-}
-.brand-logo-link{display:flex;align-items:center;text-decoration:none;}
-.brand-logo-img{height:42px;max-width:290px;object-fit:contain;display:block;}
-@media(max-width:700px){.brand-logo-img{height:32px;max-width:220px;}}
+/* BoatSpotMedia v38.9 global logo + search UI */
+:root{--bsm-navy:#071a3a;--bsm-blue:#1677ff;--bsm-text:#071a3a;}
+header,.header,.topbar,.navbar,.site-header,nav,.nav-bar,.main-header{background:var(--bsm-navy)!important;}
+.bsm-global-logo-link{display:flex!important;align-items:center!important;text-decoration:none!important;min-width:0;}
+.bsm-global-logo-img{height:42px!important;max-width:310px!important;width:auto!important;object-fit:contain!important;display:block!important;}
+@media(max-width:700px){.bsm-global-logo-img{height:34px!important;max-width:230px!important;}}
+.bsm-search-shell{max-width:1060px;margin:0 auto;padding:42px 22px 28px;background:#fff;}
+.bsm-search-title{color:var(--bsm-text);font-size:clamp(34px,5vw,56px);font-weight:800;letter-spacing:-1px;margin:10px 0 8px;line-height:1.05;}
+.bsm-search-subtitle{color:#6b7280;font-size:clamp(18px,2.5vw,28px);margin:0 0 28px;}
+.bsm-form-label{display:block;color:#111827;font-size:20px;font-weight:800;margin:22px 0 8px;}
+.bsm-input-wrap{display:flex;align-items:center;gap:14px;border:1.5px solid #d1d5db;background:#fff;border-radius:12px;min-height:58px;padding:0 16px;box-shadow:0 1px 2px rgba(0,0,0,.03);}
+.bsm-input-icon{color:var(--bsm-blue);font-size:26px;width:30px;text-align:center;flex:0 0 30px;}
+.bsm-input-wrap select,.bsm-input-wrap input{border:0!important;outline:0!important;background:transparent!important;width:100%!important;height:56px!important;font-size:21px!important;color:#111827!important;padding:0!important;box-shadow:none!important;}
+.bsm-time-row{display:grid;grid-template-columns:1fr 1fr;gap:28px;}
+.bsm-search-button{width:100%;min-height:64px;border:0;border-radius:12px;margin-top:28px;background:linear-gradient(90deg,#1f7aff,#1677ff);color:#fff;font-size:25px;font-weight:800;letter-spacing:1px;text-transform:uppercase;cursor:pointer;}
+.bsm-search-trust{display:flex;justify-content:center;align-items:center;gap:16px;color:#111827;font-size:20px;margin:18px 0 0;}
+.bsm-search-trust span{color:#6b7280;}
+@media(max-width:760px){.bsm-time-row{grid-template-columns:1fr;gap:0}.bsm-search-shell{padding:26px 16px;}}
