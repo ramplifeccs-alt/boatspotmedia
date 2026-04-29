@@ -860,7 +860,7 @@ def _creator_dashboard_overview_stats(creator):
                     if val:
                         stats["preview_views"] += int(val)
                         break
-                for attr in ("preview_clicks", "clicks", "click_count"):
+                for attr in ("clicks", "click_count", "preview_clicks"):
                     val = getattr(v, attr, None)
                     if val:
                         stats["clicks"] += int(val)
@@ -876,7 +876,61 @@ def _creator_dashboard_overview_stats(creator):
         except Exception:
             pass
 
+    raw_perf = _creator_raw_video_performance_stats(creator)
+    stats["preview_views"] = raw_perf.get("preview_views", stats.get("preview_views", 0))
+    stats["clicks"] = raw_perf.get("clicks", stats.get("clicks", 0))
+    if stats.get("clicks", 0) and stats.get("videos_sold_total", 0):
+        stats["conversion_rate"] = round((stats["videos_sold_total"] / stats["clicks"]) * 100, 2)
     return stats
+
+
+
+def _creator_raw_video_performance_stats(creator):
+    result = {"preview_views": 0, "clicks": 0}
+    try:
+        # Create columns if they do not exist; no Video model dependency.
+        db.session.execute(db.text("ALTER TABLE video ADD COLUMN IF NOT EXISTS preview_views INTEGER DEFAULT 0"))
+        db.session.execute(db.text("ALTER TABLE video ADD COLUMN IF NOT EXISTS preview_clicks INTEGER DEFAULT 0"))
+        db.session.commit()
+
+        where = []
+        params = {"cid": creator.id}
+        # Try creator_id first; if column does not exist, fallback inside except.
+        try:
+            row = db.session.execute(db.text("""
+                SELECT COALESCE(SUM(preview_views),0) AS views,
+                       COALESCE(SUM(preview_clicks),0) AS clicks
+                FROM video
+                WHERE creator_id = :cid
+                  AND COALESCE(status, '') <> 'deleted'
+            """), params).mappings().first()
+            if row:
+                result["preview_views"] = int(row["views"] or 0)
+                result["clicks"] = int(row["clicks"] or 0)
+                return result
+        except Exception:
+            db.session.rollback()
+
+        try:
+            row = db.session.execute(db.text("""
+                SELECT COALESCE(SUM(preview_views),0) AS views,
+                       COALESCE(SUM(preview_clicks),0) AS clicks
+                FROM video
+                WHERE creator_profile_id = :cid
+                  AND COALESCE(status, '') <> 'deleted'
+            """), params).mappings().first()
+            if row:
+                result["preview_views"] = int(row["views"] or 0)
+                result["clicks"] = int(row["clicks"] or 0)
+        except Exception:
+            db.session.rollback()
+
+    except Exception:
+        try:
+            db.session.rollback()
+        except Exception:
+            pass
+    return result
 
 
 @creator_bp.route("/creator/batch/delete-latest-incomplete", methods=["POST"])

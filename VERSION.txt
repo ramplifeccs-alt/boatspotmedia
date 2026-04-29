@@ -1,18 +1,15 @@
-BoatSpotMedia v40.1 Video Performance Tracker
+BoatSpotMedia v40.3 Safe Tracking No Upload Break
 Base: boatspotmedia_v40_0_CREATOR_DASHBOARD_OVERVIEW.zip
-Adds:
-- Video performance counters: preview_views and preview_clicks.
-- Preview page increments preview_views.
-- Buy buttons increment preview_clicks.
-- Creator Dashboard Total Clicks now reads preview_clicks first.
-Notes:
-- Tracking starts from this version forward.
-- Checkout opens will be added later after confirming checkout route safely.
+Fix:
+- Removes preview_views / preview_clicks from SQLAlchemy Video model so uploads do not fail.
+- Tracking columns are created with raw SQL only when needed.
+- Upload INSERT no longer includes preview_views/preview_clicks.
+- Preview views and buy clicks still track via raw SQL.
+- Creator Dashboard reads performance stats with raw SQL.
+- Keeps previous dashboard/pricing/upload behavior from v40.0 base.
 Not touched:
-- upload
-- pricing
-- buyer pricing labels
-- search
 - R2 cleanup
 - thumbnails
 - New York time/date
+- pricing logic
+- buyer price labels

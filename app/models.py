@@ -89,8 +89,6 @@ class Batch(db.Model):
     creator = db.relationship("CreatorProfile")
 
 class Video(db.Model):
-    preview_views = db.Column(db.Integer, default=0)
-    preview_clicks = db.Column(db.Integer, default=0)
     price = db.Column(db.Numeric(10, 2), nullable=False, default=0)
     file_path = db.Column(db.String(500), nullable=False, default='')
     thumbnail_path = db.Column(db.String(500), nullable=True)

@@ -67,8 +67,8 @@
 
 <script>
 (function(){
-  if(window.__BSM_VIDEO_CLICK_TRACKER__) return;
-  window.__BSM_VIDEO_CLICK_TRACKER__ = true;
+  if(window.__BSM_VIDEO_CLICK_TRACKER_SAFE__) return;
+  window.__BSM_VIDEO_CLICK_TRACKER_SAFE__ = true;
   document.addEventListener("click", function(e){
     var link = e.target.closest(".bsm-buy-track");
     if(!link) return;
