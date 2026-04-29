@@ -83,3 +83,9 @@ try:
     app.register_blueprint(payments_bp)
 except Exception as e:
     print("payments blueprint registration warning:", e)
+
+try:
+    from app.routes.cart import cart_bp
+    app.register_blueprint(cart_bp)
+except Exception as e:
+    print("cart blueprint registration warning:", e)

@@ -1,24 +1,15 @@
-BoatSpotMedia v40.5 Stripe SendGrid Delivery
-Base: boatspotmedia_v40_4_ASYNC_DELETE_BATCH_R2.zip
+BoatSpotMedia v40.6 Universal Cart + Same Boat Discount Review
+Base: boatspotmedia_v40_5_STRIPE_SENDGRID_DELIVERY.zip
 Adds:
-- Stripe Checkout route: /checkout/video/<video_id>
-- Payment success verification: /payment/success
-- Secure temporary download links: /download/<token>
-- SendGrid delivery email after successful payment
-- Best-effort sale record table bsm_sale for dashboard analytics
-Required environment variables:
-- STRIPE_SECRET_KEY
-- STRIPE_PUBLISHABLE_KEY
-- SENDGRID_API_KEY
-- SENDGRID_FROM_EMAIL
-Optional:
-- SENDGRID_FROM_NAME
-- STRIPE_CURRENCY
-- PLATFORM_COMMISSION_PERCENT
-Not touched:
-- upload
-- batch delete
-- pricing setup
-- thumbnails
-- search
-- New York time/date
+- Universal session cart.
+- Add video to cart from preview instead of direct buy.
+- Cart page with remove, clear, checkout.
+- Multi-creator and future store-ready item structure.
+- Same-boat discount eligibility grouped by creator_id + boat_key.
+- Discount is pending creator review, not automatic.
+Rule:
+- Discount applies only to 2+ videos from same creator and same boat.
+- Products and videos from other creators do not count.
+Next:
+- Persist paid cart orders/order_items after Stripe payment.
+- Populate creator discount review with paid order groups and thumbnails.

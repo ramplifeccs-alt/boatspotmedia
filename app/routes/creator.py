@@ -1051,6 +1051,11 @@ def _soft_delete_batch_db_only(batch_id):
         return False
 
 
+
+@creator_bp.route("/creator/discount-review")
+def creator_discount_review():
+    return render_template("creator/discount_review.html", review_groups=[])
+
 @creator_bp.route("/creator/batch/delete-latest-incomplete", methods=["POST"])
 @creator_bp.route("/batch/delete-latest-incomplete", methods=["POST"])
 def bsm_delete_latest_incomplete_batch_v388():

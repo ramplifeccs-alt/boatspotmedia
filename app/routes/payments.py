@@ -198,3 +198,39 @@ def stripe_webhook():
         print("STRIPE PAYMENT FAILED:", obj.get("id"))
 
     return jsonify({"received": True})
+
+
+@payments_bp.route("/cart/checkout")
+def checkout_cart():
+    from app.services.cart import cart_summary, build_cart_display_items
+    summary = cart_summary()
+    items = build_cart_display_items()
+    if not items:
+        return redirect("/cart")
+    stripe.api_key = os.environ.get("STRIPE_SECRET_KEY")
+    if not stripe.api_key:
+        return "Stripe is not configured.", 500
+    line_items = []
+    for item in items:
+        amount = float(item.get("unit_price") or 0)
+        if amount <= 0:
+            continue
+        line_items.append({
+            "price_data": {
+                "currency": os.environ.get("STRIPE_CURRENCY", "usd"),
+                "product_data": {"name": item.get("title") or "BoatSpotMedia item", "description": f"{item.get('item_type')} - {item.get('package')}"},
+                "unit_amount": int(round(amount * 100)),
+            },
+            "quantity": int(item.get("quantity") or 1),
+        })
+    if not line_items:
+        return "Cart has no purchasable items.", 400
+    session = stripe.checkout.Session.create(
+        mode="payment",
+        payment_method_types=["card"],
+        line_items=line_items,
+        metadata={"cart_checkout":"1", "pending_discount_review": str(summary.get("pending_discount_review", False))},
+        success_url=request.host_url.rstrip() + "/payment/success?session_id={CHECKOUT_SESSION_ID}",
+        cancel_url=request.host_url.rstrip() + "/cart",
+    )
+    return redirect(session.url, code=303)

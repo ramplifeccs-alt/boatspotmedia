@@ -1,0 +1,103 @@
+
+from flask import session
+
+def _cart():
+    session.setdefault("bsm_cart", [])
+    return session["bsm_cart"]
+
+def _save_cart(cart):
+    session["bsm_cart"] = cart
+    session.modified = True
+
+def clear_cart():
+    _save_cart([])
+
+def _video_price(video, package="original", price_id=None):
+    try:
+        if price_id:
+            from app.models import VideoPricingPreset
+            p = VideoPricingPreset.query.get(int(price_id))
+            if p and getattr(p, "active", True):
+                return float(p.price or 0)
+    except Exception:
+        pass
+    try:
+        if package == "edited":
+            return float(getattr(video, "edited_price", 0) or 0)
+        if package == "bundle":
+            return float(getattr(video, "bundle_price", 0) or 0)
+        return float(getattr(video, "original_price", 0) or 0)
+    except Exception:
+        return 0.0
+
+def _boat_group_key(video):
+    for attr in ("boat_group_key","boat_key","boat_id","boat_registration","registration","registration_number"):
+        val = getattr(video, attr, None)
+        if val:
+            return str(val).strip().lower()
+    creator_id = getattr(video, "creator_id", None) or getattr(video, "creator_profile_id", None) or "unknown"
+    location = getattr(video, "location", None) or "unknown"
+    date_val = getattr(video, "filmed_date", None) or getattr(video, "video_date", None) or getattr(video, "date", None) or ""
+    time_val = getattr(video, "filmed_time", None) or getattr(video, "video_time", None) or getattr(video, "time", None) or ""
+    return f"{creator_id}|{location}|{date_val}|{time_val}"
+
+def add_video_to_cart(video, package="original", price_id=None, quantity=1):
+    creator_id = getattr(video, "creator_id", None) or getattr(video, "creator_profile_id", None)
+    item = {
+        "item_type": "video",
+        "video_id": getattr(video, "id", None),
+        "creator_id": creator_id,
+        "boat_key": _boat_group_key(video),
+        "package": package,
+        "price_id": price_id,
+        "quantity": int(quantity or 1),
+        "unit_price": float(_video_price(video, package, price_id) or 0),
+        "discount_status": "none",
+    }
+    cart = _cart()
+    cart.append(item)
+    _save_cart(cart)
+    return cart
+
+def remove_item(index):
+    cart = _cart()
+    try:
+        idx = int(index)
+        if 0 <= idx < len(cart):
+            cart.pop(idx)
+            _save_cart(cart)
+            return True
+    except Exception:
+        pass
+    return False
+
+def cart_groups_for_discount_review(cart=None):
+    cart = cart if cart is not None else _cart()
+    groups = {}
+    for idx, item in enumerate(cart):
+        if item.get("item_type") != "video":
+            continue
+        key = (str(item.get("creator_id")), str(item.get("boat_key")))
+        groups.setdefault(key, {"creator_id": item.get("creator_id"), "boat_key": item.get("boat_key"), "items": []})
+        groups[key]["items"].append((idx, item))
+    return [g for g in groups.values() if len(g["items"]) >= 2]
+
+def cart_summary():
+    cart = _cart()
+    subtotal = sum(float(i.get("unit_price") or 0) * int(i.get("quantity") or 1) for i in cart)
+    groups = cart_groups_for_discount_review(cart)
+    return {"items": cart, "subtotal": round(subtotal,2), "total": round(subtotal,2), "pending_discount_review": bool(groups), "review_groups": groups, "count": len(cart)}
+
+def build_cart_display_items():
+    from app.models import Video
+    out = []
+    for idx, item in enumerate(_cart()):
+        d = dict(item)
+        d["index"] = idx
+        if item.get("item_type") == "video":
+            v = Video.query.get(item.get("video_id"))
+            d["video"] = v
+            d["title"] = getattr(v, "filename", None) or getattr(v, "internal_filename", None) or f"Video #{item.get('video_id')}"
+            d["location"] = getattr(v, "location", "") if v else ""
+        out.append(d)
+    return out
