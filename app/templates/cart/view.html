@@ -1,12 +1,24 @@
-{% extends "base.html" %}
-{% block content %}
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Your Cart - BoatSpotMedia</title>
+  <link rel="stylesheet" href="/static/css/style.css">
+</head>
+<body>
 <div class="container" style="max-width:1000px;margin:30px auto;padding:20px;">
-  <h1>Your Cart</h1>
+  <div style="display:flex;justify-content:space-between;align-items:center;gap:12px;margin-bottom:18px;">
+    <h1 style="margin:0;">Your Cart</h1>
+    <a href="/" class="btn">Continue Shopping</a>
+  </div>
+
   {% if cart.pending_discount_review %}
     <div style="background:#fff7ed;border:1px solid #fdba74;color:#9a3412;padding:14px;border-radius:12px;margin:16px 0;">
       <strong>Discount review pending:</strong> Same-boat discounts must be approved by the creator. The discount only applies to 2+ videos from the same creator and the same boat.
     </div>
   {% endif %}
+
   {% if not items %}
     <div style="background:#f8fafc;border:1px solid #e2e8f0;padding:18px;border-radius:12px;">Your cart is empty.</div>
   {% else %}
@@ -34,12 +46,20 @@
         </div>
       {% endfor %}
     </div>
+
     <div style="margin-top:18px;background:#fff;border:1px solid #e5e7eb;border-radius:14px;padding:16px;">
-      <div style="display:flex;justify-content:space-between;font-size:20px;font-weight:800;"><span>Subtotal</span><span>${{ "%.2f"|format(cart.subtotal or 0) }}</span></div>
+      <div style="display:flex;justify-content:space-between;font-size:20px;font-weight:800;">
+        <span>Subtotal</span>
+        <span>${{ "%.2f"|format(cart.subtotal or 0) }}</span>
+      </div>
       <p style="color:#64748b;">Any same-boat discount is pending creator review and is not applied automatically.</p>
       <a class="btn" href="/cart/checkout" style="display:inline-block;margin-top:10px;">Checkout</a>
-      <form method="POST" action="/cart/clear" style="display:inline-block;margin-left:8px;"><button type="submit" style="background:#64748b;color:white;border:0;border-radius:8px;padding:10px 14px;">Clear cart</button></form>
+      <form method="POST" action="/cart/clear" style="display:inline-block;margin-left:8px;">
+        <button type="submit" style="background:#64748b;color:white;border:0;border-radius:8px;padding:10px 14px;">Clear cart</button>
+      </form>
     </div>
   {% endif %}
 </div>
-{% endblock %}
+<script src="/static/js/mobile.js"></script>
+</body>
+</html>

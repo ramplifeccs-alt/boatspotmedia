@@ -1,14 +1,21 @@
-{% extends "base.html" %}
-{% block content %}
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Payment Successful - BoatSpotMedia</title>
+  <link rel="stylesheet" href="/static/css/style.css">
+</head>
+<body>
 <div class="container" style="max-width:720px;margin:40px auto;padding:24px;background:#fff;border-radius:14px;">
   <h1>Payment successful</h1>
   <p>Your BoatSpotMedia video is ready.</p>
   {% if buyer_email %}
     <p>A download email was sent to: <strong>{{ buyer_email }}</strong></p>
   {% endif %}
-  <p>
-    <a class="btn" href="{{ download_url }}">Download video</a>
-  </p>
+  <p><a class="btn" href="{{ download_url }}">Download video</a></p>
   <p style="color:#64748b;font-size:14px;">This download link is temporary. Please save your file.</p>
 </div>
-{% endblock %}
+<script src="/static/js/mobile.js"></script>
+</body>
+</html>

@@ -1,8 +1,10 @@
-BoatSpotMedia v40.7 Cart Template Base Fix
-Base: v40.6 Universal Cart + Same Boat Discount Review.
+BoatSpotMedia v40.8 Standalone Cart Templates
+Base: v40.7 Cart Template Base Fix.
 Fix:
-- Cart page no longer extends missing public/base.html.
-- Discount review/payment success templates also use existing base.html.
+- Cart page no longer extends missing base.html.
+- Discount Review no longer extends missing base.html.
+- Payment Success no longer extends missing base.html.
+- These pages are standalone and load /static/css/style.css directly.
 Not touched:
 - cart logic
 - Stripe
