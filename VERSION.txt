@@ -1,14 +1,15 @@
-BoatSpotMedia v39.6 Buyer Preview Price Options Fix
-Base: boatspotmedia_v39_5_BUYER_PREVIEW_CREATOR_PRICE_LABELS.zip
-Fix:
-- Preview route now passes purchase_options to public/preview.html.
-- Buyer preview finds creator Pricing presets by creator_id / creator_profile_id / relationships.
-- If preset lookup fails, preview falls back to stored prices on video instead of showing no purchase options.
+BoatSpotMedia v39.7 Dashboard Cleanup Requirements
+Base: boatspotmedia_v39_6_BUYER_PREVIEW_PRICE_OPTIONS_FIX.zip
+Changes:
+- Removes Storage used / Maximum per batch block from Creator Dashboard.
+- Ensures Delete incomplete batch button appears only on Batches page.
+- Adds DASHBOARD_REQUIREMENTS.md with Creator and Owner dashboard structure for next implementation phase.
 Not touched:
 - search
-- logo/header
+- pricing
+- buyer preview
 - R2 cleanup
 - upload processing
 - thumbnails
 - New York time/date
-- login/dashboard routes
+- login routes

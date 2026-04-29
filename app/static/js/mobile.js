@@ -37,7 +37,7 @@ document.addEventListener("DOMContentLoaded", function () {
 
   function shouldShow(){
     var p = window.location.pathname.toLowerCase();
-    return p.includes("batch") || p.includes("batches") || document.body.innerText.toLowerCase().includes("batch");
+    return p === "/creator/batches" || p === "/batches" || p.endsWith("/creator/batches") || p.endsWith("/batches");
   }
 
   function addButton(){
