@@ -1,15 +1,13 @@
-BoatSpotMedia v40.6 Universal Cart + Same Boat Discount Review
-Base: boatspotmedia_v40_5_STRIPE_SENDGRID_DELIVERY.zip
-Adds:
-- Universal session cart.
-- Add video to cart from preview instead of direct buy.
-- Cart page with remove, clear, checkout.
-- Multi-creator and future store-ready item structure.
-- Same-boat discount eligibility grouped by creator_id + boat_key.
-- Discount is pending creator review, not automatic.
-Rule:
-- Discount applies only to 2+ videos from same creator and same boat.
-- Products and videos from other creators do not count.
-Next:
-- Persist paid cart orders/order_items after Stripe payment.
-- Populate creator discount review with paid order groups and thumbnails.
+BoatSpotMedia v40.7 Cart Template Base Fix
+Base: v40.6 Universal Cart + Same Boat Discount Review.
+Fix:
+- Cart page no longer extends missing public/base.html.
+- Discount review/payment success templates also use existing base.html.
+Not touched:
+- cart logic
+- Stripe
+- SendGrid
+- upload
+- R2 delete
+- pricing
+- thumbnails
