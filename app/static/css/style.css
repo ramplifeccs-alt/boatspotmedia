@@ -332,3 +332,65 @@ form{
 .placeholder-thumb{height:180px;border-radius:12px;background:#dfe6f3;display:flex;align-items:center;justify-content:center;font-weight:700;color:#344}
 .home-previews{padding:28px 0}
 .video-card img{aspect-ratio:16/9;object-fit:cover}
+
+
+/* BoatSpotMedia Creator Dashboard Overview v40.0 */
+.bsm-overview-grid{
+  display:grid;
+  grid-template-columns:repeat(4,minmax(0,1fr));
+  gap:14px;
+  margin:14px 0 18px;
+}
+.bsm-stat-card,.bsm-panel{
+  background:#fff;
+  border:1px solid #e5e7eb;
+  border-radius:14px;
+  padding:16px;
+  box-shadow:0 4px 14px rgba(0,0,0,.04);
+}
+.bsm-stat-label{
+  color:#6b7280;
+  font-size:13px;
+  font-weight:700;
+  text-transform:uppercase;
+  letter-spacing:.03em;
+}
+.bsm-stat-value{
+  margin-top:8px;
+  color:#0f172a;
+  font-size:26px;
+  font-weight:800;
+}
+.bsm-dashboard-panels{
+  display:grid;
+  grid-template-columns:repeat(3,minmax(0,1fr));
+  gap:14px;
+}
+.bsm-panel h3{margin:0 0 12px;color:#0f172a;}
+.bsm-breakdown-row{
+  display:flex;
+  justify-content:space-between;
+  gap:12px;
+  padding:8px 0;
+  border-bottom:1px solid #f1f5f9;
+}
+.bsm-breakdown-row:last-child{border-bottom:0;}
+.bsm-notification{
+  background:#ecfdf5;
+  color:#065f46;
+  border:1px solid #bbf7d0;
+  border-radius:10px;
+  padding:10px;
+}
+.bsm-notification.muted{
+  background:#f8fafc;
+  color:#64748b;
+  border-color:#e2e8f0;
+}
+@media(max-width:900px){
+  .bsm-overview-grid{grid-template-columns:repeat(2,minmax(0,1fr));}
+  .bsm-dashboard-panels{grid-template-columns:1fr;}
+}
+@media(max-width:520px){
+  .bsm-overview-grid{grid-template-columns:1fr;}
+}

@@ -707,6 +707,178 @@ def _apply_creator_pricing_to_existing_videos(creator):
     return _schedule_creator_pricing_update(creator)
 
 
+
+def _creator_dashboard_overview_stats(creator):
+    """
+    Safe creator dashboard overview stats.
+    Uses existing DB models if available. Defaults to zero when no sales exist.
+    """
+    stats = {
+        "earned_today": 0.0,
+        "earned_week": 0.0,
+        "earned_month": 0.0,
+        "earned_lifetime": 0.0,
+        "videos_sold_month": 0,
+        "videos_sold_total": 0,
+        "pending_payouts": 0.0,
+        "last_sale": None,
+        "platform_commission_rate": 0.0,
+        "gross_revenue": 0.0,
+        "platform_commission": 0.0,
+        "stripe_fees": 0.0,
+        "net_earnings": 0.0,
+        "preview_views": 0,
+        "clicks": 0,
+        "conversion_rate": 0.0,
+    }
+
+    try:
+        from datetime import datetime, timedelta
+        now = datetime.utcnow()
+        start_today = datetime(now.year, now.month, now.day)
+        start_week = start_today - timedelta(days=start_today.weekday())
+        start_month = datetime(now.year, now.month, 1)
+
+        # Try common sale/order model names.
+        SaleModel = None
+        for name in ("Sale", "Order", "Purchase", "VideoSale"):
+            try:
+                model = globals().get(name)
+                if model is None:
+                    import app.models as models
+                    model = getattr(models, name, None)
+                if model is not None:
+                    SaleModel = model
+                    break
+            except Exception:
+                pass
+
+        sales = []
+        if SaleModel is not None:
+            q = SaleModel.query
+
+            # Filter by creator if model has creator fields.
+            filters = []
+            for attr in ("creator_id", "creator_profile_id", "seller_id"):
+                if hasattr(SaleModel, attr):
+                    filters.append(getattr(SaleModel, attr) == creator.id)
+            if filters:
+                q = q.filter(db.or_(*filters))
+
+            # Only paid/completed if status exists.
+            if hasattr(SaleModel, "status"):
+                q = q.filter(db.or_(SaleModel.status == None, SaleModel.status.in_(["paid", "completed", "succeeded", "success"])))
+
+            sales = q.all()
+
+        def get_date(s):
+            for attr in ("created_at", "paid_at", "completed_at", "created"):
+                v = getattr(s, attr, None)
+                if v:
+                    return v
+            return None
+
+        def get_amount(s, names, default=0.0):
+            for attr in names:
+                try:
+                    v = getattr(s, attr, None)
+                    if v not in (None, "", 0, "0"):
+                        return float(v)
+                except Exception:
+                    pass
+            return default
+
+        for s in sales:
+            dt = get_date(s)
+            gross = get_amount(s, ("gross_amount", "amount", "total", "price", "total_amount"), 0.0)
+            commission = get_amount(s, ("platform_commission", "commission", "platform_fee"), 0.0)
+            stripe_fee = get_amount(s, ("stripe_fee", "processing_fee"), 0.0)
+            net = get_amount(s, ("net_amount", "creator_net", "net_payout", "seller_net"), gross - commission - stripe_fee)
+
+            stats["gross_revenue"] += gross
+            stats["platform_commission"] += commission
+            stats["stripe_fees"] += stripe_fee
+            stats["net_earnings"] += net
+            stats["earned_lifetime"] += net
+            stats["videos_sold_total"] += 1
+
+            if dt:
+                if dt >= start_month:
+                    stats["earned_month"] += net
+                    stats["videos_sold_month"] += 1
+                if dt >= start_week:
+                    stats["earned_week"] += net
+                if dt >= start_today:
+                    stats["earned_today"] += net
+
+        if sales:
+            try:
+                stats["last_sale"] = sorted(sales, key=lambda s: get_date(s) or datetime.min, reverse=True)[0]
+            except Exception:
+                stats["last_sale"] = sales[-1]
+
+        if stats["gross_revenue"] > 0 and stats["platform_commission"] > 0:
+            stats["platform_commission_rate"] = round((stats["platform_commission"] / stats["gross_revenue"]) * 100, 2)
+
+        # Pending payouts, best effort.
+        PayoutModel = None
+        for name in ("Payout", "CreatorPayout"):
+            try:
+                import app.models as models
+                PayoutModel = getattr(models, name, None)
+                if PayoutModel:
+                    break
+            except Exception:
+                pass
+        if PayoutModel is not None:
+            q = PayoutModel.query
+            filters = []
+            for attr in ("creator_id", "creator_profile_id"):
+                if hasattr(PayoutModel, attr):
+                    filters.append(getattr(PayoutModel, attr) == creator.id)
+            if filters:
+                q = q.filter(db.or_(*filters))
+            if hasattr(PayoutModel, "status"):
+                q = q.filter(PayoutModel.status.in_(["pending", "processing"]))
+            for p in q.all():
+                stats["pending_payouts"] += get_amount(p, ("amount", "total", "net_amount"), 0.0)
+
+        # Video performance best effort.
+        try:
+            from app.models import Video
+            qv = Video.query
+            filters = []
+            for attr in ("creator_id", "creator_profile_id"):
+                if hasattr(Video, attr):
+                    filters.append(getattr(Video, attr) == creator.id)
+            if filters:
+                qv = qv.filter(db.or_(*filters))
+            videos = qv.all()
+            for v in videos:
+                for attr in ("preview_views", "views", "view_count"):
+                    val = getattr(v, attr, None)
+                    if val:
+                        stats["preview_views"] += int(val)
+                        break
+                for attr in ("clicks", "click_count", "preview_clicks"):
+                    val = getattr(v, attr, None)
+                    if val:
+                        stats["clicks"] += int(val)
+                        break
+            if stats["clicks"] > 0 and stats["videos_sold_total"] > 0:
+                stats["conversion_rate"] = round((stats["videos_sold_total"] / stats["clicks"]) * 100, 2)
+        except Exception:
+            pass
+
+    except Exception as e:
+        try:
+            print("creator dashboard stats warning:", e)
+        except Exception:
+            pass
+
+    return stats
+
+
 @creator_bp.route("/creator/batch/delete-latest-incomplete", methods=["POST"])
 @creator_bp.route("/batch/delete-latest-incomplete", methods=["POST"])
 def bsm_delete_latest_incomplete_batch_v388():

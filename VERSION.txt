@@ -39,3 +39,21 @@ Not touched:
 - thumbnails
 - New York time/date
 - dashboard cleanup
+
+BoatSpotMedia v40.0 Creator Dashboard Overview
+Changes:
+- Adds Creator Dashboard Overview cards:
+  Today, This Week, This Month, Lifetime,
+  Videos Sold Month/Total, Pending Payouts, Platform Commission.
+- Adds Earnings Breakdown.
+- Adds Video Performance.
+- Adds Notifications panel.
+- Uses safe zero defaults if sales/payout tables are empty or not yet active.
+Not touched:
+- upload
+- pricing
+- buyer preview
+- search
+- R2 cleanup
+- thumbnails
+- New York time/date

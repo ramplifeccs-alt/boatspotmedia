@@ -7,7 +7,76 @@
     <a href="/creator/dashboard" style="color:white;text-decoration:none;" class="nav-user">{% if creator and creator.user %}{{ creator_display_name(creator) if creator is defined else 'Creator' }}{% elif session.get('display_name') %}{{ session.get('display_name') }}{% elif session.get('user_email') %}{{ session.get('user_email') }}{% endif %}</a>
     <a href="/logout" style="color:white;text-decoration:none;">Logout</a>
   </div>
-</div><div class="sidebar-layout"><div class="sidebar"><h2>{{ creator_name or 'Creator' }}</h2>{% if creator_instagram %}<small>@{{ creator_instagram }}</small><br><br>{% endif %}<a href="/creator/dashboard">Dashboard</a><a href="/creator/upload">Uploads</a><a href="/creator/batches">Batches</a><a href="/creator/orders">Orders</a><a href="/creator/products">Products</a><a href="/creator/pricing">Pricing</a><a href="/creator/settings">Settings</a><br><a href="/creator/logout">Log out</a></div><div class="content"><h1>Creator Dashboard</h1><div class="card storage-card" style="background:#fff;border-radius:14px;padding:16px;margin:14px 0;box-shadow:0 6px 20px rgba(0,0,0,.06);"></p></div><div class="grid"><div class="card"><h3>Storage</h3><p>{{creator.storage_used_gb}} GB used</p><p>{{creator.storage_remaining_gb}} GB remaining</p><small>Plan storage: {{creator.storage_limit_gb}} GB</small></div><div class="card"><h3>Published Videos</h3><p>{{videos_count}}</p></div><div class="card"><h3>Total Clicks</h3><p>{{stats.clicks_lifetime if stats else 0}}</p><small>Global video preview clicks</small></div></div></div></div><script src="/static/js/mobile.js"></script>
+</div><div class="sidebar-layout"><div class="sidebar"><h2>{{ creator_name or 'Creator' }}</h2>{% if creator_instagram %}<small>@{{ creator_instagram }}</small><br><br>{% endif %}<a href="/creator/dashboard">Dashboard</a><a href="/creator/upload">Uploads</a><a href="/creator/batches">Batches</a><a href="/creator/orders">Orders</a><a href="/creator/products">Products</a><a href="/creator/pricing">Pricing</a><a href="/creator/settings">Settings</a><br><a href="/creator/logout">Log out</a></div><div class="content"><h1>Creator Dashboard</h1>
+
+<!-- BoatSpotMedia Creator Dashboard Overview v40.0 -->
+{% set stats = overview_stats if overview_stats is defined else {} %}
+<section class="bsm-dashboard-overview" style="margin:18px 0;">
+  <h2 style="margin:0 0 12px;">Overview</h2>
+
+  <div class="bsm-overview-grid">
+    <div class="bsm-stat-card">
+      <div class="bsm-stat-label">Today</div>
+      <div class="bsm-stat-value">${{ "%.2f"|format(stats.get("earned_today", 0) or 0) }}</div>
+    </div>
+    <div class="bsm-stat-card">
+      <div class="bsm-stat-label">This Week</div>
+      <div class="bsm-stat-value">${{ "%.2f"|format(stats.get("earned_week", 0) or 0) }}</div>
+    </div>
+    <div class="bsm-stat-card">
+      <div class="bsm-stat-label">This Month</div>
+      <div class="bsm-stat-value">${{ "%.2f"|format(stats.get("earned_month", 0) or 0) }}</div>
+    </div>
+    <div class="bsm-stat-card">
+      <div class="bsm-stat-label">Lifetime</div>
+      <div class="bsm-stat-value">${{ "%.2f"|format(stats.get("earned_lifetime", 0) or 0) }}</div>
+    </div>
+    <div class="bsm-stat-card">
+      <div class="bsm-stat-label">Videos Sold This Month</div>
+      <div class="bsm-stat-value">{{ stats.get("videos_sold_month", 0) or 0 }}</div>
+    </div>
+    <div class="bsm-stat-card">
+      <div class="bsm-stat-label">Videos Sold Total</div>
+      <div class="bsm-stat-value">{{ stats.get("videos_sold_total", 0) or 0 }}</div>
+    </div>
+    <div class="bsm-stat-card">
+      <div class="bsm-stat-label">Pending Payouts</div>
+      <div class="bsm-stat-value">${{ "%.2f"|format(stats.get("pending_payouts", 0) or 0) }}</div>
+    </div>
+    <div class="bsm-stat-card">
+      <div class="bsm-stat-label">Platform Commission</div>
+      <div class="bsm-stat-value">{{ stats.get("platform_commission_rate", 0) or 0 }}%</div>
+    </div>
+  </div>
+
+  <div class="bsm-dashboard-panels">
+    <div class="bsm-panel">
+      <h3>Earnings Breakdown</h3>
+      <div class="bsm-breakdown-row"><span>Gross revenue</span><b>${{ "%.2f"|format(stats.get("gross_revenue", 0) or 0) }}</b></div>
+      <div class="bsm-breakdown-row"><span>Platform commission</span><b>${{ "%.2f"|format(stats.get("platform_commission", 0) or 0) }}</b></div>
+      <div class="bsm-breakdown-row"><span>Stripe fees</span><b>${{ "%.2f"|format(stats.get("stripe_fees", 0) or 0) }}</b></div>
+      <div class="bsm-breakdown-row"><span>Net earnings</span><b>${{ "%.2f"|format(stats.get("net_earnings", 0) or 0) }}</b></div>
+    </div>
+
+    <div class="bsm-panel">
+      <h3>Video Performance</h3>
+      <div class="bsm-breakdown-row"><span>Preview views</span><b>{{ stats.get("preview_views", 0) or 0 }}</b></div>
+      <div class="bsm-breakdown-row"><span>Clicks</span><b>{{ stats.get("clicks", 0) or 0 }}</b></div>
+      <div class="bsm-breakdown-row"><span>Conversion rate</span><b>{{ stats.get("conversion_rate", 0) or 0 }}%</b></div>
+      <div class="bsm-breakdown-row"><span>Total sales</span><b>{{ stats.get("videos_sold_total", 0) or 0 }}</b></div>
+    </div>
+
+    <div class="bsm-panel">
+      <h3>Notifications</h3>
+      {% if stats.get("last_sale") %}
+        <div class="bsm-notification">Your video sold. Check Sales for details.</div>
+      {% else %}
+        <div class="bsm-notification muted">No recent sales yet.</div>
+      {% endif %}
+    </div>
+  </div>
+</section>
+<div class="card storage-card" style="background:#fff;border-radius:14px;padding:16px;margin:14px 0;box-shadow:0 6px 20px rgba(0,0,0,.06);"></p></div><div class="grid"><div class="card"><h3>Storage</h3><p>{{creator.storage_used_gb}} GB used</p><p>{{creator.storage_remaining_gb}} GB remaining</p><small>Plan storage: {{creator.storage_limit_gb}} GB</small></div><div class="card"><h3>Published Videos</h3><p>{{videos_count}}</p></div><div class="card"><h3>Total Clicks</h3><p>{{stats.clicks_lifetime if stats else 0}}</p><small>Global video preview clicks</small></div></div></div></div><script src="/static/js/mobile.js"></script>
 </body></html>
 <script>
 function regenerateThumbnail(videoId){
