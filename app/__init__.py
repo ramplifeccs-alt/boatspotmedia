@@ -77,3 +77,9 @@ def seed_owner_and_default_data():
 
 
 app = create_app()
+
+try:
+    from app.routes.payments import payments_bp
+    app.register_blueprint(payments_bp)
+except Exception as e:
+    print("payments blueprint registration warning:", e)

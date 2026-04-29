@@ -1,15 +1,24 @@
-BoatSpotMedia v40.4 Async Delete Batch R2
-Base: boatspotmedia_v40_3_SAFE_TRACKING_NO_UPLOAD_BREAK.zip
-Fix:
-- Delete batch no longer waits for all R2 files to delete before returning.
-- Batch/videos are marked deleted quickly in DB so the UI updates immediately.
-- R2 videos and thumbnails are deleted in a background thread.
-- Prevents page/site freeze during Delete batch.
+BoatSpotMedia v40.5 Stripe SendGrid Delivery
+Base: boatspotmedia_v40_4_ASYNC_DELETE_BATCH_R2.zip
+Adds:
+- Stripe Checkout route: /checkout/video/<video_id>
+- Payment success verification: /payment/success
+- Secure temporary download links: /download/<token>
+- SendGrid delivery email after successful payment
+- Best-effort sale record table bsm_sale for dashboard analytics
+Required environment variables:
+- STRIPE_SECRET_KEY
+- STRIPE_PUBLISHABLE_KEY
+- SENDGRID_API_KEY
+- SENDGRID_FROM_EMAIL
+Optional:
+- SENDGRID_FROM_NAME
+- STRIPE_CURRENCY
+- PLATFORM_COMMISSION_PERCENT
 Not touched:
 - upload
-- pricing
-- buyer preview
+- batch delete
+- pricing setup
+- thumbnails
 - search
-- thumbnails generation
 - New York time/date
-- dashboard overview
