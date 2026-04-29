@@ -75,6 +75,100 @@ def _session_display_name():
     return session.get("display_name") or session.get("creator_name") or session.get("user_email") or "Dashboard"
 
 
+
+def _buyer_purchase_options_for_video(video):
+    """
+    Buyer preview options must use the creator's Pricing page.
+    If preset lookup fails, fallback to prices already stored on video.
+    """
+    options = []
+    try:
+        from app.models import VideoPricingPreset
+
+        creator_ids = []
+        for attr in ("creator_id", "creator_profile_id"):
+            val = getattr(video, attr, None)
+            if val and val not in creator_ids:
+                creator_ids.append(val)
+
+        for rel in ("creator", "creator_profile"):
+            obj = getattr(video, rel, None)
+            cid = getattr(obj, "id", None)
+            if cid and cid not in creator_ids:
+                creator_ids.append(cid)
+
+        presets = []
+        for cid in creator_ids:
+            try:
+                found = VideoPricingPreset.query.filter_by(
+                    creator_id=cid,
+                    active=True
+                ).order_by(
+                    VideoPricingPreset.is_default.desc(),
+                    VideoPricingPreset.id.asc()
+                ).all()
+                if found:
+                    presets = found
+                    break
+            except Exception:
+                pass
+
+        for p in presets:
+            try:
+                price = float(p.price or 0)
+            except Exception:
+                price = 0.0
+            if price <= 0:
+                continue
+
+            dtype = (getattr(p, "delivery_type", "") or "").lower().strip()
+            title_text = (getattr(p, "title", "") or "").strip() or "Video option"
+            desc_text = (getattr(p, "description", "") or "").strip()
+            label_check = (dtype + " " + title_text).lower()
+
+            if any(x in label_check for x in ["bundle", "combo", "original +", "original plus"]):
+                package = "bundle"
+            elif any(x in label_check for x in ["edit", "edited", "instagram", "reel", "short"]):
+                package = "edited"
+            else:
+                package = "original"
+
+            options.append({
+                "id": getattr(p, "id", None),
+                "package": package,
+                "title": title_text,
+                "description": desc_text,
+                "price": price,
+                "delivery_type": getattr(p, "delivery_type", "") or "",
+            })
+
+        if not options:
+            for attr, title_text, package in (
+                ("original_price", "Original 4K download", "original"),
+                ("edited_price", "Edited video", "edited"),
+                ("bundle_price", "Original + edited combo", "bundle"),
+            ):
+                try:
+                    price = float(getattr(video, attr, 0) or 0)
+                except Exception:
+                    price = 0.0
+                if price > 0:
+                    options.append({
+                        "id": None,
+                        "package": package,
+                        "title": title_text,
+                        "description": "",
+                        "price": price,
+                        "delivery_type": package,
+                    })
+    except Exception as e:
+        try:
+            print("buyer purchase options warning:", e)
+        except Exception:
+            pass
+    return options
+
+
 @public_bp.app_context_processor
 def inject_public_helpers():
     return {
@@ -141,7 +235,7 @@ def preview_video(video_id):
         stats = CreatorClickStats(creator_id=v.creator_id); db.session.add(stats)
     stats.clicks_today += 1; stats.clicks_week += 1; stats.clicks_month += 1; stats.clicks_lifetime += 1
     db.session.commit()
-    return render_template("public/preview.html", video=v)
+    return render_template("public/preview.html", video=v, purchase_options=_buyer_purchase_options_for_video(v))
 
 
 @public_bp.route("/apply-creator", methods=["GET", "POST"])

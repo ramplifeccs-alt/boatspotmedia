@@ -1,10 +1,9 @@
-BoatSpotMedia v39.5 Buyer Preview Creator Price Labels
-Base: boatspotmedia_v39_4_PRICING_BACKGROUND_UPDATE_FIX.zip
+BoatSpotMedia v39.6 Buyer Preview Price Options Fix
+Base: boatspotmedia_v39_5_BUYER_PREVIEW_CREATOR_PRICE_LABELS.zip
 Fix:
-- Buyer preview now shows creator's Pricing title and description.
-- No hardcoded labels like Original 4K download / Edited video / Combo.
-- Buy button uses the creator pricing option title.
-- Checkout link includes price_id so the exact configured price can be used.
+- Preview route now passes purchase_options to public/preview.html.
+- Buyer preview finds creator Pricing presets by creator_id / creator_profile_id / relationships.
+- If preset lookup fails, preview falls back to stored prices on video instead of showing no purchase options.
 Not touched:
 - search
 - logo/header
