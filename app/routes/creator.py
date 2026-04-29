@@ -752,6 +752,28 @@ def _creator_dashboard_overview_stats(creator):
 
             sales = q.all()
 
+
+        # Fallback sales table created by cart checkout.
+        if not sales:
+            try:
+                rows = db.session.execute(db.text("""
+                    SELECT unit_price, quantity, created_at
+                    FROM bsm_cart_order_item
+                    WHERE creator_id = :cid
+                """), {"cid": creator.id}).mappings().all()
+                class _SaleObj:
+                    pass
+                for row in rows:
+                    s = _SaleObj()
+                    s.net_amount = float(row["unit_price"] or 0) * int(row["quantity"] or 1)
+                    s.gross_amount = s.net_amount
+                    s.platform_commission = 0
+                    s.stripe_fee = 0
+                    s.created_at = row["created_at"]
+                    sales.append(s)
+            except Exception:
+                db.session.rollback()
+
         def get_date(s):
             for attr in ("created_at", "paid_at", "completed_at", "created"):
                 v = getattr(s, attr, None)

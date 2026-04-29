@@ -13,7 +13,18 @@
   {% if buyer_email %}
     <p>A download email was sent to: <strong>{{ buyer_email }}</strong></p>
   {% endif %}
-  <p><a class="btn" href="{{ download_url }}">Download video</a></p>
+  {% if download_urls %}
+    <h3>Download links</h3>
+    {% for item in download_urls %}
+      <p><a class="btn" href="{{ item.url }}">Download {{ item.title }}</a></p>
+    {% endfor %}
+  {% elif download_url %}
+    <p><a class="btn" href="{{ download_url }}">Download video</a></p>
+  {% else %}
+    <div style="background:#fff7ed;border:1px solid #fdba74;color:#9a3412;padding:12px;border-radius:10px;">
+      Your order was received. Edited videos will be delivered by email after the creator uploads the final file.
+    </div>
+  {% endif %}
   <p style="color:#64748b;font-size:14px;">This download link is temporary. Please save your file.</p>
 </div>
 <script src="/static/js/mobile.js"></script>

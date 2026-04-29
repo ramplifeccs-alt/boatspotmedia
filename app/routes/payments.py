@@ -1,3 +1,5 @@
+from flask import session
+import json
 from flask import Blueprint
 from flask import request, redirect, url_for, jsonify, render_template
 from app import db
@@ -78,6 +80,157 @@ def _price_from_creator_preset(video, price_id):
         return price if price > 0 else None
     except Exception:
         return None
+
+
+
+def _ensure_cart_order_tables():
+    try:
+        db.session.execute(db.text("""
+            CREATE TABLE IF NOT EXISTS bsm_cart_order (
+                id SERIAL PRIMARY KEY,
+                cart_id VARCHAR(128),
+                stripe_session_id VARCHAR(255),
+                buyer_email VARCHAR(255),
+                amount_total NUMERIC(10,2),
+                currency VARCHAR(16),
+                pending_discount_review BOOLEAN DEFAULT FALSE,
+                status VARCHAR(64) DEFAULT 'paid',
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            )
+        """))
+        db.session.execute(db.text("""
+            CREATE TABLE IF NOT EXISTS bsm_cart_order_item (
+                id SERIAL PRIMARY KEY,
+                cart_order_id INTEGER,
+                video_id INTEGER,
+                creator_id INTEGER,
+                item_type VARCHAR(64),
+                package VARCHAR(64),
+                boat_key TEXT,
+                unit_price NUMERIC(10,2),
+                quantity INTEGER DEFAULT 1,
+                discount_status VARCHAR(64) DEFAULT 'none',
+                delivery_status VARCHAR(64) DEFAULT 'ready_to_download',
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            )
+        """))
+        db.session.commit()
+    except Exception:
+        db.session.rollback()
+
+
+def _record_cart_order_from_session(stripe_session):
+    """
+    Persist each cart item as a sale so Creator Dashboard can see earnings.
+    Also creates download links for instant video items.
+    """
+    from app.models import Video
+    from app.services.cart import cart_summary
+    from app.services.download_tokens import create_download_token
+    from app.services.sendgrid_email import send_download_email
+
+    _ensure_cart_order_tables()
+
+    buyer_email = None
+    try:
+        buyer_email = stripe_session.customer_details.email if stripe_session.customer_details else stripe_session.customer_email
+    except Exception:
+        buyer_email = getattr(stripe_session, "customer_email", None)
+
+    items = session.get("bsm_cart", []) or []
+    if not items:
+        return {"order_id": None, "download_urls": []}
+
+    amount_total = float(getattr(stripe_session, "amount_total", 0) or 0) / 100.0
+    currency = getattr(stripe_session, "currency", "usd")
+    pending_review = str(getattr(stripe_session, "metadata", {}).get("pending_discount_review", "False")) == "True"
+
+    db.session.execute(
+        db.text("""
+            INSERT INTO bsm_cart_order (cart_id, stripe_session_id, buyer_email, amount_total, currency, pending_discount_review, status)
+            VALUES (:cart_id, :sid, :email, :amount, :currency, :pending, 'paid')
+        """),
+        {
+            "cart_id": session.get("bsm_cart_id"),
+            "sid": getattr(stripe_session, "id", None),
+            "email": buyer_email,
+            "amount": amount_total,
+            "currency": currency,
+            "pending": pending_review,
+        },
+    )
+    order_id = db.session.execute(db.text("SELECT currval(pg_get_serial_sequence('bsm_cart_order','id')) AS id")).mappings().first()["id"]
+
+    download_urls = []
+    for item in items:
+        if item.get("item_type") != "video":
+            continue
+
+        video_id = item.get("video_id")
+        video = Video.query.get(video_id)
+        if not video:
+            continue
+
+        creator_id = item.get("creator_id") or getattr(video, "creator_id", None) or getattr(video, "creator_profile_id", None)
+        package = item.get("package", "original")
+        unit_price = float(item.get("unit_price") or 0)
+        qty = int(item.get("quantity") or 1)
+
+        # Edited video is pending creator delivery; original/bundle can create instant link.
+        delivery_status = "pending_edit" if package == "edited" else "ready_to_download"
+
+        db.session.execute(
+            db.text("""
+                INSERT INTO bsm_cart_order_item
+                (cart_order_id, video_id, creator_id, item_type, package, boat_key, unit_price, quantity, discount_status, delivery_status)
+                VALUES (:oid, :vid, :cid, :itype, :package, :boat_key, :price, :qty, :discount, :delivery)
+            """),
+            {
+                "oid": order_id,
+                "vid": video_id,
+                "cid": creator_id,
+                "itype": item.get("item_type", "video"),
+                "package": package,
+                "boat_key": item.get("boat_key"),
+                "price": unit_price,
+                "qty": qty,
+                "discount": "pending_review" if pending_review else "none",
+                "delivery": delivery_status,
+            },
+        )
+
+        # Keep old bsm_sale table in sync for dashboard analytics.
+        try:
+            _record_sale_best_effort(video, buyer_email, unit_price * qty, package, stripe_session_id=getattr(stripe_session, "id", None))
+        except Exception:
+            pass
+
+        if delivery_status == "ready_to_download":
+            token = create_download_token(video_id=video_id, buyer_email=buyer_email, order_id=getattr(stripe_session, "id", None), package=package)
+            download_urls.append({"video_id": video_id, "title": getattr(video, "filename", None) or getattr(video, "internal_filename", None) or "Video", "token": token})
+
+    db.session.commit()
+
+    # Send one email with all instant links.
+    try:
+        if buyer_email and download_urls:
+            host = os.environ.get("PUBLIC_BASE_URL")
+            # fallback will be built in route if needed; email here uses env base.
+            base = (host or "").rstrip("/")
+            if base:
+                links_html = "<br>".join([f'{d["title"]}: {base}/download/{d["token"]}' for d in download_urls])
+                send_download_email(buyer_email, links_html, video_title="Your BoatSpotMedia videos", order_id=getattr(stripe_session, "id", None))
+    except Exception:
+        pass
+
+    # Clear cart after successful persistence.
+    try:
+        session["bsm_cart"] = []
+        session.modified = True
+    except Exception:
+        pass
+
+    return {"order_id": order_id, "download_urls": download_urls}
 
 
 @payments_bp.route("/checkout/product/<int:product_id>")
@@ -229,7 +382,7 @@ def checkout_cart():
         mode="payment",
         payment_method_types=["card"],
         line_items=line_items,
-        metadata={"cart_checkout":"1", "pending_discount_review": str(summary.get("pending_discount_review", False))},
+        metadata={"cart_checkout":"1", "cart_id": session.get("bsm_cart_id", ""), "pending_discount_review": str(summary.get("pending_discount_review", False))},
         success_url=request.host_url.rstrip() + "/payment/success?session_id={CHECKOUT_SESSION_ID}",
         cancel_url=request.host_url.rstrip() + "/cart",
     )

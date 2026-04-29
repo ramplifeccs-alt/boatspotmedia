@@ -1,15 +1,15 @@
-BoatSpotMedia v40.8 Standalone Cart Templates
-Base: v40.7 Cart Template Base Fix.
-Fix:
-- Cart page no longer extends missing base.html.
-- Discount Review no longer extends missing base.html.
-- Payment Success no longer extends missing base.html.
-- These pages are standalone and load /static/css/style.css directly.
+BoatSpotMedia v40.9 Cart Payment Sales Fix
+Base: v40.8 Standalone Cart Templates.
+Fixes:
+- Cart thumbnails use thumbnail_url or /media/<thumbnail_path>.
+- Cart checkout persists paid cart items into bsm_cart_order and bsm_cart_order_item.
+- Payment success handles cart checkouts without video_id metadata error.
+- Instant-download items get secure download links.
+- Edited items are marked pending_edit.
+- Creator Dashboard can reflect sales from cart order items.
+- Cart clears after successful payment.
 Not touched:
-- cart logic
-- Stripe
-- SendGrid
 - upload
 - R2 delete
-- pricing
-- thumbnails
+- pricing setup
+- thumbnails generation

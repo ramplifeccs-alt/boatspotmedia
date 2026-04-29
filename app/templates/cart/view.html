@@ -26,8 +26,8 @@
       {% for item in items %}
         <div style="display:grid;grid-template-columns:110px 1fr auto;gap:14px;align-items:center;background:#fff;border:1px solid #e5e7eb;border-radius:14px;padding:12px;">
           <div style="width:110px;height:70px;background:#e5e7eb;border-radius:10px;overflow:hidden;display:flex;align-items:center;justify-content:center;">
-            {% if item.video and item.video.thumbnail_path %}
-              <img src="/media/{{ item.video.thumbnail_path }}" style="width:100%;height:100%;object-fit:cover;">
+            {% if item.thumbnail_url %}
+              <img src="{{ item.thumbnail_url }}" style="width:100%;height:100%;object-fit:cover;">
             {% else %}
               <span style="color:#64748b;font-size:12px;">Video</span>
             {% endif %}
