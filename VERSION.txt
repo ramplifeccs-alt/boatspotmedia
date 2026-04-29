@@ -1,58 +1,17 @@
-BoatSpotMedia v39.7 Dashboard Cleanup Requirements
-Base: boatspotmedia_v39_6_BUYER_PREVIEW_PRICE_OPTIONS_FIX.zip
-Changes:
-- Removes Storage used / Maximum per batch block from Creator Dashboard.
-- Ensures Delete incomplete batch button appears only on Batches page.
-- Adds DASHBOARD_REQUIREMENTS.md with Creator and Owner dashboard structure for next implementation phase.
-Not touched:
-- search
-- pricing
-- buyer preview
-- R2 cleanup
-- upload processing
-- thumbnails
-- New York time/date
-- login routes
-
-BoatSpotMedia v39.8 Restore Upload Block
-Fix:
-- Restores app/templates/creator/upload.html from v39.6 because v39.7 accidentally blanked the Upload block.
-- Keeps Creator Dashboard storage block removed.
-- Keeps Delete incomplete batch restricted to Batches page.
-Not touched:
-- pricing
-- buyer preview
-- search
-- R2 cleanup
-- thumbnails
-- New York time/date
-
-BoatSpotMedia v39.9 Upload Warning Message
-Fix:
-- Adds warning on Creator Upload page:
-  keep page open during upload, do not close/refresh/navigate away, and use Delete incomplete batch if interrupted.
-Not touched:
-- pricing
-- buyer preview
-- search
-- R2 cleanup
-- thumbnails
-- New York time/date
-- dashboard cleanup
-
-BoatSpotMedia v40.0 Creator Dashboard Overview
-Changes:
-- Adds Creator Dashboard Overview cards:
-  Today, This Week, This Month, Lifetime,
-  Videos Sold Month/Total, Pending Payouts, Platform Commission.
-- Adds Earnings Breakdown.
-- Adds Video Performance.
-- Adds Notifications panel.
-- Uses safe zero defaults if sales/payout tables are empty or not yet active.
+BoatSpotMedia v40.1 Video Performance Tracker
+Base: boatspotmedia_v40_0_CREATOR_DASHBOARD_OVERVIEW.zip
+Adds:
+- Video performance counters: preview_views and preview_clicks.
+- Preview page increments preview_views.
+- Buy buttons increment preview_clicks.
+- Creator Dashboard Total Clicks now reads preview_clicks first.
+Notes:
+- Tracking starts from this version forward.
+- Checkout opens will be added later after confirming checkout route safely.
 Not touched:
 - upload
 - pricing
-- buyer preview
+- buyer pricing labels
 - search
 - R2 cleanup
 - thumbnails

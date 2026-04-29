@@ -1,6 +1,6 @@
 import os
 from datetime import datetime
-from flask import Blueprint, redirect, render_template, request, url_for, session
+from flask import Blueprint, redirect, render_template, request, url_for, session, jsonify
 from sqlalchemy import text
 from werkzeug.security import generate_password_hash
 from app.models import Video, Location, ServiceAd, CharterListing, User
@@ -178,6 +178,49 @@ def inject_public_helpers():
     }
 
 
+
+def _ensure_video_performance_columns():
+    try:
+        db.session.execute(db.text("ALTER TABLE video ADD COLUMN IF NOT EXISTS preview_views INTEGER DEFAULT 0"))
+        db.session.execute(db.text("ALTER TABLE video ADD COLUMN IF NOT EXISTS preview_clicks INTEGER DEFAULT 0"))
+        db.session.commit()
+    except Exception:
+        db.session.rollback()
+
+
+def _track_video_event(video_id, event_name):
+    try:
+        from app.models import Video
+        _ensure_video_performance_columns()
+        video = Video.query.get(video_id)
+        if not video:
+            return False
+
+        if event_name == "preview_view":
+            video.preview_views = (getattr(video, "preview_views", 0) or 0) + 1
+        elif event_name == "preview_click":
+            video.preview_clicks = (getattr(video, "preview_clicks", 0) or 0) + 1
+        else:
+            return False
+
+        db.session.add(video)
+        db.session.commit()
+        return True
+    except Exception as e:
+        db.session.rollback()
+        try:
+            print("video tracking warning:", e)
+        except Exception:
+            pass
+        return False
+
+
+@public_bp.route("/track/video/<int:video_id>/<event_name>", methods=["POST"])
+def track_video_event_v401(video_id, event_name):
+    ok = _track_video_event(video_id, event_name)
+    return jsonify({"ok": bool(ok)})
+
+
 @public_bp.route("/")
 def home():
     try:
@@ -235,6 +278,7 @@ def preview_video(video_id):
         stats = CreatorClickStats(creator_id=v.creator_id); db.session.add(stats)
     stats.clicks_today += 1; stats.clicks_week += 1; stats.clicks_month += 1; stats.clicks_lifetime += 1
     db.session.commit()
+    _track_video_event(v.id, "preview_view")
     return render_template("public/preview.html", video=v, purchase_options=_buyer_purchase_options_for_video(v))
 
 

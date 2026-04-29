@@ -31,7 +31,7 @@
       {% if option.description %}
         <p style="margin-top:-8px;color:#555;font-size:14px;">{{ option.description }}</p>
       {% endif %}
-      <a class="btn {% if not loop.first %}secondary{% endif %}" href="/checkout/video/{{ video.id }}?package={{ option.package }}{% if option.id %}&price_id={{ option.id }}{% endif %}">
+      <a class="btn {% if not loop.first %}secondary{% endif %} bsm-buy-track" data-video-id="{{ video.id }}" href="/checkout/video/{{ video.id }}?package={{ option.package }}{% if option.id %}&price_id={{ option.id }}{% endif %}">
         Buy {{ option.title }}
       </a>
     </div>
@@ -40,19 +40,19 @@
   {% if video.original_price and video.original_price|float > 0 %}
     <div class="purchase-option" style="margin:16px 0;">
       <p><b>Original 4K download:</b> ${{ video.original_price }}</p>
-      <a class="btn" href="/checkout/video/{{ video.id }}?package=original">Buy Original</a>
+      <a class="btn bsm-buy-track" data-video-id="{{ video.id }}" href="/checkout/video/{{ video.id }}?package=original">Buy Original</a>
     </div>
   {% endif %}
   {% if video.edited_price and video.edited_price|float > 0 %}
     <div class="purchase-option" style="margin:16px 0;">
       <p><b>Edited video:</b> ${{ video.edited_price }}</p>
-      <a class="btn secondary" href="/checkout/video/{{ video.id }}?package=edited">Buy Edited</a>
+      <a class="btn secondary bsm-buy-track" data-video-id="{{ video.id }}" href="/checkout/video/{{ video.id }}?package=edited">Buy Edited</a>
     </div>
   {% endif %}
   {% if video.bundle_price and video.bundle_price|float > 0 %}
     <div class="purchase-option" style="margin:16px 0;">
       <p><b>Original + edited combo:</b> ${{ video.bundle_price }}</p>
-      <a class="btn secondary" href="/checkout/video/{{ video.id }}?package=bundle">Buy Combo</a>
+      <a class="btn secondary bsm-buy-track" data-video-id="{{ video.id }}" href="/checkout/video/{{ video.id }}?package=bundle">Buy Combo</a>
     </div>
   {% endif %}
   {% if (not video.original_price or video.original_price|float <= 0) and (not video.edited_price or video.edited_price|float <= 0) and (not video.bundle_price or video.bundle_price|float <= 0) %}
@@ -63,3 +63,26 @@
 </div>
 </div><script src="/static/js/mobile.js"></script>
 </body></html>
+
+
+<script>
+(function(){
+  if(window.__BSM_VIDEO_CLICK_TRACKER__) return;
+  window.__BSM_VIDEO_CLICK_TRACKER__ = true;
+  document.addEventListener("click", function(e){
+    var link = e.target.closest(".bsm-buy-track");
+    if(!link) return;
+    var vid = link.getAttribute("data-video-id");
+    if(!vid) return;
+    try {
+      if(navigator.sendBeacon){
+        navigator.sendBeacon("/track/video/" + vid + "/preview_click", new Blob([], {type:"application/json"}));
+      } else {
+        fetch("/track/video/" + vid + "/preview_click", {method:"POST", keepalive:true});
+      }
+    } catch(err) {
+      try { fetch("/track/video/" + vid + "/preview_click", {method:"POST", keepalive:true}); } catch(e){}
+    }
+  }, true);
+})();
+</script>

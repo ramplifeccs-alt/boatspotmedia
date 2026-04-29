@@ -860,7 +860,7 @@ def _creator_dashboard_overview_stats(creator):
                     if val:
                         stats["preview_views"] += int(val)
                         break
-                for attr in ("clicks", "click_count", "preview_clicks"):
+                for attr in ("preview_clicks", "clicks", "click_count"):
                     val = getattr(v, attr, None)
                     if val:
                         stats["clicks"] += int(val)
