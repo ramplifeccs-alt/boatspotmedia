@@ -13,3 +13,16 @@ Not touched:
 - thumbnails
 - New York time/date
 - login routes
+
+BoatSpotMedia v39.8 Restore Upload Block
+Fix:
+- Restores app/templates/creator/upload.html from v39.6 because v39.7 accidentally blanked the Upload block.
+- Keeps Creator Dashboard storage block removed.
+- Keeps Delete incomplete batch restricted to Batches page.
+Not touched:
+- pricing
+- buyer preview
+- search
+- R2 cleanup
+- thumbnails
+- New York time/date
