@@ -1,15 +1,15 @@
-BoatSpotMedia v40.3 Safe Tracking No Upload Break
-Base: boatspotmedia_v40_0_CREATOR_DASHBOARD_OVERVIEW.zip
+BoatSpotMedia v40.4 Async Delete Batch R2
+Base: boatspotmedia_v40_3_SAFE_TRACKING_NO_UPLOAD_BREAK.zip
 Fix:
-- Removes preview_views / preview_clicks from SQLAlchemy Video model so uploads do not fail.
-- Tracking columns are created with raw SQL only when needed.
-- Upload INSERT no longer includes preview_views/preview_clicks.
-- Preview views and buy clicks still track via raw SQL.
-- Creator Dashboard reads performance stats with raw SQL.
-- Keeps previous dashboard/pricing/upload behavior from v40.0 base.
+- Delete batch no longer waits for all R2 files to delete before returning.
+- Batch/videos are marked deleted quickly in DB so the UI updates immediately.
+- R2 videos and thumbnails are deleted in a background thread.
+- Prevents page/site freeze during Delete batch.
 Not touched:
-- R2 cleanup
-- thumbnails
+- upload
+- pricing
+- buyer preview
+- search
+- thumbnails generation
 - New York time/date
-- pricing logic
-- buyer price labels
+- dashboard overview
