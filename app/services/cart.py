@@ -86,7 +86,7 @@ def cart_summary():
     cart = _cart()
     subtotal = sum(float(i.get("unit_price") or 0) * int(i.get("quantity") or 1) for i in cart)
     groups = cart_groups_for_discount_review(cart)
-    return {"items": cart, "subtotal": round(subtotal,2), "total": round(subtotal,2), "pending_discount_review": bool(groups), "review_groups": groups, "count": len(cart)}
+    return {"cart_id": current_cart_id(), "items": cart, "subtotal": round(subtotal,2), "total": round(subtotal,2), "pending_discount_review": bool(groups), "review_groups": groups, "count": len(cart)}
 
 def build_cart_display_items():
     from app.models import Video
@@ -127,6 +127,7 @@ def _video_thumb_url(video):
 def current_cart_id():
     import secrets
     session.setdefault("bsm_cart_id", secrets.token_urlsafe(16))
+    session.modified = True
     return session["bsm_cart_id"]
 
 

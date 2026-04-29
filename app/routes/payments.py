@@ -139,6 +139,11 @@ def _record_cart_order_from_session(stripe_session):
 
     items = flask_session.get("bsm_cart", []) or []
     if not items:
+        try:
+            items = _load_pending_cart_snapshot(str(stripe_session.metadata.get("cart_id", "")))
+        except Exception:
+            items = []
+    if not items:
         return {"order_id": None, "download_urls": []}
 
     amount_total = float(getattr(stripe_session, "amount_total", 0) or 0) / 100.0
@@ -151,7 +156,7 @@ def _record_cart_order_from_session(stripe_session):
             VALUES (:cart_id, :sid, :email, :amount, :currency, :pending, 'paid')
         """),
         {
-            "cart_id": session.get("bsm_cart_id"),
+            "cart_id": flask_session.get("bsm_cart_id") or str(stripe_session.metadata.get("cart_id", "")),
             "sid": getattr(stripe_session, "id", None),
             "email": buyer_email,
             "amount": amount_total,
@@ -231,6 +236,68 @@ def _record_cart_order_from_session(stripe_session):
         pass
 
     return {"order_id": order_id, "download_urls": download_urls}
+
+
+
+def _ensure_pending_cart_table():
+    try:
+        db.session.execute(db.text("""
+            CREATE TABLE IF NOT EXISTS bsm_pending_cart (
+                cart_id VARCHAR(128) PRIMARY KEY,
+                buyer_email VARCHAR(255),
+                cart_json TEXT,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            )
+        """))
+        db.session.commit()
+    except Exception:
+        db.session.rollback()
+
+
+def _save_pending_cart_snapshot(cart_id, cart_items, buyer_email=None):
+    try:
+        _ensure_pending_cart_table()
+        db.session.execute(
+            db.text("""
+                INSERT INTO bsm_pending_cart (cart_id, buyer_email, cart_json)
+                VALUES (:cart_id, :buyer_email, :cart_json)
+                ON CONFLICT (cart_id) DO UPDATE SET
+                    buyer_email = EXCLUDED.buyer_email,
+                    cart_json = EXCLUDED.cart_json,
+                    created_at = CURRENT_TIMESTAMP
+            """),
+            {
+                "cart_id": cart_id,
+                "buyer_email": buyer_email,
+                "cart_json": json.dumps(cart_items or []),
+            },
+        )
+        db.session.commit()
+    except Exception as e:
+        db.session.rollback()
+        try:
+            print("pending cart snapshot save warning:", e)
+        except Exception:
+            pass
+
+
+def _load_pending_cart_snapshot(cart_id):
+    try:
+        _ensure_pending_cart_table()
+        row = db.session.execute(
+            db.text("SELECT cart_json FROM bsm_pending_cart WHERE cart_id = :cart_id"),
+            {"cart_id": cart_id},
+        ).mappings().first()
+        if not row:
+            return []
+        return json.loads(row["cart_json"] or "[]")
+    except Exception as e:
+        db.session.rollback()
+        try:
+            print("pending cart snapshot load warning:", e)
+        except Exception:
+            pass
+        return []
 
 
 @payments_bp.route("/checkout/product/<int:product_id>")
@@ -355,9 +422,11 @@ def stripe_webhook():
 
 @payments_bp.route("/cart/checkout")
 def checkout_cart():
-    from app.services.cart import cart_summary, build_cart_display_items
+    from app.services.cart import cart_summary, build_cart_display_items, current_cart_id
     summary = cart_summary()
     items = build_cart_display_items()
+    cart_id = current_cart_id()
+    _save_pending_cart_snapshot(cart_id, summary.get('items') or [], buyer_email=request.args.get('email'))
     if not items:
         return redirect("/cart")
     stripe.api_key = os.environ.get("STRIPE_SECRET_KEY")
@@ -382,7 +451,7 @@ def checkout_cart():
         mode="payment",
         payment_method_types=["card"],
         line_items=line_items,
-        metadata={"cart_checkout":"1", "cart_id": flask_session.get("bsm_cart_id", ""), "pending_discount_review": str(summary.get("pending_discount_review", False))},
+        metadata={"cart_checkout":"1", "cart_id": cart_id, "pending_discount_review": str(summary.get("pending_discount_review", False))},
         success_url=request.host_url.rstrip() + "/payment/success?session_id={CHECKOUT_SESSION_ID}",
         cancel_url=request.host_url.rstrip() + "/cart",
     )

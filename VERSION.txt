@@ -1,14 +1,14 @@
-BoatSpotMedia v41.0 Cart Checkout Session Fix
-Base: v40.9 Cart Payment Sales Fix.
+BoatSpotMedia v41.1 Cart Snapshot Payment Fix
+Base: v41.0 Cart Checkout Session Fix.
 Fix:
-- Fixes /cart/checkout UnboundLocalError caused by Flask session vs Stripe session name conflict.
-- Uses flask_session for cart data.
-- Keeps Stripe Checkout session variable unchanged.
+- /cart/checkout now generates a cart_id before sending buyer to Stripe.
+- Saves cart snapshot in bsm_pending_cart before Stripe checkout.
+- /payment/success can rebuild the purchased cart even if Flask session is empty after Stripe redirect.
+- Stripe metadata now includes cart_id.
+- Fixes paid cart not being associated with videos/items after payment.
 Not touched:
 - cart thumbnails
-- cart logic
-- payment success persistence
-- SendGrid
 - upload
 - R2 delete
 - pricing
+- SendGrid logic
