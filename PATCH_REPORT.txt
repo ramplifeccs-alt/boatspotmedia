@@ -2,3 +2,5 @@ app/templates/creator/dashboard.html
 app/templates/creator/upload.html
 app/static/js/mobile.js
 Restored: app/templates/creator/upload.html from v39.6
+
+Patched: app/templates/creator/upload.html

@@ -26,3 +26,16 @@ Not touched:
 - R2 cleanup
 - thumbnails
 - New York time/date
+
+BoatSpotMedia v39.9 Upload Warning Message
+Fix:
+- Adds warning on Creator Upload page:
+  keep page open during upload, do not close/refresh/navigate away, and use Delete incomplete batch if interrupted.
+Not touched:
+- pricing
+- buyer preview
+- search
+- R2 cleanup
+- thumbnails
+- New York time/date
+- dashboard cleanup
