@@ -1,15 +1,14 @@
-BoatSpotMedia v40.9 Cart Payment Sales Fix
-Base: v40.8 Standalone Cart Templates.
-Fixes:
-- Cart thumbnails use thumbnail_url or /media/<thumbnail_path>.
-- Cart checkout persists paid cart items into bsm_cart_order and bsm_cart_order_item.
-- Payment success handles cart checkouts without video_id metadata error.
-- Instant-download items get secure download links.
-- Edited items are marked pending_edit.
-- Creator Dashboard can reflect sales from cart order items.
-- Cart clears after successful payment.
+BoatSpotMedia v41.0 Cart Checkout Session Fix
+Base: v40.9 Cart Payment Sales Fix.
+Fix:
+- Fixes /cart/checkout UnboundLocalError caused by Flask session vs Stripe session name conflict.
+- Uses flask_session for cart data.
+- Keeps Stripe Checkout session variable unchanged.
 Not touched:
+- cart thumbnails
+- cart logic
+- payment success persistence
+- SendGrid
 - upload
 - R2 delete
-- pricing setup
-- thumbnails generation
+- pricing

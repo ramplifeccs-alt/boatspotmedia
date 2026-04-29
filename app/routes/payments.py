@@ -1,11 +1,11 @@
-from flask import session
+from flask import session as flask_session
 import json
 from flask import Blueprint
 from flask import request, redirect, url_for, jsonify, render_template
 from app import db
 import os
 import stripe
-from flask import Blueprint, request, redirect, jsonify, session, url_for
+from flask import Blueprint, request, redirect, jsonify, url_for
 
 payments_bp = Blueprint("payments", __name__)
 
@@ -137,7 +137,7 @@ def _record_cart_order_from_session(stripe_session):
     except Exception:
         buyer_email = getattr(stripe_session, "customer_email", None)
 
-    items = session.get("bsm_cart", []) or []
+    items = flask_session.get("bsm_cart", []) or []
     if not items:
         return {"order_id": None, "download_urls": []}
 
@@ -225,8 +225,8 @@ def _record_cart_order_from_session(stripe_session):
 
     # Clear cart after successful persistence.
     try:
-        session["bsm_cart"] = []
-        session.modified = True
+        flask_session["bsm_cart"] = []
+        flask_session.modified = True
     except Exception:
         pass
 
@@ -382,7 +382,7 @@ def checkout_cart():
         mode="payment",
         payment_method_types=["card"],
         line_items=line_items,
-        metadata={"cart_checkout":"1", "cart_id": session.get("bsm_cart_id", ""), "pending_discount_review": str(summary.get("pending_discount_review", False))},
+        metadata={"cart_checkout":"1", "cart_id": flask_session.get("bsm_cart_id", ""), "pending_discount_review": str(summary.get("pending_discount_review", False))},
         success_url=request.host_url.rstrip() + "/payment/success?session_id={CHECKOUT_SESSION_ID}",
         cancel_url=request.host_url.rstrip() + "/cart",
     )
