@@ -301,6 +301,21 @@ def _safe_record_cart_order_from_session(stripe_session):
         return {"order_id": None, "download_urls": []}
 
 
+
+def _public_base_url():
+    """
+    Reliable public URL for Stripe redirects.
+    Prefer PUBLIC_BASE_URL in Railway; fallback to current request host.
+    """
+    try:
+        base = os.environ.get("PUBLIC_BASE_URL")
+        if base:
+            return base.rstrip("/")
+    except Exception:
+        pass
+    return request.host_url.rstrip("/")
+
+
 @payments_bp.route("/checkout/product/<int:product_id>")
 def checkout_product(product_id):
     from app.models import Product
@@ -453,7 +468,12 @@ def checkout_cart():
         payment_method_types=["card"],
         line_items=line_items,
         metadata={"cart_checkout":"1", "cart_id": cart_id, "pending_discount_review": "False"},
-        success_url=request.host_url.rstrip() + "/payment/success?session_id={CHECKOUT_SESSION_ID}",
-        cancel_url=request.host_url.rstrip() + "/cart",
+        success_url=_public_base_url() + "/payment/success?session_id={CHECKOUT_SESSION_ID}",
+        cancel_url=_public_base_url() + "/cart",
     )
     return redirect(session.url, code=303)
+
+
+@payments_bp.route("/payment/received")
+def payment_received_fallback():
+    return _payment_success_safe_page("Payment received. Please check your email for your download link. If you purchased an edited video, the creator will deliver it after editing.", [], None)
