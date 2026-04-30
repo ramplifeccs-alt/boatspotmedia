@@ -1,15 +1,10 @@
-BoatSpotMedia v42.9 Checkout Login + Download + Favicon Fix
-Base: v42.8.
+BoatSpotMedia v43.0 Mobile + Cart + Download Visual Fix
+Base: v42.9.
 Fixes:
-- Removes same-boat pending discount message from cart unless service logic enables it.
-- Checkout requires buyer login/account before Stripe payment.
-- Buyer can add to cart as guest, but must login/register to checkout.
-- Login/register redirects back to cart when started from checkout.
-- My Orders has per-video Download button.
-- Adds robust /buyer/download-item/<id> route.
-- Adds favicon.png and apple-touch-icon.png from provided image for browser tab and iPhone home screen.
-- Keeps My Orders without thumbnails.
-Not touched:
-- Google login core.
-- Creator auth.
-- Upload/R2/pricing core.
+- Removes "File name will be available after purchase".
+- Removes cart login notice.
+- Removes Latest Boat Video Previews from Home.
+- Solid logo navy header (#071b34), no gradient.
+- Mobile visual improvements.
+- Forces Download button per ready_to_download order item.
+- Adds robust per-video download route.

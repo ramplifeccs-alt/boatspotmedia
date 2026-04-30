@@ -16,7 +16,7 @@
   {% else %}
     <div style="display:grid;gap:16px;">
     {% for order in orders %}
-      <div style="background:#fff;border:1px solid #e5e7eb;border-radius:14px;padding:16px;">
+      <div class="bsm-order-card">
         <div style="display:flex;justify-content:space-between;gap:12px;flex-wrap:wrap;">
           <div>
             <h3 style="margin:0 0 6px;">Order #{{ order.id }}</h3>
@@ -27,7 +27,7 @@
         </div>
         <div style="margin-top:12px;display:grid;gap:10px;">
           {% for item in order.order_items %}
-            <div style="display:grid;grid-template-columns:1fr auto;gap:12px;align-items:center;border-top:1px solid #f1f5f9;padding-top:10px;">
+            <div class="bsm-order-item">
               <div>
                 <div><strong>{{ item.location or "Boat video" }}</strong></div>
                 <div style="color:#64748b;font-size:14px;">Package: {{ item.package }} · Delivery: {{ item.delivery_status }}</div>
@@ -35,7 +35,7 @@
               <div style="font-weight:800;text-align:right;">
                 ${{ "%.2f"|format(item.unit_price or 0) }}
                 {% if item.download_url or item.delivery_status == "ready_to_download" %}
-                  <div style="margin-top:8px;"><a class="btn" href="{{ item.download_url or ("/buyer/download-item/" ~ item.id) }}">Download</a></div>
+                  <div style="margin-top:8px;"><a class="bsm-download-btn" href="{{ item.download_url or ("/buyer/download-item/" ~ item.id) }}">Download</a></div>
                 {% elif item.delivery_status == "pending_edit" %}
                   <div style="font-size:12px;color:#9a3412;margin-top:8px;">Pending edit</div>
                 {% endif %}

@@ -425,3 +425,25 @@ header a,.navbar a,.site-header a,.topbar a,nav a,.bsm-header a{color:#fff!impor
 @media(max-width:600px){.bsm-logo-img{height:38px;max-width:220px}.bsm-simple-header{padding:12px}}
 
 .bsm-boat-icon{max-width:180px;width:40%;height:auto;border-radius:14px;display:block;margin:10px auto;}
+
+/* BoatSpotMedia v43.0 solid header + mobile polish */
+:root{--bsm-navy:#071b34;--bsm-blue:#2563eb;--bsm-soft:#f8fafc;}
+header,.navbar,.site-header,.topbar,nav,.bsm-header,.bsm-simple-header{
+  background:#071b34!important;background-image:none!important;color:#fff!important;
+}
+header a,.navbar a,.site-header a,.topbar a,nav a,.bsm-header a,.bsm-simple-header a{color:#fff!important;}
+.bsm-logo-img{height:48px;max-width:280px;object-fit:contain;display:block;}
+.bsm-simple-header{padding:14px 18px;display:flex;align-items:center;justify-content:space-between;gap:14px;box-shadow:0 2px 12px rgba(0,0,0,.18);}
+.container{width:min(100% - 24px,1100px);}
+.btn,button,input[type="submit"]{min-height:44px;border-radius:12px;}
+.bsm-order-card{background:#fff;border:1px solid #e5e7eb;border-radius:16px;padding:16px;box-shadow:0 8px 24px rgba(15,23,42,.06);}
+.bsm-order-item{display:grid;grid-template-columns:1fr auto;gap:12px;align-items:center;border-top:1px solid #f1f5f9;padding-top:12px;}
+.bsm-download-btn{display:inline-flex;justify-content:center;align-items:center;min-width:120px;padding:10px 14px;border-radius:12px;text-decoration:none;background:#2563eb;color:#fff!important;font-weight:700;}
+@media(max-width:700px){
+ body{overflow-x:hidden}.bsm-logo-img{height:38px;max-width:220px}.bsm-simple-header{padding:12px}
+ .container{width:calc(100% - 20px)!important;margin:16px auto!important;padding:14px!important}
+ h1{font-size:28px!important;line-height:1.15!important}h2{font-size:22px!important}
+ .btn,button,input[type="submit"],.bsm-download-btn{width:100%;box-sizing:border-box;margin-top:6px}
+ .bsm-order-item{grid-template-columns:1fr}.bsm-order-item>div:last-child{text-align:left!important}
+ input,select,textarea{font-size:16px!important;max-width:100%;box-sizing:border-box}
+}

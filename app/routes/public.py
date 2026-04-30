@@ -1031,7 +1031,7 @@ def charters_redirect():
 
 
 
-@public_bp.route("/buyer/download-item/<int:item_id>")
+@public_bp.route("/buyer/download-item-old/<int:item_id>")
 def buyer_download_order_item_v427(item_id):
     """
     Instant download for a buyer order item.
@@ -1074,7 +1074,7 @@ def buyer_download_order_item_v427(item_id):
 
 
 
-@public_bp.route("/buyer/download-item/<int:item_id>")
+@public_bp.route("/buyer/download-item-old/<int:item_id>")
 def buyer_download_order_item_v429(item_id):
     if not session.get("user_id") or session.get("user_role") != "buyer":
         session["after_login_redirect"] = "/buyer/dashboard"
@@ -1123,3 +1123,41 @@ def buyer_download_order_item_v429(item_id):
             return redirect("/media/" + val.lstrip("/"))
 
     return "Download file not available yet.", 404
+
+
+
+@public_bp.route("/buyer/download-item/<int:item_id>")
+def buyer_download_order_item_v430(item_id):
+    if not session.get("user_id") or session.get("user_role") != "buyer":
+        session["after_login_redirect"] = "/buyer/dashboard"
+        session.modified = True
+        return redirect("/buyer/login?next=/buyer/dashboard")
+    try:
+        db.session.execute(db.text("ALTER TABLE bsm_cart_order ADD COLUMN IF NOT EXISTS buyer_user_id INTEGER"))
+        db.session.commit()
+    except Exception:
+        db.session.rollback()
+    try:
+        row=db.session.execute(db.text("""
+            SELECT i.*, o.buyer_user_id, o.buyer_email,
+                   v.file_path, v.r2_video_key, v.public_url, v.preview_url, v.filename, v.internal_filename
+            FROM bsm_cart_order_item i
+            JOIN bsm_cart_order o ON o.id=i.cart_order_id
+            LEFT JOIN video v ON v.id=i.video_id
+            WHERE i.id=:item_id
+            LIMIT 1
+        """), {"item_id":item_id}).mappings().first()
+    except Exception:
+        db.session.rollback(); row=None
+    if not row: return "Download not found",404
+    uid=session.get("user_id"); email=(session.get("user_email") or "").lower()
+    if row.get("buyer_user_id") and int(row.get("buyer_user_id")) != int(uid): return "Not authorized",403
+    if not row.get("buyer_user_id") and (row.get("buyer_email") or "").lower()!=email: return "Not authorized",403
+    if row.get("delivery_status")!="ready_to_download": return "This file is not ready for download yet.",400
+    for key in ["public_url","file_path","r2_video_key","preview_url"]:
+        val=row.get(key)
+        if val:
+            val=str(val)
+            if val.startswith("http") or val.startswith("/"): return redirect(val)
+            return redirect("/media/"+val.lstrip("/"))
+    return "Download file not available yet.",404

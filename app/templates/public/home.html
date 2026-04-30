@@ -38,22 +38,6 @@
 </div>
 </div><script src="/static/js/mobile.js"></script>
 
-<section class="home-previews">
-  <h2>Latest Boat Video Previews</h2>
-  <p>Only thumbnails are shown here for visual identification. Search by location, date, and time to find yours.</p>
-  <div class="grid">
-    {% for v in latest_previews %}
-      <div class="card video-card">
-        {% if v.public_thumbnail_url %}
-          <img src="{{ v.public_thumbnail_url }}" alt="Boat video preview" style="width:100%;border-radius:12px;">
-        {% else %}
-          <div class="placeholder-thumb">Preview</div>
-        {% endif %}
-        <p>{{ v.location or 'Boat video' }}</p>
-        <a class="btn" href="/video-search">Find / Buy Video</a>
-      </div>
-    {% endfor %}
-  </div>
-</section>
+
 
 </body></html>
