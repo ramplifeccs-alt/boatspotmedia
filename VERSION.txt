@@ -1,10 +1,10 @@
-BoatSpotMedia v42.1 Buyer Register Route Fix
-Base: v42.0 FULL.
+BoatSpotMedia v42.2 Buyer Routes Public Fix
+Base: v42.1.
 Fix:
-- /buyer/register is now a real registered route on buyer_bp.
-- /buyer/login is now a real registered route on buyer_bp.
-- Register no longer falls into Not Found after submitting name/email/password.
+- /buyer/register and /buyer/login are now registered directly on public_bp.
+- public_bp is confirmed working because / and /login return 200.
+- Fixes GET/POST /buyer/register 404.
+- Fixes GET/POST /buyer/login 404.
 - Uses existing User table/auth fields.
-- Does not create buyer_account table.
+- Does not create buyer_account.
 - Keeps Google login untouched.
-- Buyer dashboard shows orders by logged-in email.
