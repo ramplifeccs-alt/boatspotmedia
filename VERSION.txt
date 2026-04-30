@@ -1,14 +1,6 @@
-BoatSpotMedia v42.4 Order UserID + Cart Clear + Icon Fix
-Base: v42.3.
-Fixes:
-- Orders are linked to logged-in buyer user_id, not only email.
-- Apple Pay/Stripe email mismatch should not hide orders if buyer was logged in.
-- Cart clears after successful payment.
-- download_token schema error no longer breaks order saving.
-- Buyer dashboard searches orders by buyer_user_id OR email.
-- Payment success hides register/login for logged-in buyer.
-- Adds new boat/video icon to static/img/boatspot-icon.png and buyer pages.
-Not touched:
-- Google login.
-- Creator auth.
-- Upload/R2/pricing.
+BoatSpotMedia v42.5 Checkout Session Alias Fix
+Base: v42.4 Order UserID + Cart Clear + Icon Fix.
+Fix:
+- Fixes UnboundLocalError in /cart/checkout caused by Flask session vs Stripe session variable conflict.
+- Uses flask_session for logged-in buyer metadata.
+- Does not touch auth, orders, cart logic, icon, upload, R2, pricing, or Google login.

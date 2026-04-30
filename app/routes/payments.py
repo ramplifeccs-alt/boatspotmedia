@@ -1,4 +1,4 @@
-from flask import session as flask_session, session, render_template, request
+from flask import session as flask_session, render_template, request
 import json
 from flask import Blueprint
 from flask import request, redirect, url_for, jsonify, render_template
@@ -37,7 +37,7 @@ def create_checkout_session(item_type, item_id, title, description, amount, meta
     metadata.update({
         "item_type": str(item_type),
         "item_id": str(item_id),
-        "buyer_user_id": str(session.get("user_id") or ""),
+        "buyer_user_id": str(flask_session.get("user_id") or ""),
     })
 
     base = get_base_url()
@@ -152,7 +152,7 @@ def _record_cart_order_from_session(stripe_session):
         buyer_user_id = None
     if not buyer_user_id:
         try:
-            buyer_user_id = int(session.get("user_id") or 0) or None
+            buyer_user_id = int(flask_session.get("user_id") or 0) or None
         except Exception:
             buyer_user_id = None
 
@@ -167,7 +167,7 @@ def _record_cart_order_from_session(stripe_session):
         except Exception:
             buyer_email = getattr(stripe_session, "customer_email", None)
 
-    items = flask_session.get("bsm_cart", []) or []
+    items = flask_flask_session.get("bsm_cart", []) or []
     if not items:
         try:
             items = _load_pending_cart_snapshot(str(stripe_session.metadata.get("cart_id", "")))
@@ -187,7 +187,7 @@ def _record_cart_order_from_session(stripe_session):
             RETURNING id
         """),
         {
-            "cart_id": flask_session.get("bsm_cart_id") or str(stripe_session.metadata.get("cart_id", "")),
+            "cart_id": flask_flask_session.get("bsm_cart_id") or str(stripe_session.metadata.get("cart_id", "")),
             "sid": getattr(stripe_session, "id", None),
             "email": buyer_email,
             "buyer_user_id": buyer_user_id,
@@ -258,8 +258,8 @@ def _record_cart_order_from_session(stripe_session):
     # SendGrid cart email will be handled in the next delivery workflow phase.
     # Clear cart after successful persistence.
     try:
-        flask_session["bsm_cart"] = []
-        flask_session.modified = True
+        flask_flask_session["bsm_cart"] = []
+        flask_flask_session.modified = True
     except Exception:
         pass
 
@@ -460,7 +460,7 @@ def payment_success_v423():
     """
     session_id = request.args.get("session_id")
     download_urls = []
-    buyer_email = session.get("user_email")
+    buyer_email = flask_session.get("user_email")
     safe_message = "Payment received. Your order is being processed."
 
     if session_id:
@@ -493,8 +493,8 @@ def payment_success_v423():
                         download_urls.append({"title": d.get("title") or "video", "url": request.host_url.rstrip("/") + "/download/" + token})
                 # clear cart v42.4 after successful payment/order processing
                 try:
-                    session["bsm_cart"] = []
-                    session.modified = True
+                    flask_session["bsm_cart"] = []
+                    flask_session.modified = True
                 except Exception:
                     pass
                 safe_message = "Payment received. Your order has been saved."
@@ -507,12 +507,12 @@ def payment_success_v423():
                 pass
             safe_message = "Payment received. Your order is being processed. Please check your email shortly."
 
-    is_logged_in_buyer = bool(session.get("user_id") and session.get("user_role") == "buyer")
+    is_logged_in_buyer = bool(flask_session.get("user_id") and flask_session.get("user_role") == "buyer")
     return render_template(
         "buyer/payment_success.html",
         download_url=(download_urls[0]["url"] if download_urls else None),
         download_urls=download_urls,
-        buyer_email=buyer_email or session.get("user_email"),
+        buyer_email=buyer_email or flask_session.get("user_email"),
         safe_message=safe_message,
         is_logged_in_buyer=is_logged_in_buyer,
     )
@@ -669,7 +669,7 @@ def checkout_cart():
         mode="payment",
         payment_method_types=["card"],
         line_items=line_items,
-        metadata={"cart_checkout":"1", "cart_id": cart_id, "pending_discount_review": "False", "buyer_user_id": str(session.get("user_id", "")), "buyer_login_email": str(session.get("user_email", ""))},
+        metadata={"cart_checkout":"1", "cart_id": cart_id, "pending_discount_review": "False", "buyer_user_id": str(flask_session.get("user_id", "")), "buyer_login_email": str(flask_session.get("user_email", ""))},
         success_url=_public_base_url() + "/payment/success?session_id={CHECKOUT_SESSION_ID}",
         cancel_url=_public_base_url() + "/cart",
     )
