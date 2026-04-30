@@ -402,6 +402,24 @@ def _bsm_claim_guest_orders_v428(user):
             pass
 
 
+
+def _bsm_item_is_downloadable_v431(item):
+    try:
+        package = str(item.get("package") or "").lower()
+        status = str(item.get("delivery_status") or "").lower()
+        if status in ["pending_edit", "editing", "not_ready", "pending"]:
+            return False
+        if package in ["original", "instant", "instant_download", "download", "4k", "original_4k"]:
+            return True
+        if status in ["ready_to_download", "ready", "download_ready", "paid"]:
+            return True
+        # If package/status is empty but this is a paid order item, show download;
+        # the download route will still protect access and return unavailable if file is missing.
+        return True
+    except Exception:
+        return True
+
+
 @public_bp.route("/buyer/register", methods=["GET", "POST"])
 def buyer_register_public_v422():
     if request.method == "POST":
@@ -480,8 +498,9 @@ def buyer_dashboard_public_v422():
         items = []
         for x in _bsm_buyer_order_items_v422(order["id"]):
             ix = dict(x)
+            ix["download_url"] = "/buyer/download-item/" + str(ix.get("id")) if _bsm_item_is_downloadable_v431(ix) else None
             ix["thumbnail_url"] = _bsm_media_url_v427(ix, "thumb")
-            ix["download_url"] = "/buyer/download-item/" + str(ix.get("id")) if ix.get("delivery_status") == "ready_to_download" else None
+            ix["download_url"] = "/buyer/download-item/" + str(ix.get("id")) if _bsm_item_is_downloadable_v431(ix) else None
             items.append(ix)
         d["order_items"] = items
         d["created_at_et"] = _bsm_eastern_time_v427(d.get("created_at"))
@@ -1064,7 +1083,7 @@ def buyer_download_order_item_v427(item_id):
     if not row.get("buyer_user_id") and (row.get("buyer_email") or "").lower() != user_email:
         return "Not authorized", 403
 
-    if row.get("delivery_status") != "ready_to_download":
+    if str(row.get("delivery_status") or "").lower() in ["pending_edit","editing","not_ready","pending"]:
         return "This file is not ready for download yet.", 400
 
     url = _bsm_media_url_v427(row, "video")
@@ -1111,7 +1130,7 @@ def buyer_download_order_item_v429(item_id):
     if not row.get("buyer_user_id") and (row.get("buyer_email") or "").lower() != user_email:
         return "Not authorized", 403
 
-    if row.get("delivery_status") != "ready_to_download":
+    if str(row.get("delivery_status") or "").lower() in ["pending_edit","editing","not_ready","pending"]:
         return "This file is not ready for download yet.", 400
 
     for key in ["public_url", "file_path", "r2_video_key", "preview_url"]:
@@ -1153,7 +1172,7 @@ def buyer_download_order_item_v430(item_id):
     uid=session.get("user_id"); email=(session.get("user_email") or "").lower()
     if row.get("buyer_user_id") and int(row.get("buyer_user_id")) != int(uid): return "Not authorized",403
     if not row.get("buyer_user_id") and (row.get("buyer_email") or "").lower()!=email: return "Not authorized",403
-    if row.get("delivery_status")!="ready_to_download": return "This file is not ready for download yet.",400
+    if str(row.get("delivery_status") or "").lower() in ["pending_edit","editing","not_ready","pending"]: return "This file is not ready for download yet.",400
     for key in ["public_url","file_path","r2_video_key","preview_url"]:
         val=row.get(key)
         if val:

@@ -141,6 +141,24 @@ def _claim_guest_orders_v428(user_id, email):
         db.session.rollback()
 
 
+
+def _bsm_item_is_downloadable_v431(item):
+    try:
+        package = str(item.get("package") or "").lower()
+        status = str(item.get("delivery_status") or "").lower()
+        if status in ["pending_edit", "editing", "not_ready", "pending"]:
+            return False
+        if package in ["original", "instant", "instant_download", "download", "4k", "original_4k"]:
+            return True
+        if status in ["ready_to_download", "ready", "download_ready", "paid"]:
+            return True
+        # If package/status is empty but this is a paid order item, show download;
+        # the download route will still protect access and return unavailable if file is missing.
+        return True
+    except Exception:
+        return True
+
+
 @buyer_bp.route("/buyer/register", methods=["GET", "POST"])
 def buyer_register():
     if request.method == "POST":
@@ -216,8 +234,9 @@ def buyer_dashboard():
         items = []
         for x in _buyer_order_items(order["id"]):
             ix = dict(x)
+            ix["download_url"] = "/buyer/download-item/" + str(ix.get("id")) if _bsm_item_is_downloadable_v431(ix) else None
             ix["thumbnail_url"] = _bsm_media_url_v427(ix, "thumb")
-            ix["download_url"] = "/buyer/download-item/" + str(ix.get("id")) if ix.get("delivery_status") == "ready_to_download" else None
+            ix["download_url"] = "/buyer/download-item/" + str(ix.get("id")) if _bsm_item_is_downloadable_v431(ix) else None
             items.append(ix)
         d["order_items"] = items
         d["created_at_et"] = _bsm_eastern_time_v427(d.get("created_at"))

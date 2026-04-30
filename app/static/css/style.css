@@ -447,3 +447,16 @@ header a,.navbar a,.site-header a,.topbar a,nav a,.bsm-header a,.bsm-simple-head
  .bsm-order-item{grid-template-columns:1fr}.bsm-order-item>div:last-child{text-align:left!important}
  input,select,textarea{font-size:16px!important;max-width:100%;box-sizing:border-box}
 }
+
+/* v43.1 force download visible */
+.bsm-download-btn{
+  display:inline-flex!important;
+  visibility:visible!important;
+  opacity:1!important;
+  background:#2563eb!important;
+  color:#fff!important;
+  padding:10px 14px!important;
+  border-radius:12px!important;
+  text-decoration:none!important;
+  font-weight:700!important;
+}

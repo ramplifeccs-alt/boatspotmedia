@@ -1,10 +1,7 @@
-BoatSpotMedia v43.0 Mobile + Cart + Download Visual Fix
-Base: v42.9.
+BoatSpotMedia v43.1 Force Order Download Button Fix
+Base: v43.0.
 Fixes:
-- Removes "File name will be available after purchase".
-- Removes cart login notice.
-- Removes Latest Boat Video Previews from Home.
-- Solid logo navy header (#071b34), no gradient.
-- Mobile visual improvements.
-- Forces Download button per ready_to_download order item.
-- Adds robust per-video download route.
+- Forces Download button to appear per purchased order item when not pending edit.
+- Treats original/instant/download packages as downloadable.
+- Download route no longer requires exact delivery_status='ready_to_download'.
+- Route blocks only pending_edit/editing/not_ready/pending.
