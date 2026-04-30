@@ -6,15 +6,19 @@
   <title>Payment Received - BoatSpotMedia</title>
   <link rel="stylesheet" href="/static/css/style.css">
 </head>
-<body>\n<header class="bsm-simple-header"><a href="/"><img src="/static/img/logo-header.png" alt="BoatSpotMedia" class="bsm-logo-img"></a></header>
-<div class="container" style="max-width:760px;margin:40px auto;padding:24px;background:#fff;border-radius:14px;text-align:left;">
+<body>
+<header class="bsm-simple-header">
+  <a href="/"><img src="/static/img/logo-header.png" alt="BoatSpotMedia" class="bsm-logo-img"></a>
+</header>
+
+<div class="container" style="max-width:760px;margin:28px auto;padding:24px;background:#fff;border-radius:14px;text-align:left;">
   <p><a href="/"><img src="/static/img/logo-header.png" alt="BoatSpotMedia" style="height:64px;max-width:320px;object-fit:contain;"></a></p>
 
   <h1>Payment received</h1>
   <p>{{ safe_message if safe_message is defined else "Your payment was successful." }}</p>
 
   {% if buyer_email %}
-    <p>A copy of your download link/order details will be sent to: <strong>{{ buyer_email }}</strong></p>
+    <p>Checkout email: <strong>{{ buyer_email }}</strong></p>
   {% endif %}
 
   {% if download_urls %}
@@ -25,9 +29,7 @@
 
     <h3>Download now</h3>
     {% for item in download_urls %}
-      <p>
-        <a class="btn" href="{{ item.url }}">Download {{ item.title }}</a>
-      </p>
+      <p><a class="btn" href="{{ item.url }}">Download {{ item.title }}</a></p>
     {% endfor %}
   {% elif download_url %}
     <div style="background:#ecfdf5;border:1px solid #86efac;color:#065f46;padding:14px;border-radius:12px;margin:16px 0;">
@@ -41,19 +43,28 @@
     </div>
   {% endif %}
 
-  <div style="background:#f8fafc;border:1px solid #e2e8f0;color:#334155;padding:14px;border-radius:12px;margin:18px 0;">
-    <strong>Create or sign in to your buyer account</strong><br>
-    To see your order history, download links, edited-video status, and future purchases, please register or sign in with the same email used at checkout.
-  </div>
+  {% if is_logged_in_buyer %}
+    <div style="background:#f8fafc;border:1px solid #e2e8f0;color:#334155;padding:14px;border-radius:12px;margin:18px 0;">
+      <strong>You are signed in.</strong><br>
+      Your order should appear in your buyer dashboard using the same checkout email.
+    </div>
+    <p style="display:flex;gap:10px;flex-wrap:wrap;">
+      <a class="btn" href="/buyer/dashboard">View My Order</a>
+      <a class="btn" href="/">Back to BoatSpotMedia</a>
+    </p>
+  {% else %}
+    <div style="background:#f8fafc;border:1px solid #e2e8f0;color:#334155;padding:14px;border-radius:12px;margin:18px 0;">
+      <strong>Create or sign in to your buyer account</strong><br>
+      To see your order history, download links, edited-video status, and future purchases, register or sign in with the same email used at checkout.
+    </div>
+    <p style="display:flex;gap:10px;flex-wrap:wrap;">
+      <a class="btn" href="/buyer/register">Create Buyer Account</a>
+      <a class="btn" href="/buyer/login">Buyer Login</a>
+      <a class="btn" href="/">Back to BoatSpotMedia</a>
+    </p>
+  {% endif %}
 
   <p style="color:#64748b;font-size:14px;">Download links are temporary. Save your file as soon as possible.</p>
-
-  <p style="display:flex;gap:10px;flex-wrap:wrap;">
-    <a class="btn" href="/buyer/dashboard">View My Order</a>
-    <a class="btn" href="/buyer/register">Create Buyer Account</a>
-    <a class="btn" href="/buyer/login">Buyer Login</a>
-    <a class="btn" href="/">Back to BoatSpotMedia</a>
-  </p>
 </div>
 <script src="/static/js/mobile.js"></script>
 </body>

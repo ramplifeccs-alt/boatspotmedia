@@ -402,7 +402,7 @@ def buyer_dashboard_public_v422():
     )
 
 
-@public_bp.route("/payment/success")
+@public_bp.route("/payment/success-public-fallback")
 def payment_success_public_fallback_v415():
     """
     Fallback route so Stripe success_url never returns Not Found.

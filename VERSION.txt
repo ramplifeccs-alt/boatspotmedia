@@ -1,10 +1,12 @@
-BoatSpotMedia v42.2 Buyer Routes Public Fix
-Base: v42.1.
-Fix:
-- /buyer/register and /buyer/login are now registered directly on public_bp.
-- public_bp is confirmed working because / and /login return 200.
-- Fixes GET/POST /buyer/register 404.
-- Fixes GET/POST /buyer/login 404.
-- Uses existing User table/auth fields.
-- Does not create buyer_account.
-- Keeps Google login untouched.
+BoatSpotMedia v42.3 Payment Success + Order Visibility Fix
+Base: v42.2.
+Fixes:
+- Payment success page detects if buyer is already logged in.
+- Logged-in buyer no longer sees Create Buyer Account or Buyer Login.
+- /payment/success records the Stripe session/cart order before rendering.
+- View My Order should show order when checkout email matches logged-in buyer email.
+- Renames public fallback /payment/success so payments route can handle Stripe session_id.
+Not touched:
+- Google login.
+- Creator auth.
+- Upload/R2/pricing.

@@ -1,4 +1,4 @@
-from flask import session as flask_session
+from flask import session as flask_session, session, render_template, request
 import json
 from flask import Blueprint
 from flask import request, redirect, url_for, jsonify, render_template
@@ -412,6 +412,69 @@ def _record_cart_order_from_webhook_v420(obj):
         except Exception:
             pass
         return None
+
+
+
+@payments_bp.route("/payment/success")
+def payment_success_v423():
+    """
+    Robust payment success page:
+    - verifies Stripe session_id when available
+    - records cart order before rendering
+    - hides buyer login/register buttons if buyer is already logged in
+    """
+    session_id = request.args.get("session_id")
+    download_urls = []
+    buyer_email = session.get("user_email")
+    safe_message = "Payment received. Your order is being processed."
+
+    if session_id:
+        try:
+            stripe.api_key = os.environ.get("STRIPE_SECRET_KEY")
+            stripe_session = stripe.checkout.Session.retrieve(session_id)
+            buyer_email = None
+            try:
+                buyer_email = stripe_session.customer_details.email if stripe_session.customer_details else stripe_session.customer_email
+            except Exception:
+                buyer_email = getattr(stripe_session, "customer_email", None)
+            if buyer_email:
+                # keep buyer session email if logged in, but use checkout email for display/order match
+                pass
+            if getattr(stripe_session, "payment_status", None) == "paid":
+                try:
+                    result = _safe_record_cart_order_from_session(stripe_session)
+                except Exception:
+                    try:
+                        result = _record_cart_order_from_session(stripe_session)
+                    except Exception as e:
+                        try:
+                            print("payment success record warning v42.3:", e)
+                        except Exception:
+                            pass
+                        result = {"download_urls": []}
+                for d in result.get("download_urls", []) or []:
+                    token = d.get("token")
+                    if token:
+                        download_urls.append({"title": d.get("title") or "video", "url": request.host_url.rstrip("/") + "/download/" + token})
+                safe_message = "Payment received. Your order has been saved."
+            else:
+                safe_message = "Payment is still processing. Please check again shortly."
+        except Exception as e:
+            try:
+                print("payment success retrieve warning v42.3:", e)
+            except Exception:
+                pass
+            safe_message = "Payment received. Your order is being processed. Please check your email shortly."
+
+    is_logged_in_buyer = bool(session.get("user_id") and session.get("user_role") == "buyer")
+    return render_template(
+        "buyer/payment_success.html",
+        download_url=(download_urls[0]["url"] if download_urls else None),
+        download_urls=download_urls,
+        buyer_email=buyer_email or session.get("user_email"),
+        safe_message=safe_message,
+        is_logged_in_buyer=is_logged_in_buyer,
+    )
 
 
 @payments_bp.route("/checkout/product/<int:product_id>")
