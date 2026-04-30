@@ -1,14 +1,14 @@
-BoatSpotMedia v41.1 Cart Snapshot Payment Fix
-Base: v41.0 Cart Checkout Session Fix.
-Fix:
-- /cart/checkout now generates a cart_id before sending buyer to Stripe.
-- Saves cart snapshot in bsm_pending_cart before Stripe checkout.
-- /payment/success can rebuild the purchased cart even if Flask session is empty after Stripe redirect.
-- Stripe metadata now includes cart_id.
-- Fixes paid cart not being associated with videos/items after payment.
+BoatSpotMedia v41.2 Cart Success Privacy Discount Fix
+Base: v41.1 Cart Snapshot Payment Fix.
+Fixes:
+- Buyer does not see real file name in cart before payment.
+- Cart shows generic "Boat video"; file name appears only after payment/download delivery.
+- Discount pending message only appears if creator discount setting is enabled.
+- Payment success uses safe wrapper so cart payment does not show error if order persistence/email has an issue.
+- Cart order insert uses RETURNING id instead of currval.
+- Temporarily disables multi-link SendGrid cart email block to avoid bad-link email errors until full delivery workflow.
 Not touched:
-- cart thumbnails
 - upload
 - R2 delete
-- pricing
-- SendGrid logic
+- thumbnails generation
+- pricing setup

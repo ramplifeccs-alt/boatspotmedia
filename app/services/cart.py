@@ -72,15 +72,23 @@ def remove_item(index):
     return False
 
 def cart_groups_for_discount_review(cart=None):
+    """
+    Groups video items by creator_id + boat_key.
+    Review appears only if same-boat discount is enabled for that creator.
+    """
     cart = cart if cart is not None else _cart()
     groups = {}
     for idx, item in enumerate(cart):
         if item.get("item_type") != "video":
             continue
-        key = (str(item.get("creator_id")), str(item.get("boat_key")))
-        groups.setdefault(key, {"creator_id": item.get("creator_id"), "boat_key": item.get("boat_key"), "items": []})
+        creator_id = item.get("creator_id")
+        if not _creator_discount_enabled(creator_id):
+            continue
+        key = (str(creator_id), str(item.get("boat_key")))
+        groups.setdefault(key, {"creator_id": creator_id, "boat_key": item.get("boat_key"), "items": []})
         groups[key]["items"].append((idx, item))
     return [g for g in groups.values() if len(g["items"]) >= 2]
+
 
 def cart_summary():
     cart = _cart()
@@ -97,7 +105,7 @@ def build_cart_display_items():
         if item.get("item_type") == "video":
             v = Video.query.get(item.get("video_id"))
             d["video"] = v
-            d["title"] = getattr(v, "filename", None) or getattr(v, "internal_filename", None) or f"Video #{item.get('video_id')}"
+            d["title"] = "Boat video"
             d["location"] = getattr(v, "location", "") if v else ""
             d["thumbnail_url"] = _video_thumb_url(v)
         out.append(d)
@@ -133,3 +141,29 @@ def current_cart_id():
 
 def cart_snapshot_for_order():
     return {"cart_id": current_cart_id(), "items": list(_cart()), "summary": cart_summary()}
+
+
+def _creator_discount_enabled(creator_id):
+    """
+    Same-boat discount only appears when the creator has it enabled.
+    Supports multiple possible setting field names; defaults to False.
+    """
+    if not creator_id:
+        return False
+    try:
+        from app.models import CreatorProfile
+        c = CreatorProfile.query.get(creator_id)
+        if not c:
+            return False
+        for attr in (
+            "second_video_discount_enabled",
+            "same_boat_discount_enabled",
+            "multi_video_discount_enabled",
+            "discount_enabled",
+            "enable_discount",
+        ):
+            if hasattr(c, attr):
+                return bool(getattr(c, attr))
+    except Exception:
+        pass
+    return False

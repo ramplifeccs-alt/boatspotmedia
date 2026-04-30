@@ -191,7 +191,7 @@ def _record_cart_order_from_session(stripe_session):
                 VALUES (:oid, :vid, :cid, :itype, :package, :boat_key, :price, :qty, :discount, :delivery)
             """),
             {
-                "oid": order_id,
+                "oid": order_id or 0,
                 "vid": video_id,
                 "cid": creator_id,
                 "itype": item.get("item_type", "video"),
@@ -216,18 +216,7 @@ def _record_cart_order_from_session(stripe_session):
 
     db.session.commit()
 
-    # Send one email with all instant links.
-    try:
-        if buyer_email and download_urls:
-            host = os.environ.get("PUBLIC_BASE_URL")
-            # fallback will be built in route if needed; email here uses env base.
-            base = (host or "").rstrip("/")
-            if base:
-                links_html = "<br>".join([f'{d["title"]}: {base}/download/{d["token"]}' for d in download_urls])
-                send_download_email(buyer_email, links_html, video_title="Your BoatSpotMedia videos", order_id=getattr(stripe_session, "id", None))
-    except Exception:
-        pass
-
+    # SendGrid cart email will be handled in the next delivery workflow phase.
     # Clear cart after successful persistence.
     try:
         flask_session["bsm_cart"] = []
@@ -298,6 +287,18 @@ def _load_pending_cart_snapshot(cart_id):
         except Exception:
             pass
         return []
+
+
+
+def _safe_record_cart_order_from_session(stripe_session):
+    try:
+        return _record_cart_order_from_session(stripe_session)
+    except Exception as e:
+        try:
+            print("cart order record fatal warning:", e)
+        except Exception:
+            pass
+        return {"order_id": None, "download_urls": []}
 
 
 @payments_bp.route("/checkout/product/<int:product_id>")
