@@ -378,6 +378,30 @@ def _bsm_eastern_time_v427(value):
             return str(value or "")
 
 
+
+def _bsm_claim_guest_orders_v428(user):
+    """
+    After buyer registration/login, attach paid guest orders with same email to this buyer user_id.
+    This supports guest checkout and Apple Pay/Stripe email-based orders.
+    """
+    try:
+        db.session.execute(db.text("ALTER TABLE bsm_cart_order ADD COLUMN IF NOT EXISTS buyer_user_id INTEGER"))
+        db.session.execute(db.text("""
+            UPDATE bsm_cart_order
+            SET buyer_user_id = :uid
+            WHERE (buyer_user_id IS NULL OR buyer_user_id = 0)
+              AND buyer_email IS NOT NULL
+              AND lower(buyer_email) = lower(:email)
+        """), {"uid": user.id, "email": user.email})
+        db.session.commit()
+    except Exception as e:
+        db.session.rollback()
+        try:
+            print("claim guest orders warning v42.8:", e)
+        except Exception:
+            pass
+
+
 @public_bp.route("/buyer/register", methods=["GET", "POST"])
 def buyer_register_public_v422():
     if request.method == "POST":
@@ -411,6 +435,7 @@ def buyer_register_public_v422():
         try:
             db.session.commit()
             _bsm_set_buyer_session_v422(user)
+            _bsm_claim_guest_orders_v428(user)
             return redirect("/buyer/dashboard")
         except Exception as e:
             db.session.rollback()
@@ -437,6 +462,7 @@ def buyer_login_public_v422():
             return render_template("public/generic_login.html", title="Buyer Login", subtitle="Access your orders and downloads.", register_url="/buyer/register", role="buyer", error="Account is not active.")
 
         _bsm_set_buyer_session_v422(user)
+        _bsm_claim_guest_orders_v428(user)
         return redirect("/buyer/dashboard")
 
     return render_template("public/generic_login.html", title="Buyer Login", subtitle="Access your orders and downloads.", register_url="/buyer/register", role="buyer")

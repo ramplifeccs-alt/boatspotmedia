@@ -1,13 +1,14 @@
-BoatSpotMedia v42.7 Order Thumbnails + Downloads + Dashboards + Home Fix
-Base: v42.6.
+BoatSpotMedia v42.8 Discount + Guest Order Claim Fix
+Base: v42.7.
 Fixes:
-- Buyer My Orders shows thumbnails using thumbnail_url/public URL candidates.
-- Buyer My Orders shows Download button for ready_to_download items.
-- Order times display in America/New_York format instead of UTC.
-- Creator dashboard includes recent order sales summary.
-- Owner dashboard includes order sales panel.
-- Removes Latest Boat Video Preview block from Home.
+- Removes hard-coded discount promo text when creator discount is not enabled.
+- Cart discount review only appears if creator explicitly enabled discount.
+- Checkout no longer forces discount review when not enabled.
+- Guest checkout orders can be claimed after registration/login with same checkout email.
+- Buyer dashboard claims matching guest orders automatically.
+- My Orders does not show thumbnails, avoiding broken thumbnails after video deletion.
+- Keeps download button for instant download.
 Not touched:
 - Google login.
-- Core auth.
-- Upload/R2/pricing.
+- Creator auth.
+- Upload/R2/pricing core.

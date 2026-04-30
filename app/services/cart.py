@@ -73,10 +73,23 @@ def remove_item(index):
 
 def cart_groups_for_discount_review(cart=None):
     """
-    Disabled for now: same-boat discount review will be re-enabled only after
-    creator approval workflow is fully connected.
+    Same-boat discount review appears only when the creator enabled it.
     """
-    return []
+    cart = cart if cart is not None else _cart()
+    groups = {}
+    for idx, item in enumerate(cart):
+        if item.get("item_type") != "video":
+            continue
+        creator_id = item.get("creator_id")
+        if not creator_discount_enabled_v428(creator_id):
+            continue
+        boat_key = item.get("boat_key")
+        if not boat_key:
+            continue
+        key = (str(creator_id), str(boat_key))
+        groups.setdefault(key, {"creator_id": creator_id, "boat_key": boat_key, "items": []})
+        groups[key]["items"].append((idx, item))
+    return [g for g in groups.values() if len(g["items"]) >= 2]
 
 
 def cart_summary():
@@ -156,3 +169,63 @@ def _creator_discount_enabled(creator_id):
     except Exception:
         pass
     return False
+
+
+def creator_discount_enabled_v428(creator_id):
+    """
+    Discount is OFF by default. It only turns on if creator explicitly enabled it.
+    Supports common column names without breaking if columns do not exist.
+    """
+    if not creator_id:
+        return False
+    try:
+        from app import db
+        # Try creator_profile first
+        try:
+            row = db.session.execute(db.text("""
+                SELECT *
+                FROM creator_profile
+                WHERE id=:cid OR user_id=:cid
+                LIMIT 1
+            """), {"cid": creator_id}).mappings().first()
+        except Exception:
+            db.session.rollback()
+            row = None
+
+        # Try user table as fallback
+        if not row:
+            try:
+                row = db.session.execute(db.text("""
+                    SELECT *
+                    FROM "user"
+                    WHERE id=:cid
+                    LIMIT 1
+                """), {"cid": creator_id}).mappings().first()
+            except Exception:
+                db.session.rollback()
+                row = None
+
+        if not row:
+            return False
+
+        enabled_keys = [
+            "second_video_discount_enabled",
+            "same_boat_discount_enabled",
+            "multi_video_discount_enabled",
+            "discount_enabled",
+            "enable_discount",
+            "clip_discount_enabled",
+        ]
+        for key in enabled_keys:
+            if key in row:
+                return bool(row[key])
+
+        # If only percentage exists but no enabled flag, keep OFF to avoid showing discount by mistake.
+        return False
+    except Exception:
+        try:
+            db.session.rollback()
+        except Exception:
+            pass
+        return False
+

@@ -125,6 +125,22 @@ def _bsm_eastern_time_v427(value):
             return str(value or "")
 
 
+
+def _claim_guest_orders_v428(user_id, email):
+    try:
+        db.session.execute(db.text("ALTER TABLE bsm_cart_order ADD COLUMN IF NOT EXISTS buyer_user_id INTEGER"))
+        db.session.execute(db.text("""
+            UPDATE bsm_cart_order
+            SET buyer_user_id = :uid
+            WHERE (buyer_user_id IS NULL OR buyer_user_id = 0)
+              AND buyer_email IS NOT NULL
+              AND lower(buyer_email) = lower(:email)
+        """), {"uid": user_id, "email": email})
+        db.session.commit()
+    except Exception:
+        db.session.rollback()
+
+
 @buyer_bp.route("/buyer/register", methods=["GET", "POST"])
 def buyer_register():
     if request.method == "POST":
@@ -193,6 +209,7 @@ def buyer_dashboard():
         return redirect("/buyer/login")
 
     email = session.get("user_email")
+    _claim_guest_orders_v428(session.get('user_id'), email)
     orders = []
     for order in _buyer_orders_for_user_v424(session.get('user_id'), email):
         d = dict(order)

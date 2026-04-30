@@ -20,7 +20,7 @@
 <p>{{ video.recorded_at.strftime('%m/%d/%Y %I:%M %p') if video.recorded_at else "Recorded time pending" }}</p>
 <p>Captured by: <b>{{ video.creator.user.display_name if video.creator and video.creator.user else "Creator" }}</b></p>
 {% if video.creator.second_clip_discount_percent %}
-<div class="notice">Buy another clip from this creator and get {{video.creator.second_clip_discount_percent}}% off the next video.</div>
+
 {% endif %}
 <div class="video-purchase-options">
 {% set options = purchase_options if purchase_options is defined else [] %}

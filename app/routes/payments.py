@@ -258,8 +258,8 @@ def _record_cart_order_from_session(stripe_session):
     # SendGrid cart email will be handled in the next delivery workflow phase.
     # Clear cart after successful persistence.
     try:
-        flask_session["bsm_cart"] = []
-        flask_session.modified = True
+        flask_flask_session["bsm_cart"] = []
+        flask_flask_session.modified = True
     except Exception:
         pass
 
@@ -493,8 +493,8 @@ def payment_success_v423():
                         download_urls.append({"title": d.get("title") or "video", "url": request.host_url.rstrip("/") + "/download/" + token})
                 # clear cart v42.4 after successful payment/order processing
                 try:
-                    flask_session["bsm_cart"] = []
-                    flask_session.modified = True
+                    flask_flask_session["bsm_cart"] = []
+                    flask_flask_session.modified = True
                 except Exception:
                     pass
                 safe_message = "Payment received. Your order has been saved."

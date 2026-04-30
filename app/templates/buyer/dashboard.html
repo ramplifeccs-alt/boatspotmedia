@@ -8,7 +8,7 @@
   <p>Signed in as <strong>{{ buyer_email or email }}</strong></p>
   {% if not orders %}
     <div style="background:#f8fafc;border:1px solid #e2e8f0;padding:16px;border-radius:12px;">
-      No orders found yet. If you just paid, wait a few seconds and refresh. Orders are linked automatically to your buyer account when you are logged in during checkout.
+      No orders found yet. If you checked out as a guest, register or login with the same email used at checkout and refresh this page.
     </div>
   {% else %}
     <div style="display:grid;gap:16px;">
@@ -24,10 +24,7 @@
         </div>
         <div style="margin-top:12px;display:grid;gap:10px;">
           {% for item in order.order_items %}
-            <div style="display:grid;grid-template-columns:90px 1fr auto;gap:12px;align-items:center;border-top:1px solid #f1f5f9;padding-top:10px;">
-              <div style="width:90px;height:58px;background:#e5e7eb;border-radius:9px;overflow:hidden;">
-                {% if item.thumbnail_url %}<img src="{{ item.thumbnail_url }}" style="width:100%;height:100%;object-fit:cover;">{% endif %}
-              </div>
+            <div style="display:grid;grid-template-columns:1fr auto;gap:12px;align-items:center;border-top:1px solid #f1f5f9;padding-top:10px;">
               <div>
                 <div><strong>{{ item.location or "Boat video" }}</strong></div>
                 <div style="color:#64748b;font-size:14px;">Package: {{ item.package }} · Delivery: {{ item.delivery_status }}</div>
