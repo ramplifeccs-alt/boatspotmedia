@@ -1,16 +1,15 @@
-BoatSpotMedia v41.4 Stripe Return Success Fix
-Base: v41.3 Cart Success Logo Fix.
+BoatSpotMedia v41.5 Payment Route + Global Logo Fix
+Base: v41.4 Stripe Return Success Fix.
 Fixes:
-- Stripe success_url now uses reliable _public_base_url().
-- Supports PUBLIC_BASE_URL env var for production domain.
-- /payment/success no longer shows an error if session_id is missing or Stripe retrieval fails.
-- Buyer sees BoatSpotMedia success/received page instead of confusing error.
-- Adds navigation back to BoatSpotMedia/cart.
-Important Railway variable recommended:
-- PUBLIC_BASE_URL=https://boatspotmedia.com
+- Ensures payments blueprint is registered so /payment/success is not Not Found.
+- Adds public fallback route for /payment/success so Stripe never lands on Not Found.
+- Payment success template is standalone and buyer-friendly.
+- Adds clickable BoatSpotMedia logo replacement globally.
+- Logo redirects to Home.
+Railway:
+- Keep PUBLIC_BASE_URL=https://boatspotmedia.com
 Not touched:
 - upload
 - R2 delete
 - pricing
 - cart thumbnails
-- logo

@@ -110,3 +110,30 @@ document.addEventListener("DOMContentLoaded", function () {
   else addCart();
 })();
 
+
+
+/* BoatSpotMedia clickable logo global v41.5 */
+(function(){
+  if(window.__BSM_LOGO_GLOBAL__) return;
+  window.__BSM_LOGO_GLOBAL__ = true;
+  function logo(){
+    var imgHtml = '<img src="/static/img/logo-header.png" alt="BoatSpotMedia" class="bsm-logo-img" style="height:48px;max-width:280px;object-fit:contain;">';
+    var candidates = document.querySelectorAll('a, .brand, .navbar-brand, header strong, nav strong');
+    candidates.forEach(function(el){
+      if((el.textContent || '').trim() === 'BoatSpotMedia' && !el.querySelector('img')){
+        if(el.tagName.toLowerCase() === 'a'){
+          el.setAttribute('href','/');
+          el.innerHTML = imgHtml;
+        }else{
+          var a = document.createElement('a');
+          a.href = '/';
+          a.innerHTML = imgHtml;
+          el.replaceWith(a);
+        }
+      }
+    });
+  }
+  if(document.readyState === 'loading') document.addEventListener('DOMContentLoaded', logo);
+  else logo();
+})();
+

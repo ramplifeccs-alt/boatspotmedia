@@ -3,12 +3,13 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Payment Successful - BoatSpotMedia</title>
+  <title>Payment Received - BoatSpotMedia</title>
   <link rel="stylesheet" href="/static/css/style.css">
 </head>
 <body>
-<div class="container" style="max-width:720px;margin:40px auto;padding:24px;background:#fff;border-radius:14px;">
-  <p><a href="/"><img src="/static/img/logo-header.png" alt="BoatSpotMedia" style="height:60px;max-width:300px;object-fit:contain;"></a></p><h1>Payment successful</h1>
+<div class="container" style="max-width:720px;margin:40px auto;padding:24px;background:#fff;border-radius:14px;text-align:left;">
+  <p><a href="/"><img src="/static/img/logo-header.png" alt="BoatSpotMedia" style="height:64px;max-width:320px;object-fit:contain;"></a></p>
+  <h1>Payment received</h1>
   <p>{{ safe_message if safe_message is defined else "Your payment was successful." }}</p>
   {% if buyer_email %}
     <p>A download email was sent to: <strong>{{ buyer_email }}</strong></p>
@@ -22,10 +23,11 @@
     <p><a class="btn" href="{{ download_url }}">Download video</a></p>
   {% else %}
     <div style="background:#fff7ed;border:1px solid #fdba74;color:#9a3412;padding:12px;border-radius:10px;">
-      Your order was received. Edited videos will be delivered by email after the creator uploads the final file.
+      Your order was received. Instant-download links will be sent by email when ready. Edited videos will be delivered after the creator uploads the final file.
     </div>
   {% endif %}
-  <p style="color:#64748b;font-size:14px;">Download links are temporary. Edited videos will be delivered by email after the creator uploads the final file.</p><p><a class="btn" href="/">Back to BoatSpotMedia</a> <a class="btn" href="/cart">View Cart</a></p>
+  <p style="color:#64748b;font-size:14px;">Download links are temporary.</p>
+  <p><a class="btn" href="/">Back to BoatSpotMedia</a> <a class="btn" href="/cart">View Cart</a></p>
 </div>
 <script src="/static/js/mobile.js"></script>
 </body>

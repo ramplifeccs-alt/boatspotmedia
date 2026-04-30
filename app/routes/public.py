@@ -216,6 +216,32 @@ def _track_video_event_raw(video_id, event_name):
         return False
 
 
+
+@public_bp.route("/payment/success")
+def payment_success_public_fallback_v415():
+    """
+    Fallback route so Stripe success_url never returns Not Found.
+    Full order persistence is handled by the payments route/webhook when available.
+    """
+    session_id = request.args.get("session_id")
+    try:
+        return render_template(
+            "buyer/payment_success.html",
+            download_url=None,
+            download_urls=[],
+            buyer_email=None,
+            safe_message="Payment received. Your order is being processed. Please check your email for your download link. If you purchased an edited video, the creator will deliver it after editing."
+        )
+    except Exception:
+        return """<!doctype html><html><head><title>Payment Received - BoatSpotMedia</title></head>
+        <body style="font-family:Arial;padding:30px;">
+        <p><a href="/"><img src="/static/img/logo-header.png" alt="BoatSpotMedia" style="height:60px;max-width:300px;object-fit:contain;"></a></p>
+        <h1>Payment received</h1>
+        <p>Your order is being processed. Please check your email for your download link.</p>
+        <p><a href="/">Back to BoatSpotMedia</a></p>
+        </body></html>"""
+
+
 @public_bp.route("/track/video/<int:video_id>/<event_name>", methods=["POST"])
 def track_video_event_v403(video_id, event_name):
     ok = _track_video_event_raw(video_id, event_name)
