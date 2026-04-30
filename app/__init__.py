@@ -90,10 +90,12 @@ try:
 except Exception as e:
     print("cart blueprint registration warning:", e)
 
-# BoatSpotMedia buyer routes registration v41.6
+
+# BoatSpotMedia buyer routes registration v41.7
 try:
     from app.routes.buyer import buyer_bp
-    app.register_blueprint(buyer_bp)
+    if "buyer" not in app.blueprints:
+        app.register_blueprint(buyer_bp)
 except Exception as e:
     try:
         print("buyer blueprint registration warning:", e)

@@ -1,0 +1,8 @@
+app/static/css/style.css
+app/routes/buyer.py
+app/__init__.py
+app/templates/buyer/dashboard.html
+app/templates/buyer/register.html
+app/templates/buyer/login.html
+app/templates/buyer/payment_success.html
+app/templates/cart/view.html
