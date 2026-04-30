@@ -167,7 +167,7 @@ def _record_cart_order_from_session(stripe_session):
         except Exception:
             buyer_email = getattr(stripe_session, "customer_email", None)
 
-    items = flask_flask_session.get("bsm_cart", []) or []
+    items = flask_session.get("bsm_cart", []) or []
     if not items:
         try:
             items = _load_pending_cart_snapshot(str(stripe_session.metadata.get("cart_id", "")))
@@ -187,7 +187,7 @@ def _record_cart_order_from_session(stripe_session):
             RETURNING id
         """),
         {
-            "cart_id": flask_flask_session.get("bsm_cart_id") or str(stripe_session.metadata.get("cart_id", "")),
+            "cart_id": flask_session.get("bsm_cart_id") or str(stripe_session.metadata.get("cart_id", "")),
             "sid": getattr(stripe_session, "id", None),
             "email": buyer_email,
             "buyer_user_id": buyer_user_id,
@@ -258,8 +258,8 @@ def _record_cart_order_from_session(stripe_session):
     # SendGrid cart email will be handled in the next delivery workflow phase.
     # Clear cart after successful persistence.
     try:
-        flask_flask_session["bsm_cart"] = []
-        flask_flask_session.modified = True
+        flask_session["bsm_cart"] = []
+        flask_session.modified = True
     except Exception:
         pass
 

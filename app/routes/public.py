@@ -409,7 +409,7 @@ def buyer_dashboard_public_v422():
     orders = []
     for order in _bsm_buyer_orders_for_user_v424(session.get("user_id"), email):
         d = dict(order)
-        d["items"] = [dict(x) for x in _bsm_buyer_order_items_v422(order["id"])]
+        d["order_items"] = [dict(x) for x in _bsm_buyer_order_items_v422(order["id"])]
         orders.append(d)
 
     return render_template(

@@ -23,7 +23,7 @@
           <div style="font-size:22px;font-weight:800;">${{ "%.2f"|format(order.amount_total or 0) }}</div>
         </div>
         <div style="margin-top:12px;display:grid;gap:10px;">
-          {% for item in order.items %}
+          {% for item in order.order_items %}
             <div style="display:grid;grid-template-columns:90px 1fr auto;gap:12px;align-items:center;border-top:1px solid #f1f5f9;padding-top:10px;">
               <div style="width:90px;height:58px;background:#e5e7eb;border-radius:9px;overflow:hidden;">
                 {% if item.thumbnail_path %}<img src="/media/{{ item.thumbnail_path }}" style="width:100%;height:100%;object-fit:cover;">{% endif %}

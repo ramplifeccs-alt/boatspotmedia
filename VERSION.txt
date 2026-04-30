@@ -1,6 +1,11 @@
-BoatSpotMedia v42.5 Checkout Session Alias Fix
-Base: v42.4 Order UserID + Cart Clear + Icon Fix.
-Fix:
-- Fixes UnboundLocalError in /cart/checkout caused by Flask session vs Stripe session variable conflict.
-- Uses flask_session for logged-in buyer metadata.
-- Does not touch auth, orders, cart logic, icon, upload, R2, pricing, or Google login.
+BoatSpotMedia v42.6 Buyer Order Dashboard Fix
+Base: v42.5 Checkout Session Alias Fix.
+Fixes:
+- Corrects flask_flask_session typo to flask_session.
+- Fixes Buyer Dashboard TypeError caused by Jinja order.items conflict.
+- Renames order items key to order_order_items/order_items safe usage in template.
+Not touched:
+- auth
+- Google login
+- Stripe checkout logic beyond typo fix
+- upload/R2/pricing

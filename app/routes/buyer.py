@@ -154,7 +154,7 @@ def buyer_dashboard():
     orders = []
     for order in _buyer_orders_for_user_v424(session.get('user_id'), email):
         d = dict(order)
-        d["items"] = [dict(x) for x in _buyer_order_items(order["id"])]
+        d["order_items"] = [dict(x) for x in _buyer_order_items(order["id"])]
         orders.append(d)
 
     return render_template(
