@@ -451,16 +451,13 @@ def _register_user(role, dashboard_url):
     return redirect(dashboard_url)
 
 
-@public_bp.route("/buyer/login", methods=["GET", "POST"])
-def buyer_login():
-    if request.method == "POST":
-        return _login_user_by_role_v420("buyer", "/buyer/dashboard", title="Buyer Login", subtitle="Access your orders and downloads.")
-    return render_template("public/generic_login.html", title="Buyer Login", subtitle="Access your orders and downloads.", register_url="/buyer/register", role="buyer")
+@public_bp.route("/buyer/login-old", methods=["GET", "POST"])
+def buyer_login_old_redirect():
+    return redirect("/buyer/login")
 
-@public_bp.route("/buyer/register", methods=["GET", "POST"])
-def buyer_register():
-    if request.method == "POST": return _register_user("buyer", "/buyer/login")
-    return render_template("public/generic_register.html", title="Buyer Registration", role="buyer", login_url="/buyer/login")
+@public_bp.route("/buyer/register-old", methods=["GET", "POST"])
+def buyer_register_old_redirect():
+    return redirect("/buyer/register")
 
 @public_bp.route("/charter/login", methods=["GET", "POST"])
 def charter_login():
