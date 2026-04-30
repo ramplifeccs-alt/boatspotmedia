@@ -50,6 +50,25 @@ def _buyer_orders_for_email(email):
         return []
 
 
+def _buyer_orders_for_user_v424(user_id, email):
+    try:
+        db.session.execute(db.text("ALTER TABLE bsm_cart_order ADD COLUMN IF NOT EXISTS buyer_user_id INTEGER"))
+        db.session.commit()
+    except Exception:
+        db.session.rollback()
+    try:
+        return db.session.execute(db.text("""
+            SELECT id, stripe_session_id, amount_total, currency, status, created_at, pending_discount_review
+            FROM bsm_cart_order
+            WHERE (buyer_user_id = :uid)
+               OR (:email IS NOT NULL AND lower(buyer_email)=lower(:email))
+            ORDER BY created_at DESC
+        """), {"uid": user_id or 0, "email": email}).mappings().all()
+    except Exception:
+        db.session.rollback()
+        return []
+
+
 def _buyer_order_items(order_id):
     try:
         return db.session.execute(db.text("""
@@ -133,7 +152,7 @@ def buyer_dashboard():
 
     email = session.get("user_email")
     orders = []
-    for order in _buyer_orders_for_email(email):
+    for order in _buyer_orders_for_user_v424(session.get('user_id'), email):
         d = dict(order)
         d["items"] = [dict(x) for x in _buyer_order_items(order["id"])]
         orders.append(d)

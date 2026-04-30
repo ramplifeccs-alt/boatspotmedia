@@ -14,7 +14,7 @@
 <div class="container" style="max-width:760px;margin:28px auto;padding:24px;background:#fff;border-radius:14px;text-align:left;">
   <p><a href="/"><img src="/static/img/logo-header.png" alt="BoatSpotMedia" style="height:64px;max-width:320px;object-fit:contain;"></a></p>
 
-  <h1>Payment received</h1>
+  <div style="text-align:center;margin:8px 0 16px;"><img src="/static/img/boatspot-icon.png" alt="BoatSpotMedia icon" style="max-width:180px;width:45%;height:auto;border-radius:12px;"></div><h1>Payment received</h1>
   <p>{{ safe_message if safe_message is defined else "Your payment was successful." }}</p>
 
   {% if buyer_email %}

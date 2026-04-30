@@ -91,6 +91,7 @@ def _ensure_cart_order_tables():
                 cart_id VARCHAR(128),
                 stripe_session_id VARCHAR(255),
                 buyer_email VARCHAR(255),
+                buyer_user_id INTEGER,
                 amount_total NUMERIC(10,2),
                 currency VARCHAR(16),
                 pending_discount_review BOOLEAN DEFAULT FALSE,
@@ -98,6 +99,8 @@ def _ensure_cart_order_tables():
                 created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
             )
         """))
+        db.session.execute(db.text("ALTER TABLE bsm_cart_order ADD COLUMN IF NOT EXISTS buyer_user_id INTEGER"))
+        db.session.execute(db.text("CREATE INDEX IF NOT EXISTS idx_bsm_cart_order_buyer_user_id ON bsm_cart_order (buyer_user_id)"))
         db.session.execute(db.text("""
             CREATE TABLE IF NOT EXISTS bsm_cart_order_item (
                 id SERIAL PRIMARY KEY,
@@ -141,11 +144,28 @@ def _record_cart_order_from_session(stripe_session):
     except Exception:
         db.session.rollback()
 
+    # buyer_user_id_v424: associate order with logged-in buyer, not only email.
+    buyer_user_id = None
+    try:
+        buyer_user_id = int(stripe_session.metadata.get("buyer_user_id") or 0) or None
+    except Exception:
+        buyer_user_id = None
+    if not buyer_user_id:
+        try:
+            buyer_user_id = int(session.get("user_id") or 0) or None
+        except Exception:
+            buyer_user_id = None
+
     buyer_email = None
     try:
-        buyer_email = stripe_session.customer_details.email if stripe_session.customer_details else stripe_session.customer_email
+        buyer_email = (stripe_session.metadata.get("buyer_login_email") or None)
     except Exception:
-        buyer_email = getattr(stripe_session, "customer_email", None)
+        buyer_email = None
+    if not buyer_email:
+        try:
+            buyer_email = stripe_session.customer_details.email if stripe_session.customer_details else stripe_session.customer_email
+        except Exception:
+            buyer_email = getattr(stripe_session, "customer_email", None)
 
     items = flask_session.get("bsm_cart", []) or []
     if not items:
@@ -162,14 +182,15 @@ def _record_cart_order_from_session(stripe_session):
 
     row = db.session.execute(
         db.text("""
-            INSERT INTO bsm_cart_order (cart_id, stripe_session_id, buyer_email, amount_total, currency, pending_discount_review, status)
-            VALUES (:cart_id, :sid, :email, :amount, :currency, :pending, 'paid')
+            INSERT INTO bsm_cart_order (cart_id, stripe_session_id, buyer_email, buyer_user_id, amount_total, currency, pending_discount_review, status)
+            VALUES (:cart_id, :sid, :email, :buyer_user_id, :amount, :currency, :pending, 'paid')
             RETURNING id
         """),
         {
             "cart_id": flask_session.get("bsm_cart_id") or str(stripe_session.metadata.get("cart_id", "")),
             "sid": getattr(stripe_session, "id", None),
             "email": buyer_email,
+            "buyer_user_id": buyer_user_id,
             "amount": amount_total,
             "currency": currency,
             "pending": pending_review,
@@ -222,8 +243,15 @@ def _record_cart_order_from_session(stripe_session):
             pass
 
         if delivery_status == "ready_to_download":
-            token = create_download_token(video_id=video_id, buyer_email=buyer_email, order_id=getattr(stripe_session, "id", None), package=package)
-            download_urls.append({"video_id": video_id, "title": getattr(video, "filename", None) or getattr(video, "internal_filename", None) or "Video", "token": token})
+            # v42.4: download token schema can differ. Do not let token creation break order saving.
+            try:
+                token = create_download_token(video_id=video_id, buyer_email=buyer_email, order_id=getattr(stripe_session, "id", None), package=package)
+                download_urls.append({"video_id": video_id, "title": getattr(video, "filename", None) or getattr(video, "internal_filename", None) or "Video", "token": token})
+            except Exception as e:
+                try:
+                    print("download token create warning v42.4:", e)
+                except Exception:
+                    pass
 
     db.session.commit()
 
@@ -353,11 +381,18 @@ def _record_cart_order_from_webhook_v420(obj):
     if not items:
         return None
 
-    buyer_email = None
+    buyer_user_id = None
     try:
-        buyer_email = (obj.get("customer_details") or {}).get("email") or obj.get("customer_email")
+        buyer_user_id = int(metadata.get("buyer_user_id") or 0) or None
     except Exception:
-        buyer_email = obj.get("customer_email")
+        buyer_user_id = None
+
+    buyer_email = metadata.get("buyer_login_email") or None
+    if not buyer_email:
+        try:
+            buyer_email = (obj.get("customer_details") or {}).get("email") or obj.get("customer_email")
+        except Exception:
+            buyer_email = obj.get("customer_email")
 
     amount_total = float(obj.get("amount_total") or 0) / 100.0
     currency = obj.get("currency") or "usd"
@@ -365,10 +400,10 @@ def _record_cart_order_from_webhook_v420(obj):
 
     try:
         row = db.session.execute(db.text("""
-            INSERT INTO bsm_cart_order (cart_id, stripe_session_id, buyer_email, amount_total, currency, pending_discount_review, status)
-            VALUES (:cart_id, :sid, :email, :amount, :currency, :pending, 'paid')
+            INSERT INTO bsm_cart_order (cart_id, stripe_session_id, buyer_email, buyer_user_id, amount_total, currency, pending_discount_review, status)
+            VALUES (:cart_id, :sid, :email, :buyer_user_id, :amount, :currency, :pending, 'paid')
             RETURNING id
-        """), {"cart_id": cart_id, "sid": sid, "email": buyer_email, "amount": amount_total, "currency": currency, "pending": pending_review}).mappings().first()
+        """), {"cart_id": cart_id, "sid": sid, "email": buyer_email, "buyer_user_id": buyer_user_id, "amount": amount_total, "currency": currency, "pending": pending_review}).mappings().first()
         order_id = row["id"] if row else None
 
         for item in items:
@@ -456,6 +491,12 @@ def payment_success_v423():
                     token = d.get("token")
                     if token:
                         download_urls.append({"title": d.get("title") or "video", "url": request.host_url.rstrip("/") + "/download/" + token})
+                # clear cart v42.4 after successful payment/order processing
+                try:
+                    session["bsm_cart"] = []
+                    session.modified = True
+                except Exception:
+                    pass
                 safe_message = "Payment received. Your order has been saved."
             else:
                 safe_message = "Payment is still processing. Please check again shortly."
@@ -628,7 +669,7 @@ def checkout_cart():
         mode="payment",
         payment_method_types=["card"],
         line_items=line_items,
-        metadata={"cart_checkout":"1", "cart_id": cart_id, "pending_discount_review": "False"},
+        metadata={"cart_checkout":"1", "cart_id": cart_id, "pending_discount_review": "False", "buyer_user_id": str(session.get("user_id", "")), "buyer_login_email": str(session.get("user_email", ""))},
         success_url=_public_base_url() + "/payment/success?session_id={CHECKOUT_SESSION_ID}",
         cancel_url=_public_base_url() + "/cart",
     )

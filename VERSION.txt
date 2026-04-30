@@ -1,11 +1,13 @@
-BoatSpotMedia v42.3 Payment Success + Order Visibility Fix
-Base: v42.2.
+BoatSpotMedia v42.4 Order UserID + Cart Clear + Icon Fix
+Base: v42.3.
 Fixes:
-- Payment success page detects if buyer is already logged in.
-- Logged-in buyer no longer sees Create Buyer Account or Buyer Login.
-- /payment/success records the Stripe session/cart order before rendering.
-- View My Order should show order when checkout email matches logged-in buyer email.
-- Renames public fallback /payment/success so payments route can handle Stripe session_id.
+- Orders are linked to logged-in buyer user_id, not only email.
+- Apple Pay/Stripe email mismatch should not hide orders if buyer was logged in.
+- Cart clears after successful payment.
+- download_token schema error no longer breaks order saving.
+- Buyer dashboard searches orders by buyer_user_id OR email.
+- Payment success hides register/login for logged-in buyer.
+- Adds new boat/video icon to static/img/boatspot-icon.png and buyer pages.
 Not touched:
 - Google login.
 - Creator auth.
