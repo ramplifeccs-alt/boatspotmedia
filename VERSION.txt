@@ -1,11 +1,17 @@
-BoatSpotMedia v41.7 Buyer Login + Header Color
-Base: v41.6 Payment Download + Buyer Order CTA.
-Adds/Fixes:
-- Real basic buyer registration/login with password hashing.
-- Buyer dashboard shows orders by checkout email from bsm_cart_order/bsm_cart_order_item.
-- Buyer logout.
-- Prevents duplicate buyer blueprint registration warning.
-- Header/nav color matches logo navy background across global CSS.
-- Adds clickable logo header on buyer/cart standalone pages.
-- Payment success no longer links to View Cart.
-Not touched: upload, R2 delete, pricing, cart thumbnails, Stripe checkout logic.
+BoatSpotMedia v41.8 Buyer Login Robust Fix
+Base: v41.7 Buyer Login + Header Color.
+Fixes:
+- Buyer register/login is now robust for old placeholder accounts.
+- If buyer email already exists, register updates password and logs in.
+- Adds missing columns to older buyer_account tables.
+- Login accepts proper password hashes and legacy plaintext fallback.
+- Removes duplicate buyer blueprint registration blocks.
+Important:
+- If a buyer registered before and cannot login, register again with the same email and password.
+Not touched:
+- upload
+- R2 delete
+- pricing
+- cart thumbnails
+- Stripe checkout
+- header color/logo
