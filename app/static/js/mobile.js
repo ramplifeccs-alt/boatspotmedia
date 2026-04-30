@@ -76,3 +76,37 @@ document.addEventListener("DOMContentLoaded", function () {
     addButton();
   }
 })();
+
+
+/* BoatSpotMedia floating cart button v41.3 */
+(function(){
+  if(window.__BSM_FLOATING_CART__) return;
+  window.__BSM_FLOATING_CART__ = true;
+  function addCart(){
+    if(document.getElementById("bsm-floating-cart")) return;
+    var a = document.createElement("a");
+    a.id = "bsm-floating-cart";
+    a.href = "/cart";
+    a.innerHTML = "🛒";
+    a.title = "View cart";
+    a.style.position = "fixed";
+    a.style.right = "18px";
+    a.style.bottom = "18px";
+    a.style.width = "54px";
+    a.style.height = "54px";
+    a.style.borderRadius = "999px";
+    a.style.background = "#2563eb";
+    a.style.color = "#fff";
+    a.style.display = "flex";
+    a.style.alignItems = "center";
+    a.style.justifyContent = "center";
+    a.style.fontSize = "24px";
+    a.style.textDecoration = "none";
+    a.style.boxShadow = "0 8px 22px rgba(0,0,0,.25)";
+    a.style.zIndex = "99999";
+    document.body.appendChild(a);
+  }
+  if(document.readyState === "loading") document.addEventListener("DOMContentLoaded", addCart);
+  else addCart();
+})();
+

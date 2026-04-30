@@ -452,7 +452,7 @@ def checkout_cart():
         mode="payment",
         payment_method_types=["card"],
         line_items=line_items,
-        metadata={"cart_checkout":"1", "cart_id": cart_id, "pending_discount_review": str(summary.get("pending_discount_review", False))},
+        metadata={"cart_checkout":"1", "cart_id": cart_id, "pending_discount_review": "False"},
         success_url=request.host_url.rstrip() + "/payment/success?session_id={CHECKOUT_SESSION_ID}",
         cancel_url=request.host_url.rstrip() + "/cart",
     )

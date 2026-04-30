@@ -394,3 +394,8 @@ form{
 @media(max-width:520px){
   .bsm-overview-grid{grid-template-columns:1fr;}
 }
+
+
+/* BoatSpotMedia logo header v41.3 */
+.bsm-logo-img{height:48px;max-width:280px;object-fit:contain;display:block;}
+@media(max-width:600px){.bsm-logo-img{height:38px;max-width:210px;}}

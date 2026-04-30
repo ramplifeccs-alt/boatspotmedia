@@ -73,28 +73,17 @@ def remove_item(index):
 
 def cart_groups_for_discount_review(cart=None):
     """
-    Groups video items by creator_id + boat_key.
-    Review appears only if same-boat discount is enabled for that creator.
+    Disabled for now: same-boat discount review will be re-enabled only after
+    creator approval workflow is fully connected.
     """
-    cart = cart if cart is not None else _cart()
-    groups = {}
-    for idx, item in enumerate(cart):
-        if item.get("item_type") != "video":
-            continue
-        creator_id = item.get("creator_id")
-        if not _creator_discount_enabled(creator_id):
-            continue
-        key = (str(creator_id), str(item.get("boat_key")))
-        groups.setdefault(key, {"creator_id": creator_id, "boat_key": item.get("boat_key"), "items": []})
-        groups[key]["items"].append((idx, item))
-    return [g for g in groups.values() if len(g["items"]) >= 2]
+    return []
 
 
 def cart_summary():
     cart = _cart()
     subtotal = sum(float(i.get("unit_price") or 0) * int(i.get("quantity") or 1) for i in cart)
     groups = cart_groups_for_discount_review(cart)
-    return {"cart_id": current_cart_id(), "items": cart, "subtotal": round(subtotal,2), "total": round(subtotal,2), "pending_discount_review": bool(groups), "review_groups": groups, "count": len(cart)}
+    return {"cart_id": current_cart_id(), "items": cart, "subtotal": round(subtotal,2), "total": round(subtotal,2), "pending_discount_review": False, "review_groups": groups, "count": len(cart)}
 
 def build_cart_display_items():
     from app.models import Video

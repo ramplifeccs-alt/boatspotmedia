@@ -1,12 +1,12 @@
-BoatSpotMedia v41.2 Cart Success Privacy Discount Fix
-Base: v41.1 Cart Snapshot Payment Fix.
+BoatSpotMedia v41.3 Cart Success Logo Fix
+Base: v41.2 Cart Success Privacy Discount Fix.
 Fixes:
-- Buyer does not see real file name in cart before payment.
-- Cart shows generic "Boat video"; file name appears only after payment/download delivery.
-- Discount pending message only appears if creator discount setting is enabled.
-- Payment success uses safe wrapper so cart payment does not show error if order persistence/email has an issue.
-- Cart order insert uses RETURNING id instead of currval.
-- Temporarily disables multi-link SendGrid cart email block to avoid bad-link email errors until full delivery workflow.
+- Payment success for cart checkout is guarded so buyer does not see error after successful payment.
+- Same-boat discount message is disabled until creator approval workflow is fully connected.
+- Cart checkout metadata sends pending_discount_review=False.
+- Cart page hides real filename before payment.
+- Floating cart button appears globally so buyer can return to cart.
+- Adds uploaded BoatSpotMedia logo as /static/img/logo-header.png and uses it on standalone pages / obvious brand links.
 Not touched:
 - upload
 - R2 delete
