@@ -86,3 +86,24 @@ function regenerateThumbnail(videoId){
     .catch(()=>alert("Could not regenerate thumbnail."));
 }
 </script>
+
+<!-- Order Sales v42.7 -->
+<section style="background:#fff;border:1px solid #e5e7eb;border-radius:14px;padding:16px;margin:18px 0;">
+  <h2>Recent Sales</h2>
+  <p><strong>Total from orders:</strong> ${{ "%.2f"|format(order_sales_total or 0) }} · <strong>Items sold:</strong> {{ order_sales_count or 0 }}</p>
+  {% if recent_order_sales %}
+    <div style="display:grid;gap:10px;">
+    {% for sale in recent_order_sales[:10] %}
+      <div style="display:flex;justify-content:space-between;gap:10px;border-top:1px solid #f1f5f9;padding-top:8px;">
+        <div>
+          <strong>{{ sale.location or sale.filename or "Boat video" }}</strong><br>
+          <span style="color:#64748b;font-size:13px;">{{ sale.package }} · {{ sale.buyer_email }}</span>
+        </div>
+        <strong>${{ "%.2f"|format(sale.unit_price or 0) }}</strong>
+      </div>
+    {% endfor %}
+    </div>
+  {% else %}
+    <p style="color:#64748b;">No order sales yet.</p>
+  {% endif %}
+</section>

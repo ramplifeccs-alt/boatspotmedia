@@ -17,7 +17,7 @@
         <div style="display:flex;justify-content:space-between;gap:12px;flex-wrap:wrap;">
           <div>
             <h3 style="margin:0 0 6px;">Order #{{ order.id }}</h3>
-            <div style="color:#64748b;">{{ order.created_at }}</div>
+            <div style="color:#64748b;">{{ order.created_at_et or order.created_at }}</div>
             <div>Status: <strong>{{ order.status }}</strong></div>
           </div>
           <div style="font-size:22px;font-weight:800;">${{ "%.2f"|format(order.amount_total or 0) }}</div>
@@ -26,13 +26,20 @@
           {% for item in order.order_items %}
             <div style="display:grid;grid-template-columns:90px 1fr auto;gap:12px;align-items:center;border-top:1px solid #f1f5f9;padding-top:10px;">
               <div style="width:90px;height:58px;background:#e5e7eb;border-radius:9px;overflow:hidden;">
-                {% if item.thumbnail_path %}<img src="/media/{{ item.thumbnail_path }}" style="width:100%;height:100%;object-fit:cover;">{% endif %}
+                {% if item.thumbnail_url %}<img src="{{ item.thumbnail_url }}" style="width:100%;height:100%;object-fit:cover;">{% endif %}
               </div>
               <div>
                 <div><strong>{{ item.location or "Boat video" }}</strong></div>
                 <div style="color:#64748b;font-size:14px;">Package: {{ item.package }} · Delivery: {{ item.delivery_status }}</div>
               </div>
-              <div style="font-weight:800;">${{ "%.2f"|format(item.unit_price or 0) }}</div>
+              <div style="font-weight:800;text-align:right;">
+                ${{ "%.2f"|format(item.unit_price or 0) }}
+                {% if item.download_url %}
+                  <div style="margin-top:8px;"><a class="btn" href="{{ item.download_url }}">Download</a></div>
+                {% elif item.delivery_status == "pending_edit" %}
+                  <div style="font-size:12px;color:#9a3412;margin-top:8px;">Pending edit</div>
+                {% endif %}
+              </div>
             </div>
           {% endfor %}
         </div>

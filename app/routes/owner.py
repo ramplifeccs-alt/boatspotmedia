@@ -22,6 +22,32 @@ def _ensure_creator_profile_deleted_column():
         print("owner creator_profile.deleted repair warning:", e)
 
 
+
+def _owner_order_sales_v427():
+    try:
+        rows = db.session.execute(db.text("""
+            SELECT i.*, o.buyer_email, o.amount_total, o.created_at, v.location, v.filename, u.email AS creator_email
+            FROM bsm_cart_order_item i
+            JOIN bsm_cart_order o ON o.id = i.cart_order_id
+            LEFT JOIN video v ON v.id = i.video_id
+            LEFT JOIN "user" u ON u.id = i.creator_id
+            ORDER BY o.created_at DESC
+            LIMIT 100
+        """)).mappings().all()
+    except Exception:
+        db.session.rollback()
+        rows = []
+    total = 0.0
+    count = 0
+    for r in rows:
+        try:
+            total += float(r.get("unit_price") or 0) * int(r.get("quantity") or 1)
+            count += int(r.get("quantity") or 1)
+        except Exception:
+            pass
+    return {"owner_recent_order_sales": rows, "owner_order_sales_total": total, "owner_order_sales_count": count}
+
+
 @owner_bp.route("/login", methods=["GET", "POST"])
 def login():
     if request.method == "POST":

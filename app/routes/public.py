@@ -325,7 +325,17 @@ def _bsm_buyer_orders_for_user_v424(user_id, email):
 def _bsm_buyer_order_items_v422(order_id):
     try:
         return db.session.execute(db.text("""
-            SELECT i.*, v.location, v.filename, v.internal_filename, v.thumbnail_path
+            SELECT i.*,
+                   v.location,
+                   v.filename,
+                   v.internal_filename,
+                   v.thumbnail_path,
+                   v.public_thumbnail_url,
+                   v.r2_thumbnail_key,
+                   v.file_path,
+                   v.r2_video_key,
+                   v.public_url,
+                   v.preview_url
             FROM bsm_cart_order_item i
             LEFT JOIN video v ON v.id=i.video_id
             WHERE i.cart_order_id=:oid
@@ -334,6 +344,38 @@ def _bsm_buyer_order_items_v422(order_id):
     except Exception:
         db.session.rollback()
         return []
+
+
+
+def _bsm_media_url_v427(row, kind="thumb"):
+    try:
+        keys = ["thumbnail_path", "public_thumbnail_url", "r2_thumbnail_key"] if kind == "thumb" else ["file_path", "r2_video_key", "public_url", "preview_url"]
+        for key in keys:
+            val = row.get(key) if hasattr(row, "get") else row[key]
+            if val:
+                val = str(val)
+                if val.startswith("http") or val.startswith("/"):
+                    return val
+                return "/media/" + val.lstrip("/")
+    except Exception:
+        pass
+    return None
+
+
+def _bsm_eastern_time_v427(value):
+    try:
+        from zoneinfo import ZoneInfo
+        from datetime import timezone
+        if not value:
+            return ""
+        if getattr(value, "tzinfo", None) is None:
+            value = value.replace(tzinfo=timezone.utc)
+        return value.astimezone(ZoneInfo("America/New_York")).strftime("%m/%d/%Y %I:%M %p")
+    except Exception:
+        try:
+            return value.strftime("%m/%d/%Y %I:%M %p")
+        except Exception:
+            return str(value or "")
 
 
 @public_bp.route("/buyer/register", methods=["GET", "POST"])
@@ -409,7 +451,14 @@ def buyer_dashboard_public_v422():
     orders = []
     for order in _bsm_buyer_orders_for_user_v424(session.get("user_id"), email):
         d = dict(order)
-        d["order_items"] = [dict(x) for x in _bsm_buyer_order_items_v422(order["id"])]
+        items = []
+        for x in _bsm_buyer_order_items_v422(order["id"]):
+            ix = dict(x)
+            ix["thumbnail_url"] = _bsm_media_url_v427(ix, "thumb")
+            ix["download_url"] = "/buyer/download-item/" + str(ix.get("id")) if ix.get("delivery_status") == "ready_to_download" else None
+            items.append(ix)
+        d["order_items"] = items
+        d["created_at_et"] = _bsm_eastern_time_v427(d.get("created_at"))
         orders.append(d)
 
     return render_template(
@@ -953,3 +1002,46 @@ def services_redirect():
 @public_bp.route("/charters")
 def charters_redirect():
     return redirect("https://charters.boatspotmedia.com", code=302)
+
+
+
+@public_bp.route("/buyer/download-item/<int:item_id>")
+def buyer_download_order_item_v427(item_id):
+    """
+    Instant download for a buyer order item.
+    Only allows logged-in buyer to download their own paid item.
+    """
+    if not session.get("user_id") or session.get("user_role") != "buyer":
+        return redirect("/buyer/login")
+
+    try:
+        row = db.session.execute(db.text("""
+            SELECT i.*, o.buyer_user_id, o.buyer_email,
+                   v.file_path, v.r2_video_key, v.public_url, v.preview_url, v.filename, v.internal_filename
+            FROM bsm_cart_order_item i
+            JOIN bsm_cart_order o ON o.id = i.cart_order_id
+            LEFT JOIN video v ON v.id = i.video_id
+            WHERE i.id = :item_id
+            LIMIT 1
+        """), {"item_id": item_id}).mappings().first()
+    except Exception:
+        db.session.rollback()
+        row = None
+
+    if not row:
+        return "Download not found", 404
+
+    user_id = session.get("user_id")
+    user_email = (session.get("user_email") or "").lower()
+    if row.get("buyer_user_id") and int(row.get("buyer_user_id")) != int(user_id):
+        return "Not authorized", 403
+    if not row.get("buyer_user_id") and (row.get("buyer_email") or "").lower() != user_email:
+        return "Not authorized", 403
+
+    if row.get("delivery_status") != "ready_to_download":
+        return "This file is not ready for download yet.", 400
+
+    url = _bsm_media_url_v427(row, "video")
+    if not url:
+        return "Download file not available yet.", 404
+    return redirect(url)

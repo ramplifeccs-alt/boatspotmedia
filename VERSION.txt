@@ -1,11 +1,13 @@
-BoatSpotMedia v42.6 Buyer Order Dashboard Fix
-Base: v42.5 Checkout Session Alias Fix.
+BoatSpotMedia v42.7 Order Thumbnails + Downloads + Dashboards + Home Fix
+Base: v42.6.
 Fixes:
-- Corrects flask_flask_session typo to flask_session.
-- Fixes Buyer Dashboard TypeError caused by Jinja order.items conflict.
-- Renames order items key to order_order_items/order_items safe usage in template.
+- Buyer My Orders shows thumbnails using thumbnail_url/public URL candidates.
+- Buyer My Orders shows Download button for ready_to_download items.
+- Order times display in America/New_York format instead of UTC.
+- Creator dashboard includes recent order sales summary.
+- Owner dashboard includes order sales panel.
+- Removes Latest Boat Video Preview block from Home.
 Not touched:
-- auth
-- Google login
-- Stripe checkout logic beyond typo fix
-- upload/R2/pricing
+- Google login.
+- Core auth.
+- Upload/R2/pricing.
