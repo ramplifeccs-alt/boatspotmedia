@@ -1,3 +1,9 @@
-<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>Buyer Login - BoatSpotMedia</title><link rel="stylesheet" href="/static/css/style.css"></head><body>
-<header class="bsm-simple-header"><a href="/"><img src="/static/img/logo-header.png" alt="BoatSpotMedia" class="bsm-logo-img"></a><a href="/buyer/register">Create Account</a></header>
-<div class="container" style="max-width:620px;margin:40px auto;padding:24px;background:#fff;border-radius:14px;"><h1>Buyer Login</h1><p>Sign in with the same email used at checkout to view your orders.</p>{% if error %}<div style="background:#fee2e2;border:1px solid #fca5a5;color:#991b1b;padding:12px;border-radius:10px;margin:12px 0;">{{ error }}</div>{% endif %}<form method="POST"><label>Email</label><input name="email" type="email" value="{{ email or '' }}" required style="width:100%;padding:12px;margin:6px 0 12px;border:1px solid #cbd5e1;border-radius:8px;"><label>Password</label><input name="password" type="password" required style="width:100%;padding:12px;margin:6px 0 12px;border:1px solid #cbd5e1;border-radius:8px;"><button class="btn" type="submit">Login</button></form><p><a href="/buyer/register">Create buyer account</a></p></div><script src="/static/js/mobile.js"></script></body></html>
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Buyer Login - BoatSpotMedia</title><link rel="stylesheet" href="/static/css/style.css"></head>
+<body><header class="bsm-simple-header"><a href="/"><img src="/static/img/logo-header.png" alt="BoatSpotMedia" class="bsm-logo-img"></a></header>
+<div class="container" style="max-width:620px;margin:40px auto;padding:24px;background:#fff;border-radius:14px;">
+<h1>Buyer Login</h1>
+<p>Buyer login will be connected to the existing login/Google auth system in the next safe phase.</p>
+<p><a class="btn" href="/">Back to Home</a></p>
+</div><script src="/static/js/mobile.js"></script></body></html>

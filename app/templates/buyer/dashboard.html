@@ -1,6 +1,12 @@
-<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>My Orders - BoatSpotMedia</title><link rel="stylesheet" href="/static/css/style.css"></head><body>
-<header class="bsm-simple-header"><a href="/"><img src="/static/img/logo-header.png" alt="BoatSpotMedia" class="bsm-logo-img"></a><a href="/buyer/logout">Logout</a></header>
-<div class="container" style="max-width:1000px;margin:30px auto;padding:20px;"><h1>My Orders</h1><p>Signed in as <strong>{{ buyer_email }}</strong></p>
-{% if not orders %}<div style="background:#f8fafc;border:1px solid #e2e8f0;padding:16px;border-radius:12px;">No orders found for this email yet. Make sure you register/login with the same email used at checkout.</div>{% else %}
-<div style="display:grid;gap:16px;">{% for order in orders %}<div style="background:#fff;border:1px solid #e5e7eb;border-radius:14px;padding:16px;"><div style="display:flex;justify-content:space-between;gap:12px;flex-wrap:wrap;"><div><h3 style="margin:0 0 6px;">Order #{{ order.id }}</h3><div style="color:#64748b;">{{ order.created_at }}</div><div>Status: <strong>{{ order.status }}</strong></div></div><div style="font-size:22px;font-weight:800;">${{ "%.2f"|format(order.amount_total or 0) }}</div></div><div style="margin-top:12px;display:grid;gap:10px;">{% for item in order.items %}<div style="display:grid;grid-template-columns:90px 1fr auto;gap:12px;align-items:center;border-top:1px solid #f1f5f9;padding-top:10px;"><div style="width:90px;height:58px;background:#e5e7eb;border-radius:9px;overflow:hidden;">{% if item.thumbnail_path %}<img src="/media/{{ item.thumbnail_path }}" style="width:100%;height:100%;object-fit:cover;">{% endif %}</div><div><div><strong>{{ item.location or "Boat video" }}</strong></div><div style="color:#64748b;font-size:14px;">Package: {{ item.package }} · Delivery: {{ item.delivery_status }}</div></div><div style="font-weight:800;">${{ "%.2f"|format(item.unit_price or 0) }}</div></div>{% endfor %}</div></div>{% endfor %}</div>{% endif %}
-<p style="margin-top:20px;"><a class="btn" href="/">Back to BoatSpotMedia</a></p></div><script src="/static/js/mobile.js"></script></body></html>
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>My Orders - BoatSpotMedia</title><link rel="stylesheet" href="/static/css/style.css"></head>
+<body><header class="bsm-simple-header"><a href="/"><img src="/static/img/logo-header.png" alt="BoatSpotMedia" class="bsm-logo-img"></a></header>
+<div class="container" style="max-width:900px;margin:40px auto;padding:24px;background:#fff;border-radius:14px;">
+<h1>My Orders</h1>
+<div style="background:#f8fafc;border:1px solid #e2e8f0;padding:16px;border-radius:12px;">
+Buyer order history will be connected to the existing auth system in the next safe phase.
+</div>
+<p style="display:flex;gap:10px;flex-wrap:wrap;margin-top:18px;">
+<a class="btn" href="/">Back to BoatSpotMedia</a>
+</p></div><script src="/static/js/mobile.js"></script></body></html>

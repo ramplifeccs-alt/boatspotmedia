@@ -1,17 +1,11 @@
-BoatSpotMedia v41.8 Buyer Login Robust Fix
-Base: v41.7 Buyer Login + Header Color.
-Fixes:
-- Buyer register/login is now robust for old placeholder accounts.
-- If buyer email already exists, register updates password and logs in.
-- Adds missing columns to older buyer_account tables.
-- Login accepts proper password hashes and legacy plaintext fallback.
-- Removes duplicate buyer blueprint registration blocks.
+BoatSpotMedia v41.9 Auth Rollback Safe
+Base: v41.6 Payment Download + Buyer Order CTA.
+Purpose:
+- Roll back unsafe buyer auth replacement from v41.7/v41.8.
+- Do not override existing login/Google auth.
+- Remove duplicate buyer blueprint registration additions.
+- Keep header color/logo and payment/cart improvements.
 Important:
-- If a buyer registered before and cannot login, register again with the same email and password.
-Not touched:
-- upload
-- R2 delete
-- pricing
-- cart thumbnails
-- Stripe checkout
-- header color/logo
+- This is a stabilization package, not a new auth implementation.
+Next:
+- Inspect existing auth routes/models before connecting buyer orders.
