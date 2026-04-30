@@ -1,6 +1,9 @@
 <!doctype html>
 <html lang="en">
-<head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>My Orders - BoatSpotMedia</title><link rel="stylesheet" href="/static/css/style.css"></head>
+<head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>My Orders - BoatSpotMedia</title><link rel="stylesheet" href="/static/css/style.css">  <link rel="icon" type="image/png" href="/static/img/favicon.png">
+  <link rel="apple-touch-icon" href="/static/img/apple-touch-icon.png">
+  <meta name="theme-color" content="#071b34">
+</head>
 <body>
 <header class="bsm-simple-header"><a href="/"><img src="/static/img/logo-header.png" alt="BoatSpotMedia" class="bsm-logo-img"></a><a href="/logout">Logout</a></header>
 <div class="container" style="max-width:1000px;margin:30px auto;padding:20px;">
@@ -8,7 +11,7 @@
   <p>Signed in as <strong>{{ buyer_email or email }}</strong></p>
   {% if not orders %}
     <div style="background:#f8fafc;border:1px solid #e2e8f0;padding:16px;border-radius:12px;">
-      No orders found yet. If you checked out as a guest, register or login with the same email used at checkout and refresh this page.
+      No orders found yet. You must be logged in before checkout so purchases can attach to your account.
     </div>
   {% else %}
     <div style="display:grid;gap:16px;">
@@ -31,8 +34,8 @@
               </div>
               <div style="font-weight:800;text-align:right;">
                 ${{ "%.2f"|format(item.unit_price or 0) }}
-                {% if item.download_url %}
-                  <div style="margin-top:8px;"><a class="btn" href="{{ item.download_url }}">Download</a></div>
+                {% if item.download_url or item.delivery_status == "ready_to_download" %}
+                  <div style="margin-top:8px;"><a class="btn" href="{{ item.download_url or ("/buyer/download-item/" ~ item.id) }}">Download</a></div>
                 {% elif item.delivery_status == "pending_edit" %}
                   <div style="font-size:12px;color:#9a3412;margin-top:8px;">Pending edit</div>
                 {% endif %}

@@ -1,4 +1,4 @@
-from flask import session as flask_session, render_template, request
+from flask import session as flask_session, render_template, request, redirect
 import json
 from flask import Blueprint
 from flask import request, redirect, url_for, jsonify, render_template
@@ -640,6 +640,11 @@ def stripe_webhook():
 
 @payments_bp.route("/cart/checkout")
 def checkout_cart():
+    # Checkout login guard v42.9
+    if not flask_session.get("user_id") or flask_session.get("user_role") != "buyer":
+        flask_session["after_login_redirect"] = "/cart"
+        flask_session.modified = True
+        return redirect("/buyer/login?next=/cart")
     from app.services.cart import cart_summary, build_cart_display_items, current_cart_id
     summary = cart_summary()
     items = build_cart_display_items()

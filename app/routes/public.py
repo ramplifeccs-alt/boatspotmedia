@@ -436,7 +436,7 @@ def buyer_register_public_v422():
             db.session.commit()
             _bsm_set_buyer_session_v422(user)
             _bsm_claim_guest_orders_v428(user)
-            return redirect("/buyer/dashboard")
+            return redirect(session.pop("after_login_redirect", None) or request.args.get("next") or "/buyer/dashboard")
         except Exception as e:
             db.session.rollback()
             try:
@@ -463,7 +463,7 @@ def buyer_login_public_v422():
 
         _bsm_set_buyer_session_v422(user)
         _bsm_claim_guest_orders_v428(user)
-        return redirect("/buyer/dashboard")
+        return redirect(session.pop("after_login_redirect", None) or request.args.get("next") or "/buyer/dashboard")
 
     return render_template("public/generic_login.html", title="Buyer Login", subtitle="Access your orders and downloads.", register_url="/buyer/register", role="buyer")
 
@@ -684,7 +684,7 @@ def _register_user(role, dashboard_url):
             session["user_role"] = existing_user.role
             session["display_name"] = existing_user.display_name or existing_user.email
             session.modified = True
-            return redirect("/buyer/dashboard")
+            return redirect(session.pop("after_login_redirect", None) or request.args.get("next") or "/buyer/dashboard")
         return render_template("public/generic_register.html", role=role, error="This email already exists. Please login.")
     user = User(email=email, password_hash=generate_password_hash(password), role=role, display_name=display_name, is_active=True)
     db.session.add(user); db.session.flush()
@@ -963,7 +963,7 @@ def auth_google_callback():
         return redirect("/service-account/dashboard")
     if user.role in ["charter", "charters"]:
         return redirect("/charters")
-    return redirect("/buyer/dashboard")
+    return redirect(session.pop("after_login_redirect", None) or request.args.get("next") or "/buyer/dashboard")
 
 
 @public_bp.route("/logout")
@@ -1071,3 +1071,55 @@ def buyer_download_order_item_v427(item_id):
     if not url:
         return "Download file not available yet.", 404
     return redirect(url)
+
+
+
+@public_bp.route("/buyer/download-item/<int:item_id>")
+def buyer_download_order_item_v429(item_id):
+    if not session.get("user_id") or session.get("user_role") != "buyer":
+        session["after_login_redirect"] = "/buyer/dashboard"
+        session.modified = True
+        return redirect("/buyer/login?next=/buyer/dashboard")
+
+    try:
+        db.session.execute(db.text("ALTER TABLE bsm_cart_order ADD COLUMN IF NOT EXISTS buyer_user_id INTEGER"))
+        db.session.commit()
+    except Exception:
+        db.session.rollback()
+
+    try:
+        row = db.session.execute(db.text("""
+            SELECT i.*, o.buyer_user_id, o.buyer_email,
+                   v.file_path, v.r2_video_key, v.public_url, v.preview_url, v.filename, v.internal_filename
+            FROM bsm_cart_order_item i
+            JOIN bsm_cart_order o ON o.id = i.cart_order_id
+            LEFT JOIN video v ON v.id = i.video_id
+            WHERE i.id = :item_id
+            LIMIT 1
+        """), {"item_id": item_id}).mappings().first()
+    except Exception:
+        db.session.rollback()
+        row = None
+
+    if not row:
+        return "Download not found", 404
+
+    user_id = session.get("user_id")
+    user_email = (session.get("user_email") or "").lower()
+    if row.get("buyer_user_id") and int(row.get("buyer_user_id")) != int(user_id):
+        return "Not authorized", 403
+    if not row.get("buyer_user_id") and (row.get("buyer_email") or "").lower() != user_email:
+        return "Not authorized", 403
+
+    if row.get("delivery_status") != "ready_to_download":
+        return "This file is not ready for download yet.", 400
+
+    for key in ["public_url", "file_path", "r2_video_key", "preview_url"]:
+        val = row.get(key)
+        if val:
+            val = str(val)
+            if val.startswith("http") or val.startswith("/"):
+                return redirect(val)
+            return redirect("/media/" + val.lstrip("/"))
+
+    return "Download file not available yet.", 404

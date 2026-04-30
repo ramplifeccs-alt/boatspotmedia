@@ -1,14 +1,15 @@
-BoatSpotMedia v42.8 Discount + Guest Order Claim Fix
-Base: v42.7.
+BoatSpotMedia v42.9 Checkout Login + Download + Favicon Fix
+Base: v42.8.
 Fixes:
-- Removes hard-coded discount promo text when creator discount is not enabled.
-- Cart discount review only appears if creator explicitly enabled discount.
-- Checkout no longer forces discount review when not enabled.
-- Guest checkout orders can be claimed after registration/login with same checkout email.
-- Buyer dashboard claims matching guest orders automatically.
-- My Orders does not show thumbnails, avoiding broken thumbnails after video deletion.
-- Keeps download button for instant download.
+- Removes same-boat pending discount message from cart unless service logic enables it.
+- Checkout requires buyer login/account before Stripe payment.
+- Buyer can add to cart as guest, but must login/register to checkout.
+- Login/register redirects back to cart when started from checkout.
+- My Orders has per-video Download button.
+- Adds robust /buyer/download-item/<id> route.
+- Adds favicon.png and apple-touch-icon.png from provided image for browser tab and iPhone home screen.
+- Keeps My Orders without thumbnails.
 Not touched:
-- Google login.
+- Google login core.
 - Creator auth.
 - Upload/R2/pricing core.
