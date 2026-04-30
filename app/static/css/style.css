@@ -460,3 +460,22 @@ header a,.navbar a,.site-header a,.topbar a,nav a,.bsm-header a,.bsm-simple-head
   text-decoration:none!important;
   font-weight:700!important;
 }
+
+/* v43.2 always visible download button */
+.bsm-download-btn{
+  display:inline-flex!important;
+  align-items:center!important;
+  justify-content:center!important;
+  background:#2563eb!important;
+  color:#ffffff!important;
+  padding:12px 16px!important;
+  border-radius:12px!important;
+  font-weight:800!important;
+  text-decoration:none!important;
+  min-width:150px!important;
+  min-height:44px!important;
+  box-shadow:0 6px 14px rgba(37,99,235,.25)!important;
+}
+@media(max-width:700px){
+  .bsm-download-btn{width:100%!important;margin-top:8px!important;}
+}
