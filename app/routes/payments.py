@@ -476,4 +476,4 @@ def checkout_cart():
 
 @payments_bp.route("/payment/received")
 def payment_received_fallback():
-    return _payment_success_safe_page("Payment received. Please check your email for your download link. If you purchased an edited video, the creator will deliver it after editing.", [], None)
+    return _payment_success_safe_page("Payment received. If your purchase includes instant downloads, use the download buttons on this page. We will also email the link. Edited videos will be delivered after the creator uploads the final file.", [], None)

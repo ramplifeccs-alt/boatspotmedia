@@ -1,21 +1,24 @@
-{% extends "buyer/base.html" %}
-{% block content %}
-<h1>Welcome, {{display_name}}</h1>
-<div class="grid">
-  <div class="card">
-    <h3>Find your video</h3>
-    <p>Search by date, time range, location, and boat details.</p>
-    <a class="btn" href="/search">Search Videos</a>
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>My Orders - BoatSpotMedia</title>
+  <link rel="stylesheet" href="/static/css/style.css">
+</head>
+<body>
+<div class="container" style="max-width:900px;margin:40px auto;padding:24px;background:#fff;border-radius:14px;">
+  <p><a href="/"><img src="/static/img/logo-header.png" alt="BoatSpotMedia" style="height:64px;max-width:320px;object-fit:contain;"></a></p>
+  <h1>My Orders</h1>
+  <div style="background:#f8fafc;border:1px solid #e2e8f0;padding:16px;border-radius:12px;">
+    Buyer order history will appear here after account registration is connected.
   </div>
-  <div class="card">
-    <h3>Your orders</h3>
-    <p>View purchases and download links while they are available.</p>
-    <a class="btn secondary" href="/buyer/orders">View Orders</a>
-  </div>
-  <div class="card">
-    <h3>Shop</h3>
-    <p>Buy merch and products from approved creators.</p>
-    <a class="btn secondary" href="/shop">Open Shop</a>
-  </div>
+  <p style="display:flex;gap:10px;flex-wrap:wrap;margin-top:18px;">
+    <a class="btn" href="/buyer/register">Create Buyer Account</a>
+    <a class="btn" href="/buyer/login">Buyer Login</a>
+    <a class="btn" href="/">Back to BoatSpotMedia</a>
+  </p>
 </div>
-{% endblock %}
+<script src="/static/js/mobile.js"></script>
+</body>
+</html>

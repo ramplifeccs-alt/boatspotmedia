@@ -89,3 +89,13 @@ try:
     app.register_blueprint(cart_bp)
 except Exception as e:
     print("cart blueprint registration warning:", e)
+
+# BoatSpotMedia buyer routes registration v41.6
+try:
+    from app.routes.buyer import buyer_bp
+    app.register_blueprint(buyer_bp)
+except Exception as e:
+    try:
+        print("buyer blueprint registration warning:", e)
+    except Exception:
+        pass
