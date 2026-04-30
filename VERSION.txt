@@ -1,11 +1,14 @@
-BoatSpotMedia v41.9 Auth Rollback Safe
-Base: v41.6 Payment Download + Buyer Order CTA.
-Purpose:
-- Roll back unsafe buyer auth replacement from v41.7/v41.8.
-- Do not override existing login/Google auth.
-- Remove duplicate buyer blueprint registration additions.
-- Keep header color/logo and payment/cart improvements.
-Important:
-- This is a stabilization package, not a new auth implementation.
-Next:
-- Inspect existing auth routes/models before connecting buyer orders.
+BoatSpotMedia v42.0 Existing Auth + Order Fix FULL
+Base: boatspotmedia_v41_9_AUTH_ROLLBACK_SAFE.zip
+Fixes:
+- Full project package, not README-only.
+- Uses existing User auth system, not buyer_account.
+- /buyer/login POST validates password and logs buyer in.
+- /buyer/register keeps existing User table and can refresh buyer password if same email already exists.
+- /buyer/dashboard shows orders by logged-in user email.
+- Stripe webhook persists cart orders from cart_id snapshot.
+- Prevents duplicate orders by stripe_session_id.
+Not touched:
+- Google login flow.
+- Creator auth.
+- Upload/R2/pricing.

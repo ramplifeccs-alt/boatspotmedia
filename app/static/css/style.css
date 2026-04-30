@@ -415,3 +415,11 @@ header a:hover,.navbar a:hover,.site-header a:hover,.topbar a:hover,nav a:hover,
   padding:14px 18px;display:flex;align-items:center;justify-content:space-between;gap:14px;
 }
 @media(max-width:600px){.bsm-logo-img{height:38px;max-width:220px}.bsm-simple-header{padding:12px}}
+
+/* BoatSpotMedia global header/logo color v42.0 */
+:root{--bsm-navy:#071b34;--bsm-navy-2:#0b2a52;--bsm-blue:#2563eb;}
+header,.navbar,.site-header,.topbar,nav,.bsm-header{background:linear-gradient(90deg,#071b34 0%,#0b2a52 55%,#071b34 100%)!important;color:#fff!important;}
+header a,.navbar a,.site-header a,.topbar a,nav a,.bsm-header a{color:#fff!important;}
+.bsm-logo-img{height:48px;max-width:280px;object-fit:contain;display:block;}
+.bsm-simple-header{background:linear-gradient(90deg,#071b34 0%,#0b2a52 55%,#071b34 100%);padding:14px 18px;display:flex;align-items:center;justify-content:space-between;gap:14px;}
+@media(max-width:600px){.bsm-logo-img{height:38px;max-width:220px}.bsm-simple-header{padding:12px}}

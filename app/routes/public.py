@@ -2,7 +2,7 @@ import os
 from datetime import datetime
 from flask import Blueprint, redirect, render_template, request, url_for, session, jsonify
 from sqlalchemy import text
-from werkzeug.security import generate_password_hash
+from werkzeug.security import generate_password_hash, check_password_hash
 from app.models import Video, Location, ServiceAd, CharterListing, User
 from app.services.db import db
 
@@ -217,6 +217,41 @@ def _track_video_event_raw(video_id, event_name):
 
 
 
+
+def _login_user_by_role_v420(role, dashboard_url, title="Login", subtitle=""):
+    email = (request.form.get("email") or "").lower().strip()
+    password = request.form.get("password") or ""
+    if not email or not password:
+        return render_template("public/generic_login.html", title=title, subtitle=subtitle, register_url=f"/{role}/register" if role != "buyer" else "/buyer/register", role=role, error="Email and password are required.")
+
+    user = User.query.filter(db.func.lower(User.email) == email.lower()).first()
+    if not user or user.role != role:
+        return render_template("public/generic_login.html", title=title, subtitle=subtitle, register_url=f"/{role}/register" if role != "buyer" else "/buyer/register", role=role, error="Invalid email or password.")
+
+    if not getattr(user, "is_active", True):
+        return render_template("public/generic_login.html", title=title, subtitle=subtitle, register_url=f"/{role}/register" if role != "buyer" else "/buyer/register", role=role, error="Account is not active.")
+
+    stored_hash = getattr(user, "password_hash", None) or ""
+    ok = False
+    try:
+        ok = check_password_hash(stored_hash, password)
+    except Exception:
+        ok = False
+
+    if not ok and stored_hash == password:
+        ok = True
+
+    if not ok:
+        return render_template("public/generic_login.html", title=title, subtitle=subtitle, register_url=f"/{role}/register" if role != "buyer" else "/buyer/register", role=role, error="Invalid email or password.")
+
+    session["user_id"] = user.id
+    session["user_email"] = user.email
+    session["user_role"] = user.role
+    session["display_name"] = user.display_name or user.email
+    session.modified = True
+    return redirect(dashboard_url)
+
+
 @public_bp.route("/payment/success")
 def payment_success_public_fallback_v415():
     """
@@ -392,7 +427,20 @@ def _register_user(role, dashboard_url):
     display_name = request.form.get("display_name") or request.form.get("business_name") or email
     if not email or not password:
         return render_template("public/generic_register.html", role=role, error="Email and password are required.")
-    if User.query.filter_by(email=email).first():
+    existing_user = User.query.filter(db.func.lower(User.email) == email.lower()).first()
+    if existing_user:
+        # Existing buyer password refresh v42.0
+        if role == "buyer":
+            existing_user.password_hash = generate_password_hash(password)
+            existing_user.display_name = display_name or existing_user.display_name
+            existing_user.is_active = True
+            db.session.commit()
+            session["user_id"] = existing_user.id
+            session["user_email"] = existing_user.email
+            session["user_role"] = existing_user.role
+            session["display_name"] = existing_user.display_name or existing_user.email
+            session.modified = True
+            return redirect("/buyer/dashboard")
         return render_template("public/generic_register.html", role=role, error="This email already exists. Please login.")
     user = User(email=email, password_hash=generate_password_hash(password), role=role, display_name=display_name, is_active=True)
     db.session.add(user); db.session.flush()
@@ -405,6 +453,8 @@ def _register_user(role, dashboard_url):
 
 @public_bp.route("/buyer/login", methods=["GET", "POST"])
 def buyer_login():
+    if request.method == "POST":
+        return _login_user_by_role_v420("buyer", "/buyer/dashboard", title="Buyer Login", subtitle="Access your orders and downloads.")
     return render_template("public/generic_login.html", title="Buyer Login", subtitle="Access your orders and downloads.", register_url="/buyer/register", role="buyer")
 
 @public_bp.route("/buyer/register", methods=["GET", "POST"])
@@ -522,7 +572,7 @@ def auth_google_callback():
     import urllib.parse
     import urllib.request
     import urllib.error
-    from werkzeug.security import generate_password_hash
+    from werkzeug.security import generate_password_hash, check_password_hash
     from app.models import User
     from app.services.db import db
 

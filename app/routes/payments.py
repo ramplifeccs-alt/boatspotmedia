@@ -131,6 +131,16 @@ def _record_cart_order_from_session(stripe_session):
 
     _ensure_cart_order_tables()
 
+    # Duplicate cart order guard v42.0
+    try:
+        sid = getattr(stripe_session, "id", None)
+        if sid:
+            existing = db.session.execute(db.text("SELECT id FROM bsm_cart_order WHERE stripe_session_id=:sid LIMIT 1"), {"sid": sid}).mappings().first()
+            if existing:
+                return {"order_id": existing["id"], "download_urls": []}
+    except Exception:
+        db.session.rollback()
+
     buyer_email = None
     try:
         buyer_email = stripe_session.customer_details.email if stripe_session.customer_details else stripe_session.customer_email
@@ -150,10 +160,11 @@ def _record_cart_order_from_session(stripe_session):
     currency = getattr(stripe_session, "currency", "usd")
     pending_review = str(getattr(stripe_session, "metadata", {}).get("pending_discount_review", "False")) == "True"
 
-    db.session.execute(
+    row = db.session.execute(
         db.text("""
             INSERT INTO bsm_cart_order (cart_id, stripe_session_id, buyer_email, amount_total, currency, pending_discount_review, status)
             VALUES (:cart_id, :sid, :email, :amount, :currency, :pending, 'paid')
+            RETURNING id
         """),
         {
             "cart_id": flask_session.get("bsm_cart_id") or str(stripe_session.metadata.get("cart_id", "")),
@@ -163,8 +174,8 @@ def _record_cart_order_from_session(stripe_session):
             "currency": currency,
             "pending": pending_review,
         },
-    )
-    order_id = db.session.execute(db.text("SELECT currval(pg_get_serial_sequence('bsm_cart_order','id')) AS id")).mappings().first()["id"]
+    ).mappings().first()
+    order_id = row["id"] if row else None
 
     download_urls = []
     for item in items:
@@ -314,6 +325,93 @@ def _public_base_url():
     except Exception:
         pass
     return request.host_url.rstrip("/")
+
+
+
+def _record_cart_order_from_webhook_v420(obj):
+    """
+    Persist cart order from Stripe webhook using bsm_pending_cart cart_id.
+    This works even when buyer does not return to /payment/success.
+    """
+    from app.models import Video
+    _ensure_cart_order_tables()
+    metadata = obj.get("metadata", {}) or {}
+    if str(metadata.get("cart_checkout", "")) != "1":
+        return None
+
+    sid = obj.get("id")
+    try:
+        if sid:
+            existing = db.session.execute(db.text("SELECT id FROM bsm_cart_order WHERE stripe_session_id=:sid LIMIT 1"), {"sid": sid}).mappings().first()
+            if existing:
+                return existing["id"]
+    except Exception:
+        db.session.rollback()
+
+    cart_id = str(metadata.get("cart_id", "") or "")
+    items = _load_pending_cart_snapshot(cart_id)
+    if not items:
+        return None
+
+    buyer_email = None
+    try:
+        buyer_email = (obj.get("customer_details") or {}).get("email") or obj.get("customer_email")
+    except Exception:
+        buyer_email = obj.get("customer_email")
+
+    amount_total = float(obj.get("amount_total") or 0) / 100.0
+    currency = obj.get("currency") or "usd"
+    pending_review = str(metadata.get("pending_discount_review", "False")) == "True"
+
+    try:
+        row = db.session.execute(db.text("""
+            INSERT INTO bsm_cart_order (cart_id, stripe_session_id, buyer_email, amount_total, currency, pending_discount_review, status)
+            VALUES (:cart_id, :sid, :email, :amount, :currency, :pending, 'paid')
+            RETURNING id
+        """), {"cart_id": cart_id, "sid": sid, "email": buyer_email, "amount": amount_total, "currency": currency, "pending": pending_review}).mappings().first()
+        order_id = row["id"] if row else None
+
+        for item in items:
+            if item.get("item_type") != "video":
+                continue
+            video = Video.query.get(item.get("video_id"))
+            if not video:
+                continue
+            creator_id = item.get("creator_id") or getattr(video, "creator_id", None) or getattr(video, "creator_profile_id", None)
+            package = item.get("package", "original")
+            unit_price = float(item.get("unit_price") or 0)
+            qty = int(item.get("quantity") or 1)
+            delivery_status = "pending_edit" if package == "edited" else "ready_to_download"
+            db.session.execute(db.text("""
+                INSERT INTO bsm_cart_order_item
+                (cart_order_id, video_id, creator_id, item_type, package, boat_key, unit_price, quantity, discount_status, delivery_status)
+                VALUES (:oid, :vid, :cid, :itype, :package, :boat_key, :price, :qty, :discount, :delivery)
+            """), {
+                "oid": order_id or 0,
+                "vid": item.get("video_id"),
+                "cid": creator_id,
+                "itype": item.get("item_type", "video"),
+                "package": package,
+                "boat_key": item.get("boat_key"),
+                "price": unit_price,
+                "qty": qty,
+                "discount": "pending_review" if pending_review else "none",
+                "delivery": delivery_status,
+            })
+            try:
+                _record_sale_best_effort(video, buyer_email, unit_price * qty, package, stripe_session_id=sid)
+            except Exception:
+                pass
+
+        db.session.commit()
+        return order_id
+    except Exception as e:
+        db.session.rollback()
+        try:
+            print("webhook cart order record warning:", e)
+        except Exception:
+            pass
+        return None
 
 
 @payments_bp.route("/checkout/product/<int:product_id>")
