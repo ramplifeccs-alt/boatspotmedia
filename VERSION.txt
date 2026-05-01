@@ -1,14 +1,12 @@
-BoatSpotMedia v45.1 Creator Dashboard Shell Links
-Base: v45.0.
+BoatSpotMedia v45.2 Creator Modules In Shell
+Base: v45.1.
 Fix:
-- Makes the new sidebar layout the Creator Dashboard shell.
-- Dashboard links to existing working modules without changing their code:
-  Uploads -> /creator/upload
-  Batches -> /creator/batches
-  Pricing -> /creator/dashboard#pricing
-  Orders -> /creator/orders
-- Orders keeps the same sidebar.
-Does not touch:
-- Uploads logic
-- Batches logic
-- Pricing logic
+- /creator/upload is wrapped inside new sidebar shell while keeping existing upload logic.
+- /creator/batches is wrapped inside new sidebar shell while keeping existing batches logic.
+- /creator/pricing is wrapped inside new sidebar shell while keeping existing pricing logic.
+- Dashboard menu links open these modules directly.
+- Orders stays in the same shell.
+Detected routes:
+  Uploads: /creator/upload
+  Batches: /creator/batches
+  Pricing: /creator/pricing

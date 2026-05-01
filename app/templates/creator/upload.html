@@ -1,6 +1,7 @@
 <!doctype html>
-<html>
+<html lang="en">
 <head>
+
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>BoatSpotMedia</title>
@@ -8,8 +9,32 @@
   <link rel="icon" type="image/png" href="/static/img/favicon.png">
   <link rel="apple-touch-icon" href="/static/img/apple-touch-icon.png">
   <meta name="theme-color" content="#071b34">
+
+<title>Uploads - BoatSpotMedia</title>
 </head>
-<body><div class="creator-topbar" style="display:flex;justify-content:space-between;align-items:center;gap:12px;padding:12px 18px;background:#0b1220;color:#fff;margin:-1px -1px 16px -1px;">
+<body class="creator-dashboard-v452">
+<div class="bsm-creator-page-shell-v452">
+  
+<aside class="bsm-creator-sidebar-v452">
+  <a href="/creator/dashboard" class="bsm-creator-logo-v452">
+    <img src="/static/img/logo-header.png" alt="BoatSpotMedia">
+  </a>
+  <div class="bsm-creator-handle-v452">@BoatSpotMedia.com</div>
+  <nav class="bsm-creator-nav-v452">
+    <a href="/creator/dashboard">Dashboard</a>
+    <a href="/creator/upload" class="active">Uploads</a>
+    <a href="/creator/batches">Batches</a>
+    <a href="/creator/orders">Orders</a>
+    <a href="/creator/dashboard#products">Products</a>
+    <a href="/creator/pricing">Pricing</a>
+    <a href="/creator/dashboard#settings">Settings</a>
+    <a href="/logout" class="logout">Log out</a>
+  </nav>
+</aside>
+
+  <main class="bsm-creator-main-v452">
+    <div class="bsm-creator-module-wrap-v452">
+<div class="creator-topbar" style="display:flex;justify-content:space-between;align-items:center;gap:12px;padding:12px 18px;background:#0b1220;color:#fff;margin:-1px -1px 16px -1px;">
   <div><a href="{{ url_for('public.home') }}" style="color:white;text-decoration:none;font-weight:800;"><img src="/static/img/logo-header.png" alt="BoatSpotMedia" class="bsm-logo-img"></a></div>
   <div style="display:flex;align-items:center;gap:12px;font-size:14px;">
     <a href="{{ url_for('public.home') }}" style="color:white;text-decoration:none;">Home</a>
@@ -104,28 +129,9 @@ document.addEventListener("click",function(e){if(e.target&&e.target.id==="cancel
   </div>
 </div>
 <script src="/static/js/mobile.js"></script>
+
+    </div>
+  </main>
+</div>
 </body>
 </html>
-<script id="hide-upload-price-fields">
-document.addEventListener("DOMContentLoaded", function(){
-  const names = ["original_price","edited_price","bundle_price","price"];
-  names.forEach(function(n){
-    document.querySelectorAll("form input[name='"+n+"']").forEach(function(input){
-      const row = input.closest(".form-group,.field,.row,.price-row,div,label") || input;
-      row.style.display = "none";
-    });
-  });
-});
-</script>
-
-<script>
-function regenerateThumbnail(videoId){
-  fetch("/creator/videos/"+videoId+"/regenerate-thumbnail",{method:"POST"})
-    .then(r=>r.json())
-    .then(d=>{ if(d.ok){ alert("Thumbnail regenerated."); location.reload(); } else { alert(d.error || "Could not regenerate thumbnail."); }})
-    .catch(()=>alert("Could not regenerate thumbnail."));
-}
-</script>
-<script src="{{ url_for('static', filename='js/r2_upload.js') }}"></script>
-
-<!-- Upload will start once. Please do not click twice; progress appears beside the upload button. -->

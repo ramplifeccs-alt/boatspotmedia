@@ -3121,3 +3121,9 @@ def creator_reject_discount_v447(item_id):
         try: print("reject discount warning v44.7:", e)
         except Exception: pass
     return redirect(request.referrer or "/creator/orders")
+
+
+
+@creator_bp.route("/creator/pricing")
+def creator_pricing_page_v452():
+    return render_template("creator/pricing.html")
