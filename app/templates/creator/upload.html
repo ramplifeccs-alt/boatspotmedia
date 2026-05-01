@@ -1,20 +1,26 @@
 <!doctype html>
 <html lang="en">
 <head>
+
   <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width,initial-scale=1">
-  <title>Uploads - BoatSpotMedia</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>BoatSpotMedia</title>
   <link rel="stylesheet" href="/static/css/style.css">
+  <link rel="icon" type="image/png" href="/static/img/favicon.png">
+  <link rel="apple-touch-icon" href="/static/img/apple-touch-icon.png">
+  <meta name="theme-color" content="#071b34">
+
+<title>Uploads - BoatSpotMedia</title>
 </head>
-<body class="creator-dashboard-v454">
-<div class="bsm-creator-page-shell-v454">
+<body class="creator-dashboard-v455">
+<div class="bsm-creator-page-shell-v455">
   
-<aside class="bsm-creator-sidebar-v454">
-  <a href="/creator/dashboard" class="bsm-creator-logo-v454">
+<aside class="bsm-creator-sidebar-v455">
+  <a href="/creator/dashboard" class="bsm-creator-logo-v455">
     <img src="/static/img/logo-header.png" alt="BoatSpotMedia">
   </a>
-  <div class="bsm-creator-handle-v454">@BoatSpotMedia.com</div>
-  <nav class="bsm-creator-nav-v454">
+  <div class="bsm-creator-handle-v455">@BoatSpotMedia.com</div>
+  <nav class="bsm-creator-nav-v455">
     <a href="/creator/dashboard">Dashboard</a>
     <a href="/creator/upload" class="active">Uploads</a>
     <a href="/creator/batches">Batches</a>
@@ -26,9 +32,29 @@
   </nav>
 </aside>
 
-  <main class="bsm-creator-main-v454">
-    <div class="bsm-creator-module-wrap-v454">
-<div class="content">
+  <main class="bsm-creator-main-v455">
+    <div class="bsm-creator-upload-original-wrap-v455">
+<div class="creator-topbar" style="display:flex;justify-content:space-between;align-items:center;gap:12px;padding:12px 18px;background:#0b1220;color:#fff;margin:-1px -1px 16px -1px;">
+  <div><a href="{{ url_for('public.home') }}" style="color:white;text-decoration:none;font-weight:800;"><img src="/static/img/logo-header.png" alt="BoatSpotMedia" class="bsm-logo-img"></a></div>
+  <div style="display:flex;align-items:center;gap:12px;font-size:14px;">
+    <a href="{{ url_for('public.home') }}" style="color:white;text-decoration:none;">Home</a>
+    <a href="/shop" style="color:white;text-decoration:none;">Products</a>
+    <a href="/creator/dashboard" style="color:white;text-decoration:none;" class="nav-user">{% if creator and creator.user %}{{ creator_display_name(creator) if creator is defined else 'Creator' }}{% elif session.get('display_name') %}{{ session.get('display_name') }}{% elif session.get('user_email') %}{{ session.get('user_email') }}{% endif %}</a>
+    <a href="/logout" style="color:white;text-decoration:none;">Logout</a>
+  </div>
+</div>
+<div class="sidebar-layout">
+  <div class="sidebar">
+    <h2>Creator</h2>
+    <a href="/creator/dashboard">Dashboard</a>
+    <a href="/creator/upload">Upload</a>
+    <a href="/creator/batches">Batches</a>
+    <a href="/creator/pricing">Pricing</a>
+    <a href="/creator/products">Products</a>
+    <a href="/creator/orders">Orders</a>
+    <a href="/logout">Logout</a>
+  </div>
+  <div class="content">
     <h1>Upload Video Batch</h1>
 
 <div class="notice" style="margin:14px 0;padding:12px;border:1px solid #facc15;background:#fef9c3;border-radius:10px;color:#713f12;">
@@ -49,13 +75,35 @@
   <button type="button" id="cancelUploadBtn" style="display:none;background:#dc2626;color:#fff;border:0;border-radius:10px;padding:10px 14px;font-weight:700;">Cancel Upload</button>
   <span style="font-size:13px;color:#6b7280;margin-left:8px;">Use this if you selected the wrong files. It will stop the upload and remove this batch if it was created.</span>
 </div><form id="r2UploadForm" class="card">
-      
+      <label>
+<div class="card plan-card">
+</div>
+
+Batch name</label>
+      <input type="text" name="batch_name" placeholder="Example: Boca Raton Inlet - Sunday morning">
+
+      <label>Location</label>
+      <input type="text" name="location" list="locations" placeholder="Boca Raton Inlet" list="creator-location-list">
+      <datalist id="locations">
+        <option value="Boca Raton Inlet">
+        <option value="Hillsboro Inlet">
+        <option value="Boynton Inlet">
+        <option value="Haulover Inlet">
+        <option value="Port Everglades">
+      </datalist>
+
+      <div class="form-row">
+        <div>
+          <label>Original 4K price</label>
+          <input type="number" name="original_price" step="0.01" value="0">
         </div>
         <div>
-          
+          <label>Edited video price</label>
+          <input type="number" name="edited_price" step="0.01" value="0">
         </div>
         <div>
-          
+          <label>Bundle price</label>
+          <input type="number" name="bundle_price" step="0.01" value="0">
         </div>
       </div>
 

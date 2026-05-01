@@ -1,9 +1,8 @@
-BoatSpotMedia v45.4 Restore Upload Workflow In Shell
-Base: v45.3 + upload template restored from v44.5 stable backup.
+BoatSpotMedia v45.5 Upload Full Restore
+Base: v45.4 + Upload page restored from v44.5 stable backup.
 Fix:
-- Restores Uploads from the stable working backup.
-- Keeps Location field and original upload workflow.
-- Removes pricing fields from Uploads.
-- Keeps Uploads inside the new creator sidebar shell.
-- Does not change upload backend/R2 logic.
-- Batches and Pricing remain as shell modules.
+- Restores the FULL original Upload page body, including Batch name, Location, file inputs, JS, form IDs and scripts.
+- Keeps Upload inside the new creator sidebar shell.
+- Hides only old navigation/header visually.
+- Does not touch upload backend/R2 logic.
+- Does not touch Batches or Pricing.
