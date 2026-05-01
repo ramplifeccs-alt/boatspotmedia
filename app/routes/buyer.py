@@ -179,6 +179,84 @@ def _bsm_download_timer_v441(item, order_created_at=None):
         return {"expired": False, "expires_at": "", "remaining_seconds": 72*3600}
 
 
+
+def _bsm_is_edited_package_v443(package):
+    return str(package or "").lower() in ["edited", "edit", "instagram_edit", "tiktok_edit", "reel_edit", "short_edit"]
+
+def _bsm_is_bundle_package_v443(package):
+    return str(package or "").lower() in ["bundle", "combo", "original_plus_edited", "original_edited", "original+edited", "original_edit"]
+
+def _bsm_make_delivery_v443(ix, delivery_type, order_created_at=None):
+    """
+    delivery_type: original or edited
+    """
+    delivery = dict(ix)
+    delivery["delivery_type"] = delivery_type
+    delivery["delivery_label"] = "Edited Version" if delivery_type == "edited" else "Original Clip / Instant Download"
+
+    # For edited bundle, mark pending until edited upload is ready.
+    if delivery_type == "edited":
+        ready = bool(delivery.get("edited_r2_key")) and str(delivery.get("delivery_status") or "").lower() in ["ready_to_download", "ready", "delivered"]
+        delivery["download_locked"] = not ready or bool(delivery.get("download_locked"))
+        delivery["download_url"] = None if delivery["download_locked"] else "/download-video/" + str(delivery.get("id") or delivery.get("video_id"))
+        timer = _bsm_download_timer_v441(delivery, order_created_at) if "_bsm_download_timer_v441" in globals() else _bsm_download_timer_v442(delivery, order_created_at)
+    else:
+        # original side of bundle is downloadable immediately unless discount approval locks it
+        delivery["download_locked"] = bool(delivery.get("download_locked")) or str(delivery.get("discount_status") or "").lower() in ["pending_review","pending","awaiting_creator","needs_approval"]
+        delivery["download_url"] = None if delivery["download_locked"] else "/download-video/" + str(delivery.get("id") or delivery.get("video_id"))
+        # Force original package for timer from order created_at
+        delivery["package"] = "original"
+        timer = _bsm_download_timer_v441(delivery, order_created_at) if "_bsm_download_timer_v441" in globals() else _bsm_download_timer_v442(delivery, order_created_at)
+
+    delivery["download_expired"] = timer.get("expired", False)
+    delivery["download_expires_at"] = timer.get("expires_at", "")
+    delivery["download_remaining_seconds"] = timer.get("remaining_seconds", 72*3600)
+    if delivery["download_expired"]:
+        delivery["download_url"] = None
+    return delivery
+
+def _bsm_group_order_items_for_display_v443(order_items, order_created_at=None):
+    """
+    Combines original+edited rows for the same video into one display item.
+    Also expands a bundle row into original + edited deliveries.
+    """
+    grouped = {}
+    singles = []
+
+    for raw in order_items or []:
+        ix = dict(raw)
+        video_id = ix.get("video_id") or ix.get("id")
+        package = str(ix.get("package") or "").lower()
+        key = str(video_id)
+
+        if _bsm_is_bundle_package_v443(package):
+            display = dict(ix)
+            display["display_package"] = "bundle"
+            display["deliveries"] = [
+                _bsm_make_delivery_v443(ix, "original", order_created_at),
+                _bsm_make_delivery_v443(ix, "edited", order_created_at),
+            ]
+            singles.append(display)
+            continue
+
+        if key not in grouped:
+            grouped[key] = dict(ix)
+            grouped[key]["deliveries"] = []
+
+        if _bsm_is_edited_package_v443(package):
+            grouped[key]["deliveries"].append(_bsm_make_delivery_v443(ix, "edited", order_created_at))
+        else:
+            grouped[key]["deliveries"].append(_bsm_make_delivery_v443(ix, "original", order_created_at))
+
+    # If same video has original + edited separate, show one display item with two deliveries.
+    result = singles
+    for _, item in grouped.items():
+        # sort original first, edited second
+        item["deliveries"] = sorted(item.get("deliveries", []), key=lambda d: 1 if d.get("delivery_type") == "edited" else 0)
+        result.append(item)
+    return result
+
+
 @buyer_bp.route("/buyer/register", methods=["GET", "POST"])
 def buyer_register():
     if request.method == "POST":
@@ -275,7 +353,7 @@ def buyer_dashboard():
         if not items:
             d["order_items"] = []
         else:
-            d["order_items"] = items
+            d["order_items"] = _bsm_group_order_items_for_display_v443(items, d.get("created_at"))
         d["created_at_et"] = _bsm_eastern_time_v427(d.get("created_at"))
         d["recover_download_url"] = "/buyer/order-downloads/" + str(d.get("id"))
         orders.append(d)

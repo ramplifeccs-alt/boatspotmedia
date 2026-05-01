@@ -532,3 +532,17 @@ header a,.navbar a,.site-header a,.topbar a,nav a,.bsm-header a,.bsm-simple-head
 
 /* v44.2 visible countdown */
 .bsm-countdown{color:#dc2626;font-weight:900;}
+
+/* v44.3 bundle delivery display */
+.bsm-bundle-card{
+  border:1px solid #e5e7eb;
+  border-radius:14px;
+  padding:14px;
+  background:#f8fafc;
+}
+.bsm-delivery-row{
+  background:#fff;
+  border-radius:12px;
+  padding:12px!important;
+  margin-top:8px;
+}

@@ -40,42 +40,60 @@
         <div style="margin-top:14px;">
           <h4 style="margin:0 0 8px;">Purchased Videos</h4>
           {% if order.order_items %}
-            <div style="display:grid;gap:10px;">
+            <div style="display:grid;gap:14px;">
               {% for item in order.order_items %}
-                <div class="bsm-order-item">
-                  <div>
+                <div class="bsm-bundle-card">
+                  <div style="margin-bottom:10px;">
                     <strong>{{ item.location or item.filename or item.internal_filename or ("Video #" ~ item.video_id) }}</strong>
-                    <div style="color:#64748b;font-size:14px;">
-                      {% if item.package in ["edited","edit","instagram_edit","tiktok_edit","reel_edit","short_edit"] %}
-                        Edited Version
-                      {% else %}
-                        Original Clip / Instant Download
-                      {% endif %}
-                      {% if item.discount_status in ["pending_review","pending","awaiting_creator","needs_approval"] %} · Discount approval pending{% endif %}
-                      {% if item.discount_status in ["approved","discount_approved"] %} · Discount approved{% endif %}
-                      {% if item.discount_status in ["rejected","discount_rejected"] %} · Discount rejected{% endif %}
-                    </div>
-                    {% if item.download_expires_at %}
-                      <div style="font-size:13px;color:#475569;margin-top:4px;">
-                        Download expires: {{ item.download_expires_at }}<br>
-                        Time left: <strong class="bsm-countdown" data-seconds="{{ item.download_remaining_seconds or 0 }}">calculating...</strong>
-                      </div>
+                    {% if item.display_package == "bundle" or item.deliveries|length > 1 %}
+                      <div style="color:#64748b;font-size:14px;">Bundle / Combo</div>
                     {% endif %}
                   </div>
-                  <div style="font-weight:800;text-align:right;">
-                    ${{ "%.2f"|format(item.unit_price or 0) }}
-                    <div style="margin-top:10px;">
-                      {% if item.download_expired %}
-                        <button class="bsm-download-btn bsm-download-disabled" disabled>Expired</button>
-                      {% elif item.package in ["edited","edit","instagram_edit","tiktok_edit","reel_edit","short_edit"] and item.delivery_status not in ["ready_to_download","ready"] %}
-                        <button class="bsm-download-btn bsm-download-disabled" disabled>Pending Edit</button>
-                      {% elif item.download_locked or item.discount_status in ["pending_review","pending","awaiting_creator","needs_approval"] %}
-                        <button class="bsm-download-btn bsm-download-disabled" disabled>Pending Approval</button>
-                      {% else %}
-                        <a class="bsm-download-btn" href="{{ item.download_url or ('/download-video/' ~ (item.id or item.video_id)) }}">Download Video</a>
-                      {% endif %}
+
+                  {% for delivery in item.deliveries %}
+                    <div class="bsm-order-item bsm-delivery-row">
+                      <div>
+                        <strong>{{ delivery.delivery_label }}</strong>
+                        <div style="color:#64748b;font-size:14px;">
+                          {% if delivery.discount_status in ["pending_review","pending","awaiting_creator","needs_approval"] %}
+                            Discount approval pending
+                          {% elif delivery.discount_status in ["approved","discount_approved"] %}
+                            Discount approved
+                          {% elif delivery.discount_status in ["rejected","discount_rejected"] %}
+                            Discount rejected
+                          {% elif delivery.delivery_type == "edited" and delivery.delivery_status not in ["ready_to_download","ready","delivered"] %}
+                            Pending edit
+                          {% else %}
+                            Ready
+                          {% endif %}
+                        </div>
+                        {% if delivery.download_expires_at %}
+                          <div style="font-size:13px;color:#475569;margin-top:4px;">
+                            Download expires: {{ delivery.download_expires_at }}<br>
+                            Time left: <strong class="bsm-countdown" data-seconds="{{ delivery.download_remaining_seconds or 0 }}">calculating...</strong>
+                          </div>
+                        {% endif %}
+                      </div>
+                      <div style="font-weight:800;text-align:right;">
+                        {% if loop.first %}
+                          ${{ "%.2f"|format(item.unit_price or 0) }}
+                        {% endif %}
+                        <div style="margin-top:10px;">
+                          {% if delivery.download_expired %}
+                            <button class="bsm-download-btn bsm-download-disabled" disabled>Expired</button>
+                          {% elif delivery.delivery_type == "edited" and delivery.delivery_status not in ["ready_to_download","ready","delivered"] %}
+                            <button class="bsm-download-btn bsm-download-disabled" disabled>Pending Edit</button>
+                          {% elif delivery.download_locked or delivery.discount_status in ["pending_review","pending","awaiting_creator","needs_approval"] %}
+                            <button class="bsm-download-btn bsm-download-disabled" disabled>Pending Approval</button>
+                          {% else %}
+                            <a class="bsm-download-btn" href="{{ delivery.download_url or ('/download-video/' ~ (delivery.id or delivery.video_id) ~ '?delivery=' ~ delivery.delivery_type) }}">
+                              {% if delivery.delivery_type == "edited" %}Download Edited Video{% else %}Download Original Video{% endif %}
+                            </a>
+                          {% endif %}
+                        </div>
+                      </div>
                     </div>
-                  </div>
+                  {% endfor %}
                 </div>
               {% endfor %}
             </div>
@@ -109,9 +127,9 @@ function bsmTickCountdowns(){
     let seconds = parseInt(el.getAttribute("data-seconds") || "0", 10);
     el.textContent = bsmFormatCountdown(seconds);
     if (seconds <= 0) {
-      const card = el.closest(".bsm-order-item");
-      if (card) {
-        const link = card.querySelector("a.bsm-download-btn");
+      const row = el.closest(".bsm-delivery-row");
+      if (row) {
+        const link = row.querySelector("a.bsm-download-btn");
         if (link) {
           const btn = document.createElement("button");
           btn.className = "bsm-download-btn bsm-download-disabled";
@@ -128,7 +146,6 @@ function bsmTickCountdowns(){
 bsmTickCountdowns();
 setInterval(bsmTickCountdowns, 1000);
 </script>
-
 <script src="/static/js/mobile.js"></script>
 </body>
 </html>

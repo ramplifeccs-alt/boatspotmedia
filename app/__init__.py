@@ -60,7 +60,7 @@ def create_app():
 
     # BoatSpotMedia v43.7 create_app R2 presigned download routes
     def _bsm_download_video_v437(video_ref):
-        from flask import session, redirect
+        from flask import session, redirect, request
         import os
 
         if not session.get("user_id") or session.get("user_role") != "buyer":
@@ -220,7 +220,7 @@ def create_app():
 
     # BoatSpotMedia v44.1 download route: original vs edited + 72h timer
     def _bsm_download_video_v441(video_ref):
-        from flask import session, redirect
+        from flask import session, redirect, request
         from datetime import datetime, timezone, timedelta
         import os
 
@@ -290,7 +290,12 @@ def create_app():
             return "Download not found: this video is not linked to your paid orders.", 404
 
         package = str(purchased.get("package") or "").lower()
-        is_edited = package in ["edited", "edit", "instagram_edit", "tiktok_edit", "reel_edit", "short_edit"]
+        requested_delivery_v443 = str(request.args.get("delivery") or "").lower()
+        is_bundle_v443 = package in ["bundle", "combo", "original_plus_edited", "original_edited", "original+edited", "original_edit"]
+        if is_bundle_v443 and requested_delivery_v443 in ["original", "edited"]:
+            is_edited = requested_delivery_v443 == "edited"
+        else:
+            is_edited = package in ["edited", "edit", "instagram_edit", "tiktok_edit", "reel_edit", "short_edit"]
 
         discount_status = str(purchased.get("discount_status") or "").lower()
         if discount_status in ["pending_review", "pending", "awaiting_creator", "needs_approval"]:
