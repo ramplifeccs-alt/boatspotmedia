@@ -1,17 +1,10 @@
-BoatSpotMedia v44.5 Creator Sales Panel
-Base: v44.4.
+BoatSpotMedia v44.6 Creator Dashboard Sidebar Layout
+Base: v44.5.
 Adds:
-- Read-only Sales / Orders panel in Creator Dashboard.
-- Shows recent sold videos, package, price, thumbnail, order number.
-- Shows summary cards:
-  * Gross sales
-  * Items sold
-  * Pending edits
-  * Discount approvals
-- Adds quick actions:
-  * Upload Edit for pending edited purchases
-  * Approve / Reject for pending discounts
+- Creator Dashboard left sidebar menu.
+- Main content/panels on the right.
+- Mobile responsive sidebar.
 Does not touch:
-- Upload batches
-- Existing uploader/R2 pipeline
-- Existing pricing logic
+- Upload batches logic
+- R2 upload pipeline
+- Pricing/database logic

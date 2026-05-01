@@ -1,0 +1,10 @@
+BoatSpotMedia v44.4 Timer Timezone + Buyer Terms
+Base: v44.3.
+Fixes:
+- Download expiration display now uses America/New_York time, not UTC.
+- Buyer registration requires Buyer Terms / Terms / Privacy acceptance.
+- Adds pages:
+  /buyer-terms
+  /terms
+  /privacy
+- Adds footer legal links on home/base templates.
