@@ -662,3 +662,21 @@ header a,.navbar a,.site-header a,.topbar a,nav a,.bsm-header a,.bsm-simple-head
 .bsm-creator-main-v446{
   padding-top:28px!important;
 }
+
+/* v44.8 hard remove old creator menu */
+.bsm-creator-main-v446 > aside:not(.bsm-creator-sidebar-v446),
+.bsm-creator-main-v446 > nav:not(.bsm-creator-menu-v446),
+.bsm-creator-main-v446 .sidebar,
+.bsm-creator-main-v446 .side-nav,
+.bsm-creator-main-v446 .creator-sidebar,
+.bsm-creator-main-v446 .creator-menu,
+.bsm-creator-main-v446 .dashboard-sidebar,
+.bsm-creator-main-v446 .left-menu{
+  display:none!important;
+}
+.bsm-creator-main-v446{
+  display:block!important;
+}
+.bsm-creator-main-v446 > div{
+  max-width:1200px;
+}

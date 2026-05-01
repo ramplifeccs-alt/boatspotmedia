@@ -1,0 +1,6 @@
+BoatSpotMedia v44.7 Creator Dashboard Remove Duplicate Menu
+Base: v44.6.
+Fix:
+- Removes/hides the old repeated creator menu inside the dashboard.
+- Keeps only the new left sidebar menu.
+- Does not touch upload batches or upload logic.
