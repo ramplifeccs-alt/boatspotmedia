@@ -18,8 +18,8 @@
 <div class="container" style="max-width:1000px;margin:30px auto;padding:20px;">
   <h1>My Orders</h1>
   <div style="background:#eff6ff;border:1px solid #bfdbfe;color:#1e3a8a;padding:12px;border-radius:12px;margin:14px 0;">
-  <strong>Download note:</strong> For best results, download your video on a computer. On a phone, the video may open for playback only.
-</div>
+    <strong>Download window:</strong> each file is available for 72 hours. For best results, download on a computer. On a phone, the video may open for playback only.
+  </div>
   <p>Signed in as <strong>{{ buyer_email or email }}</strong></p>
 
   {% if not orders %}
@@ -39,7 +39,6 @@
 
         <div style="margin-top:14px;">
           <h4 style="margin:0 0 8px;">Purchased Videos</h4>
-
           {% if order.order_items %}
             <div style="display:grid;gap:10px;">
               {% for item in order.order_items %}
@@ -47,25 +46,30 @@
                   <div>
                     <strong>{{ item.location or item.filename or item.internal_filename or ("Video #" ~ item.video_id) }}</strong>
                     <div style="color:#64748b;font-size:14px;">
-                      Package: {{ item.package or "original" }}
-                      {% if item.discount_status in ["pending_review","pending","awaiting_creator","needs_approval"] %}
-                        · Discount approval pending
-                      {% elif item.discount_status in ["approved","discount_approved"] %}
-                        · Discount approved
-                      {% elif item.discount_status in ["rejected","discount_rejected"] %}
-                        · Discount rejected
+                      {% if item.package in ["edited","edit","instagram_edit","tiktok_edit","reel_edit","short_edit"] %}
+                        Edited Version
+                      {% else %}
+                        Original Clip / Instant Download
                       {% endif %}
+                      {% if item.discount_status in ["pending_review","pending","awaiting_creator","needs_approval"] %} · Discount approval pending{% endif %}
+                      {% if item.discount_status in ["approved","discount_approved"] %} · Discount approved{% endif %}
+                      {% if item.discount_status in ["rejected","discount_rejected"] %} · Discount rejected{% endif %}
                     </div>
+                    {% if item.download_expires_at %}
+                      <div style="font-size:13px;color:#475569;margin-top:4px;">Download expires: {{ item.download_expires_at }}</div>
+                    {% endif %}
                   </div>
                   <div style="font-weight:800;text-align:right;">
                     ${{ "%.2f"|format(item.unit_price or 0) }}
                     <div style="margin-top:10px;">
-                      {% if item.delivery_status in ["pending_edit","editing","not_ready"] or item.package in ["edited","edit","instagram_edit","tiktok_edit"] and item.delivery_status not in ["ready_to_download","ready"] %}
+                      {% if item.download_expired %}
+                        <button class="bsm-download-btn bsm-download-disabled" disabled>Expired</button>
+                      {% elif item.package in ["edited","edit","instagram_edit","tiktok_edit","reel_edit","short_edit"] and item.delivery_status not in ["ready_to_download","ready"] %}
                         <button class="bsm-download-btn bsm-download-disabled" disabled>Pending Edit</button>
                       {% elif item.download_locked or item.discount_status in ["pending_review","pending","awaiting_creator","needs_approval"] %}
                         <button class="bsm-download-btn bsm-download-disabled" disabled>Pending Approval</button>
                       {% else %}
-                        <a class="bsm-download-btn" href="{{ item.download_url or ('/download-video/' ~ (item.video_id or item.id)) }}">Download Video</a>
+                        <a class="bsm-download-btn" href="{{ item.download_url or ('/download-video/' ~ (item.id or item.video_id)) }}">Download Video</a>
                       {% endif %}
                     </div>
                   </div>
@@ -73,16 +77,13 @@
               {% endfor %}
             </div>
           {% else %}
-            <div style="margin-top:10px;">
-              <a class="bsm-download-btn" href="{{ order.recover_download_url or ('/buyer/order-downloads/' ~ order.id) }}">Download Video</a>
-            </div>
+            <button class="bsm-download-btn bsm-download-disabled" disabled>No video items found</button>
           {% endif %}
         </div>
       </div>
     {% endfor %}
     </div>
   {% endif %}
-
   <p style="margin-top:20px;"><a class="btn" href="/">Back to BoatSpotMedia</a></p>
 </div>
 <script src="/static/js/mobile.js"></script>

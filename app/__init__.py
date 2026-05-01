@@ -217,6 +217,166 @@ def create_app():
     flask_app.add_url_rule("/buyer/download-item/<path:video_ref>", "bsm_buyer_download_item_v437", _bsm_download_video_v437)
 
 
+
+    # BoatSpotMedia v44.1 download route: original vs edited + 72h timer
+    def _bsm_download_video_v441(video_ref):
+        from flask import session, redirect
+        from datetime import datetime, timezone, timedelta
+        import os
+
+        if not session.get("user_id") or session.get("user_role") != "buyer":
+            session["after_login_redirect"] = "/buyer/dashboard"
+            session.modified = True
+            return redirect("/buyer/login?next=/buyer/dashboard")
+
+        try:
+            ref = int(str(video_ref).strip())
+        except Exception:
+            return "Invalid download link.", 404
+
+        uid = session.get("user_id")
+        email = (session.get("user_email") or "").lower()
+
+        try:
+            db.session.execute(db.text("ALTER TABLE bsm_cart_order ADD COLUMN IF NOT EXISTS buyer_user_id INTEGER"))
+            db.session.execute(db.text("ALTER TABLE bsm_cart_order_item ADD COLUMN IF NOT EXISTS edited_r2_key TEXT"))
+            db.session.execute(db.text("ALTER TABLE bsm_cart_order_item ADD COLUMN IF NOT EXISTS edited_uploaded_at TIMESTAMP"))
+            db.session.commit()
+        except Exception:
+            db.session.rollback()
+
+        purchased = None
+
+        # Prefer exact order item id, because same video can have original + edited.
+        try:
+            purchased = db.session.execute(db.text("""
+                SELECT i.*, i.id AS order_item_id,
+                       o.id AS order_id, o.buyer_user_id, o.buyer_email, o.status, o.created_at AS order_created_at
+                FROM bsm_cart_order_item i
+                JOIN bsm_cart_order o ON o.id = i.cart_order_id
+                WHERE i.id = :ref
+                  AND (
+                        o.buyer_user_id = :uid
+                        OR lower(coalesce(o.buyer_email,'')) = lower(:email)
+                      )
+                ORDER BY o.created_at DESC
+                LIMIT 1
+            """), {"ref": ref, "uid": uid or 0, "email": email}).mappings().first()
+        except Exception:
+            db.session.rollback()
+
+        # Fallback as video id.
+        if not purchased:
+            try:
+                purchased = db.session.execute(db.text("""
+                    SELECT i.*, i.id AS order_item_id,
+                           o.id AS order_id, o.buyer_user_id, o.buyer_email, o.status, o.created_at AS order_created_at
+                    FROM bsm_cart_order_item i
+                    JOIN bsm_cart_order o ON o.id = i.cart_order_id
+                    WHERE i.video_id = :ref
+                      AND (
+                            o.buyer_user_id = :uid
+                            OR lower(coalesce(o.buyer_email,'')) = lower(:email)
+                          )
+                    ORDER BY
+                      CASE WHEN lower(coalesce(i.package,'')) IN ('original','instant','instant_download','download','4k','original_4k') THEN 0 ELSE 1 END,
+                      o.created_at DESC
+                    LIMIT 1
+                """), {"ref": ref, "uid": uid or 0, "email": email}).mappings().first()
+            except Exception:
+                db.session.rollback()
+
+        if not purchased:
+            return "Download not found: this video is not linked to your paid orders.", 404
+
+        package = str(purchased.get("package") or "").lower()
+        is_edited = package in ["edited", "edit", "instagram_edit", "tiktok_edit", "reel_edit", "short_edit"]
+
+        discount_status = str(purchased.get("discount_status") or "").lower()
+        if discount_status in ["pending_review", "pending", "awaiting_creator", "needs_approval"]:
+            return "Download is pending creator approval.", 403
+
+        # 72h window start: original from purchase; edited from edited upload.
+        if is_edited:
+            edited_key = str(purchased.get("edited_r2_key") or "").strip()
+            if not edited_key or str(purchased.get("delivery_status") or "").lower() in ["pending_edit", "editing", "not_ready", "pending"]:
+                return "This edited video is not ready for download yet.", 400
+            start_time = purchased.get("edited_uploaded_at") or purchased.get("order_created_at")
+        else:
+            start_time = purchased.get("order_created_at")
+
+        try:
+            if start_time:
+                if getattr(start_time, "tzinfo", None) is None:
+                    start_time = start_time.replace(tzinfo=timezone.utc)
+                expires_at = start_time + timedelta(hours=72)
+                if datetime.now(timezone.utc) > expires_at:
+                    return "Download expired. This file was available for 72 hours.", 403
+        except Exception:
+            pass
+
+        video_id = purchased.get("video_id") or ref
+        try:
+            video = db.session.execute(db.text("SELECT * FROM video WHERE id=:vid LIMIT 1"), {"vid": video_id}).mappings().first()
+        except Exception:
+            db.session.rollback()
+            video = None
+
+        if not video:
+            return "Video record not found.", 404
+
+        r2_key = None
+        if is_edited:
+            r2_key = str(purchased.get("edited_r2_key") or "").strip().lstrip("/")
+        else:
+            for key in ["r2_video_key", "file_path", "r2_key", "video_key", "storage_key", "original_file_path", "original_path"]:
+                if key in video and video.get(key):
+                    value = str(video.get(key)).strip()
+                    if value and not value.startswith("http://") and not value.startswith("https://"):
+                        r2_key = value.lstrip("/")
+                        break
+
+        if not r2_key and not is_edited:
+            for key in ["public_url", "download_url", "file_url", "original_url", "video_url", "r2_public_url"]:
+                if key in video and video.get(key):
+                    value = str(video.get(key)).strip()
+                    if value.startswith("http://") or value.startswith("https://"):
+                        return redirect(value)
+
+        if not r2_key:
+            return "R2 video key was not found for this item. Contact support with Order #" + str(purchased.get("order_id")), 404
+
+        filename = str(video.get("filename") or video.get("internal_filename") or r2_key.split("/")[-1])
+        if is_edited:
+            filename = "edited_" + filename
+
+        try:
+            from app.services.r2 import r2_client, _bucket_name
+            signed_url = r2_client().generate_presigned_url(
+                "get_object",
+                Params={
+                    "Bucket": _bucket_name(),
+                    "Key": r2_key,
+                    "ResponseContentDisposition": f'attachment; filename="{filename}"'
+                },
+                ExpiresIn=60 * 20,
+            )
+            return redirect(signed_url)
+        except Exception as e:
+            try:
+                print("R2 forced download warning v44.1:", e)
+            except Exception:
+                pass
+            public_base = (os.environ.get("R2_PUBLIC_URL") or os.environ.get("R2_PUBLIC_BASE_URL") or "").strip().rstrip("/")
+            if public_base:
+                return redirect(public_base + "/" + r2_key)
+            return "Could not create R2 download link. Contact support with Order #" + str(purchased.get("order_id")), 500
+
+    flask_app.add_url_rule("/download-video/<path:video_ref>", "bsm_download_video_v441", _bsm_download_video_v441)
+    flask_app.add_url_rule("/download-item/<path:video_ref>", "bsm_download_item_v441", _bsm_download_video_v441)
+    flask_app.add_url_rule("/buyer/download-item/<path:video_ref>", "bsm_buyer_download_item_v441", _bsm_download_video_v441)
+
+
     return flask_app
 
 

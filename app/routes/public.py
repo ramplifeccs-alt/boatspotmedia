@@ -421,6 +421,24 @@ def _bsm_item_download_locked_v439(item):
     return False
 
 
+
+def _bsm_download_timer_v441(item, order_created_at=None):
+    try:
+        from datetime import datetime, timezone, timedelta
+        package = str(item.get("package") or "").lower()
+        is_edited = package in ["edited", "edit", "instagram_edit", "tiktok_edit", "reel_edit", "short_edit"]
+        start = item.get("edited_uploaded_at") if is_edited and item.get("edited_uploaded_at") else order_created_at
+        if not start:
+            return {"expired": False, "expires_at": "", "remaining_seconds": 72*3600}
+        if getattr(start, "tzinfo", None) is None:
+            start = start.replace(tzinfo=timezone.utc)
+        expires = start + timedelta(hours=72)
+        remaining = int((expires - datetime.now(timezone.utc)).total_seconds())
+        return {"expired": remaining <= 0, "expires_at": expires.strftime("%m/%d/%Y %I:%M %p"), "remaining_seconds": max(0, remaining)}
+    except Exception:
+        return {"expired": False, "expires_at": "", "remaining_seconds": 72*3600}
+
+
 @public_bp.route("/buyer/register", methods=["GET", "POST"])
 def buyer_register_public_v422():
     if request.method == "POST":
@@ -499,11 +517,23 @@ def buyer_dashboard_public_v422():
         items = []
         for x in _bsm_buyer_order_items_v422(order["id"]):
             ix = dict(x)
+            timer = _bsm_download_timer_v441(ix, d.get("created_at"))
+            ix["download_expired"] = timer["expired"]
+            ix["download_expires_at"] = timer["expires_at"]
+            ix["download_remaining_seconds"] = timer["remaining_seconds"]
             ix["download_locked"] = _bsm_item_download_locked_v439(ix)
-            ix["download_url"] = None if ix["download_locked"] else "/download-video/" + str(ix.get("video_id") or ix.get("id"))
+            timer = _bsm_download_timer_v441(ix, d.get("created_at"))
+            ix["download_expired"] = timer["expired"]
+            ix["download_expires_at"] = timer["expires_at"]
+            ix["download_remaining_seconds"] = timer["remaining_seconds"]
+            ix["download_url"] = None if ix["download_locked"] or ix["download_expired"] else "/download-video/" + str(ix.get("id") or ix.get("video_id"))
             ix["thumbnail_url"] = _bsm_media_url_v427(ix, "thumb")
             ix["download_locked"] = _bsm_item_download_locked_v439(ix)
-            ix["download_url"] = None if ix["download_locked"] else "/download-video/" + str(ix.get("video_id") or ix.get("id"))
+            timer = _bsm_download_timer_v441(ix, d.get("created_at"))
+            ix["download_expired"] = timer["expired"]
+            ix["download_expires_at"] = timer["expires_at"]
+            ix["download_remaining_seconds"] = timer["remaining_seconds"]
+            ix["download_url"] = None if ix["download_locked"] or ix["download_expired"] else "/download-video/" + str(ix.get("id") or ix.get("video_id"))
             items.append(ix)
         if not items:
             d["order_items"] = []
