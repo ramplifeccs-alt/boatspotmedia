@@ -1,7 +1,14 @@
-BoatSpotMedia v45.0 Creator Orders With Sidebar
-Base: v44.9.
+BoatSpotMedia v45.1 Creator Dashboard Shell Links
+Base: v45.0.
 Fix:
-- /creator/orders now has its own explicit left sidebar.
-- Sidebar stays visible on Orders page.
-- Keeps Orders active in menu.
-- Does not touch Pricing, Uploads, or Batches.
+- Makes the new sidebar layout the Creator Dashboard shell.
+- Dashboard links to existing working modules without changing their code:
+  Uploads -> /creator/upload
+  Batches -> /creator/batches
+  Pricing -> /creator/dashboard#pricing
+  Orders -> /creator/orders
+- Orders keeps the same sidebar.
+Does not touch:
+- Uploads logic
+- Batches logic
+- Pricing logic

@@ -865,3 +865,120 @@ body.creator-dashboard-v449 main{
     padding:12px;
   }
 }
+
+/* v45.1 creator dashboard shell links */
+.bsm-creator-page-shell-v451{
+  display:grid;
+  grid-template-columns:230px minmax(0,1fr);
+  min-height:100vh;
+  background:#f1f5f9;
+}
+.bsm-creator-sidebar-v451{
+  position:sticky;
+  top:0;
+  height:100vh;
+  overflow:auto;
+  background:#071b34;
+  color:#fff;
+  padding:18px 14px;
+  box-sizing:border-box;
+  z-index:20;
+}
+.bsm-creator-logo-v451{
+  display:block;
+  padding:4px 4px 14px;
+  border-bottom:1px solid rgba(255,255,255,.15);
+  margin-bottom:12px;
+}
+.bsm-creator-logo-v451 img{
+  width:100%;
+  max-width:190px;
+  display:block;
+}
+.bsm-creator-handle-v451{
+  color:#e5e7eb;
+  font-weight:700;
+  margin:12px 8px 12px;
+}
+.bsm-creator-nav-v451{
+  display:grid;
+  gap:8px;
+}
+.bsm-creator-nav-v451 a{
+  color:#fff!important;
+  text-decoration:none;
+  font-weight:700;
+  padding:10px 12px;
+  border-radius:10px;
+  display:block;
+  background:rgba(255,255,255,.04);
+}
+.bsm-creator-nav-v451 a:hover,
+.bsm-creator-nav-v451 a.active{
+  background:rgba(37,99,235,.45);
+}
+.bsm-creator-nav-v451 a.logout{
+  margin-top:14px;
+  background:rgba(220,38,38,.85);
+}
+.bsm-creator-main-v451{
+  padding:22px;
+  min-width:0;
+}
+.bsm-dashboard-grid-v451{
+  display:grid;
+  grid-template-columns:repeat(3,minmax(0,1fr));
+  gap:16px;
+  margin-top:20px;
+}
+.bsm-dashboard-card-v451{
+  display:block;
+  background:#fff;
+  border:1px solid #e5e7eb;
+  border-radius:18px;
+  padding:18px;
+  text-decoration:none;
+  color:#0f172a!important;
+  box-shadow:0 8px 24px rgba(15,23,42,.06);
+}
+.bsm-dashboard-card-v451 h2{
+  margin:0 0 8px;
+}
+.bsm-dashboard-card-v451 p{
+  margin:0;
+  color:#64748b;
+}
+.bsm-dashboard-card-v451:hover{
+  transform:translateY(-1px);
+  box-shadow:0 12px 28px rgba(15,23,42,.09);
+}
+.bsm-dashboard-note-v451{
+  background:#eff6ff;
+  border:1px solid #bfdbfe;
+  color:#1e3a8a;
+  border-radius:16px;
+  padding:16px;
+  margin-top:20px;
+}
+@media(max-width:950px){
+  .bsm-dashboard-grid-v451{
+    grid-template-columns:repeat(2,minmax(0,1fr));
+  }
+}
+@media(max-width:850px){
+  .bsm-creator-page-shell-v451{
+    grid-template-columns:1fr;
+  }
+  .bsm-creator-sidebar-v451{
+    position:relative;
+    height:auto;
+  }
+  .bsm-creator-main-v451{
+    padding:12px;
+  }
+}
+@media(max-width:560px){
+  .bsm-dashboard-grid-v451{
+    grid-template-columns:1fr;
+  }
+}

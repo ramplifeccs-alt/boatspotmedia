@@ -1,306 +1,74 @@
-<!doctype html><html><head>
-  <meta name="viewport" content="width=device-width, initial-scale=1"><meta charset="utf-8"><title>BoatSpotMedia</title><link rel="stylesheet" href="/static/css/style.css">  <link rel="icon" type="image/png" href="/static/img/favicon.png">
-  <link rel="apple-touch-icon" href="/static/img/apple-touch-icon.png">
-  <meta name="theme-color" content="#071b34">
-</head><body class="creator-dashboard-v449"><div class="creator-topbar" style="display:flex;justify-content:space-between;align-items:center;gap:12px;padding:12px 18px;background:#0b1220;color:#fff;margin:-1px -1px 16px -1px;">
-  <div><a href="{{ url_for('public.home') }}" style="color:white;text-decoration:none;font-weight:800;"><img src="/static/img/logo-header.png" alt="BoatSpotMedia" class="bsm-logo-img"></a></div>
-  <div style="display:flex;align-items:center;gap:12px;font-size:14px;">
-    <a href="{{ url_for('public.home') }}" style="color:white;text-decoration:none;">Home</a>
-    <a href="/shop" style="color:white;text-decoration:none;">Products</a>
-    <a href="/creator/dashboard" style="color:white;text-decoration:none;" class="nav-user">{% if creator and creator.user %}{{ creator_display_name(creator) if creator is defined else 'Creator' }}{% elif session.get('display_name') %}{{ session.get('display_name') }}{% elif session.get('user_email') %}{{ session.get('user_email') }}{% endif %}</a>
-    <a href="/logout" style="color:white;text-decoration:none;">Logout</a>
-  </div>
-</div><div class="sidebar-layout"><div class="sidebar"><h2>{{ creator_name or 'Creator' }}</h2>{% if creator_instagram %}<small>@{{ creator_instagram }}</small><br><br>{% endif %}<a href="/creator/dashboard">Dashboard</a><a href="/creator/upload">Uploads</a><a href="/creator/batches">Batches</a><a href="/creator/orders">Orders</a><a href="/creator/products">Products</a><a href="/creator/pricing">Pricing</a><a href="/creator/settings">Settings</a><br><a href="/creator/logout">Log out</a></div><div class="content"><h1>Creator Dashboard</h1>
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Creator Dashboard - BoatSpotMedia</title>
+  <link rel="stylesheet" href="/static/css/style.css">
+</head>
+<body class="creator-dashboard-v451">
+<div class="bsm-creator-page-shell-v451">
+  
+<aside class="bsm-creator-sidebar-v451">
+  <a href="/creator/dashboard" class="bsm-creator-logo-v451">
+    <img src="/static/img/logo-header.png" alt="BoatSpotMedia">
+  </a>
+  <div class="bsm-creator-handle-v451">@BoatSpotMedia.com</div>
+  <nav class="bsm-creator-nav-v451">
+    <a href="/creator/dashboard" class="active">Dashboard</a>
+    <a href="/creator/upload">Uploads</a>
+    <a href="/creator/batches">Batches</a>
+    <a href="/creator/orders">Orders</a>
+    <a href="/creator/dashboard#products">Products</a>
+    <a href="/creator/dashboard#pricing">Pricing</a>
+    <a href="/creator/dashboard#settings">Settings</a>
+    <a href="/logout" class="logout">Log out</a>
+  </nav>
+</aside>
 
-<!-- BoatSpotMedia Creator Dashboard Overview v40.0 -->
-{% set stats = overview_stats if overview_stats is defined else {} %}
-<section class="bsm-dashboard-overview" style="margin:18px 0;">
-  <h2 style="margin:0 0 12px;">Overview</h2>
+  <main class="bsm-creator-main-v451">
+    <div class="container" style="max-width:1200px;margin:0 auto;padding:20px;">
+      <h1>Creator Dashboard</h1>
+      <p style="color:#64748b;">Manage your uploads, batches, pricing, orders, and sales from one place.</p>
 
-  <div class="bsm-overview-grid">
-    <div class="bsm-stat-card">
-      <div class="bsm-stat-label">Today</div>
-      <div class="bsm-stat-value">${{ "%.2f"|format(stats.get("earned_today", 0) or 0) }}</div>
+      <section class="bsm-dashboard-grid-v451">
+        <a class="bsm-dashboard-card-v451" href="/creator/upload">
+          <h2>Uploads</h2>
+          <p>Upload new videos or batches using the existing upload workflow.</p>
+        </a>
+
+        <a class="bsm-dashboard-card-v451" href="/creator/batches">
+          <h2>Batches</h2>
+          <p>Manage uploaded batches and existing videos.</p>
+        </a>
+
+        <a class="bsm-dashboard-card-v451" href="/creator/orders">
+          <h2>Orders / Sales</h2>
+          <p>View buyer orders, upload edited videos, and approve discounts.</p>
+        </a>
+
+        <a class="bsm-dashboard-card-v451" href="/creator/dashboard#pricing">
+          <h2>Pricing</h2>
+          <p>Manage creator prices and packages using the existing pricing page.</p>
+        </a>
+
+        <a class="bsm-dashboard-card-v451" href="/creator/dashboard#products">
+          <h2>Products / My Videos</h2>
+          <p>Review videos and product-style listings.</p>
+        </a>
+
+        <a class="bsm-dashboard-card-v451" href="/creator/dashboard#settings">
+          <h2>Settings</h2>
+          <p>Manage account settings and creator details.</p>
+        </a>
+      </section>
+
+      <section class="bsm-dashboard-note-v451">
+        <h2>Next operational panel</h2>
+        <p>Orders is now connected to the new dashboard shell. Uploads, Batches, and Pricing continue using the existing working code.</p>
+      </section>
     </div>
-    <div class="bsm-stat-card">
-      <div class="bsm-stat-label">This Week</div>
-      <div class="bsm-stat-value">${{ "%.2f"|format(stats.get("earned_week", 0) or 0) }}</div>
-    </div>
-    <div class="bsm-stat-card">
-      <div class="bsm-stat-label">This Month</div>
-      <div class="bsm-stat-value">${{ "%.2f"|format(stats.get("earned_month", 0) or 0) }}</div>
-    </div>
-    <div class="bsm-stat-card">
-      <div class="bsm-stat-label">Lifetime</div>
-      <div class="bsm-stat-value">${{ "%.2f"|format(stats.get("earned_lifetime", 0) or 0) }}</div>
-    </div>
-    <div class="bsm-stat-card">
-      <div class="bsm-stat-label">Videos Sold This Month</div>
-      <div class="bsm-stat-value">{{ stats.get("videos_sold_month", 0) or 0 }}</div>
-    </div>
-    <div class="bsm-stat-card">
-      <div class="bsm-stat-label">Videos Sold Total</div>
-      <div class="bsm-stat-value">{{ stats.get("videos_sold_total", 0) or 0 }}</div>
-    </div>
-    <div class="bsm-stat-card">
-      <div class="bsm-stat-label">Pending Payouts</div>
-      <div class="bsm-stat-value">${{ "%.2f"|format(stats.get("pending_payouts", 0) or 0) }}</div>
-    </div>
-    <div class="bsm-stat-card">
-      <div class="bsm-stat-label">Platform Commission</div>
-      <div class="bsm-stat-value">{{ stats.get("platform_commission_rate", 0) or 0 }}%</div>
-    </div>
-  </div>
-
-  <div class="bsm-dashboard-panels">
-    <div class="bsm-panel">
-      <h3>Earnings Breakdown</h3>
-      <div class="bsm-breakdown-row"><span>Gross revenue</span><b>${{ "%.2f"|format(stats.get("gross_revenue", 0) or 0) }}</b></div>
-      <div class="bsm-breakdown-row"><span>Platform commission</span><b>${{ "%.2f"|format(stats.get("platform_commission", 0) or 0) }}</b></div>
-      <div class="bsm-breakdown-row"><span>Stripe fees</span><b>${{ "%.2f"|format(stats.get("stripe_fees", 0) or 0) }}</b></div>
-      <div class="bsm-breakdown-row"><span>Net earnings</span><b>${{ "%.2f"|format(stats.get("net_earnings", 0) or 0) }}</b></div>
-    </div>
-
-    <div class="bsm-panel">
-      <h3>Video Performance</h3>
-      <div class="bsm-breakdown-row"><span>Preview views</span><b>{{ stats.get("preview_views", 0) or 0 }}</b></div>
-      <div class="bsm-breakdown-row"><span>Clicks</span><b>{{ stats.get("clicks", 0) or 0 }}</b></div>
-      <div class="bsm-breakdown-row"><span>Conversion rate</span><b>{{ stats.get("conversion_rate", 0) or 0 }}%</b></div>
-      <div class="bsm-breakdown-row"><span>Total sales</span><b>{{ stats.get("videos_sold_total", 0) or 0 }}</b></div>
-    </div>
-
-    <div class="bsm-panel">
-      <h3>Notifications</h3>
-      {% if stats.get("last_sale") %}
-        <div class="bsm-notification">Your video sold. Check Sales for details.</div>
-      {% else %}
-        <div class="bsm-notification muted">No recent sales yet.</div>
-      {% endif %}
-    </div>
-  </div>
-</section>
-<div class="card storage-card" style="background:#fff;border-radius:14px;padding:16px;margin:14px 0;box-shadow:0 6px 20px rgba(0,0,0,.06);"></p></div><div class="grid"><div class="card"><h3>Storage</h3><p>{{creator.storage_used_gb}} GB used</p><p>{{creator.storage_remaining_gb}} GB remaining</p><small>Plan storage: {{creator.storage_limit_gb}} GB</small></div><div class="card"><h3>Published Videos</h3><p>{{videos_count}}</p></div><div class="card"><h3>Total Clicks</h3><p>{{stats.clicks_lifetime if stats else 0}}</p><small>Global video preview clicks</small></div></div></div></div><script src="/static/js/mobile.js"></script>
-</body></html>
-<script>
-function regenerateThumbnail(videoId){
-  fetch("/creator/videos/"+videoId+"/regenerate-thumbnail",{method:"POST"})
-    .then(r=>r.json())
-    .then(d=>{ if(d.ok){ alert("Thumbnail regenerated."); location.reload(); } else { alert(d.error || "Could not regenerate thumbnail."); }})
-    .catch(()=>alert("Could not regenerate thumbnail."));
-}
-</script>
-
-<!-- Order Sales v42.7 -->
-<section style="background:#fff;border:1px solid #e5e7eb;border-radius:14px;padding:16px;margin:18px 0;">
-  <h2>Recent Sales</h2>
-  <p><strong>Total from orders:</strong> ${{ "%.2f"|format(order_sales_total or 0) }} · <strong>Items sold:</strong> {{ order_sales_count or 0 }}</p>
-  {% if recent_order_sales %}
-    <div style="display:grid;gap:10px;">
-    {% for sale in recent_order_sales[:10] %}
-      <div style="display:flex;justify-content:space-between;gap:10px;border-top:1px solid #f1f5f9;padding-top:8px;">
-        <div>
-          <strong>{{ sale.location or sale.filename or "Boat video" }}</strong><br>
-          <span style="color:#64748b;font-size:13px;">{{ sale.package }} · {{ sale.buyer_email }}</span>
-        </div>
-        <strong>${{ "%.2f"|format(sale.unit_price or 0) }}</strong>
-      </div>
-    {% endfor %}
-    </div>
-  {% else %}
-    <p style="color:#64748b;">No order sales yet.</p>
-  {% endif %}
-</section>
-
-<!-- Approve Discount v43.9 -->
-<section style="background:#fff;border:1px solid #e5e7eb;border-radius:14px;padding:16px;margin:18px 0;">
-  <h2>Discount Approval Requests</h2>
-  {% set pending_sales = recent_order_sales|selectattr("discount_status", "in", ["pending_review","pending","awaiting_creator","needs_approval"])|list if recent_order_sales else [] %}
-  {% if pending_sales %}
-    <div style="display:grid;gap:12px;">
-    {% for sale in pending_sales %}
-      <div style="display:grid;grid-template-columns:90px 1fr auto;gap:12px;align-items:center;border-top:1px solid #f1f5f9;padding-top:10px;">
-        <div style="width:90px;height:58px;background:#e5e7eb;border-radius:10px;overflow:hidden;">
-          {% if sale.public_thumbnail_url %}
-            <img src="{{ sale.public_thumbnail_url }}" style="width:100%;height:100%;object-fit:cover;">
-          {% elif sale.thumbnail_path %}
-            <img src="/media/{{ sale.thumbnail_path }}" style="width:100%;height:100%;object-fit:cover;">
-          {% elif sale.r2_thumbnail_key %}
-            <img src="/media/{{ sale.r2_thumbnail_key }}" style="width:100%;height:100%;object-fit:cover;">
-          {% endif %}
-        </div>
-        <div>
-          <strong>{{ sale.location or sale.filename or sale.internal_filename or "Boat video" }}</strong><br>
-          <span style="color:#64748b;font-size:13px;">Buyer: {{ sale.buyer_email }} · Package: {{ sale.package }}</span>
-        </div>
-        <div style="display:flex;gap:8px;flex-wrap:wrap;">
-          <form method="POST" action="/creator/order-item/{{ sale.id }}/approve-discount"><button class="btn" type="submit">Approve</button></form>
-          <form method="POST" action="/creator/order-item/{{ sale.id }}/reject-discount"><button class="btn" type="submit">Reject</button></form>
-        </div>
-      </div>
-    {% endfor %}
-    </div>
-  {% else %}
-    <p style="color:#64748b;">No pending discount approvals.</p>
-  {% endif %}
-</section>
-
-
-
-<!-- Creator Orders Real Panel v44.6 -->
-<section id="orders" style="background:#fff;border:1px solid #e5e7eb;border-radius:16px;padding:18px;margin:18px 0;box-shadow:0 8px 24px rgba(15,23,42,.06);">
-  <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:12px;flex-wrap:wrap;">
-    <div>
-      <h2 style="margin:0 0 6px;">Orders / Sales</h2>
-      <p style="margin:0;color:#64748b;">Manage sales, edited video deliveries, and discount approvals.</p>
-    </div>
-    <div style="display:flex;gap:10px;flex-wrap:wrap;">
-      <div class="bsm-mini-stat"><span>Gross</span><strong>${{ "%.2f"|format(creator_orders_gross_v446 or 0) }}</strong></div>
-      <div class="bsm-mini-stat"><span>Items sold</span><strong>{{ creator_orders_sold_count_v446 or 0 }}</strong></div>
-      <div class="bsm-mini-stat bsm-warn"><span>Pending edits</span><strong>{{ creator_orders_pending_edits_count_v446 or 0 }}</strong></div>
-      <div class="bsm-mini-stat bsm-danger"><span>Discount approvals</span><strong>{{ creator_orders_pending_discount_count_v446 or 0 }}</strong></div>
-    </div>
-  </div>
-
-  {% if creator_orders_v446 %}
-    <div style="display:grid;gap:12px;margin-top:16px;">
-      {% for sale in creator_orders_v446 %}
-        <div class="bsm-creator-order-row">
-          <div class="bsm-order-thumb">
-            {% if sale.thumbnail_url %}
-              <img src="{{ sale.thumbnail_url }}" alt="thumbnail">
-            {% endif %}
-          </div>
-
-          <div>
-            <strong>{{ sale.location or sale.filename or sale.internal_filename or ("Video #" ~ sale.video_id) }}</strong>
-            <div style="color:#64748b;font-size:13px;margin-top:3px;">
-              Order #{{ sale.order_id }} · {{ sale.order_created_at }}<br>
-              Buyer: <strong>{{ sale.buyer_email }}</strong><br>
-              Package: {{ sale.package_label }} · Price: ${{ "%.2f"|format(sale.unit_price or 0) }}
-            </div>
-            <div style="margin-top:7px;display:flex;gap:8px;flex-wrap:wrap;">
-              <span class="bsm-status-pill">{{ sale.status_label }}</span>
-              {% if sale.is_bundle %}<span class="bsm-status-pill blue">Bundle</span>{% endif %}
-              {% if sale.needs_edit %}<span class="bsm-status-pill orange">Needs edit upload</span>{% endif %}
-              {% if sale.needs_discount %}<span class="bsm-status-pill red">Needs discount approval</span>{% endif %}
-            </div>
-          </div>
-
-          <div class="bsm-order-actions">
-            {% if sale.needs_edit %}
-              <form method="POST" action="/creator/order-item/{{ sale.item_id }}/upload-edited" enctype="multipart/form-data">
-                <input type="file" name="edited_video" accept="video/*" required>
-                <button class="btn" type="submit">Upload Edited Video</button>
-              </form>
-            {% endif %}
-
-            {% if sale.needs_discount %}
-              <form method="POST" action="/creator/order-item/{{ sale.item_id }}/approve-discount">
-                <button class="btn" type="submit">Approve</button>
-              </form>
-              <form method="POST" action="/creator/order-item/{{ sale.item_id }}/reject-discount">
-                <button class="btn" type="submit">Reject</button>
-              </form>
-            {% endif %}
-          </div>
-        </div>
-      {% endfor %}
-    </div>
-  {% else %}
-    <div style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:12px;padding:14px;margin-top:16px;color:#64748b;">No orders yet.</div>
-  {% endif %}
-</section>
-
-<!-- Creator Sales Panel v44.5 -->
-<section class="bsm-creator-sales-panel" style="background:#fff;border:1px solid #e5e7eb;border-radius:16px;padding:18px;margin:18px 0;box-shadow:0 8px 24px rgba(15,23,42,.06);">
-  <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:12px;flex-wrap:wrap;">
-    <div>
-      <h2 style="margin:0 0 6px;">Sales / Orders</h2>
-      <p style="margin:0;color:#64748b;">Recent purchases from your videos.</p>
-    </div>
-    <div style="display:flex;gap:10px;flex-wrap:wrap;">
-      <div style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:12px;padding:10px 12px;">
-        <div style="font-size:12px;color:#64748b;">Gross sales</div>
-        <strong>${{ "%.2f"|format(creator_sales_gross_total_v445 or 0) }}</strong>
-      </div>
-      <div style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:12px;padding:10px 12px;">
-        <div style="font-size:12px;color:#64748b;">Items sold</div>
-        <strong>{{ creator_sales_count_v445 or 0 }}</strong>
-      </div>
-      <div style="background:#fff7ed;border:1px solid #fed7aa;border-radius:12px;padding:10px 12px;">
-        <div style="font-size:12px;color:#9a3412;">Pending edits</div>
-        <strong>{{ creator_pending_edits_count_v445 or 0 }}</strong>
-      </div>
-      <div style="background:#fef2f2;border:1px solid #fecaca;border-radius:12px;padding:10px 12px;">
-        <div style="font-size:12px;color:#991b1b;">Discount approvals</div>
-        <strong>{{ creator_pending_discount_count_v445 or 0 }}</strong>
-      </div>
-    </div>
-  </div>
-
-  {% if creator_recent_sales_v445 %}
-    <div style="display:grid;gap:12px;margin-top:16px;">
-      {% for sale in creator_recent_sales_v445[:20] %}
-        <div class="bsm-sale-row" style="display:grid;grid-template-columns:92px 1fr auto;gap:12px;align-items:center;border-top:1px solid #f1f5f9;padding-top:12px;">
-          <div style="width:92px;height:62px;background:#e5e7eb;border-radius:12px;overflow:hidden;">
-            {% if sale.thumbnail_url %}
-              <img src="{{ sale.thumbnail_url }}" alt="video thumbnail" style="width:100%;height:100%;object-fit:cover;">
-            {% endif %}
-          </div>
-
-          <div>
-            <strong>{{ sale.location or sale.filename or sale.internal_filename or ("Video #" ~ sale.video_id) }}</strong>
-            <div style="color:#64748b;font-size:13px;margin-top:3px;">
-              {{ sale.buyer_display }} · Package: {{ sale.package or "original" }} · ${{ "%.2f"|format(sale.unit_price or 0) }}
-            </div>
-
-            <div style="margin-top:6px;display:flex;gap:8px;flex-wrap:wrap;">
-              {% if sale.is_bundle %}
-                <span style="background:#eff6ff;color:#1e3a8a;border:1px solid #bfdbfe;border-radius:999px;padding:3px 8px;font-size:12px;">Bundle</span>
-              {% endif %}
-              {% if sale.is_pending_edit %}
-                <span style="background:#fff7ed;color:#9a3412;border:1px solid #fed7aa;border-radius:999px;padding:3px 8px;font-size:12px;">Pending edit upload</span>
-              {% elif sale.is_edited %}
-                <span style="background:#ecfdf5;color:#065f46;border:1px solid #86efac;border-radius:999px;padding:3px 8px;font-size:12px;">Edited delivered</span>
-              {% else %}
-                <span style="background:#ecfdf5;color:#065f46;border:1px solid #86efac;border-radius:999px;padding:3px 8px;font-size:12px;">Instant download</span>
-              {% endif %}
-              {% if sale.is_pending_discount %}
-                <span style="background:#fef2f2;color:#991b1b;border:1px solid #fecaca;border-radius:999px;padding:3px 8px;font-size:12px;">Discount approval pending</span>
-              {% endif %}
-            </div>
-          </div>
-
-          <div style="display:flex;gap:8px;flex-wrap:wrap;justify-content:flex-end;">
-            {% if sale.is_pending_edit %}
-              <a class="btn" href="/creator/pending-edits">Upload Edit</a>
-            {% endif %}
-
-            {% if sale.is_pending_discount %}
-              <form method="POST" action="/creator/order-item/{{ sale.item_id }}/approve-discount">
-                <button class="btn" type="submit">Approve</button>
-              </form>
-              <form method="POST" action="/creator/order-item/{{ sale.item_id }}/reject-discount">
-                <button class="btn" type="submit">Reject</button>
-              </form>
-            {% endif %}
-          </div>
-        </div>
-      {% endfor %}
-    </div>
-  {% else %}
-    <div style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:12px;padding:14px;margin-top:16px;color:#64748b;">
-      No sales yet.
-    </div>
-  {% endif %}
-</section>
-
-<!-- Pending Edited Videos v44.0 -->
-<section style="background:#fff;border:1px solid #e5e7eb;border-radius:14px;padding:16px;margin:18px 0;">
-  <h2>Pending Edited Videos</h2>
-  <p>Upload edited files here. Once uploaded, the buyer will receive an email and the download button will activate.</p>
-  <p><a class="btn" href="/creator/pending-edits">Open Pending Edited Videos</a></p>
-  {% if pending_edits_v440 %}
-    <p><strong>{{ pending_edits_v440|length }}</strong> edited video(s) pending.</p>
-  {% endif %}
-</section>
+  </main>
+</div>
+</body>
+</html>
