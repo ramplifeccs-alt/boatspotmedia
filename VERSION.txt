@@ -1,14 +1,12 @@
-BoatSpotMedia v44.6 Creator Orders + Edited Delivery
-Base: v44.5 stable.
-Adds:
-- Real Creator Orders / Sales panel.
-- Shows buyer email, order ID, thumbnail, package, price, status.
-- Upload Edited Video action.
-- After edited upload:
-  * file uploads to R2
-  * buyer download becomes active
-  * SendGrid email is sent
-- Approve/Reject discount actions.
+BoatSpotMedia v44.7 Creator Orders Page Fix
+Base: v44.6.
+Fix:
+- Adds direct /creator/orders page so creator can actually see Orders/Sales.
+- Shows buyer email, order ID, thumbnail, package, price, and status.
+- Adds upload edited video action.
+- Upload edited video saves to R2, activates buyer download, and sends SendGrid email.
+- Adds approve/reject discount actions.
+- Connects Orders menu links to /creator/orders.
 Does not touch:
 - Pricing
 - Uploads
