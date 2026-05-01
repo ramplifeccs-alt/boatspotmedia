@@ -647,3 +647,18 @@ header a,.navbar a,.site-header a,.topbar a,nav a,.bsm-header a,.bsm-simple-head
     grid-template-columns:1fr;
   }
 }
+
+/* v44.7 remove duplicate creator menu */
+.bsm-hide-duplicate-creator-nav-v447{
+  display:none!important;
+}
+.bsm-creator-main-v446 > .creator-sidebar,
+.bsm-creator-main-v446 > .sidebar,
+.bsm-creator-main-v446 > aside,
+.bsm-creator-main-v446 nav.creator-nav,
+.bsm-creator-main-v446 .creator-nav{
+  display:none!important;
+}
+.bsm-creator-main-v446{
+  padding-top:28px!important;
+}

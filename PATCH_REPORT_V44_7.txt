@@ -1,0 +1,2 @@
+app/templates/creator/dashboard.html
+app/static/css/style.css

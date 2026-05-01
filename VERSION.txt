@@ -1,10 +1,6 @@
-BoatSpotMedia v44.6 Creator Dashboard Sidebar Layout
-Base: v44.5.
-Adds:
-- Creator Dashboard left sidebar menu.
-- Main content/panels on the right.
-- Mobile responsive sidebar.
-Does not touch:
-- Upload batches logic
-- R2 upload pipeline
-- Pricing/database logic
+BoatSpotMedia v44.7 Creator Dashboard Remove Duplicate Menu
+Base: v44.6.
+Fix:
+- Removes/hides the old repeated creator menu inside the dashboard.
+- Keeps only the new left sidebar menu.
+- Does not touch upload batches or upload logic.
