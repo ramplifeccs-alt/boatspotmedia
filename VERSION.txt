@@ -1,7 +1,10 @@
-BoatSpotMedia v43.4 Download Route Fallback Fix
-Base: v43.3.
+BoatSpotMedia v43.5 Direct Video Download Routes
+Base: v43.4.
 Fix:
-- /buyer/download-item/<id> now accepts order_item_id OR video_id.
-- Verifies the video belongs to a paid buyer order.
-- Looks for the original video file across multiple possible video columns.
-- Gives clear error if old order has no linked item/file.
+- Adds three download routes:
+  /download-video/<video_id>
+  /download-item/<video_id>
+  /buyer/download-item/<video_id>
+- Adds routes in public.py and buyer.py so they register even if one blueprint path is not active.
+- My Orders button uses /download-video/<video_id> directly.
+- Verifies the logged-in buyer purchased that video, then redirects to the saved video path/key.
