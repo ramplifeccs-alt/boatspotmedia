@@ -31,7 +31,13 @@
       <label>Email</label><input type="email" name="email" required>
       <label>Password</label><input type="password" name="password" required>
       <button class="btn">Register</button>
-    </form>
+    {% if role == "buyer" %}
+        <label style="display:flex;gap:10px;align-items:flex-start;margin:12px 0;font-size:14px;line-height:1.4;">
+          <input type="checkbox" name="accept_terms" required style="margin-top:3px;">
+          <span>I agree to the <a href="/buyer-terms" target="_blank">Buyer Terms</a>, <a href="/terms" target="_blank">Terms & Conditions</a>, and <a href="/privacy" target="_blank">Privacy Policy</a>. I understand videos should be downloaded within the available download window.</span>
+        </label>
+        {% endif %}
+</form>
     <div class="card">
       <h2>Already registered?</h2>
       <p>Use login if you already have an account.</p>

@@ -1,10 +1,10 @@
-BoatSpotMedia v44.3 Bundle Multi-Delivery Fix
-Base: v44.2.
-Fix:
-- Bundle/combo appears as one purchased video with two deliveries:
-  * Original Clip / Instant Download
-  * Edited Version / Pending Edit or Download Edited Video
-- Original and edited have separate buttons and separate 72-hour timers.
-- Combo keeps original downloadable immediately while edited remains pending until creator uploads it.
-- Compatible with old orders where original and edited were stored as separate order items: groups them visually by video_id.
-- Download route supports ?delivery=original or ?delivery=edited for bundle rows.
+BoatSpotMedia v44.4 Timer Timezone + Buyer Terms
+Base: v44.3.
+Fixes:
+- Download expiration display now uses America/New_York time, not UTC.
+- Buyer registration requires Buyer Terms / Terms / Privacy acceptance.
+- Adds pages:
+  /buyer-terms
+  /terms
+  /privacy
+- Adds footer legal links on home/base templates.

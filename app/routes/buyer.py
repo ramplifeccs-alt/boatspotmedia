@@ -174,7 +174,12 @@ def _bsm_download_timer_v441(item, order_created_at=None):
             start = start.replace(tzinfo=timezone.utc)
         expires = start + timedelta(hours=72)
         remaining = int((expires - datetime.now(timezone.utc)).total_seconds())
-        return {"expired": remaining <= 0, "expires_at": expires.strftime("%m/%d/%Y %I:%M %p"), "remaining_seconds": max(0, remaining)}
+        try:
+            from zoneinfo import ZoneInfo
+            expires_display = expires.astimezone(ZoneInfo("America/New_York")).strftime("%m/%d/%Y %I:%M %p")
+        except Exception:
+            expires_display = expires.strftime("%m/%d/%Y %I:%M %p")
+        return {"expired": remaining <= 0, "expires_at": expires_display, "remaining_seconds": max(0, remaining)}
     except Exception:
         return {"expired": False, "expires_at": "", "remaining_seconds": 72*3600}
 

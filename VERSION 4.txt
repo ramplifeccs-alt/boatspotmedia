@@ -1,0 +1,10 @@
+BoatSpotMedia v44.2 Visible Timer + Safe Batch Delete
+Base: v44.1.
+Adds/Fixes:
+- Buyer sees a live countdown timer for each 72-hour download window.
+- Expired download buttons disable automatically in the UI.
+- Adds safe batch delete endpoint:
+  /creator/batches/<batch_id>/safe-delete
+- Safe delete keeps purchased/active videos and deletes only safe/non-active videos.
+- Creator gets a message explaining what was deleted and what was protected.
+- Active means: download window still active, edit pending/active, or discount approval pending.

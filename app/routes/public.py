@@ -434,7 +434,12 @@ def _bsm_download_timer_v441(item, order_created_at=None):
             start = start.replace(tzinfo=timezone.utc)
         expires = start + timedelta(hours=72)
         remaining = int((expires - datetime.now(timezone.utc)).total_seconds())
-        return {"expired": remaining <= 0, "expires_at": expires.strftime("%m/%d/%Y %I:%M %p"), "remaining_seconds": max(0, remaining)}
+        try:
+            from zoneinfo import ZoneInfo
+            expires_display = expires.astimezone(ZoneInfo("America/New_York")).strftime("%m/%d/%Y %I:%M %p")
+        except Exception:
+            expires_display = expires.strftime("%m/%d/%Y %I:%M %p")
+        return {"expired": remaining <= 0, "expires_at": expires_display, "remaining_seconds": max(0, remaining)}
     except Exception:
         return {"expired": False, "expires_at": "", "remaining_seconds": 72*3600}
 
@@ -529,6 +534,10 @@ def buyer_register_public_v422():
 
         if len(password) < 6:
             return render_template("public/generic_register.html", role="buyer", error="Password must be at least 6 characters.")
+
+        # buyer_terms_required_v444
+        if role == "buyer" and request.form.get("accept_terms") not in ["on", "true", "1", "yes"]:
+            return render_template("public/generic_register.html", role="buyer", error="You must accept the Buyer Terms and Privacy Policy to create an account.")
 
         user = _bsm_find_user_by_email_v422(email)
         if user:
@@ -1437,3 +1446,17 @@ def _bsm_direct_download_video_response_v435(video_id):
 @public_bp.route("/buyer/download-item/<int:video_id>")
 def bsm_download_video_public_v435(video_id):
     return _bsm_direct_download_video_response_v435(video_id)
+
+
+
+@public_bp.route("/buyer-terms")
+def buyer_terms_v444():
+    return render_template("public/buyer_terms.html")
+
+@public_bp.route("/terms")
+def terms_v444():
+    return render_template("public/terms.html")
+
+@public_bp.route("/privacy")
+def privacy_v444():
+    return render_template("public/privacy.html")
