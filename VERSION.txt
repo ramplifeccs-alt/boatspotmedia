@@ -1,12 +1,7 @@
-BoatSpotMedia v45.2 Creator Modules In Shell
-Base: v45.1.
+BoatSpotMedia v45.3 Creator Modules Block Only
+Base: v45.2.
 Fix:
-- /creator/upload is wrapped inside new sidebar shell while keeping existing upload logic.
-- /creator/batches is wrapped inside new sidebar shell while keeping existing batches logic.
-- /creator/pricing is wrapped inside new sidebar shell while keeping existing pricing logic.
-- Dashboard menu links open these modules directly.
-- Orders stays in the same shell.
-Detected routes:
-  Uploads: /creator/upload
-  Batches: /creator/batches
-  Pricing: /creator/pricing
+- Upload, Batches, Pricing and Orders open inside the new creator sidebar shell.
+- Removes old creator dashboard header/sidebar from inside module content.
+- Keeps only the useful module block on the right.
+- Does not change upload, batch, or pricing backend logic.

@@ -1069,3 +1069,93 @@ body.creator-dashboard-v449 main{
     padding:12px;
   }
 }
+
+/* v45.3 creator modules block only */
+.bsm-creator-page-shell-v453{
+  display:grid;
+  grid-template-columns:230px minmax(0,1fr);
+  min-height:100vh;
+  background:#f1f5f9;
+}
+.bsm-creator-sidebar-v453{
+  position:sticky;
+  top:0;
+  height:100vh;
+  overflow:auto;
+  background:#071b34;
+  color:#fff;
+  padding:18px 14px;
+  box-sizing:border-box;
+  z-index:20;
+}
+.bsm-creator-logo-v453{
+  display:block;
+  padding:4px 4px 14px;
+  border-bottom:1px solid rgba(255,255,255,.15);
+  margin-bottom:12px;
+}
+.bsm-creator-logo-v453 img{
+  width:100%;
+  max-width:190px;
+  display:block;
+}
+.bsm-creator-handle-v453{
+  color:#e5e7eb;
+  font-weight:700;
+  margin:12px 8px 12px;
+}
+.bsm-creator-nav-v453{
+  display:grid;
+  gap:8px;
+}
+.bsm-creator-nav-v453 a{
+  color:#fff!important;
+  text-decoration:none;
+  font-weight:700;
+  padding:10px 12px;
+  border-radius:10px;
+  display:block;
+  background:rgba(255,255,255,.04);
+}
+.bsm-creator-nav-v453 a:hover,
+.bsm-creator-nav-v453 a.active{
+  background:rgba(37,99,235,.45);
+}
+.bsm-creator-nav-v453 a.logout{
+  margin-top:14px;
+  background:rgba(220,38,38,.85);
+}
+.bsm-creator-main-v453{
+  padding:22px;
+  min-width:0;
+}
+.bsm-creator-module-wrap-v453{
+  max-width:1200px;
+  margin:0 auto;
+}
+.bsm-creator-module-wrap-v453 > .container{
+  max-width:1200px!important;
+  margin:0 auto!important;
+}
+/* Hide old dashboard chrome if it survived inside module */
+.bsm-creator-module-wrap-v453 header,
+.bsm-creator-module-wrap-v453 aside,
+.bsm-creator-module-wrap-v453 nav.creator-nav,
+.bsm-creator-module-wrap-v453 .creator-sidebar,
+.bsm-creator-module-wrap-v453 .dashboard-sidebar,
+.bsm-creator-module-wrap-v453 .side-nav,
+.bsm-creator-module-wrap-v453 .left-sidebar{
+  display:none!important;
+}
+@media(max-width:850px){
+  .bsm-creator-page-shell-v453{
+    grid-template-columns:1fr;
+  }
+  .bsm-creator-sidebar-v453{
+    position:relative;
+    height:auto;
+  }
+  .bsm-creator-main-v453{
+    padding:12px;
+  }
+}

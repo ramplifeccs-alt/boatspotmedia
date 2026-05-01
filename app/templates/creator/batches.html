@@ -1,25 +1,20 @@
 <!doctype html>
 <html lang="en">
 <head>
-
-  <meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>BoatSpotMedia</title>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Batches - BoatSpotMedia</title>
   <link rel="stylesheet" href="/static/css/style.css">
-  <link rel="icon" type="image/png" href="/static/img/favicon.png">
-  <link rel="apple-touch-icon" href="/static/img/apple-touch-icon.png">
-  <meta name="theme-color" content="#071b34">
-
-<title>Batches - BoatSpotMedia</title>
 </head>
-<body class="creator-dashboard-v452">
-<div class="bsm-creator-page-shell-v452">
+<body class="creator-dashboard-v453">
+<div class="bsm-creator-page-shell-v453">
   
-<aside class="bsm-creator-sidebar-v452">
-  <a href="/creator/dashboard" class="bsm-creator-logo-v452">
+<aside class="bsm-creator-sidebar-v453">
+  <a href="/creator/dashboard" class="bsm-creator-logo-v453">
     <img src="/static/img/logo-header.png" alt="BoatSpotMedia">
   </a>
-  <div class="bsm-creator-handle-v452">@BoatSpotMedia.com</div>
-  <nav class="bsm-creator-nav-v452">
+  <div class="bsm-creator-handle-v453">@BoatSpotMedia.com</div>
+  <nav class="bsm-creator-nav-v453">
     <a href="/creator/dashboard">Dashboard</a>
     <a href="/creator/upload">Uploads</a>
     <a href="/creator/batches" class="active">Batches</a>
@@ -31,28 +26,9 @@
   </nav>
 </aside>
 
-  <main class="bsm-creator-main-v452">
-    <div class="bsm-creator-module-wrap-v452">
-<div class="creator-topbar" style="display:flex;justify-content:space-between;align-items:center;gap:12px;padding:12px 18px;background:#0b1220;color:#fff;margin:-1px -1px 16px -1px;">
-  <div><a href="{{ url_for('public.home') }}" style="color:white;text-decoration:none;font-weight:800;"><img src="/static/img/logo-header.png" alt="BoatSpotMedia" class="bsm-logo-img"></a></div>
-  <div style="display:flex;align-items:center;gap:12px;font-size:14px;">
-    <a href="{{ url_for('public.home') }}" style="color:white;text-decoration:none;">Home</a>
-    <a href="/shop" style="color:white;text-decoration:none;">Products</a>
-    <a href="/creator/dashboard" style="color:white;text-decoration:none;" class="nav-user">{% if creator and creator.user %}{{ creator_display_name(creator) if creator is defined else 'Creator' }}{% elif session.get('display_name') %}{{ session.get('display_name') }}{% elif session.get('user_email') %}{{ session.get('user_email') }}{% endif %}</a>
-    <a href="/logout" style="color:white;text-decoration:none;">Logout</a>
-  </div>
-</div>
-<div class="sidebar-layout">
-  <div class="sidebar">
-    <h2>Creator</h2>
-    <a href="/creator/dashboard">Dashboard</a>
-    <a href="/creator/upload">Upload</a>
-    <a href="/creator/batches">Batches</a>
-    <a href="/creator/products">Products</a>
-    <a href="/creator/orders">Orders</a>
-    <a href="/logout">Logout</a>
-  </div>
-  <div class="content">
+  <main class="bsm-creator-main-v453">
+    <div class="bsm-creator-module-wrap-v453">
+<div class="content">
     <h1>Your Batches</h1>
     <div class="grid">
     {% for b in batches %}
@@ -74,7 +50,6 @@
   </div>
 </div>
 <script src="/static/js/mobile.js"></script>
-
     </div>
   </main>
 </div>
