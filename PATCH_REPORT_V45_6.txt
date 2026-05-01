@@ -1,0 +1,10 @@
+app/static/css/style.css
+app/templates/creator/upload.html
+
+Checks:
+Batch name: True
+Location: True
+File input: True
+Form: True
+Submit helper: True
+Visible price labels: False

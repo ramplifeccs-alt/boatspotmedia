@@ -1359,3 +1359,12 @@ body.creator-dashboard-v449 main{
     padding:12px;
   }
 }
+
+/* v45.6 upload clean price fields */
+.bsm-creator-upload-original-wrap-v455 input[name="original_4k_price"],
+.bsm-creator-upload-original-wrap-v455 input[name="original_price"],
+.bsm-creator-upload-original-wrap-v455 input[name="edited_video_price"],
+.bsm-creator-upload-original-wrap-v455 input[name="edited_price"],
+.bsm-creator-upload-original-wrap-v455 input[name="bundle_price"]{
+  display:none!important;
+}

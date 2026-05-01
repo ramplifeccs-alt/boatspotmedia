@@ -1,8 +1,8 @@
-BoatSpotMedia v45.5 Upload Full Restore
-Base: v45.4 + Upload page restored from v44.5 stable backup.
+BoatSpotMedia v45.6 Upload Clean + Submit Fix
+Base: v45.5.
 Fix:
-- Restores the FULL original Upload page body, including Batch name, Location, file inputs, JS, form IDs and scripts.
-- Keeps Upload inside the new creator sidebar shell.
-- Hides only old navigation/header visually.
-- Does not touch upload backend/R2 logic.
-- Does not touch Batches or Pricing.
+- Removes pricing fields from Upload page:
+  Original 4K price, Edited video price, Bundle price.
+- Keeps Batch name, Location, file chooser, original form/scripts/IDs.
+- Adds a small submit safeguard so Upload Batch submits the real upload form.
+- Does not touch backend/R2, Batches or Pricing.
