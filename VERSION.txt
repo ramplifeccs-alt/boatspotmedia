@@ -1,7 +1,7 @@
-BoatSpotMedia v43.3 Order Items Visible + Download Fix
-Base: v43.2.
+BoatSpotMedia v43.4 Download Route Fallback Fix
+Base: v43.3.
 Fix:
-- My Orders explicitly shows Purchased Videos inside every order.
-- Every purchased video line shows Download Video.
-- If an older order is missing line items, shows View / Recover Download button.
-- Adds recovery route /buyer/order-downloads/<order_id>.
+- /buyer/download-item/<id> now accepts order_item_id OR video_id.
+- Verifies the video belongs to a paid buyer order.
+- Looks for the original video file across multiple possible video columns.
+- Gives clear error if old order has no linked item/file.

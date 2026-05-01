@@ -1149,7 +1149,7 @@ def buyer_download_order_item_v429(item_id):
 
 
 
-@public_bp.route("/buyer/download-item/<int:item_id>")
+@public_bp.route("/buyer/download-item-old/<int:item_id>")
 def buyer_download_order_item_v430(item_id):
     if not session.get("user_id") or session.get("user_role") != "buyer":
         session["after_login_redirect"] = "/buyer/dashboard"
@@ -1240,3 +1240,120 @@ def buyer_order_downloads_v433(order_id):
         html += '<p><strong>' + str(title) + '</strong><br><a style="display:inline-block;background:#2563eb;color:white;padding:12px 16px;border-radius:10px;text-decoration:none;font-weight:700;" href="/buyer/download-item/' + str(item.get("id")) + '">Download Video</a></p>'
     html += '<p><a href="/buyer/dashboard">Back to My Orders</a></p>'
     return html
+
+
+
+@public_bp.route("/buyer/download-item/<int:item_id>")
+def buyer_download_order_item_v434(item_id):
+    """
+    Download a purchased video.
+    v43.4: item_id can be either bsm_cart_order_item.id OR video_id from an older order render.
+    """
+    if not session.get("user_id") or session.get("user_role") != "buyer":
+        session["after_login_redirect"] = "/buyer/dashboard"
+        session.modified = True
+        return redirect("/buyer/login?next=/buyer/dashboard")
+
+    uid = session.get("user_id")
+    email = (session.get("user_email") or "").lower()
+
+    try:
+        db.session.execute(db.text("ALTER TABLE bsm_cart_order ADD COLUMN IF NOT EXISTS buyer_user_id INTEGER"))
+        db.session.commit()
+    except Exception:
+        db.session.rollback()
+
+    row = None
+
+    # 1) Try as order item id
+    try:
+        row = db.session.execute(db.text("""
+            SELECT i.id AS order_item_id, i.video_id, i.package, i.delivery_status,
+                   o.id AS order_id, o.buyer_user_id, o.buyer_email, o.status
+            FROM bsm_cart_order_item i
+            JOIN bsm_cart_order o ON o.id = i.cart_order_id
+            WHERE i.id = :item_id
+            LIMIT 1
+        """), {"item_id": item_id}).mappings().first()
+    except Exception:
+        db.session.rollback()
+        row = None
+
+    # 2) Fallback: try as video_id inside this buyer's paid orders
+    if not row:
+        try:
+            row = db.session.execute(db.text("""
+                SELECT i.id AS order_item_id, i.video_id, i.package, i.delivery_status,
+                       o.id AS order_id, o.buyer_user_id, o.buyer_email, o.status
+                FROM bsm_cart_order_item i
+                JOIN bsm_cart_order o ON o.id = i.cart_order_id
+                WHERE i.video_id = :video_id
+                  AND (
+                    o.buyer_user_id = :uid
+                    OR lower(coalesce(o.buyer_email,'')) = lower(:email)
+                  )
+                ORDER BY o.created_at DESC
+                LIMIT 1
+            """), {"video_id": item_id, "uid": uid or 0, "email": email}).mappings().first()
+        except Exception:
+            db.session.rollback()
+            row = None
+
+    if not row:
+        return "Download not found for this order. The order exists, but no video item is linked to it. Please contact support with your order number.", 404
+
+    # Authorization
+    if row.get("buyer_user_id") and int(row.get("buyer_user_id")) != int(uid):
+        return "Not authorized", 403
+    if not row.get("buyer_user_id") and (row.get("buyer_email") or "").lower() != email:
+        return "Not authorized", 403
+
+    # Block only edited/pending items.
+    if str(row.get("delivery_status") or "").lower() in ["pending_edit", "editing", "not_ready", "pending"]:
+        return "This video is not ready for download yet.", 400
+
+    video_id = row.get("video_id")
+    if not video_id:
+        return "Video file not linked to this order item.", 404
+
+    # Fetch full video row with all available columns to avoid schema mismatch.
+    try:
+        video = db.session.execute(db.text("SELECT * FROM video WHERE id=:vid LIMIT 1"), {"vid": video_id}).mappings().first()
+    except Exception:
+        db.session.rollback()
+        video = None
+
+    if not video:
+        return "Video record not found.", 404
+
+    # Try many possible file columns used across versions.
+    candidate_keys = [
+        "public_url",
+        "download_url",
+        "file_url",
+        "original_url",
+        "video_url",
+        "r2_public_url",
+        "file_path",
+        "r2_video_key",
+        "r2_key",
+        "video_key",
+        "storage_key",
+        "original_file_path",
+        "original_path",
+        "internal_filename",
+    ]
+
+    for key in candidate_keys:
+        try:
+            val = video.get(key)
+        except Exception:
+            val = None
+        if not val:
+            continue
+        val = str(val)
+        if val.startswith("http://") or val.startswith("https://") or val.startswith("/"):
+            return redirect(val)
+        return redirect("/media/" + val.lstrip("/"))
+
+    return "Video file is not available for download yet. Please contact support with Order #" + str(row.get("order_id")), 404
