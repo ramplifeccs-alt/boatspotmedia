@@ -245,13 +245,9 @@ def _record_cart_order_from_session(stripe_session):
         if delivery_status == "ready_to_download":
             # v42.4: download token schema can differ. Do not let token creation break order saving.
             try:
-                token = create_download_token(video_id=video_id, buyer_email=buyer_email, order_id=getattr(stripe_session, "id", None), package=package)
-                download_urls.append({"video_id": video_id, "title": getattr(video, "filename", None) or getattr(video, "internal_filename", None) or "Video", "token": token})
-            except Exception as e:
-                try:
-                    print("download token create warning v42.4:", e)
-                except Exception:
-                    pass
+                pass
+            except Exception:
+                pass
 
     db.session.commit()
 

@@ -1,10 +1,10 @@
-BoatSpotMedia v43.5 Direct Video Download Routes
-Base: v43.4.
+BoatSpotMedia v43.6 App-Level R2 Download Route
+Base: v43.5.
 Fix:
-- Adds three download routes:
+- Registers download routes directly on app, not only blueprint:
   /download-video/<video_id>
   /download-item/<video_id>
   /buyer/download-item/<video_id>
-- Adds routes in public.py and buyer.py so they register even if one blueprint path is not active.
-- My Orders button uses /download-video/<video_id> directly.
-- Verifies the logged-in buyer purchased that video, then redirects to the saved video path/key.
+- Uses R2 key/path columns from video table and redirects to /media/<r2_key>.
+- Verifies buyer purchased the video before download.
+- My Orders button uses /download-video/<video_id>.
