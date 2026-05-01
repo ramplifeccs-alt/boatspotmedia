@@ -17,6 +17,9 @@
 
 <div class="container" style="max-width:1000px;margin:30px auto;padding:20px;">
   <h1>My Orders</h1>
+  <div style="background:#eff6ff;border:1px solid #bfdbfe;color:#1e3a8a;padding:12px;border-radius:12px;margin:14px 0;">
+  <strong>Download note:</strong> For best results, download your video on a computer. On a phone, the video may open for playback only.
+</div>
   <p>Signed in as <strong>{{ buyer_email or email }}</strong></p>
 
   {% if not orders %}
@@ -57,7 +60,9 @@
                   <div style="font-weight:800;text-align:right;">
                     ${{ "%.2f"|format(item.unit_price or 0) }}
                     <div style="margin-top:10px;">
-                      {% if item.download_locked or item.discount_status in ["pending_review","pending","awaiting_creator","needs_approval"] %}
+                      {% if item.delivery_status in ["pending_edit","editing","not_ready"] or item.package in ["edited","edit","instagram_edit","tiktok_edit"] and item.delivery_status not in ["ready_to_download","ready"] %}
+                        <button class="bsm-download-btn bsm-download-disabled" disabled>Pending Edit</button>
+                      {% elif item.download_locked or item.discount_status in ["pending_review","pending","awaiting_creator","needs_approval"] %}
                         <button class="bsm-download-btn bsm-download-disabled" disabled>Pending Approval</button>
                       {% else %}
                         <a class="bsm-download-btn" href="{{ item.download_url or ('/download-video/' ~ (item.video_id or item.id)) }}">Download Video</a>

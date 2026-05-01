@@ -143,3 +143,13 @@ function regenerateThumbnail(videoId){
     <p style="color:#64748b;">No pending discount approvals.</p>
   {% endif %}
 </section>
+
+<!-- Pending Edited Videos v44.0 -->
+<section style="background:#fff;border:1px solid #e5e7eb;border-radius:14px;padding:16px;margin:18px 0;">
+  <h2>Pending Edited Videos</h2>
+  <p>Upload edited files here. Once uploaded, the buyer will receive an email and the download button will activate.</p>
+  <p><a class="btn" href="/creator/pending-edits">Open Pending Edited Videos</a></p>
+  {% if pending_edits_v440 %}
+    <p><strong>{{ pending_edits_v440|length }}</strong> edited video(s) pending.</p>
+  {% endif %}
+</section>

@@ -87,7 +87,7 @@ def create_app():
         # Try ref as video_id in cart order system.
         try:
             purchased = db.session.execute(db.text("""
-                SELECT i.id AS order_item_id, i.video_id, i.delivery_status, i.package,
+                SELECT i.*, i.id AS order_item_id, i.video_id, i.delivery_status, i.package,
                        o.id AS order_id, o.buyer_user_id, o.buyer_email, o.status
                 FROM bsm_cart_order_item i
                 JOIN bsm_cart_order o ON o.id = i.cart_order_id
@@ -106,7 +106,7 @@ def create_app():
         if not purchased:
             try:
                 purchased = db.session.execute(db.text("""
-                    SELECT i.id AS order_item_id, i.video_id, i.delivery_status, i.package,
+                    SELECT i.*, i.id AS order_item_id, i.video_id, i.delivery_status, i.package,
                            o.id AS order_id, o.buyer_user_id, o.buyer_email, o.status
                     FROM bsm_cart_order_item i
                     JOIN bsm_cart_order o ON o.id = i.cart_order_id

@@ -1,0 +1,48 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Pending Edited Videos - BoatSpotMedia</title>
+  <link rel="stylesheet" href="/static/css/style.css">
+</head>
+<body>
+<header class="bsm-simple-header">
+  <a href="/"><img src="/static/img/logo-header.png" alt="BoatSpotMedia" class="bsm-logo-img"></a>
+  <a href="/creator/dashboard">Dashboard</a>
+</header>
+
+<div class="container" style="max-width:1000px;margin:30px auto;padding:20px;">
+  <h1>Pending Edited Videos</h1>
+  {% if pending_edits %}
+    <div style="display:grid;gap:14px;">
+    {% for item in pending_edits %}
+      <div class="bsm-order-card">
+        <div style="display:grid;grid-template-columns:110px 1fr;gap:14px;align-items:start;">
+          <div style="width:110px;height:70px;background:#e5e7eb;border-radius:12px;overflow:hidden;">
+            {% if item.public_thumbnail_url %}
+              <img src="{{ item.public_thumbnail_url }}" style="width:100%;height:100%;object-fit:cover;">
+            {% elif item.thumbnail_path %}
+              <img src="/media/{{ item.thumbnail_path }}" style="width:100%;height:100%;object-fit:cover;">
+            {% elif item.r2_thumbnail_key %}
+              <img src="/media/{{ item.r2_thumbnail_key }}" style="width:100%;height:100%;object-fit:cover;">
+            {% endif %}
+          </div>
+          <div>
+            <h3 style="margin:0 0 6px;">{{ item.location or item.filename or item.internal_filename or ("Video #" ~ item.video_id) }}</h3>
+            <p style="color:#64748b;margin:0 0 8px;">Buyer: {{ item.buyer_email }} · Package: {{ item.package }}</p>
+            <form method="POST" action="/creator/order-item/{{ item.id }}/upload-edited" enctype="multipart/form-data">
+              <input type="file" name="edited_video" accept="video/*" required>
+              <button class="btn" type="submit">Upload Edited Video</button>
+            </form>
+          </div>
+        </div>
+      </div>
+    {% endfor %}
+    </div>
+  {% else %}
+    <div class="bsm-order-card">No edited videos pending.</div>
+  {% endif %}
+</div>
+</body>
+</html>

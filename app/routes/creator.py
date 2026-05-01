@@ -1104,6 +1104,77 @@ def _creator_order_sales_summary_v427(creator_id):
     return {"recent_order_sales": rows, "order_sales_total": total, "order_sales_count": count}
 
 
+
+def _creator_pending_edits_v440(creator_id):
+    try:
+        db.session.execute(db.text("ALTER TABLE bsm_cart_order_item ADD COLUMN IF NOT EXISTS edited_r2_key TEXT"))
+        db.session.execute(db.text("ALTER TABLE bsm_cart_order_item ADD COLUMN IF NOT EXISTS edited_uploaded_at TIMESTAMP"))
+        db.session.commit()
+    except Exception:
+        db.session.rollback()
+
+    try:
+        return db.session.execute(db.text("""
+            SELECT i.*, o.buyer_email, o.created_at, v.location, v.filename, v.internal_filename,
+                   v.thumbnail_path, v.public_thumbnail_url, v.r2_thumbnail_key
+            FROM bsm_cart_order_item i
+            JOIN bsm_cart_order o ON o.id = i.cart_order_id
+            LEFT JOIN video v ON v.id = i.video_id
+            WHERE i.creator_id = :cid
+              AND lower(coalesce(i.package,'')) IN ('edited','edit','instagram_edit','tiktok_edit','short_edit','reel_edit')
+              AND lower(coalesce(i.delivery_status,'')) NOT IN ('ready_to_download','ready','delivered')
+            ORDER BY o.created_at ASC
+        """), {"cid": creator_id}).mappings().all()
+    except Exception:
+        db.session.rollback()
+        return []
+
+
+def _creator_context_id_v440():
+    try:
+        return session.get("creator_id") or session.get("user_id")
+    except Exception:
+        return None
+
+
+def _send_edited_ready_email_v440(to_email, item_id):
+    if not to_email:
+        return False
+    try:
+        # Reuse SendGrid env if configured.
+        import os, requests
+        api_key = os.environ.get("SENDGRID_API_KEY")
+        from_email = os.environ.get("SENDGRID_FROM_EMAIL") or os.environ.get("FROM_EMAIL")
+        if not api_key or not from_email:
+            print("SendGrid not configured for edited ready email")
+            return False
+        subject = "Your edited video is ready"
+        link = (os.environ.get("PUBLIC_BASE_URL") or os.environ.get("BASE_URL") or "https://boatspotmedia.com").rstrip("/") + "/buyer/dashboard"
+        html = f"""
+        <h2>Your edited video is ready</h2>
+        <p>Your edited video has been uploaded and is now available in your BoatSpotMedia order.</p>
+        <p><a href="{link}">Open My Orders</a></p>
+        <p>For best results, download on a computer. On a phone, the video may open for playback only.</p>
+        """
+        payload = {
+            "personalizations": [{"to": [{"email": to_email}]}],
+            "from": {"email": from_email},
+            "subject": subject,
+            "content": [{"type": "text/html", "value": html}],
+        }
+        r = requests.post(
+            "https://api.sendgrid.com/v3/mail/send",
+            headers={"Authorization": "Bearer " + api_key, "Content-Type": "application/json"},
+            json=payload,
+            timeout=12,
+        )
+        return r.status_code in (200, 202)
+    except Exception as e:
+        try: print("edited ready email warning v44.0:", e)
+        except Exception: pass
+        return False
+
+
 @creator_bp.route("/creator/discount-review")
 def creator_discount_review():
     return render_template("creator/discount_review.html", review_groups=[])
@@ -2267,3 +2338,72 @@ def reject_discount_item_v439(item_id):
         try: print("reject discount warning v43.9:", e)
         except Exception: pass
     return redirect(request.referrer or "/creator/dashboard")
+
+
+
+@creator_bp.route("/creator/pending-edits")
+def creator_pending_edits_v440():
+    creator_id = _creator_context_id_v440()
+    rows = _creator_pending_edits_v440(creator_id)
+    return render_template("creator/pending_edits.html", pending_edits=rows)
+
+
+@creator_bp.route("/creator/order-item/<int:item_id>/upload-edited", methods=["POST"])
+def creator_upload_edited_v440(item_id):
+    file = request.files.get("edited_video")
+    if not file or not file.filename:
+        return redirect(request.referrer or "/creator/pending-edits")
+
+    try:
+        row = db.session.execute(db.text("""
+            SELECT i.*, o.buyer_email, o.id AS order_id
+            FROM bsm_cart_order_item i
+            JOIN bsm_cart_order o ON o.id = i.cart_order_id
+            WHERE i.id=:item_id
+            LIMIT 1
+        """), {"item_id": item_id}).mappings().first()
+    except Exception:
+        db.session.rollback()
+        row = None
+
+    if not row:
+        return "Order item not found", 404
+
+    creator_id = row.get("creator_id") or _creator_context_id_v440()
+    safe_name = re.sub(r"[^A-Za-z0-9_.-]+", "_", file.filename)
+    key = f"edited/creators/{creator_id}/orders/{row.get('order_id')}/items/{item_id}/{safe_name}"
+
+    try:
+        from app.services.r2 import r2_client, _bucket_name
+        client = r2_client()
+        bucket = _bucket_name()
+        file.stream.seek(0)
+        client.upload_fileobj(file.stream, bucket, key, ExtraArgs={"ContentType": file.mimetype or "video/mp4"})
+    except Exception as e:
+        try: print("edited upload r2 warning v44.0:", e)
+        except Exception: pass
+        return "Could not upload edited video to R2", 500
+
+    try:
+        db.session.execute(db.text("""
+            ALTER TABLE bsm_cart_order_item ADD COLUMN IF NOT EXISTS edited_r2_key TEXT
+        """))
+        db.session.execute(db.text("""
+            ALTER TABLE bsm_cart_order_item ADD COLUMN IF NOT EXISTS edited_uploaded_at TIMESTAMP
+        """))
+        db.session.execute(db.text("""
+            UPDATE bsm_cart_order_item
+            SET edited_r2_key=:key,
+                delivery_status='ready_to_download',
+                edited_uploaded_at=CURRENT_TIMESTAMP
+            WHERE id=:item_id
+        """), {"key": key, "item_id": item_id})
+        db.session.commit()
+    except Exception as e:
+        db.session.rollback()
+        try: print("edited item update warning v44.0:", e)
+        except Exception: pass
+        return "Edited video uploaded but order item could not be updated", 500
+
+    _send_edited_ready_email_v440(row.get("buyer_email"), item_id)
+    return redirect(request.referrer or "/creator/pending-edits")

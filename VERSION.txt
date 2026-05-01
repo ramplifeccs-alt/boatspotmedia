@@ -1,9 +1,11 @@
-BoatSpotMedia v43.9 Forced Download + Discount Approval
-Base: v43.8.
-Fixes:
-- Forces mobile/desktop download using R2 presigned URL with Content-Disposition attachment.
-- Removes missing video list warning from buyer orders.
-- Fallback button says Download Video.
-- Each purchased video row has its own download button.
-- Pending discount items show disabled Pending Approval until creator approves/rejects.
-- Creator dashboard shows pending discount approvals with thumbnails and Approve/Reject buttons.
+BoatSpotMedia v44.0 Edited Video Workflow
+Base: v43.9.
+Adds:
+- Buyer order notice: download on computer; phone may only playback.
+- Edited video purchases show Pending Edit until creator uploads final file.
+- Creator Dashboard link to Pending Edited Videos.
+- /creator/pending-edits page shows edited orders needing upload.
+- Creator uploads edited video to R2.
+- Order item marked ready_to_download.
+- Buyer email sent through SendGrid when edited video is ready.
+- Download route uses edited_r2_key when available.
