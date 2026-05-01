@@ -1,0 +1,12 @@
+BoatSpotMedia v44.1 Download Timer + Original/Edit Fix
+Base: v44.0.
+Fixes:
+- Original and edited packages no longer interfere with each other.
+- Original/instant downloads use original R2 key.
+- Edited downloads use edited_r2_key only after creator uploads edited file.
+- Adds 72-hour download window:
+  * Original/instant: 72 hours from purchase/order created_at.
+  * Edited: 72 hours from edited upload time.
+  * Combo instant+edit: each item has its own 72-hour window.
+- Expired buttons are disabled.
+- Pending edit and pending discount approval remain disabled.

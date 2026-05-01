@@ -529,3 +529,6 @@ header a,.navbar a,.site-header a,.topbar a,nav a,.bsm-header a,.bsm-simple-head
   cursor:not-allowed!important;
   box-shadow:none!important;
 }
+
+/* v44.2 visible countdown */
+.bsm-countdown{color:#dc2626;font-weight:900;}

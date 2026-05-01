@@ -38,7 +38,7 @@
         <p>{{ b.file_count or 0 }} videos · {{ ((b.total_size_bytes or 0) / 1024 / 1024 / 1024)|round(2) }} GB</p>
         <a class="btn" href="/creator/batches/{{ b.id }}">Open Batch</a>
         <form method="post" action="/creator/batches/{{ b.id }}/delete" onsubmit="return confirm('Delete this batch and hide all videos inside it?');">
-          <button class="btn danger">Delete Batch</button>
+          <button class="btn danger">Delete Batch<div style="font-size:12px;color:#92400e;margin-top:6px;">If this batch contains purchased/active videos, those videos will be kept and only safe videos will be removed.</div></button>
         </form>
       </div>
       {% endif %}

@@ -1,12 +1,10 @@
-BoatSpotMedia v44.1 Download Timer + Original/Edit Fix
-Base: v44.0.
-Fixes:
-- Original and edited packages no longer interfere with each other.
-- Original/instant downloads use original R2 key.
-- Edited downloads use edited_r2_key only after creator uploads edited file.
-- Adds 72-hour download window:
-  * Original/instant: 72 hours from purchase/order created_at.
-  * Edited: 72 hours from edited upload time.
-  * Combo instant+edit: each item has its own 72-hour window.
-- Expired buttons are disabled.
-- Pending edit and pending discount approval remain disabled.
+BoatSpotMedia v44.2 Visible Timer + Safe Batch Delete
+Base: v44.1.
+Adds/Fixes:
+- Buyer sees a live countdown timer for each 72-hour download window.
+- Expired download buttons disable automatically in the UI.
+- Adds safe batch delete endpoint:
+  /creator/batches/<batch_id>/safe-delete
+- Safe delete keeps purchased/active videos and deletes only safe/non-active videos.
+- Creator gets a message explaining what was deleted and what was protected.
+- Active means: download window still active, edit pending/active, or discount approval pending.

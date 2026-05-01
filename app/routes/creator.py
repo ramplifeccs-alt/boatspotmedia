@@ -1175,6 +1175,111 @@ def _send_edited_ready_email_v440(to_email, item_id):
         return False
 
 
+
+def _bsm_video_has_active_purchase_v442(video_id):
+    try:
+        from datetime import datetime, timezone, timedelta
+        db.session.execute(db.text("ALTER TABLE bsm_cart_order_item ADD COLUMN IF NOT EXISTS edited_uploaded_at TIMESTAMP"))
+        db.session.commit()
+    except Exception:
+        db.session.rollback()
+
+    try:
+        rows = db.session.execute(db.text("""
+            SELECT i.*, o.created_at AS order_created_at
+            FROM bsm_cart_order_item i
+            JOIN bsm_cart_order o ON o.id = i.cart_order_id
+            WHERE i.video_id = :vid
+        """), {"vid": video_id}).mappings().all()
+    except Exception:
+        db.session.rollback()
+        rows = []
+
+    now = datetime.now(timezone.utc)
+    for row in rows:
+        package = str(row.get("package") or "").lower()
+        delivery = str(row.get("delivery_status") or "").lower()
+        discount = str(row.get("discount_status") or "").lower()
+
+        if discount in ["pending_review", "pending", "awaiting_creator", "needs_approval"]:
+            return True
+
+        if package in ["edited","edit","instagram_edit","tiktok_edit","reel_edit","short_edit"]:
+            if delivery not in ["ready_to_download", "ready", "delivered"]:
+                return True
+            start = row.get("edited_uploaded_at") or row.get("order_created_at")
+        else:
+            start = row.get("order_created_at")
+
+        try:
+            if start:
+                if getattr(start, "tzinfo", None) is None:
+                    start = start.replace(tzinfo=timezone.utc)
+                if now <= start + timedelta(hours=72):
+                    return True
+        except Exception:
+            return True
+
+    return False
+
+
+def _bsm_safe_delete_batch_v442(batch_id):
+    try:
+        videos = db.session.execute(db.text("""
+            SELECT id FROM video WHERE batch_id = :batch_id
+        """), {"batch_id": batch_id}).mappings().all()
+    except Exception:
+        db.session.rollback()
+        videos = []
+
+    protected = []
+    deletable = []
+
+    for v in videos:
+        vid = v.get("id")
+        if _bsm_video_has_active_purchase_v442(vid):
+            protected.append(vid)
+        else:
+            deletable.append(vid)
+
+    deleted_count = 0
+    for vid in deletable:
+        try:
+            db.session.execute(db.text("DELETE FROM video WHERE id=:vid"), {"vid": vid})
+            deleted_count += 1
+        except Exception:
+            db.session.rollback()
+
+    try:
+        db.session.commit()
+    except Exception:
+        db.session.rollback()
+
+    if protected:
+        return {
+            "blocked": True,
+            "message": f"{deleted_count} video(s) deleted. {len(protected)} purchased/active video(s) were kept in this batch and can be deleted after their 72-hour download window or edit/approval workflow ends."
+        }
+
+    try:
+        db.session.execute(db.text("DELETE FROM upload_batch WHERE id=:batch_id"), {"batch_id": batch_id})
+        db.session.commit()
+    except Exception:
+        db.session.rollback()
+
+    return {"blocked": False, "message": f"Batch deleted. {deleted_count} video(s) removed."}
+
+
+@creator_bp.route("/creator/batches/<int:batch_id>/safe-delete", methods=["POST"])
+def creator_safe_delete_batch_v442(batch_id):
+    result = _bsm_safe_delete_batch_v442(batch_id)
+    try:
+        flash(result.get("message"))
+    except Exception:
+        pass
+    return redirect(request.referrer or "/creator/dashboard")
+
+
 @creator_bp.route("/creator/discount-review")
 def creator_discount_review():
     return render_template("creator/discount_review.html", review_groups=[])
