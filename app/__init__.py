@@ -57,6 +57,166 @@ def create_app():
         except Exception:
             return {"latest_previews": []}
 
+
+    # BoatSpotMedia v43.7 create_app R2 presigned download routes
+    def _bsm_download_video_v437(video_ref):
+        from flask import session, redirect
+        import os
+
+        if not session.get("user_id") or session.get("user_role") != "buyer":
+            session["after_login_redirect"] = "/buyer/dashboard"
+            session.modified = True
+            return redirect("/buyer/login?next=/buyer/dashboard")
+
+        try:
+            ref = int(str(video_ref).strip())
+        except Exception:
+            return "Invalid download link.", 404
+
+        uid = session.get("user_id")
+        email = (session.get("user_email") or "").lower()
+
+        try:
+            db.session.execute(db.text("ALTER TABLE bsm_cart_order ADD COLUMN IF NOT EXISTS buyer_user_id INTEGER"))
+            db.session.commit()
+        except Exception:
+            db.session.rollback()
+
+        purchased = None
+
+        # Try ref as video_id in cart order system.
+        try:
+            purchased = db.session.execute(db.text("""
+                SELECT i.id AS order_item_id, i.video_id, i.delivery_status, i.package,
+                       o.id AS order_id, o.buyer_user_id, o.buyer_email, o.status
+                FROM bsm_cart_order_item i
+                JOIN bsm_cart_order o ON o.id = i.cart_order_id
+                WHERE i.video_id = :ref
+                  AND (
+                        o.buyer_user_id = :uid
+                        OR lower(coalesce(o.buyer_email,'')) = lower(:email)
+                      )
+                ORDER BY o.created_at DESC
+                LIMIT 1
+            """), {"ref": ref, "uid": uid or 0, "email": email}).mappings().first()
+        except Exception:
+            db.session.rollback()
+
+        # Try ref as order_item_id in cart order system.
+        if not purchased:
+            try:
+                purchased = db.session.execute(db.text("""
+                    SELECT i.id AS order_item_id, i.video_id, i.delivery_status, i.package,
+                           o.id AS order_id, o.buyer_user_id, o.buyer_email, o.status
+                    FROM bsm_cart_order_item i
+                    JOIN bsm_cart_order o ON o.id = i.cart_order_id
+                    WHERE i.id = :ref
+                      AND (
+                            o.buyer_user_id = :uid
+                            OR lower(coalesce(o.buyer_email,'')) = lower(:email)
+                          )
+                    ORDER BY o.created_at DESC
+                    LIMIT 1
+                """), {"ref": ref, "uid": uid or 0, "email": email}).mappings().first()
+            except Exception:
+                db.session.rollback()
+
+        # Legacy order/order_item fallback.
+        if not purchased:
+            try:
+                purchased = db.session.execute(db.text("""
+                    SELECT oi.id AS order_item_id, oi.video_id, oi.edited_status AS delivery_status, oi.purchase_type AS package,
+                           o.id AS order_id, o.buyer_id AS buyer_user_id, o.buyer_email, o.status
+                    FROM order_item oi
+                    JOIN "order" o ON o.id = oi.order_id
+                    WHERE (oi.video_id = :ref OR oi.id = :ref)
+                      AND (
+                            o.buyer_id = :uid
+                            OR lower(coalesce(o.buyer_email,'')) = lower(:email)
+                          )
+                    ORDER BY o.created_at DESC
+                    LIMIT 1
+                """), {"ref": ref, "uid": uid or 0, "email": email}).mappings().first()
+            except Exception:
+                db.session.rollback()
+
+        if not purchased:
+            return "Download not found: this video is not linked to your paid orders.", 404
+
+        if str(purchased.get("delivery_status") or "").lower() in ["pending_edit","editing","not_ready","pending"]:
+            return "This video is not ready for download yet.", 400
+
+        video_id = purchased.get("video_id") or ref
+
+        try:
+            video = db.session.execute(db.text("SELECT * FROM video WHERE id=:vid LIMIT 1"), {"vid": video_id}).mappings().first()
+        except Exception:
+            db.session.rollback()
+            video = None
+
+        if not video:
+            return "Video record not found.", 404
+
+        # Prefer actual R2 object key/path.
+        r2_key = None
+        for key in ["r2_video_key", "file_path", "r2_key", "video_key", "storage_key", "original_file_path", "original_path"]:
+            if key in video and video.get(key):
+                value = str(video.get(key)).strip()
+                if value and not value.startswith("http://") and not value.startswith("https://"):
+                    r2_key = value.lstrip("/")
+                    break
+
+        # If public URL exists, use it.
+        for key in ["public_url", "download_url", "file_url", "original_url", "video_url", "r2_public_url"]:
+            if key in video and video.get(key):
+                value = str(video.get(key)).strip()
+                if value.startswith("http://") or value.startswith("https://"):
+                    return redirect(value)
+
+        if not r2_key:
+            # Some DB rows may only have filename/internal_filename, but those are not enough unless they are full R2 keys.
+            for key in ["internal_filename", "filename"]:
+                if key in video and video.get(key):
+                    value = str(video.get(key)).strip()
+                    if "/" in value:
+                        r2_key = value.lstrip("/")
+                        break
+
+        if not r2_key:
+            return "R2 video key was not found in this video record. Contact support with Order #" + str(purchased.get("order_id")), 404
+
+        # Generate R2 signed GET URL so private bucket downloads work.
+        try:
+            from app.services.r2 import r2_client, _bucket_name
+            client = r2_client()
+            bucket = _bucket_name()
+            filename = str(video.get("filename") or video.get("internal_filename") or r2_key.split("/")[-1])
+            signed_url = client.generate_presigned_url(
+                "get_object",
+                Params={
+                    "Bucket": bucket,
+                    "Key": r2_key,
+                    "ResponseContentDisposition": f'attachment; filename="{filename}"'
+                },
+                ExpiresIn=60 * 20,
+            )
+            return redirect(signed_url)
+        except Exception as e:
+            try:
+                print("R2 presigned download warning v43.7:", e)
+            except Exception:
+                pass
+            # Last fallback for public delivery domains.
+            public_base = (os.environ.get("R2_PUBLIC_URL") or os.environ.get("R2_PUBLIC_BASE_URL") or "").strip().rstrip("/")
+            if public_base and "cloudflarestorage.com" not in public_base:
+                return redirect(public_base + "/" + r2_key)
+            return "Could not create R2 download link. Contact support with Order #" + str(purchased.get("order_id")), 500
+
+    flask_app.add_url_rule("/download-video/<path:video_ref>", "bsm_download_video_v437", _bsm_download_video_v437)
+    flask_app.add_url_rule("/download-item/<path:video_ref>", "bsm_download_item_v437", _bsm_download_video_v437)
+    flask_app.add_url_rule("/buyer/download-item/<path:video_ref>", "bsm_buyer_download_item_v437", _bsm_download_video_v437)
+
+
     return flask_app
 
 
@@ -100,144 +260,6 @@ try:
 except Exception as e:
     try:
         print("buyer blueprint registration warning:", e)
-    except Exception:
-        pass
-
-
-
-# BoatSpotMedia v43.6 direct app-level R2 download routes
-def _bsm_r2_download_response_v436(video_id):
-    from flask import session, redirect
-    try:
-        from app import db
-    except Exception:
-        from __main__ import db
-
-    if not session.get("user_id") or session.get("user_role") != "buyer":
-        session["after_login_redirect"] = "/buyer/dashboard"
-        session.modified = True
-        return redirect("/buyer/login?next=/buyer/dashboard")
-
-    uid = session.get("user_id")
-    email = (session.get("user_email") or "").lower()
-
-    try:
-        db.session.execute(db.text("ALTER TABLE bsm_cart_order ADD COLUMN IF NOT EXISTS buyer_user_id INTEGER"))
-        db.session.commit()
-    except Exception:
-        db.session.rollback()
-
-    purchased = None
-
-    # First treat id as video_id.
-    try:
-        purchased = db.session.execute(db.text("""
-            SELECT i.id AS order_item_id, i.video_id, i.delivery_status, i.package,
-                   o.id AS order_id, o.buyer_user_id, o.buyer_email, o.status
-            FROM bsm_cart_order_item i
-            JOIN bsm_cart_order o ON o.id = i.cart_order_id
-            WHERE i.video_id = :vid
-              AND (
-                    o.buyer_user_id = :uid
-                    OR lower(coalesce(o.buyer_email,'')) = lower(:email)
-                  )
-            ORDER BY o.created_at DESC
-            LIMIT 1
-        """), {"vid": video_id, "uid": uid or 0, "email": email}).mappings().first()
-    except Exception:
-        db.session.rollback()
-        purchased = None
-
-    # Fallback treat id as order_item_id.
-    if not purchased:
-        try:
-            purchased = db.session.execute(db.text("""
-                SELECT i.id AS order_item_id, i.video_id, i.delivery_status, i.package,
-                       o.id AS order_id, o.buyer_user_id, o.buyer_email, o.status
-                FROM bsm_cart_order_item i
-                JOIN bsm_cart_order o ON o.id = i.cart_order_id
-                WHERE i.id = :item_id
-                  AND (
-                        o.buyer_user_id = :uid
-                        OR lower(coalesce(o.buyer_email,'')) = lower(:email)
-                      )
-                ORDER BY o.created_at DESC
-                LIMIT 1
-            """), {"item_id": video_id, "uid": uid or 0, "email": email}).mappings().first()
-        except Exception:
-            db.session.rollback()
-            purchased = None
-
-    if not purchased:
-        return "Download not found: this video is not linked to your paid orders.", 404
-
-    if str(purchased.get("delivery_status") or "").lower() in ["pending_edit","editing","not_ready","pending"]:
-        return "This edited video is not ready for download yet.", 400
-
-    real_video_id = purchased.get("video_id") or video_id
-
-    try:
-        video = db.session.execute(db.text("SELECT * FROM video WHERE id=:vid LIMIT 1"), {"vid": real_video_id}).mappings().first()
-    except Exception:
-        db.session.rollback()
-        video = None
-
-    if not video:
-        return "Video record not found.", 404
-
-    # IMPORTANT: use R2 key/path columns first.
-    r2_keys = [
-        "r2_video_key",
-        "r2_key",
-        "video_key",
-        "storage_key",
-        "file_path",
-        "original_file_path",
-        "original_path",
-        "internal_filename",
-        "filename",
-    ]
-    url_keys = [
-        "public_url",
-        "download_url",
-        "file_url",
-        "original_url",
-        "video_url",
-        "r2_public_url",
-    ]
-
-    # If a full public/signed URL exists, use it.
-    for key in url_keys:
-        val = video.get(key) if key in video else None
-        if val:
-            val = str(val).strip()
-            if val.startswith("http://") or val.startswith("https://") or val.startswith("/"):
-                return redirect(val)
-
-    # For R2 object keys, reuse app's /media/<key> route.
-    # This app already serves thumbnails/previews/videos from R2 through /media.
-    for key in r2_keys:
-        val = video.get(key) if key in video else None
-        if val:
-            val = str(val).strip()
-            if not val:
-                continue
-            if val.startswith("http://") or val.startswith("https://") or val.startswith("/"):
-                return redirect(val)
-            return redirect("/media/" + val.lstrip("/"))
-
-    return "R2 video key was not found in the video record. Contact support with Order #" + str(purchased.get("order_id")), 404
-
-
-try:
-    @app.route("/download-video/<int:video_id>")
-    @app.route("/download-item/<int:video_id>")
-    @app.route("/buyer/download-item/<int:video_id>")
-    def bsm_app_download_video_v436(video_id):
-        return _bsm_r2_download_response_v436(video_id)
-except Exception as e:
-    try:
-        print("v43.6 app-level download route warning:", e)
     except Exception:
         pass
 

@@ -1,10 +1,10 @@
-BoatSpotMedia v43.6 App-Level R2 Download Route
-Base: v43.5.
+BoatSpotMedia v43.7 Create_App R2 Presigned Download
+Base: v43.6.
 Fix:
-- Registers download routes directly on app, not only blueprint:
-  /download-video/<video_id>
-  /download-item/<video_id>
-  /buyer/download-item/<video_id>
-- Uses R2 key/path columns from video table and redirects to /media/<r2_key>.
+- Registers download routes inside create_app() using flask_app.add_url_rule, so Railway must see them.
+- Routes:
+  /download-video/<video_ref>
+  /download-item/<video_ref>
+  /buyer/download-item/<video_ref>
+- Generates Cloudflare R2 presigned GET URL from video.r2_video_key/file_path.
 - Verifies buyer purchased the video before download.
-- My Orders button uses /download-video/<video_id>.
