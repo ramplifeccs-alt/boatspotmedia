@@ -1360,11 +1360,131 @@ body.creator-dashboard-v449 main{
   }
 }
 
-/* v45.6 upload clean price fields */
-.bsm-creator-upload-original-wrap-v455 input[name="original_4k_price"],
-.bsm-creator-upload-original-wrap-v455 input[name="original_price"],
-.bsm-creator-upload-original-wrap-v455 input[name="edited_video_price"],
-.bsm-creator-upload-original-wrap-v455 input[name="edited_price"],
-.bsm-creator-upload-original-wrap-v455 input[name="bundle_price"]{
+/* v45.7 upload real fix */
+.bsm-creator-page-shell-v457{
+  display:grid;
+  grid-template-columns:230px minmax(0,1fr);
+  min-height:100vh;
+  background:#f1f5f9;
+}
+.bsm-creator-sidebar-v457{
+  position:sticky;
+  top:0;
+  height:100vh;
+  overflow:auto;
+  background:#071b34;
+  color:#fff;
+  padding:18px 14px;
+  box-sizing:border-box;
+  z-index:20;
+}
+.bsm-creator-logo-v457{
+  display:block;
+  padding:4px 4px 14px;
+  border-bottom:1px solid rgba(255,255,255,.15);
+  margin-bottom:12px;
+}
+.bsm-creator-logo-v457 img{
+  width:100%;
+  max-width:190px;
+  display:block;
+}
+.bsm-creator-handle-v457{
+  color:#e5e7eb;
+  font-weight:700;
+  margin:12px 8px 12px;
+}
+.bsm-creator-nav-v457{
+  display:grid;
+  gap:8px;
+}
+.bsm-creator-nav-v457 a{
+  color:#fff!important;
+  text-decoration:none;
+  font-weight:700;
+  padding:10px 12px;
+  border-radius:10px;
+  display:block;
+  background:rgba(255,255,255,.04);
+}
+.bsm-creator-nav-v457 a:hover,
+.bsm-creator-nav-v457 a.active{
+  background:rgba(37,99,235,.45);
+}
+.bsm-creator-nav-v457 a.logout{
+  margin-top:14px;
+  background:rgba(220,38,38,.85);
+}
+.bsm-creator-main-v457{
+  padding:22px;
+  min-width:0;
+}
+.bsm-creator-upload-original-wrap-v457{
+  max-width:1200px;
+  margin:0 auto;
+}
+
+/* Hide old page chrome only, keep upload form/scripts working */
+.bsm-creator-upload-original-wrap-v457 .creator-topbar,
+.bsm-creator-upload-original-wrap-v457 > header,
+.bsm-creator-upload-original-wrap-v457 header,
+.bsm-creator-upload-original-wrap-v457 .sidebar-layout > .sidebar,
+.bsm-creator-upload-original-wrap-v457 .sidebar-layout .sidebar,
+.bsm-creator-upload-original-wrap-v457 aside,
+.bsm-creator-upload-original-wrap-v457 nav.creator-nav,
+.bsm-creator-upload-original-wrap-v457 .creator-sidebar,
+.bsm-creator-upload-original-wrap-v457 .dashboard-sidebar,
+.bsm-creator-upload-original-wrap-v457 .side-nav,
+.bsm-creator-upload-original-wrap-v457 .left-sidebar,
+.bsm-creator-upload-original-wrap-v457 .creator-menu{
   display:none!important;
+}
+
+/* Flatten old dashboard shell after old sidebar is hidden */
+.bsm-creator-upload-original-wrap-v457 .sidebar-layout,
+.bsm-creator-upload-original-wrap-v457 .dashboard-shell,
+.bsm-creator-upload-original-wrap-v457 .creator-shell,
+.bsm-creator-upload-original-wrap-v457 .creator-dashboard,
+.bsm-creator-upload-original-wrap-v457 .dashboard-layout,
+.bsm-creator-upload-original-wrap-v457 .app-shell{
+  display:block!important;
+}
+.bsm-creator-upload-original-wrap-v457 .content,
+.bsm-creator-upload-original-wrap-v457 .dashboard-content,
+.bsm-creator-upload-original-wrap-v457 .main-content,
+.bsm-creator-upload-original-wrap-v457 .creator-content,
+.bsm-creator-upload-original-wrap-v457 main,
+.bsm-creator-upload-original-wrap-v457 .container{
+  max-width:1200px!important;
+  width:100%!important;
+  margin:0 auto!important;
+}
+
+/* Make upload card normal width */
+.bsm-creator-upload-original-wrap-v457 #r2UploadForm{
+  display:block!important;
+  max-width:100%!important;
+}
+.bsm-creator-upload-original-wrap-v457 #r2UploadForm .form-row{
+  display:none!important;
+}
+
+/* Preserve hidden price inputs for JS only */
+.bsm-creator-upload-original-wrap-v457 input[name="original_price"],
+.bsm-creator-upload-original-wrap-v457 input[name="edited_price"],
+.bsm-creator-upload-original-wrap-v457 input[name="bundle_price"]{
+  display:none!important;
+}
+
+@media(max-width:850px){
+  .bsm-creator-page-shell-v457{
+    grid-template-columns:1fr;
+  }
+  .bsm-creator-sidebar-v457{
+    position:relative;
+    height:auto;
+  }
+  .bsm-creator-main-v457{
+    padding:12px;
+  }
 }

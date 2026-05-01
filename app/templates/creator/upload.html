@@ -12,15 +12,15 @@
 
 <title>Uploads - BoatSpotMedia</title>
 </head>
-<body class="creator-dashboard-v455">
-<div class="bsm-creator-page-shell-v455">
+<body class="creator-dashboard-v457">
+<div class="bsm-creator-page-shell-v457">
   
-<aside class="bsm-creator-sidebar-v455">
-  <a href="/creator/dashboard" class="bsm-creator-logo-v455">
+<aside class="bsm-creator-sidebar-v457">
+  <a href="/creator/dashboard" class="bsm-creator-logo-v457">
     <img src="/static/img/logo-header.png" alt="BoatSpotMedia">
   </a>
-  <div class="bsm-creator-handle-v455">@BoatSpotMedia.com</div>
-  <nav class="bsm-creator-nav-v455">
+  <div class="bsm-creator-handle-v457">@BoatSpotMedia.com</div>
+  <nav class="bsm-creator-nav-v457">
     <a href="/creator/dashboard">Dashboard</a>
     <a href="/creator/upload" class="active">Uploads</a>
     <a href="/creator/batches">Batches</a>
@@ -32,8 +32,8 @@
   </nav>
 </aside>
 
-  <main class="bsm-creator-main-v455">
-    <div class="bsm-creator-upload-original-wrap-v455">
+  <main class="bsm-creator-main-v457">
+    <div class="bsm-creator-upload-original-wrap-v457">
 <div class="creator-topbar" style="display:flex;justify-content:space-between;align-items:center;gap:12px;padding:12px 18px;background:#0b1220;color:#fff;margin:-1px -1px 16px -1px;">
   <div><a href="{{ url_for('public.home') }}" style="color:white;text-decoration:none;font-weight:800;"><img src="/static/img/logo-header.png" alt="BoatSpotMedia" class="bsm-logo-img"></a></div>
   <div style="display:flex;align-items:center;gap:12px;font-size:14px;">
@@ -93,7 +93,10 @@ Batch name</label>
       </datalist>
 
       
-      </div>
+      <input type="hidden" name="original_price" value="0">
+      <input type="hidden" name="edited_price" value="0">
+      <input type="hidden" name="bundle_price" value="0">
+
 
       <label><div id="upload-warning-original-files" style="background:#fff3cd;border:1px solid #facc15;border-radius:12px;padding:14px;margin:14px 0;"><strong>IMPORTANT:</strong><br>Upload original camera files only. Do not edit original files before uploading. BoatSpotMedia reads the original file date and time to match boats correctly by location, date, and time. Make sure your camera date and time are correct.<br><br>Edited videos are okay later because edited delivery is not instant.</div>
 Choose video files</label>
@@ -122,62 +125,6 @@ document.addEventListener("click",function(e){if(e.target&&e.target.id==="cancel
   </main>
 </div>
 
-<script>
-(function bsmUploadSubmitFixV456(){
-  function findUploadForm(){
-    const fileInput = document.querySelector('input[type="file"][name], input[type="file"]');
-    if (fileInput && fileInput.form) return fileInput.form;
-    const forms = Array.from(document.querySelectorAll('form'));
-    return forms.find(f => f.querySelector('input[type="file"]')) || forms[0] || null;
-  }
-
-  function cleanPricingFields(){
-    const badNames = ['original_4k_price','original_price','edited_video_price','edited_price','bundle_price'];
-    badNames.forEach(function(name){
-      document.querySelectorAll('[name="'+name+'"], #'+name).forEach(function(el){
-        let wrap = el.closest('.form-group, .field, .input-group, .row, .grid, div');
-        if (wrap) wrap.remove();
-        else el.remove();
-      });
-    });
-    document.querySelectorAll('label, div, span').forEach(function(el){
-      const t = (el.textContent || '').toLowerCase();
-      if (t.includes('original 4k price') || t.includes('edited video price') || t.includes('edit video price') || t.includes('bundle price')) {
-        let wrap = el.closest('.form-group, .field, .input-group, .row, .grid, div');
-        if (wrap && !wrap.querySelector('input[name*="batch"]') && !wrap.querySelector('input[name*="location"]') && !wrap.querySelector('input[type="file"]')) {
-          wrap.remove();
-        }
-      }
-    });
-  }
-
-  document.addEventListener('DOMContentLoaded', function(){
-    cleanPricingFields();
-
-    const form = findUploadForm();
-    if (!form) return;
-
-    // Ensure form can post files.
-    if (!form.getAttribute('method')) form.setAttribute('method', 'POST');
-    form.setAttribute('enctype', 'multipart/form-data');
-
-    // Ensure action stays current upload URL if missing.
-    if (!form.getAttribute('action')) form.setAttribute('action', window.location.pathname);
-
-    document.querySelectorAll('button, input[type="submit"]').forEach(function(btn){
-      const txt = ((btn.textContent || btn.value || '') + '').toLowerCase();
-      if (txt.includes('upload batch') || txt.includes('upload')) {
-        btn.addEventListener('click', function(e){
-          if (btn.type && btn.type.toLowerCase() === 'submit') return;
-          e.preventDefault();
-          if (form.requestSubmit) form.requestSubmit();
-          else form.submit();
-        });
-      }
-    });
-  });
-})();
-</script>
-
+<script src="{{ url_for('static', filename='js/r2_upload.js') }}"></script>
 </body>
 </html>

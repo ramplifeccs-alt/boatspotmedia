@@ -1,0 +1,11 @@
+app/templates/creator/upload.html
+app/static/css/style.css
+
+Checks:
+Batch name: True
+Location: True
+File input: True
+Form: True
+Script: False
+Hidden original: True
+Visible labels removed: True

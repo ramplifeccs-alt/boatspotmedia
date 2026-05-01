@@ -1,8 +1,8 @@
-BoatSpotMedia v45.6 Upload Clean + Submit Fix
-Base: v45.5.
+BoatSpotMedia v45.8 Upload Real Fix With R2 Script
+Base: v45.7.
 Fix:
-- Removes pricing fields from Upload page:
-  Original 4K price, Edited video price, Bundle price.
-- Keeps Batch name, Location, file chooser, original form/scripts/IDs.
-- Adds a small submit safeguard so Upload Batch submits the real upload form.
-- Does not touch backend/R2, Batches or Pricing.
+- Keeps the original working upload form.
+- Keeps Batch name, Location and file chooser.
+- Keeps hidden price fields required by old JS, but removes visible price labels.
+- Explicitly includes static/js/r2_upload.js so Upload Batch works again.
+- Hides old internal sidebar/topbar; only new sidebar remains.
