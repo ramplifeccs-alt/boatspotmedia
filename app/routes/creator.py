@@ -1078,7 +1078,7 @@ def _soft_delete_batch_db_only(batch_id):
 def _creator_order_sales_v427(creator_id):
     try:
         return db.session.execute(db.text("""
-            SELECT i.*, o.buyer_email, o.amount_total, o.created_at, v.location, v.filename, v.internal_filename, v.thumbnail_path
+            SELECT i.*, o.buyer_email, o.amount_total, o.created_at, v.location, v.filename, v.internal_filename, v.thumbnail_path, v.public_thumbnail_url, v.r2_thumbnail_key
             FROM bsm_cart_order_item i
             JOIN bsm_cart_order o ON o.id = i.cart_order_id
             LEFT JOIN video v ON v.id = i.video_id
@@ -2232,3 +2232,38 @@ def r2_clean_batch_safe(batch_id):
     except Exception as e:
         db.session.rollback()
         return jsonify({"ok": False, "error": str(e)}), 500
+
+
+
+@creator_bp.route("/creator/order-item/<int:item_id>/approve-discount", methods=["POST"])
+def approve_discount_item_v439(item_id):
+    try:
+        db.session.execute(db.text("""
+            UPDATE bsm_cart_order_item
+            SET discount_status='approved',
+                delivery_status=CASE WHEN delivery_status IN ('pending_discount_review','pending','not_ready') THEN 'ready_to_download' ELSE delivery_status END
+            WHERE id=:item_id
+        """), {"item_id": item_id})
+        db.session.commit()
+    except Exception as e:
+        db.session.rollback()
+        try: print("approve discount warning v43.9:", e)
+        except Exception: pass
+    return redirect(request.referrer or "/creator/dashboard")
+
+
+@creator_bp.route("/creator/order-item/<int:item_id>/reject-discount", methods=["POST"])
+def reject_discount_item_v439(item_id):
+    try:
+        db.session.execute(db.text("""
+            UPDATE bsm_cart_order_item
+            SET discount_status='rejected',
+                delivery_status=CASE WHEN delivery_status IN ('pending_discount_review','pending','not_ready') THEN 'ready_to_download' ELSE delivery_status END
+            WHERE id=:item_id
+        """), {"item_id": item_id})
+        db.session.commit()
+    except Exception as e:
+        db.session.rollback()
+        try: print("reject discount warning v43.9:", e)
+        except Exception: pass
+    return redirect(request.referrer or "/creator/dashboard")

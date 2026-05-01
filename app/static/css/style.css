@@ -513,3 +513,11 @@ header a,.navbar a,.site-header a,.topbar a,nav a,.bsm-header a,.bsm-simple-head
   .bsm-order-item>div:last-child{text-align:left!important;}
   .bsm-download-btn{width:100%!important;box-sizing:border-box!important;}
 }
+
+/* v43.9 disabled approval button */
+.bsm-download-disabled,
+.bsm-download-disabled:disabled{
+  background:#94a3b8!important;
+  cursor:not-allowed!important;
+  box-shadow:none!important;
+}

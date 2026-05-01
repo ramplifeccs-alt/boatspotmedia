@@ -73,17 +73,7 @@ def _buyer_orders_for_user_v424(user_id, email):
 def _buyer_order_items(order_id):
     try:
         return db.session.execute(db.text("""
-            SELECT i.*,
-                   v.location,
-                   v.filename,
-                   v.internal_filename,
-                   v.thumbnail_path,
-                   v.public_thumbnail_url,
-                   v.r2_thumbnail_key,
-                   v.file_path,
-                   v.r2_video_key,
-                   v.public_url,
-                   v.preview_url
+            SELECT i.*, v.location, v.filename, v.internal_filename, v.thumbnail_path, v.public_thumbnail_url, v.r2_thumbnail_key
             FROM bsm_cart_order_item i
             LEFT JOIN video v ON v.id=i.video_id
             WHERE i.cart_order_id=:oid
@@ -158,6 +148,17 @@ def _bsm_item_is_downloadable_v431(item):
         return True
     except Exception:
         return True
+
+
+
+def _bsm_item_download_locked_v439(item):
+    status = str(item.get("discount_status") or "").lower()
+    delivery = str(item.get("delivery_status") or "").lower()
+    if status in ["pending_review", "pending", "awaiting_creator", "needs_approval"]:
+        return True
+    if delivery in ["pending_discount_review", "pending_edit", "editing", "not_ready", "pending"]:
+        return True
+    return False
 
 
 @buyer_bp.route("/buyer/register", methods=["GET", "POST"])
@@ -235,9 +236,11 @@ def buyer_dashboard():
         items = []
         for x in _buyer_order_items(order["id"]):
             ix = dict(x)
-            ix["download_url"] = "/buyer/download-item/" + str(ix.get("id")) if _bsm_item_is_downloadable_v431(ix) else None
+            ix["download_locked"] = _bsm_item_download_locked_v439(ix)
+            ix["download_url"] = None if ix["download_locked"] else "/download-video/" + str(ix.get("video_id") or ix.get("id"))
             ix["thumbnail_url"] = _bsm_media_url_v427(ix, "thumb")
-            ix["download_url"] = "/buyer/download-item/" + str(ix.get("id")) if _bsm_item_is_downloadable_v431(ix) else None
+            ix["download_locked"] = _bsm_item_download_locked_v439(ix)
+            ix["download_url"] = None if ix["download_locked"] else "/download-video/" + str(ix.get("video_id") or ix.get("id"))
             items.append(ix)
         if not items:
             d["order_items"] = []

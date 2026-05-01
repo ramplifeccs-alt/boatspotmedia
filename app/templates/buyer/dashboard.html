@@ -20,9 +20,7 @@
   <p>Signed in as <strong>{{ buyer_email or email }}</strong></p>
 
   {% if not orders %}
-    <div class="bsm-order-card">
-      No orders found yet. You must be logged in before checkout so purchases can attach to your account.
-    </div>
+    <div class="bsm-order-card">No orders found yet.</div>
   {% else %}
     <div style="display:grid;gap:16px;">
     {% for order in orders %}
@@ -46,24 +44,32 @@
                   <div>
                     <strong>{{ item.location or item.filename or item.internal_filename or ("Video #" ~ item.video_id) }}</strong>
                     <div style="color:#64748b;font-size:14px;">
-                      Package: {{ item.package or "original" }} · Delivery: {{ item.delivery_status or "ready" }}
+                      Package: {{ item.package or "original" }}
+                      {% if item.discount_status in ["pending_review","pending","awaiting_creator","needs_approval"] %}
+                        · Discount approval pending
+                      {% elif item.discount_status in ["approved","discount_approved"] %}
+                        · Discount approved
+                      {% elif item.discount_status in ["rejected","discount_rejected"] %}
+                        · Discount rejected
+                      {% endif %}
                     </div>
                   </div>
                   <div style="font-weight:800;text-align:right;">
                     ${{ "%.2f"|format(item.unit_price or 0) }}
                     <div style="margin-top:10px;">
-                      <a class="bsm-download-btn" href="/download-video/{{ item.video_id or item.id }}">Download Video</a>
+                      {% if item.download_locked or item.discount_status in ["pending_review","pending","awaiting_creator","needs_approval"] %}
+                        <button class="bsm-download-btn bsm-download-disabled" disabled>Pending Approval</button>
+                      {% else %}
+                        <a class="bsm-download-btn" href="{{ item.download_url or ('/download-video/' ~ (item.video_id or item.id)) }}">Download Video</a>
+                      {% endif %}
                     </div>
                   </div>
                 </div>
               {% endfor %}
             </div>
           {% else %}
-            <div style="background:#fff7ed;border:1px solid #fdba74;color:#9a3412;padding:12px;border-radius:12px;margin-top:10px;">
-              This order is missing its video list. Use the recovery button below.
-            </div>
             <div style="margin-top:10px;">
-              <a class="bsm-download-btn" href="{{ order.recover_download_url or ('/buyer/order-downloads/' ~ order.id) }}">View / Recover Download</a>
+              <a class="bsm-download-btn" href="{{ order.recover_download_url or ('/buyer/order-downloads/' ~ order.id) }}">Download Video</a>
             </div>
           {% endif %}
         </div>

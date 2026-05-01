@@ -185,18 +185,32 @@ def create_app():
         if not r2_key:
             return "R2 video key was not found in this video record. Contact support with Order #" + str(purchased.get("order_id")), 404
 
-        # v43.8: Use the public Cloudflare R2 domain configured in Railway.
-        # Example: R2_PUBLIC_URL=https://pub-ac294ba2f7794c37848062239f41227d.r2.dev
-        public_base = (os.environ.get("R2_PUBLIC_URL") or "").strip().rstrip("/")
-        if public_base:
-            return redirect(public_base + "/" + r2_key.lstrip("/"))
-
-        # Fallback only if env var is missing.
-        public_base_fallback = (os.environ.get("R2_PUBLIC_BASE_URL") or "").strip().rstrip("/")
-        if public_base_fallback:
-            return redirect(public_base_fallback + "/" + r2_key.lstrip("/"))
-
-        return "R2_PUBLIC_URL is not configured. Add it in Railway variables.", 500
+        # v43.9: Force download on mobile/desktop with R2 presigned URL and attachment header.
+        filename = str(video.get("filename") or video.get("internal_filename") or r2_key.split("/")[-1])
+        try:
+            from app.services.r2 import r2_client, _bucket_name
+            client = r2_client()
+            bucket = _bucket_name()
+            signed_url = client.generate_presigned_url(
+                "get_object",
+                Params={
+                    "Bucket": bucket,
+                    "Key": r2_key.lstrip("/"),
+                    "ResponseContentDisposition": f'attachment; filename="{filename}"'
+                },
+                ExpiresIn=60 * 20,
+            )
+            return redirect(signed_url)
+        except Exception as e:
+            try:
+                print("R2 forced download presign warning v43.9:", e)
+            except Exception:
+                pass
+            # Fallback to public URL if presign fails.
+            public_base = (os.environ.get("R2_PUBLIC_URL") or os.environ.get("R2_PUBLIC_BASE_URL") or "").strip().rstrip("/")
+            if public_base:
+                return redirect(public_base + "/" + r2_key.lstrip("/"))
+            return "Could not create forced R2 download link. Contact support with Order #" + str(purchased.get("order_id")), 500
 
     flask_app.add_url_rule("/download-video/<path:video_ref>", "bsm_download_video_v437", _bsm_download_video_v437)
     flask_app.add_url_rule("/download-item/<path:video_ref>", "bsm_download_item_v437", _bsm_download_video_v437)

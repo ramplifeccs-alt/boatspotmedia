@@ -325,17 +325,7 @@ def _bsm_buyer_orders_for_user_v424(user_id, email):
 def _bsm_buyer_order_items_v422(order_id):
     try:
         return db.session.execute(db.text("""
-            SELECT i.*,
-                   v.location,
-                   v.filename,
-                   v.internal_filename,
-                   v.thumbnail_path,
-                   v.public_thumbnail_url,
-                   v.r2_thumbnail_key,
-                   v.file_path,
-                   v.r2_video_key,
-                   v.public_url,
-                   v.preview_url
+            SELECT i.*, v.location, v.filename, v.internal_filename, v.thumbnail_path, v.public_thumbnail_url, v.r2_thumbnail_key
             FROM bsm_cart_order_item i
             LEFT JOIN video v ON v.id=i.video_id
             WHERE i.cart_order_id=:oid
@@ -420,6 +410,17 @@ def _bsm_item_is_downloadable_v431(item):
         return True
 
 
+
+def _bsm_item_download_locked_v439(item):
+    status = str(item.get("discount_status") or "").lower()
+    delivery = str(item.get("delivery_status") or "").lower()
+    if status in ["pending_review", "pending", "awaiting_creator", "needs_approval"]:
+        return True
+    if delivery in ["pending_discount_review", "pending_edit", "editing", "not_ready", "pending"]:
+        return True
+    return False
+
+
 @public_bp.route("/buyer/register", methods=["GET", "POST"])
 def buyer_register_public_v422():
     if request.method == "POST":
@@ -498,9 +499,11 @@ def buyer_dashboard_public_v422():
         items = []
         for x in _bsm_buyer_order_items_v422(order["id"]):
             ix = dict(x)
-            ix["download_url"] = "/buyer/download-item/" + str(ix.get("id")) if _bsm_item_is_downloadable_v431(ix) else None
+            ix["download_locked"] = _bsm_item_download_locked_v439(ix)
+            ix["download_url"] = None if ix["download_locked"] else "/download-video/" + str(ix.get("video_id") or ix.get("id"))
             ix["thumbnail_url"] = _bsm_media_url_v427(ix, "thumb")
-            ix["download_url"] = "/buyer/download-item/" + str(ix.get("id")) if _bsm_item_is_downloadable_v431(ix) else None
+            ix["download_locked"] = _bsm_item_download_locked_v439(ix)
+            ix["download_url"] = None if ix["download_locked"] else "/download-video/" + str(ix.get("video_id") or ix.get("id"))
             items.append(ix)
         if not items:
             d["order_items"] = []
@@ -1065,163 +1068,7 @@ def buyer_download_order_item_v427(item_id):
 
     try:
         row = db.session.execute(db.text("""
-            SELECT i.*, o.buyer_user_id, o.buyer_email,
-                   v.file_path, v.r2_video_key, v.public_url, v.preview_url, v.filename, v.internal_filename
-            FROM bsm_cart_order_item i
-            JOIN bsm_cart_order o ON o.id = i.cart_order_id
-            LEFT JOIN video v ON v.id = i.video_id
-            WHERE i.id = :item_id
-            LIMIT 1
-        """), {"item_id": item_id}).mappings().first()
-    except Exception:
-        db.session.rollback()
-        row = None
-
-    if not row:
-        return "Download not found", 404
-
-    user_id = session.get("user_id")
-    user_email = (session.get("user_email") or "").lower()
-    if row.get("buyer_user_id") and int(row.get("buyer_user_id")) != int(user_id):
-        return "Not authorized", 403
-    if not row.get("buyer_user_id") and (row.get("buyer_email") or "").lower() != user_email:
-        return "Not authorized", 403
-
-    if str(row.get("delivery_status") or "").lower() in ["pending_edit","editing","not_ready","pending"]:
-        return "This file is not ready for download yet.", 400
-
-    url = _bsm_media_url_v427(row, "video")
-    if not url:
-        return "Download file not available yet.", 404
-    return redirect(url)
-
-
-
-@public_bp.route("/buyer/download-item-old/<int:item_id>")
-def buyer_download_order_item_v429(item_id):
-    if not session.get("user_id") or session.get("user_role") != "buyer":
-        session["after_login_redirect"] = "/buyer/dashboard"
-        session.modified = True
-        return redirect("/buyer/login?next=/buyer/dashboard")
-
-    try:
-        db.session.execute(db.text("ALTER TABLE bsm_cart_order ADD COLUMN IF NOT EXISTS buyer_user_id INTEGER"))
-        db.session.commit()
-    except Exception:
-        db.session.rollback()
-
-    try:
-        row = db.session.execute(db.text("""
-            SELECT i.*, o.buyer_user_id, o.buyer_email,
-                   v.file_path, v.r2_video_key, v.public_url, v.preview_url, v.filename, v.internal_filename
-            FROM bsm_cart_order_item i
-            JOIN bsm_cart_order o ON o.id = i.cart_order_id
-            LEFT JOIN video v ON v.id = i.video_id
-            WHERE i.id = :item_id
-            LIMIT 1
-        """), {"item_id": item_id}).mappings().first()
-    except Exception:
-        db.session.rollback()
-        row = None
-
-    if not row:
-        return "Download not found", 404
-
-    user_id = session.get("user_id")
-    user_email = (session.get("user_email") or "").lower()
-    if row.get("buyer_user_id") and int(row.get("buyer_user_id")) != int(user_id):
-        return "Not authorized", 403
-    if not row.get("buyer_user_id") and (row.get("buyer_email") or "").lower() != user_email:
-        return "Not authorized", 403
-
-    if str(row.get("delivery_status") or "").lower() in ["pending_edit","editing","not_ready","pending"]:
-        return "This file is not ready for download yet.", 400
-
-    for key in ["public_url", "file_path", "r2_video_key", "preview_url"]:
-        val = row.get(key)
-        if val:
-            val = str(val)
-            if val.startswith("http") or val.startswith("/"):
-                return redirect(val)
-            return redirect((os.environ.get("R2_PUBLIC_URL") or "").rstrip("/") + "/" + val.lstrip("/"))
-
-    return "Download file not available yet.", 404
-
-
-
-@public_bp.route("/buyer/download-item-old/<int:item_id>")
-def buyer_download_order_item_v430(item_id):
-    if not session.get("user_id") or session.get("user_role") != "buyer":
-        session["after_login_redirect"] = "/buyer/dashboard"
-        session.modified = True
-        return redirect("/buyer/login?next=/buyer/dashboard")
-    try:
-        db.session.execute(db.text("ALTER TABLE bsm_cart_order ADD COLUMN IF NOT EXISTS buyer_user_id INTEGER"))
-        db.session.commit()
-    except Exception:
-        db.session.rollback()
-    try:
-        row=db.session.execute(db.text("""
-            SELECT i.*, o.buyer_user_id, o.buyer_email,
-                   v.file_path, v.r2_video_key, v.public_url, v.preview_url, v.filename, v.internal_filename
-            FROM bsm_cart_order_item i
-            JOIN bsm_cart_order o ON o.id=i.cart_order_id
-            LEFT JOIN video v ON v.id=i.video_id
-            WHERE i.id=:item_id
-            LIMIT 1
-        """), {"item_id":item_id}).mappings().first()
-    except Exception:
-        db.session.rollback(); row=None
-    if not row: return "Download not found",404
-    uid=session.get("user_id"); email=(session.get("user_email") or "").lower()
-    if row.get("buyer_user_id") and int(row.get("buyer_user_id")) != int(uid): return "Not authorized",403
-    if not row.get("buyer_user_id") and (row.get("buyer_email") or "").lower()!=email: return "Not authorized",403
-    if str(row.get("delivery_status") or "").lower() in ["pending_edit","editing","not_ready","pending"]: return "This file is not ready for download yet.",400
-    for key in ["public_url","file_path","r2_video_key","preview_url"]:
-        val=row.get(key)
-        if val:
-            val=str(val)
-            if val.startswith("http") or val.startswith("/"): return redirect(val)
-            return redirect((os.environ.get("R2_PUBLIC_URL") or "").rstrip("/") + "/" + val.lstrip("/"))
-    return "Download file not available yet.",404
-
-
-
-@public_bp.route("/buyer/order-downloads/<int:order_id>")
-def buyer_order_downloads_v433(order_id):
-    """
-    Fallback page for older orders if line items were not displayed.
-    Shows downloadable items for this order when they exist.
-    """
-    if not session.get("user_id") or session.get("user_role") != "buyer":
-        session["after_login_redirect"] = "/buyer/dashboard"
-        session.modified = True
-        return redirect("/buyer/login?next=/buyer/dashboard")
-
-    try:
-        row = db.session.execute(db.text("""
-            SELECT *
-            FROM bsm_cart_order
-            WHERE id=:oid
-            LIMIT 1
-        """), {"oid": order_id}).mappings().first()
-    except Exception:
-        db.session.rollback()
-        row = None
-
-    if not row:
-        return "Order not found", 404
-
-    uid = session.get("user_id")
-    email = (session.get("user_email") or "").lower()
-    if row.get("buyer_user_id") and int(row.get("buyer_user_id")) != int(uid):
-        return "Not authorized", 403
-    if not row.get("buyer_user_id") and (row.get("buyer_email") or "").lower() != email:
-        return "Not authorized", 403
-
-    try:
-        items = db.session.execute(db.text("""
-            SELECT i.*, v.location, v.filename, v.internal_filename
+            SELECT i.*, v.location, v.filename, v.internal_filename, v.thumbnail_path, v.public_thumbnail_url, v.r2_thumbnail_key
             FROM bsm_cart_order_item i
             LEFT JOIN video v ON v.id=i.video_id
             WHERE i.cart_order_id=:oid
