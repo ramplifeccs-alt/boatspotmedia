@@ -1,0 +1,13 @@
+BoatSpotMedia v44.7 Creator Orders Page Fix
+Base: v44.6.
+Fix:
+- Adds direct /creator/orders page so creator can actually see Orders/Sales.
+- Shows buyer email, order ID, thumbnail, package, price, and status.
+- Adds upload edited video action.
+- Upload edited video saves to R2, activates buyer download, and sends SendGrid email.
+- Adds approve/reject discount actions.
+- Connects Orders menu links to /creator/orders.
+Does not touch:
+- Pricing
+- Uploads
+- Batches

@@ -1,7 +1,7 @@
-BoatSpotMedia v44.9 Creator Left Menu Sticky Full Package
+BoatSpotMedia v45.0 Creator Orders With Sidebar
+Base: v44.9.
 Fix:
-- Fresh package to avoid expired links.
-- Keeps creator left menu sticky/fixed at top.
-- Connects Orders to /creator/orders.
-- Ensures /creator/orders exists with buyer email, order ID, thumbnail, package.
-- Does not touch Pricing, Uploads, or Batches logic.
+- /creator/orders now has its own explicit left sidebar.
+- Sidebar stays visible on Orders page.
+- Keeps Orders active in menu.
+- Does not touch Pricing, Uploads, or Batches.

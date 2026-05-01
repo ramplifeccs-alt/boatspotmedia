@@ -6,71 +6,78 @@
   <title>Creator Orders - BoatSpotMedia</title>
   <link rel="stylesheet" href="/static/css/style.css">
 </head>
-<body class="creator-dashboard-v449">
-<header class="bsm-simple-header">
-  <a href="/creator/dashboard"><img src="/static/img/logo-header.png" alt="BoatSpotMedia" class="bsm-logo-img"></a>
-  <a href="/creator/dashboard">Dashboard</a>
-</header>
+<body class="creator-dashboard-v450">
+<div class="bsm-creator-page-shell-v450">
+  <aside class="bsm-creator-sidebar-v450">
+    <a href="/creator/dashboard" class="bsm-creator-logo-v450">
+      <img src="/static/img/logo-header.png" alt="BoatSpotMedia">
+    </a>
+    <div class="bsm-creator-handle-v450">@BoatSpotMedia.com</div>
+    <nav class="bsm-creator-nav-v450">
+      <a href="/creator/dashboard">Dashboard</a>
+      <a href="/creator/dashboard#uploads">Uploads</a>
+      <a href="/creator/dashboard#batches">Batches</a>
+      <a href="/creator/orders" class="active">Orders</a>
+      <a href="/creator/dashboard#products">Products</a>
+      <a href="/creator/dashboard#pricing">Pricing</a>
+      <a href="/creator/dashboard#settings">Settings</a>
+      <a href="/logout" class="logout">Log out</a>
+    </nav>
+  </aside>
 
-<div class="container" style="max-width:1200px;margin:30px auto;padding:20px;">
-  <h1>Orders / Sales</h1>
-  <p style="color:#64748b;">Manage sales, edited video deliveries, and discount approvals.</p>
+  <main class="bsm-creator-main-v450">
+    <div class="container" style="max-width:1200px;margin:0 auto;padding:20px;">
+      <h1>Orders / Sales</h1>
+      <p style="color:#64748b;">Manage sales, edited video deliveries, and discount approvals.</p>
 
-  <div style="display:flex;gap:10px;flex-wrap:wrap;margin:16px 0;">
-    <div class="bsm-mini-stat"><span>Gross</span><strong>${{ "%.2f"|format(gross_total or 0) }}</strong></div>
-    <div class="bsm-mini-stat"><span>Items sold</span><strong>{{ sold_count or 0 }}</strong></div>
-    <div class="bsm-mini-stat bsm-warn"><span>Pending edits</span><strong>{{ pending_edits_count or 0 }}</strong></div>
-    <div class="bsm-mini-stat bsm-danger"><span>Discount approvals</span><strong>{{ pending_discount_count or 0 }}</strong></div>
-  </div>
+      <div style="display:flex;gap:10px;flex-wrap:wrap;margin:16px 0;">
+        <div class="bsm-mini-stat"><span>Orders</span><strong>{{ orders|length if orders else 0 }}</strong></div>
+      </div>
 
-  {% if orders %}
-    <div style="display:grid;gap:12px;">
-      {% for sale in orders %}
-        <div class="bsm-creator-order-row-page">
-          <div class="bsm-order-thumb">
-            {% if sale.thumbnail_url %}
-              <img src="{{ sale.thumbnail_url }}" alt="thumbnail">
-            {% endif %}
-          </div>
+      {% if orders %}
+        <div style="display:grid;gap:12px;">
+          {% for sale in orders %}
+            <div class="bsm-creator-order-row-page">
+              <div class="bsm-order-thumb">
+                {% if sale.thumbnail_url %}
+                  <img src="{{ sale.thumbnail_url }}" alt="thumbnail">
+                {% endif %}
+              </div>
 
-          <div>
-            <strong>{{ sale.location or sale.filename or sale.internal_filename or ("Video #" ~ sale.video_id) }}</strong>
-            <div style="color:#64748b;font-size:13px;margin-top:4px;">
-              Order #{{ sale.order_id }} · {{ sale.order_created_at }}<br>
-              Buyer: <strong>{{ sale.buyer_email }}</strong><br>
-              Package: {{ sale.package_label }} · Price: ${{ "%.2f"|format(sale.unit_price or 0) }}
+              <div>
+                <strong>{{ sale.location or sale.filename or sale.internal_filename or ("Video #" ~ sale.video_id) }}</strong>
+                <div style="color:#64748b;font-size:13px;margin-top:4px;">
+                  Order #{{ sale.order_id }} · {{ sale.order_created_at }}<br>
+                  Buyer: <strong>{{ sale.buyer_email }}</strong><br>
+                  Package: {{ sale.package_label }} · Price: ${{ "%.2f"|format(sale.unit_price or 0) }}
+                </div>
+              </div>
+
+              <div class="bsm-order-actions">
+                {% if sale.needs_edit %}
+                  <form method="POST" action="/creator/order-item/{{ sale.item_id }}/upload-edited-v447" enctype="multipart/form-data">
+                    <input type="file" name="edited_video" accept="video/*" required>
+                    <button class="btn" type="submit">Upload Edited Video</button>
+                  </form>
+                {% endif %}
+
+                {% if sale.needs_discount %}
+                  <form method="POST" action="/creator/order-item/{{ sale.item_id }}/approve-discount-v447">
+                    <button class="btn" type="submit">Approve</button>
+                  </form>
+                  <form method="POST" action="/creator/order-item/{{ sale.item_id }}/reject-discount-v447">
+                    <button class="btn" type="submit">Reject</button>
+                  </form>
+                {% endif %}
+              </div>
             </div>
-            <div style="margin-top:8px;display:flex;gap:8px;flex-wrap:wrap;">
-              <span class="bsm-status-pill">{{ sale.status_label }}</span>
-              {% if sale.is_bundle %}<span class="bsm-status-pill blue">Bundle</span>{% endif %}
-              {% if sale.needs_edit %}<span class="bsm-status-pill orange">Needs edit upload</span>{% endif %}
-              {% if sale.needs_discount %}<span class="bsm-status-pill red">Needs discount approval</span>{% endif %}
-            </div>
-          </div>
-
-          <div class="bsm-order-actions">
-            {% if sale.needs_edit %}
-              <form method="POST" action="/creator/order-item/{{ sale.item_id }}/upload-edited-v447" enctype="multipart/form-data">
-                <input type="file" name="edited_video" accept="video/*" required>
-                <button class="btn" type="submit">Upload Edited Video</button>
-              </form>
-            {% endif %}
-
-            {% if sale.needs_discount %}
-              <form method="POST" action="/creator/order-item/{{ sale.item_id }}/approve-discount-v447">
-                <button class="btn" type="submit">Approve</button>
-              </form>
-              <form method="POST" action="/creator/order-item/{{ sale.item_id }}/reject-discount-v447">
-                <button class="btn" type="submit">Reject</button>
-              </form>
-            {% endif %}
-          </div>
+          {% endfor %}
         </div>
-      {% endfor %}
+      {% else %}
+        <div class="bsm-order-card">No orders yet.</div>
+      {% endif %}
     </div>
-  {% else %}
-    <div class="bsm-order-card">No orders yet.</div>
-  {% endif %}
+  </main>
 </div>
 </body>
 </html>
