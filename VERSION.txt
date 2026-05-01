@@ -1,6 +1,15 @@
-BoatSpotMedia v44.8 Creator Dashboard Hard Remove Old Inner Menu
-Base: v44.7.
-Fix:
-- Hard removes/hides the old repeated creator inner menu.
-- Keeps only the new left sidebar.
-- Does not touch uploads, batches, R2, pricing, or sales logic.
+BoatSpotMedia v44.6 Creator Orders + Edited Delivery
+Base: v44.5 stable.
+Adds:
+- Real Creator Orders / Sales panel.
+- Shows buyer email, order ID, thumbnail, package, price, status.
+- Upload Edited Video action.
+- After edited upload:
+  * file uploads to R2
+  * buyer download becomes active
+  * SendGrid email is sent
+- Approve/Reject discount actions.
+Does not touch:
+- Pricing
+- Uploads
+- Batches

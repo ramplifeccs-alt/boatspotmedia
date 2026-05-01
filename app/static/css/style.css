@@ -562,121 +562,89 @@ header a,.navbar a,.site-header a,.topbar a,nav a,.bsm-header a,.bsm-simple-head
   }
 }
 
-/* v44.6 creator sidebar layout */
-.bsm-creator-shell-v446{
+/* v44.6 creator orders real panel */
+.bsm-mini-stat{
+  background:#f8fafc;
+  border:1px solid #e2e8f0;
+  border-radius:12px;
+  padding:10px 12px;
+  min-width:90px;
+}
+.bsm-mini-stat span{
+  display:block;
+  font-size:11px;
+  color:#64748b;
+  text-transform:uppercase;
+}
+.bsm-mini-stat strong{
+  font-size:18px;
+}
+.bsm-mini-stat.bsm-warn{
+  background:#fff7ed;
+  border-color:#fed7aa;
+}
+.bsm-mini-stat.bsm-danger{
+  background:#fef2f2;
+  border-color:#fecaca;
+}
+.bsm-creator-order-row{
   display:grid;
-  grid-template-columns:260px 1fr;
-  min-height:100vh;
-  background:#f1f5f9;
+  grid-template-columns:96px 1fr minmax(180px, 280px);
+  gap:14px;
+  align-items:start;
+  border-top:1px solid #f1f5f9;
+  padding-top:12px;
 }
-.bsm-creator-sidebar-v446{
-  position:sticky;
-  top:0;
-  height:100vh;
-  background:#071b34;
-  color:#fff;
-  padding:18px 14px;
-  box-sizing:border-box;
-  overflow:auto;
+.bsm-order-thumb{
+  width:96px;
+  height:66px;
+  background:#e5e7eb;
+  border-radius:12px;
+  overflow:hidden;
 }
-.bsm-creator-brand-v446{
-  display:block;
-  padding:8px 8px 18px;
-  border-bottom:1px solid rgba(255,255,255,.15);
-  margin-bottom:12px;
-}
-.bsm-creator-brand-v446 img{
+.bsm-order-thumb img{
   width:100%;
-  max-width:210px;
-  display:block;
+  height:100%;
+  object-fit:cover;
 }
-.bsm-creator-menu-v446{
+.bsm-status-pill{
+  background:#ecfdf5;
+  border:1px solid #86efac;
+  color:#065f46;
+  border-radius:999px;
+  padding:3px 8px;
+  font-size:12px;
+  font-weight:700;
+}
+.bsm-status-pill.blue{
+  background:#eff6ff;
+  border-color:#bfdbfe;
+  color:#1e3a8a;
+}
+.bsm-status-pill.orange{
+  background:#fff7ed;
+  border-color:#fed7aa;
+  color:#9a3412;
+}
+.bsm-status-pill.red{
+  background:#fef2f2;
+  border-color:#fecaca;
+  color:#991b1b;
+}
+.bsm-order-actions{
   display:grid;
   gap:8px;
 }
-.bsm-creator-menu-v446 a{
-  color:#e5e7eb!important;
-  text-decoration:none;
-  padding:11px 12px;
-  border-radius:12px;
-  font-weight:700;
-  background:rgba(255,255,255,.04);
-}
-.bsm-creator-menu-v446 a:hover{
-  background:rgba(37,99,235,.35);
-  color:#fff!important;
-}
-.bsm-creator-menu-v446 .bsm-creator-logout-v446{
-  margin-top:12px;
-  background:#dc2626;
-  color:#fff!important;
-}
-.bsm-creator-main-v446{
-  padding:22px;
-  min-width:0;
-}
-.bsm-creator-main-v446 > header,
-.bsm-creator-main-v446 .bsm-simple-header{
-  display:none!important;
-}
-.bsm-creator-main-v446 section,
-.bsm-creator-main-v446 .card,
-.bsm-creator-main-v446 .panel{
-  max-width:1200px;
+.bsm-order-actions form{
+  display:grid;
+  gap:6px;
 }
 @media(max-width:850px){
-  .bsm-creator-shell-v446{
+  .bsm-creator-order-row{
     grid-template-columns:1fr;
   }
-  .bsm-creator-sidebar-v446{
-    position:relative;
-    height:auto;
+  .bsm-order-thumb{
+    width:100%;
+    height:160px;
   }
-  .bsm-creator-brand-v446 img{
-    max-width:190px;
-  }
-  .bsm-creator-menu-v446{
-    grid-template-columns:1fr 1fr;
-  }
-  .bsm-creator-main-v446{
-    padding:14px;
-  }
-}
-@media(max-width:520px){
-  .bsm-creator-menu-v446{
-    grid-template-columns:1fr;
-  }
-}
-
-/* v44.7 remove duplicate creator menu */
-.bsm-hide-duplicate-creator-nav-v447{
-  display:none!important;
-}
-.bsm-creator-main-v446 > .creator-sidebar,
-.bsm-creator-main-v446 > .sidebar,
-.bsm-creator-main-v446 > aside,
-.bsm-creator-main-v446 nav.creator-nav,
-.bsm-creator-main-v446 .creator-nav{
-  display:none!important;
-}
-.bsm-creator-main-v446{
-  padding-top:28px!important;
-}
-
-/* v44.8 hard remove old creator menu */
-.bsm-creator-main-v446 > aside:not(.bsm-creator-sidebar-v446),
-.bsm-creator-main-v446 > nav:not(.bsm-creator-menu-v446),
-.bsm-creator-main-v446 .sidebar,
-.bsm-creator-main-v446 .side-nav,
-.bsm-creator-main-v446 .creator-sidebar,
-.bsm-creator-main-v446 .creator-menu,
-.bsm-creator-main-v446 .dashboard-sidebar,
-.bsm-creator-main-v446 .left-menu{
-  display:none!important;
-}
-.bsm-creator-main-v446{
-  display:block!important;
-}
-.bsm-creator-main-v446 > div{
-  max-width:1200px;
 }

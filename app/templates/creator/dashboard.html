@@ -2,33 +2,14 @@
   <meta name="viewport" content="width=device-width, initial-scale=1"><meta charset="utf-8"><title>BoatSpotMedia</title><link rel="stylesheet" href="/static/css/style.css">  <link rel="icon" type="image/png" href="/static/img/favicon.png">
   <link rel="apple-touch-icon" href="/static/img/apple-touch-icon.png">
   <meta name="theme-color" content="#071b34">
-</head><body>
-
-
-<div class="bsm-creator-shell-v446">
-  <aside class="bsm-creator-sidebar-v446">
-    <a href="/creator/dashboard" class="bsm-creator-brand-v446">
-      <img src="/static/img/logo-header.png" alt="BoatSpotMedia">
-    </a>
-
-    <nav class="bsm-creator-menu-v446">
-      <a href="#overview">Overview</a>
-      <a href="#sales-orders">Sales / Orders</a>
-      <a href="/creator/pending-edits">Pending Edited Videos</a>
-      <a href="#discount-approvals">Discount Approvals</a>
-      <a href="#my-videos"><span id="my-videos"></span>My Videos</a>
-      <a href="#upload-batch"><span id="upload-batch"></span>Upload Batch</a>
-      <a href="#pricing"><span id="pricing"></span>Pricing</a>
-      <a href="#analytics">Analytics</a>
-      <a href="#settings">Settings</a>
-      <a href="/logout" class="bsm-creator-logout-v446">Logout</a>
-    </nav>
-  </aside>
-
-  <main class="bsm-creator-main-v446">
-<div class="creator-topbar" style="display:flex;justify-content:space-between;align-items:center;gap:12px;padding:12px 18px;background:#0b1220;color:#fff;margin:-1px -1px 16px -1px;">
+</head><body><div class="creator-topbar" style="display:flex;justify-content:space-between;align-items:center;gap:12px;padding:12px 18px;background:#0b1220;color:#fff;margin:-1px -1px 16px -1px;">
   <div><a href="{{ url_for('public.home') }}" style="color:white;text-decoration:none;font-weight:800;"><img src="/static/img/logo-header.png" alt="BoatSpotMedia" class="bsm-logo-img"></a></div>
-  
+  <div style="display:flex;align-items:center;gap:12px;font-size:14px;">
+    <a href="{{ url_for('public.home') }}" style="color:white;text-decoration:none;">Home</a>
+    <a href="/shop" style="color:white;text-decoration:none;">Products</a>
+    <a href="/creator/dashboard" style="color:white;text-decoration:none;" class="nav-user">{% if creator and creator.user %}{{ creator_display_name(creator) if creator is defined else 'Creator' }}{% elif session.get('display_name') %}{{ session.get('display_name') }}{% elif session.get('user_email') %}{{ session.get('user_email') }}{% endif %}</a>
+    <a href="/logout" style="color:white;text-decoration:none;">Logout</a>
+  </div>
 </div><div class="sidebar-layout"><div class="sidebar"><h2>{{ creator_name or 'Creator' }}</h2>{% if creator_instagram %}<small>@{{ creator_instagram }}</small><br><br>{% endif %}<a href="/creator/dashboard">Dashboard</a><a href="/creator/upload">Uploads</a><a href="/creator/batches">Batches</a><a href="/creator/orders">Orders</a><a href="/creator/products">Products</a><a href="/creator/pricing">Pricing</a><a href="/creator/settings">Settings</a><br><a href="/creator/logout">Log out</a></div><div class="content"><h1>Creator Dashboard</h1>
 
 <!-- BoatSpotMedia Creator Dashboard Overview v40.0 -->
@@ -99,10 +80,6 @@
   </div>
 </section>
 <div class="card storage-card" style="background:#fff;border-radius:14px;padding:16px;margin:14px 0;box-shadow:0 6px 20px rgba(0,0,0,.06);"></p></div><div class="grid"><div class="card"><h3>Storage</h3><p>{{creator.storage_used_gb}} GB used</p><p>{{creator.storage_remaining_gb}} GB remaining</p><small>Plan storage: {{creator.storage_limit_gb}} GB</small></div><div class="card"><h3>Published Videos</h3><p>{{videos_count}}</p></div><div class="card"><h3>Total Clicks</h3><p>{{stats.clicks_lifetime if stats else 0}}</p><small>Global video preview clicks</small></div></div></div></div><script src="/static/js/mobile.js"></script>
-
-  </main>
-</div>
-
 </body></html>
 <script>
 function regenerateThumbnail(videoId){
@@ -134,7 +111,6 @@ function regenerateThumbnail(videoId){
   {% endif %}
 </section>
 
-<div id="discount-approvals"></div>
 <!-- Approve Discount v43.9 -->
 <section style="background:#fff;border:1px solid #e5e7eb;border-radius:14px;padding:16px;margin:18px 0;">
   <h2>Discount Approval Requests</h2>
@@ -169,8 +145,74 @@ function regenerateThumbnail(videoId){
 </section>
 
 
+
+<!-- Creator Orders Real Panel v44.6 -->
+<section id="orders" style="background:#fff;border:1px solid #e5e7eb;border-radius:16px;padding:18px;margin:18px 0;box-shadow:0 8px 24px rgba(15,23,42,.06);">
+  <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:12px;flex-wrap:wrap;">
+    <div>
+      <h2 style="margin:0 0 6px;">Orders / Sales</h2>
+      <p style="margin:0;color:#64748b;">Manage sales, edited video deliveries, and discount approvals.</p>
+    </div>
+    <div style="display:flex;gap:10px;flex-wrap:wrap;">
+      <div class="bsm-mini-stat"><span>Gross</span><strong>${{ "%.2f"|format(creator_orders_gross_v446 or 0) }}</strong></div>
+      <div class="bsm-mini-stat"><span>Items sold</span><strong>{{ creator_orders_sold_count_v446 or 0 }}</strong></div>
+      <div class="bsm-mini-stat bsm-warn"><span>Pending edits</span><strong>{{ creator_orders_pending_edits_count_v446 or 0 }}</strong></div>
+      <div class="bsm-mini-stat bsm-danger"><span>Discount approvals</span><strong>{{ creator_orders_pending_discount_count_v446 or 0 }}</strong></div>
+    </div>
+  </div>
+
+  {% if creator_orders_v446 %}
+    <div style="display:grid;gap:12px;margin-top:16px;">
+      {% for sale in creator_orders_v446 %}
+        <div class="bsm-creator-order-row">
+          <div class="bsm-order-thumb">
+            {% if sale.thumbnail_url %}
+              <img src="{{ sale.thumbnail_url }}" alt="thumbnail">
+            {% endif %}
+          </div>
+
+          <div>
+            <strong>{{ sale.location or sale.filename or sale.internal_filename or ("Video #" ~ sale.video_id) }}</strong>
+            <div style="color:#64748b;font-size:13px;margin-top:3px;">
+              Order #{{ sale.order_id }} · {{ sale.order_created_at }}<br>
+              Buyer: <strong>{{ sale.buyer_email }}</strong><br>
+              Package: {{ sale.package_label }} · Price: ${{ "%.2f"|format(sale.unit_price or 0) }}
+            </div>
+            <div style="margin-top:7px;display:flex;gap:8px;flex-wrap:wrap;">
+              <span class="bsm-status-pill">{{ sale.status_label }}</span>
+              {% if sale.is_bundle %}<span class="bsm-status-pill blue">Bundle</span>{% endif %}
+              {% if sale.needs_edit %}<span class="bsm-status-pill orange">Needs edit upload</span>{% endif %}
+              {% if sale.needs_discount %}<span class="bsm-status-pill red">Needs discount approval</span>{% endif %}
+            </div>
+          </div>
+
+          <div class="bsm-order-actions">
+            {% if sale.needs_edit %}
+              <form method="POST" action="/creator/order-item/{{ sale.item_id }}/upload-edited" enctype="multipart/form-data">
+                <input type="file" name="edited_video" accept="video/*" required>
+                <button class="btn" type="submit">Upload Edited Video</button>
+              </form>
+            {% endif %}
+
+            {% if sale.needs_discount %}
+              <form method="POST" action="/creator/order-item/{{ sale.item_id }}/approve-discount">
+                <button class="btn" type="submit">Approve</button>
+              </form>
+              <form method="POST" action="/creator/order-item/{{ sale.item_id }}/reject-discount">
+                <button class="btn" type="submit">Reject</button>
+              </form>
+            {% endif %}
+          </div>
+        </div>
+      {% endfor %}
+    </div>
+  {% else %}
+    <div style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:12px;padding:14px;margin-top:16px;color:#64748b;">No orders yet.</div>
+  {% endif %}
+</section>
+
 <!-- Creator Sales Panel v44.5 -->
-<section id="sales-orders" class="bsm-creator-sales-panel" style="background:#fff;border:1px solid #e5e7eb;border-radius:16px;padding:18px;margin:18px 0;box-shadow:0 8px 24px rgba(15,23,42,.06);">
+<section class="bsm-creator-sales-panel" style="background:#fff;border:1px solid #e5e7eb;border-radius:16px;padding:18px;margin:18px 0;box-shadow:0 8px 24px rgba(15,23,42,.06);">
   <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:12px;flex-wrap:wrap;">
     <div>
       <h2 style="margin:0 0 6px;">Sales / Orders</h2>
@@ -253,7 +295,6 @@ function regenerateThumbnail(videoId){
   {% endif %}
 </section>
 
-<div id="overview"></div>
 <!-- Pending Edited Videos v44.0 -->
 <section style="background:#fff;border:1px solid #e5e7eb;border-radius:14px;padding:16px;margin:18px 0;">
   <h2>Pending Edited Videos</h2>
