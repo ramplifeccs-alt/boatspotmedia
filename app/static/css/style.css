@@ -479,3 +479,37 @@ header a,.navbar a,.site-header a,.topbar a,nav a,.bsm-header a,.bsm-simple-head
 @media(max-width:700px){
   .bsm-download-btn{width:100%!important;margin-top:8px!important;}
 }
+
+/* v43.3 purchased videos display */
+.bsm-order-card{
+  background:#fff!important;
+  border:1px solid #e5e7eb!important;
+  border-radius:16px!important;
+  padding:16px!important;
+  box-shadow:0 8px 24px rgba(15,23,42,.06)!important;
+}
+.bsm-order-item{
+  display:grid!important;
+  grid-template-columns:1fr auto!important;
+  gap:12px!important;
+  align-items:center!important;
+  border-top:1px solid #f1f5f9!important;
+  padding-top:12px!important;
+}
+.bsm-download-btn{
+  display:inline-flex!important;
+  align-items:center!important;
+  justify-content:center!important;
+  background:#2563eb!important;
+  color:#fff!important;
+  padding:12px 16px!important;
+  border-radius:12px!important;
+  font-weight:800!important;
+  text-decoration:none!important;
+  min-width:150px!important;
+}
+@media(max-width:700px){
+  .bsm-order-item{grid-template-columns:1fr!important;}
+  .bsm-order-item>div:last-child{text-align:left!important;}
+  .bsm-download-btn{width:100%!important;box-sizing:border-box!important;}
+}

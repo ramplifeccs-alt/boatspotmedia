@@ -1,6 +1,7 @@
-BoatSpotMedia v43.2 Always Show Download Button
-Base: v43.1.
+BoatSpotMedia v43.3 Order Items Visible + Download Fix
+Base: v43.2.
 Fix:
-- My Orders now always shows a visible "Download Video" button for every order item.
-- Button is inside each purchased video/order item.
-- If file is unavailable, download route returns a clear message.
+- My Orders explicitly shows Purchased Videos inside every order.
+- Every purchased video line shows Download Video.
+- If an older order is missing line items, shows View / Recover Download button.
+- Adds recovery route /buyer/order-downloads/<order_id>.

@@ -238,8 +238,12 @@ def buyer_dashboard():
             ix["thumbnail_url"] = _bsm_media_url_v427(ix, "thumb")
             ix["download_url"] = "/buyer/download-item/" + str(ix.get("id")) if _bsm_item_is_downloadable_v431(ix) else None
             items.append(ix)
-        d["order_items"] = items
+        if not items:
+            d["order_items"] = []
+        else:
+            d["order_items"] = items
         d["created_at_et"] = _bsm_eastern_time_v427(d.get("created_at"))
+        d["recover_download_url"] = "/buyer/order-downloads/" + str(d.get("id"))
         orders.append(d)
 
     return render_template(

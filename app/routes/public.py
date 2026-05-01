@@ -502,8 +502,12 @@ def buyer_dashboard_public_v422():
             ix["thumbnail_url"] = _bsm_media_url_v427(ix, "thumb")
             ix["download_url"] = "/buyer/download-item/" + str(ix.get("id")) if _bsm_item_is_downloadable_v431(ix) else None
             items.append(ix)
-        d["order_items"] = items
+        if not items:
+            d["order_items"] = []
+        else:
+            d["order_items"] = items
         d["created_at_et"] = _bsm_eastern_time_v427(d.get("created_at"))
+        d["recover_download_url"] = "/buyer/order-downloads/" + str(d.get("id"))
         orders.append(d)
 
     return render_template(
@@ -1180,3 +1184,59 @@ def buyer_download_order_item_v430(item_id):
             if val.startswith("http") or val.startswith("/"): return redirect(val)
             return redirect("/media/"+val.lstrip("/"))
     return "Download file not available yet.",404
+
+
+
+@public_bp.route("/buyer/order-downloads/<int:order_id>")
+def buyer_order_downloads_v433(order_id):
+    """
+    Fallback page for older orders if line items were not displayed.
+    Shows downloadable items for this order when they exist.
+    """
+    if not session.get("user_id") or session.get("user_role") != "buyer":
+        session["after_login_redirect"] = "/buyer/dashboard"
+        session.modified = True
+        return redirect("/buyer/login?next=/buyer/dashboard")
+
+    try:
+        row = db.session.execute(db.text("""
+            SELECT *
+            FROM bsm_cart_order
+            WHERE id=:oid
+            LIMIT 1
+        """), {"oid": order_id}).mappings().first()
+    except Exception:
+        db.session.rollback()
+        row = None
+
+    if not row:
+        return "Order not found", 404
+
+    uid = session.get("user_id")
+    email = (session.get("user_email") or "").lower()
+    if row.get("buyer_user_id") and int(row.get("buyer_user_id")) != int(uid):
+        return "Not authorized", 403
+    if not row.get("buyer_user_id") and (row.get("buyer_email") or "").lower() != email:
+        return "Not authorized", 403
+
+    try:
+        items = db.session.execute(db.text("""
+            SELECT i.*, v.location, v.filename, v.internal_filename
+            FROM bsm_cart_order_item i
+            LEFT JOIN video v ON v.id=i.video_id
+            WHERE i.cart_order_id=:oid
+            ORDER BY i.id ASC
+        """), {"oid": order_id}).mappings().all()
+    except Exception:
+        db.session.rollback()
+        items = []
+
+    if not items:
+        return "This order was saved, but no video items were attached to it. Please contact support with Order #" + str(order_id), 404
+
+    html = "<h1>Order #" + str(order_id) + " Downloads</h1>"
+    for item in items:
+        title = item.get("location") or item.get("filename") or item.get("internal_filename") or ("Video " + str(item.get("video_id") or ""))
+        html += '<p><strong>' + str(title) + '</strong><br><a style="display:inline-block;background:#2563eb;color:white;padding:12px 16px;border-radius:10px;text-decoration:none;font-weight:700;" href="/buyer/download-item/' + str(item.get("id")) + '">Download Video</a></p>'
+    html += '<p><a href="/buyer/dashboard">Back to My Orders</a></p>'
+    return html
