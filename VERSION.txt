@@ -1,10 +1,8 @@
-BoatSpotMedia v43.7 Create_App R2 Presigned Download
-Base: v43.6.
+BoatSpotMedia v43.8 R2_PUBLIC_URL Download Fix
+Base: v43.7.
 Fix:
-- Registers download routes inside create_app() using flask_app.add_url_rule, so Railway must see them.
-- Routes:
-  /download-video/<video_ref>
-  /download-item/<video_ref>
-  /buyer/download-item/<video_ref>
-- Generates Cloudflare R2 presigned GET URL from video.r2_video_key/file_path.
-- Verifies buyer purchased the video before download.
+- Download now builds final video URL using Railway variable R2_PUBLIC_URL.
+- Example:
+  R2_PUBLIC_URL=https://pub-ac294ba2f7794c37848062239f41227d.r2.dev
+  + creators/2/batches/file.mp4
+- Stops redirecting downloads to /media/<key>.

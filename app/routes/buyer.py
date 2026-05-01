@@ -1,3 +1,4 @@
+import os
 from flask import Blueprint, render_template, request, redirect, session
 from werkzeug.security import generate_password_hash, check_password_hash
 from app import db
@@ -378,7 +379,7 @@ def _bsm_direct_download_video_response_v435(video_id):
             return redirect(val)
 
         # R2/media keys used by this app.
-        return redirect("/media/" + val.lstrip("/"))
+        return redirect((os.environ.get("R2_PUBLIC_URL") or "").rstrip("/") + "/" + val.lstrip("/"))
 
     return "Video file path was not found in the video record. Contact support with Order #" + str(purchased.get("order_id")), 404
 

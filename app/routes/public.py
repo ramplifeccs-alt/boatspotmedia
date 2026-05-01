@@ -1143,7 +1143,7 @@ def buyer_download_order_item_v429(item_id):
             val = str(val)
             if val.startswith("http") or val.startswith("/"):
                 return redirect(val)
-            return redirect("/media/" + val.lstrip("/"))
+            return redirect((os.environ.get("R2_PUBLIC_URL") or "").rstrip("/") + "/" + val.lstrip("/"))
 
     return "Download file not available yet.", 404
 
@@ -1182,7 +1182,7 @@ def buyer_download_order_item_v430(item_id):
         if val:
             val=str(val)
             if val.startswith("http") or val.startswith("/"): return redirect(val)
-            return redirect("/media/"+val.lstrip("/"))
+            return redirect((os.environ.get("R2_PUBLIC_URL") or "").rstrip("/") + "/" + val.lstrip("/"))
     return "Download file not available yet.",404
 
 
@@ -1354,7 +1354,7 @@ def buyer_download_order_item_v434(item_id):
         val = str(val)
         if val.startswith("http://") or val.startswith("https://") or val.startswith("/"):
             return redirect(val)
-        return redirect("/media/" + val.lstrip("/"))
+        return redirect((os.environ.get("R2_PUBLIC_URL") or "").rstrip("/") + "/" + val.lstrip("/"))
 
     return "Video file is not available for download yet. Please contact support with Order #" + str(row.get("order_id")), 404
 
@@ -1472,7 +1472,7 @@ def _bsm_direct_download_video_response_v435(video_id):
             return redirect(val)
 
         # R2/media keys used by this app.
-        return redirect("/media/" + val.lstrip("/"))
+        return redirect((os.environ.get("R2_PUBLIC_URL") or "").rstrip("/") + "/" + val.lstrip("/"))
 
     return "Video file path was not found in the video record. Contact support with Order #" + str(purchased.get("order_id")), 404
 
