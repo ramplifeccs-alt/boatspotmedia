@@ -1,10 +1,17 @@
-BoatSpotMedia v44.4 Timer Timezone + Buyer Terms
-Base: v44.3.
-Fixes:
-- Download expiration display now uses America/New_York time, not UTC.
-- Buyer registration requires Buyer Terms / Terms / Privacy acceptance.
-- Adds pages:
-  /buyer-terms
-  /terms
-  /privacy
-- Adds footer legal links on home/base templates.
+BoatSpotMedia v44.5 Creator Sales Panel
+Base: v44.4.
+Adds:
+- Read-only Sales / Orders panel in Creator Dashboard.
+- Shows recent sold videos, package, price, thumbnail, order number.
+- Shows summary cards:
+  * Gross sales
+  * Items sold
+  * Pending edits
+  * Discount approvals
+- Adds quick actions:
+  * Upload Edit for pending edited purchases
+  * Approve / Reject for pending discounts
+Does not touch:
+- Upload batches
+- Existing uploader/R2 pipeline
+- Existing pricing logic

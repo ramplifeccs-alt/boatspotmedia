@@ -546,3 +546,18 @@ header a,.navbar a,.site-header a,.topbar a,nav a,.bsm-header a,.bsm-simple-head
   padding:12px!important;
   margin-top:8px;
 }
+
+/* v44.5 creator sales mobile */
+@media(max-width:700px){
+  .bsm-sale-row{
+    grid-template-columns:1fr!important;
+  }
+  .bsm-sale-row > div:first-child{
+    width:100%!important;
+    height:160px!important;
+  }
+  .bsm-sale-row form,
+  .bsm-sale-row .btn{
+    width:100%;
+  }
+}

@@ -1270,6 +1270,109 @@ def _bsm_safe_delete_batch_v442(batch_id):
     return {"blocked": False, "message": f"Batch deleted. {deleted_count} video(s) removed."}
 
 
+
+def _creator_sales_panel_v445(creator_id):
+    """
+    Creator Sales Panel v44.5
+    Read-only sales panel. Does not touch upload batches.
+    Shows recent order items sold by this creator.
+    """
+    try:
+        rows = db.session.execute(db.text("""
+            SELECT
+                i.id AS item_id,
+                i.video_id,
+                i.package,
+                i.delivery_status,
+                i.discount_status,
+                i.unit_price,
+                i.quantity,
+                i.edited_r2_key,
+                i.edited_uploaded_at,
+                o.id AS order_id,
+                o.buyer_email,
+                o.status AS order_status,
+                o.created_at AS order_created_at,
+                v.location,
+                v.filename,
+                v.internal_filename,
+                v.thumbnail_path,
+                v.public_thumbnail_url,
+                v.r2_thumbnail_key
+            FROM bsm_cart_order_item i
+            JOIN bsm_cart_order o ON o.id = i.cart_order_id
+            LEFT JOIN video v ON v.id = i.video_id
+            WHERE i.creator_id = :creator_id
+            ORDER BY o.created_at DESC, i.id DESC
+            LIMIT 100
+        """), {"creator_id": creator_id}).mappings().all()
+    except Exception as e:
+        try:
+            db.session.rollback()
+            print("creator sales panel warning v44.5:", e)
+        except Exception:
+            pass
+        rows = []
+
+    recent_sales = []
+    gross_total = 0.0
+    sold_count = 0
+    pending_edits_count = 0
+    pending_discount_count = 0
+
+    for r in rows:
+        item = dict(r)
+        package = str(item.get("package") or "").lower()
+        delivery_status = str(item.get("delivery_status") or "").lower()
+        discount_status = str(item.get("discount_status") or "").lower()
+
+        try:
+            price = float(item.get("unit_price") or 0)
+            qty = int(item.get("quantity") or 1)
+        except Exception:
+            price = 0.0
+            qty = 1
+
+        gross_total += price * qty
+        sold_count += qty
+
+        is_edited = package in ["edited", "edit", "instagram_edit", "tiktok_edit", "reel_edit", "short_edit"]
+        is_bundle = package in ["bundle", "combo", "original_plus_edited", "original_edited", "original+edited", "original_edit"]
+
+        item["is_edited"] = is_edited
+        item["is_bundle"] = is_bundle
+        item["is_pending_edit"] = (is_edited or is_bundle) and delivery_status not in ["ready_to_download", "ready", "delivered"]
+        item["is_pending_discount"] = discount_status in ["pending_review", "pending", "awaiting_creator", "needs_approval"]
+
+        if item["is_pending_edit"]:
+            pending_edits_count += 1
+        if item["is_pending_discount"]:
+            pending_discount_count += 1
+
+        # For thumbnails: prefer public URL, then local media route for stored key.
+        thumb = item.get("public_thumbnail_url")
+        if not thumb:
+            thumb_key = item.get("thumbnail_path") or item.get("r2_thumbnail_key")
+            if thumb_key:
+                thumb = "/media/" + str(thumb_key).lstrip("/")
+        item["thumbnail_url"] = thumb
+
+        # Hide buyer email in UI by default; show order number instead.
+        buyer_email = item.get("buyer_email") or ""
+        item["buyer_display"] = "Buyer · Order #" + str(item.get("order_id") or "")
+        item["buyer_email_masked"] = (buyer_email[:2] + "***@" + buyer_email.split("@")[-1]) if "@" in buyer_email else "Buyer"
+
+        recent_sales.append(item)
+
+    return {
+        "creator_recent_sales_v445": recent_sales,
+        "creator_sales_gross_total_v445": gross_total,
+        "creator_sales_count_v445": sold_count,
+        "creator_pending_edits_count_v445": pending_edits_count,
+        "creator_pending_discount_count_v445": pending_discount_count,
+    }
+
+
 @creator_bp.route("/creator/batches/<int:batch_id>/safe-delete", methods=["POST"])
 def creator_safe_delete_batch_v442(batch_id):
     result = _bsm_safe_delete_batch_v442(batch_id)

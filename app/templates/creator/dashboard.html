@@ -144,6 +144,91 @@ function regenerateThumbnail(videoId){
   {% endif %}
 </section>
 
+
+<!-- Creator Sales Panel v44.5 -->
+<section class="bsm-creator-sales-panel" style="background:#fff;border:1px solid #e5e7eb;border-radius:16px;padding:18px;margin:18px 0;box-shadow:0 8px 24px rgba(15,23,42,.06);">
+  <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:12px;flex-wrap:wrap;">
+    <div>
+      <h2 style="margin:0 0 6px;">Sales / Orders</h2>
+      <p style="margin:0;color:#64748b;">Recent purchases from your videos.</p>
+    </div>
+    <div style="display:flex;gap:10px;flex-wrap:wrap;">
+      <div style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:12px;padding:10px 12px;">
+        <div style="font-size:12px;color:#64748b;">Gross sales</div>
+        <strong>${{ "%.2f"|format(creator_sales_gross_total_v445 or 0) }}</strong>
+      </div>
+      <div style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:12px;padding:10px 12px;">
+        <div style="font-size:12px;color:#64748b;">Items sold</div>
+        <strong>{{ creator_sales_count_v445 or 0 }}</strong>
+      </div>
+      <div style="background:#fff7ed;border:1px solid #fed7aa;border-radius:12px;padding:10px 12px;">
+        <div style="font-size:12px;color:#9a3412;">Pending edits</div>
+        <strong>{{ creator_pending_edits_count_v445 or 0 }}</strong>
+      </div>
+      <div style="background:#fef2f2;border:1px solid #fecaca;border-radius:12px;padding:10px 12px;">
+        <div style="font-size:12px;color:#991b1b;">Discount approvals</div>
+        <strong>{{ creator_pending_discount_count_v445 or 0 }}</strong>
+      </div>
+    </div>
+  </div>
+
+  {% if creator_recent_sales_v445 %}
+    <div style="display:grid;gap:12px;margin-top:16px;">
+      {% for sale in creator_recent_sales_v445[:20] %}
+        <div class="bsm-sale-row" style="display:grid;grid-template-columns:92px 1fr auto;gap:12px;align-items:center;border-top:1px solid #f1f5f9;padding-top:12px;">
+          <div style="width:92px;height:62px;background:#e5e7eb;border-radius:12px;overflow:hidden;">
+            {% if sale.thumbnail_url %}
+              <img src="{{ sale.thumbnail_url }}" alt="video thumbnail" style="width:100%;height:100%;object-fit:cover;">
+            {% endif %}
+          </div>
+
+          <div>
+            <strong>{{ sale.location or sale.filename or sale.internal_filename or ("Video #" ~ sale.video_id) }}</strong>
+            <div style="color:#64748b;font-size:13px;margin-top:3px;">
+              {{ sale.buyer_display }} · Package: {{ sale.package or "original" }} · ${{ "%.2f"|format(sale.unit_price or 0) }}
+            </div>
+
+            <div style="margin-top:6px;display:flex;gap:8px;flex-wrap:wrap;">
+              {% if sale.is_bundle %}
+                <span style="background:#eff6ff;color:#1e3a8a;border:1px solid #bfdbfe;border-radius:999px;padding:3px 8px;font-size:12px;">Bundle</span>
+              {% endif %}
+              {% if sale.is_pending_edit %}
+                <span style="background:#fff7ed;color:#9a3412;border:1px solid #fed7aa;border-radius:999px;padding:3px 8px;font-size:12px;">Pending edit upload</span>
+              {% elif sale.is_edited %}
+                <span style="background:#ecfdf5;color:#065f46;border:1px solid #86efac;border-radius:999px;padding:3px 8px;font-size:12px;">Edited delivered</span>
+              {% else %}
+                <span style="background:#ecfdf5;color:#065f46;border:1px solid #86efac;border-radius:999px;padding:3px 8px;font-size:12px;">Instant download</span>
+              {% endif %}
+              {% if sale.is_pending_discount %}
+                <span style="background:#fef2f2;color:#991b1b;border:1px solid #fecaca;border-radius:999px;padding:3px 8px;font-size:12px;">Discount approval pending</span>
+              {% endif %}
+            </div>
+          </div>
+
+          <div style="display:flex;gap:8px;flex-wrap:wrap;justify-content:flex-end;">
+            {% if sale.is_pending_edit %}
+              <a class="btn" href="/creator/pending-edits">Upload Edit</a>
+            {% endif %}
+
+            {% if sale.is_pending_discount %}
+              <form method="POST" action="/creator/order-item/{{ sale.item_id }}/approve-discount">
+                <button class="btn" type="submit">Approve</button>
+              </form>
+              <form method="POST" action="/creator/order-item/{{ sale.item_id }}/reject-discount">
+                <button class="btn" type="submit">Reject</button>
+              </form>
+            {% endif %}
+          </div>
+        </div>
+      {% endfor %}
+    </div>
+  {% else %}
+    <div style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:12px;padding:14px;margin-top:16px;color:#64748b;">
+      No sales yet.
+    </div>
+  {% endif %}
+</section>
+
 <!-- Pending Edited Videos v44.0 -->
 <section style="background:#fff;border:1px solid #e5e7eb;border-radius:14px;padding:16px;margin:18px 0;">
   <h2>Pending Edited Videos</h2>
