@@ -1488,3 +1488,178 @@ body.creator-dashboard-v449 main{
     padding:12px;
   }
 }
+
+/* v45.9 creator orders search pagination */
+.bsm-creator-page-shell-v459{
+  display:grid;
+  grid-template-columns:230px minmax(0,1fr);
+  min-height:100vh;
+  background:#f1f5f9;
+}
+.bsm-creator-sidebar-v459{
+  position:sticky;
+  top:0;
+  height:100vh;
+  overflow:auto;
+  background:#071b34;
+  color:#fff;
+  padding:18px 14px;
+  box-sizing:border-box;
+  z-index:20;
+}
+.bsm-creator-logo-v459{
+  display:block;
+  padding:4px 4px 14px;
+  border-bottom:1px solid rgba(255,255,255,.15);
+  margin-bottom:12px;
+}
+.bsm-creator-logo-v459 img{width:100%;max-width:190px;display:block;}
+.bsm-creator-handle-v459{color:#e5e7eb;font-weight:700;margin:12px 8px;}
+.bsm-creator-nav-v459{display:grid;gap:8px;}
+.bsm-creator-nav-v459 a{
+  color:#fff!important;
+  text-decoration:none;
+  font-weight:700;
+  padding:10px 12px;
+  border-radius:10px;
+  display:block;
+  background:rgba(255,255,255,.04);
+}
+.bsm-creator-nav-v459 a:hover,
+.bsm-creator-nav-v459 a.active{background:rgba(37,99,235,.45);}
+.bsm-creator-nav-v459 a.logout{margin-top:14px;background:rgba(220,38,38,.85);}
+.bsm-creator-main-v459{padding:22px;min-width:0;}
+.bsm-orders-container-v459{max-width:1200px;margin:0 auto;}
+.bsm-orders-header-v459 h1{margin:0 0 6px;}
+.bsm-orders-header-v459 p{margin:0;color:#64748b;}
+.bsm-orders-search-v459{
+  display:flex;
+  gap:10px;
+  flex-wrap:wrap;
+  margin:18px 0;
+  background:#fff;
+  border:1px solid #e5e7eb;
+  border-radius:16px;
+  padding:14px;
+}
+.bsm-orders-search-v459 input{
+  flex:1;
+  min-width:260px;
+  padding:12px;
+  border:1px solid #cbd5e1;
+  border-radius:10px;
+}
+.bsm-orders-search-v459 button,
+.bsm-orders-search-v459 a{
+  padding:12px 14px;
+  border-radius:10px;
+  border:0;
+  background:#2563eb;
+  color:#fff!important;
+  text-decoration:none;
+  font-weight:800;
+}
+.bsm-orders-stats-v459{
+  display:grid;
+  grid-template-columns:repeat(4,minmax(0,1fr));
+  gap:12px;
+  margin-bottom:16px;
+}
+.bsm-orders-stats-v459 div{
+  background:#fff;
+  border:1px solid #e5e7eb;
+  border-radius:14px;
+  padding:12px;
+}
+.bsm-orders-stats-v459 span{
+  display:block;
+  color:#64748b;
+  font-size:12px;
+  text-transform:uppercase;
+}
+.bsm-orders-stats-v459 strong{font-size:20px;}
+.bsm-orders-list-v459{display:grid;gap:12px;}
+.bsm-order-card-v459{
+  display:grid;
+  grid-template-columns:120px minmax(0,1fr) minmax(210px,320px);
+  gap:14px;
+  align-items:start;
+  background:#fff;
+  border:1px solid #e5e7eb;
+  border-radius:18px;
+  padding:14px;
+  box-shadow:0 8px 24px rgba(15,23,42,.05);
+}
+.bsm-order-thumb-v459{
+  width:120px;
+  height:78px;
+  background:#e5e7eb;
+  border-radius:12px;
+  overflow:hidden;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  color:#64748b;
+  font-size:12px;
+}
+.bsm-order-thumb-v459 img{width:100%;height:100%;object-fit:cover;}
+.bsm-order-meta-v459{color:#64748b;font-size:13px;margin-top:5px;line-height:1.45;}
+.bsm-order-pills-v459{display:flex;gap:8px;flex-wrap:wrap;margin-top:8px;}
+.bsm-order-pills-v459 span{
+  background:#ecfdf5;
+  border:1px solid #86efac;
+  color:#065f46;
+  border-radius:999px;
+  padding:4px 9px;
+  font-size:12px;
+  font-weight:800;
+}
+.bsm-order-pills-v459 span.blue{background:#eff6ff;border-color:#bfdbfe;color:#1e3a8a;}
+.bsm-order-pills-v459 span.orange{background:#fff7ed;border-color:#fed7aa;color:#9a3412;}
+.bsm-order-pills-v459 span.red{background:#fef2f2;border-color:#fecaca;color:#991b1b;}
+.bsm-order-actions-v459{display:grid;gap:8px;}
+.bsm-order-actions-v459 form{display:grid;gap:6px;}
+.bsm-order-actions-v459 button{
+  padding:10px 12px;
+  border:0;
+  border-radius:10px;
+  background:#2563eb;
+  color:#fff;
+  font-weight:800;
+}
+.bsm-order-actions-v459 button.danger{background:#dc2626;}
+.bsm-pagination-v459{
+  display:flex;
+  justify-content:center;
+  align-items:center;
+  gap:14px;
+  margin:20px 0;
+}
+.bsm-pagination-v459 a,
+.bsm-pagination-v459 span{
+  padding:10px 14px;
+  border-radius:10px;
+  background:#fff;
+  border:1px solid #e5e7eb;
+  text-decoration:none;
+}
+.bsm-empty-orders-v459{
+  background:#fff;
+  border:1px solid #e5e7eb;
+  border-radius:16px;
+  padding:18px;
+  color:#64748b;
+}
+@media(max-width:900px){
+  .bsm-orders-stats-v459{grid-template-columns:repeat(2,minmax(0,1fr));}
+  .bsm-order-card-v459{grid-template-columns:1fr;}
+  .bsm-order-thumb-v459{width:100%;height:180px;}
+}
+@media(max-width:850px){
+  .bsm-creator-page-shell-v459{grid-template-columns:1fr;}
+  .bsm-creator-sidebar-v459{position:relative;height:auto;}
+  .bsm-creator-main-v459{padding:12px;}
+}
+@media(max-width:520px){
+  .bsm-orders-stats-v459{grid-template-columns:1fr;}
+}

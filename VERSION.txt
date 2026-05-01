@@ -1,8 +1,9 @@
-BoatSpotMedia v45.8 Upload Real Fix With R2 Script
-Base: v45.7.
-Fix:
-- Keeps the original working upload form.
-- Keeps Batch name, Location and file chooser.
-- Keeps hidden price fields required by old JS, but removes visible price labels.
-- Explicitly includes static/js/r2_upload.js so Upload Batch works again.
-- Hides old internal sidebar/topbar; only new sidebar remains.
+BoatSpotMedia v45.9 Creator Orders Search Pagination
+Base: v45.8.
+Adds:
+- Orders/Sales paginated: 25 items per page.
+- Search by buyer email or order ID.
+- Keeps buyer email visible.
+- Shows thumbnail, package, status, price, date.
+- Keeps upload edited video and approve/reject discount actions.
+- Does not load thousands of sales at once.

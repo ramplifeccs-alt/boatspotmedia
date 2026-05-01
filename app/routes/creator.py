@@ -1672,6 +1672,149 @@ def _send_edited_ready_email_v447(to_email, order_id=None):
         return False
 
 
+
+def _bsm_creator_orders_v459(creator_id, page=1, q=""):
+    """
+    Creator Orders v45.9:
+    - pagination so creators with thousands of sales do not load everything
+    - search by buyer email and order id
+    - optional best-effort search by buyer first/last name if buyer tables/columns exist later
+    """
+    try:
+        page = max(1, int(page or 1))
+    except Exception:
+        page = 1
+
+    per_page = 25
+    offset = (page - 1) * per_page
+    q = (q or "").strip()
+
+    base_where = "WHERE i.creator_id = :creator_id"
+    params = {"creator_id": creator_id, "limit": per_page, "offset": offset}
+
+    search_sql = ""
+    if q:
+        params["q"] = f"%{q.lower()}%"
+        params["q_exact"] = q
+        # Email is the most reliable identifier. Order id is also supported.
+        search_sql = """
+          AND (
+            LOWER(COALESCE(o.buyer_email, '')) LIKE :q
+            OR CAST(o.id AS TEXT) = :q_exact
+          )
+        """
+
+    try:
+        count_row = db.session.execute(db.text(f"""
+            SELECT COUNT(*) AS total
+            FROM bsm_cart_order_item i
+            JOIN bsm_cart_order o ON o.id = i.cart_order_id
+            {base_where}
+            {search_sql}
+        """), params).mappings().first()
+        total = int(count_row.get("total") or 0)
+    except Exception as e:
+        db.session.rollback()
+        try: print("creator orders count warning v45.9:", e)
+        except Exception: pass
+        total = 0
+
+    try:
+        rows = db.session.execute(db.text(f"""
+            SELECT
+                i.*,
+                i.id AS item_id,
+                o.id AS order_id,
+                o.buyer_email,
+                o.status AS order_status,
+                o.created_at AS order_created_at,
+                v.location,
+                v.filename,
+                v.internal_filename,
+                v.thumbnail_path,
+                v.public_thumbnail_url,
+                v.r2_thumbnail_key
+            FROM bsm_cart_order_item i
+            JOIN bsm_cart_order o ON o.id = i.cart_order_id
+            LEFT JOIN video v ON v.id = i.video_id
+            {base_where}
+            {search_sql}
+            ORDER BY o.created_at DESC, i.id DESC
+            LIMIT :limit OFFSET :offset
+        """), params).mappings().all()
+    except Exception as e:
+        db.session.rollback()
+        try: print("creator orders page warning v45.9:", e)
+        except Exception: pass
+        rows = []
+
+    orders = []
+    gross_page = 0.0
+    pending_edits_page = 0
+    pending_discount_page = 0
+
+    for r in rows:
+        item = dict(r)
+        package = str(item.get("package") or "").lower()
+        delivery = str(item.get("delivery_status") or "").lower()
+        discount = str(item.get("discount_status") or "").lower()
+
+        item["is_edited"] = package in ["edited", "edit", "instagram_edit", "tiktok_edit", "reel_edit", "short_edit"]
+        item["is_bundle"] = package in ["bundle", "combo", "original_plus_edited", "original_edited", "original+edited", "original_edit"]
+        item["needs_edit"] = (item["is_edited"] or item["is_bundle"]) and delivery not in ["ready_to_download", "ready", "delivered"]
+        item["needs_discount"] = discount in ["pending_review", "pending", "awaiting_creator", "needs_approval"]
+
+        if item["is_bundle"]:
+            item["package_label"] = "Bundle: Original + Edited"
+        elif item["is_edited"]:
+            item["package_label"] = "Edited Video"
+        else:
+            item["package_label"] = "Original / Instant Download"
+
+        if item["needs_edit"]:
+            item["status_label"] = "Pending edit upload"
+            pending_edits_page += 1
+        elif item["needs_discount"]:
+            item["status_label"] = "Discount approval pending"
+            pending_discount_page += 1
+        elif delivery in ["ready_to_download", "ready", "delivered"]:
+            item["status_label"] = "Delivered / Ready"
+        else:
+            item["status_label"] = item.get("order_status") or "Paid"
+
+        try:
+            gross_page += float(item.get("unit_price") or 0) * int(item.get("quantity") or 1)
+        except Exception:
+            pass
+
+        thumb = item.get("public_thumbnail_url")
+        if not thumb:
+            key = item.get("thumbnail_path") or item.get("r2_thumbnail_key")
+            if key:
+                thumb = "/media/" + str(key).lstrip("/")
+        item["thumbnail_url"] = thumb
+
+        orders.append(item)
+
+    total_pages = max(1, (total + per_page - 1) // per_page)
+
+    return {
+        "orders": orders,
+        "q": q,
+        "page": page,
+        "per_page": per_page,
+        "total": total,
+        "total_pages": total_pages,
+        "has_prev": page > 1,
+        "has_next": page < total_pages,
+        "prev_page": max(1, page - 1),
+        "next_page": min(total_pages, page + 1),
+        "gross_page": gross_page,
+        "pending_edits_page": pending_edits_page,
+        "pending_discount_page": pending_discount_page,
+    }
+
+
 @creator_bp.route("/creator/batches/<int:batch_id>/safe-delete", methods=["POST"])
 def creator_safe_delete_batch_v442(batch_id):
     result = _bsm_safe_delete_batch_v442(batch_id)
@@ -3020,9 +3163,11 @@ def creator_reject_discount_v446(item_id):
 
 
 @creator_bp.route("/creator/orders")
-def creator_orders_page_v447():
-    data = _bsm_creator_orders_v447(_bsm_creator_id_v447())
-    return render_template("creator/orders.html", **data)
+def creator_orders_page_v459():
+    creator_id = session.get("creator_id") or session.get("user_id")
+    page = request.args.get("page", 1)
+    q = request.args.get("q", "")
+    return render_template("creator/orders.html", **_bsm_creator_orders_v459(creator_id, page, q))
 
 @creator_bp.route("/creator/order-item/<int:item_id>/upload-edited-v447", methods=["POST"])
 def creator_upload_edited_video_v447(item_id):

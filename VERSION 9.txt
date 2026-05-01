@@ -1,0 +1,8 @@
+BoatSpotMedia v45.6 Upload Clean + Submit Fix
+Base: v45.5.
+Fix:
+- Removes pricing fields from Upload page:
+  Original 4K price, Edited video price, Bundle price.
+- Keeps Batch name, Location, file chooser, original form/scripts/IDs.
+- Adds a small submit safeguard so Upload Batch submits the real upload form.
+- Does not touch backend/R2, Batches or Pricing.
