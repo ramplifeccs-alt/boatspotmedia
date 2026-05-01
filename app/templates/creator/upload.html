@@ -6,15 +6,15 @@
   <title>Uploads - BoatSpotMedia</title>
   <link rel="stylesheet" href="/static/css/style.css">
 </head>
-<body class="creator-dashboard-v453">
-<div class="bsm-creator-page-shell-v453">
+<body class="creator-dashboard-v454">
+<div class="bsm-creator-page-shell-v454">
   
-<aside class="bsm-creator-sidebar-v453">
-  <a href="/creator/dashboard" class="bsm-creator-logo-v453">
+<aside class="bsm-creator-sidebar-v454">
+  <a href="/creator/dashboard" class="bsm-creator-logo-v454">
     <img src="/static/img/logo-header.png" alt="BoatSpotMedia">
   </a>
-  <div class="bsm-creator-handle-v453">@BoatSpotMedia.com</div>
-  <nav class="bsm-creator-nav-v453">
+  <div class="bsm-creator-handle-v454">@BoatSpotMedia.com</div>
+  <nav class="bsm-creator-nav-v454">
     <a href="/creator/dashboard">Dashboard</a>
     <a href="/creator/upload" class="active">Uploads</a>
     <a href="/creator/batches">Batches</a>
@@ -26,8 +26,8 @@
   </nav>
 </aside>
 
-  <main class="bsm-creator-main-v453">
-    <div class="bsm-creator-module-wrap-v453">
+  <main class="bsm-creator-main-v454">
+    <div class="bsm-creator-module-wrap-v454">
 <div class="content">
     <h1>Upload Video Batch</h1>
 
@@ -42,41 +42,20 @@
       <p>Your videos upload directly to BoatSpotMedia secure storage. Keep original camera files for accurate date, time, and search results.</p>
       <p>Plan storage used: <strong>{{ used_gb }} GB</strong> / <strong>{{ limit_gb }} GB</strong></p>
       <p>Maximum per batch: {{ max_batch_gb|default(128) }} GB</strong></p>
-      <div class="progress-shell"></div>
+      <div class="progress-shell"><div class="progress-bar" style="width: {{ (used_bytes / limit_bytes * 100) if limit_bytes else 0 }}%"></div></div>
     </div>
 
     <div id="cancelUploadPanel" style="margin:12px 0;">
   <button type="button" id="cancelUploadBtn" style="display:none;background:#dc2626;color:#fff;border:0;border-radius:10px;padding:10px 14px;font-weight:700;">Cancel Upload</button>
   <span style="font-size:13px;color:#6b7280;margin-left:8px;">Use this if you selected the wrong files. It will stop the upload and remove this batch if it was created.</span>
 </div><form id="r2UploadForm" class="card">
-      <label>
-
-
-Batch name</label>
-      <input type="text" name="batch_name" placeholder="Example: Boca Raton Inlet - Sunday morning">
-
-      <label>Location</label>
-      <input type="text" name="location" list="locations" placeholder="Boca Raton Inlet" list="creator-location-list">
-      <datalist id="locations">
-        <option value="Boca Raton Inlet">
-        <option value="Hillsboro Inlet">
-        <option value="Boynton Inlet">
-        <option value="Haulover Inlet">
-        <option value="Port Everglades">
-      </datalist>
-
-      <div class="form-row">
-        <div>
-          <label>Original 4K price</label>
-          <input type="number" name="original_price" step="0.01" value="0">
+      
         </div>
         <div>
-          <label>Edited video price</label>
-          <input type="number" name="edited_price" step="0.01" value="0">
+          
         </div>
         <div>
-          <label>Bundle price</label>
-          <input type="number" name="bundle_price" step="0.01" value="0">
+          
         </div>
       </div>
 
@@ -90,10 +69,10 @@ Choose video files</label>
 
       <div id="progressBox" style="display:none;margin-top:16px;">
         <p id="progressText">Preparing upload...</p>
-        <div class="progress-shell"></div>
-        
+        <div class="progress-shell"><div id="uploadProgress" class="progress-bar" style="width:0%"></div></div>
+        <div id="fileProgressList"></div>
       </div>
-      
+      <div id="uploadResult"></div>
     <button type="button" id="cancelUploadBtn" style="display:none;background:#dc2626;color:#fff;border:0;border-radius:10px;padding:10px 14px;margin-left:8px;">Cancel Upload</button>
 <script>
 let boatspotCancelUpload=false; let boatspotCurrentBatchId=null;
@@ -102,6 +81,7 @@ document.addEventListener("click",function(e){if(e.target&&e.target.id==="cancel
   </div>
 </div>
 <script src="/static/js/mobile.js"></script>
+
     </div>
   </main>
 </div>
