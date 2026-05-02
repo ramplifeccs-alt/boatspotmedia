@@ -1,8 +1,8 @@
-BoatSpotMedia v46.8 Direct Edited R2 + Storage Recalc
-Base: v46.7.
-Fixes:
-- Buyer Download Edited Video uses direct public R2 URL from edited_r2_key.
-- Download route forces ?delivery=edited to resolve bsm_cart_order_item.id before original fallback.
-- Bundle original should not show Pending Approval unless discount_status is actually pending.
-- Storage used recalculates as original video file sizes + edited_file_size_bytes.
-- After edited upload/delete/mistake delete, storage is recalculated.
+BoatSpotMedia v46.9 REAL Edited Download + Storage Fix
+Base: v46.8.
+Real fixes after code review:
+- Replaced buyer/public _bsm_make_delivery_v443 so edited URL is not overwritten by /download-video original fallback.
+- Patched first registered download route v437. It now handles ?delivery=edited by order_item id before any original video lookup.
+- Original side of bundle no longer locks because edited side is pending_edit.
+- Buyer dashboard fallback uses order item id before video id.
+- Storage dashboard now counts original video file sizes + edited_file_size_bytes.

@@ -2084,7 +2084,7 @@ def _bsm_v466_download_timer_from_dt(start_dt):
 
 
 
-def _bsm_v468_recalc_creator_storage_usage(creator_id):
+def _recalculate_creator_storage(creator_id):
     """
     Recalculate storage used = original uploaded videos + edited delivery files.
     Updates storage_used_bytes or compatible storage usage column when it exists.
@@ -2808,11 +2808,26 @@ def _creator_storage_limit_bytes(creator):
 
 def _creator_used_storage_bytes(creator_id):
     from app.models import Video
-    total = db.session.query(db.func.coalesce(db.func.sum(Video.file_size_bytes), 0)).filter(
+    original_total = db.session.query(db.func.coalesce(db.func.sum(Video.file_size_bytes), 0)).filter(
         Video.creator_id == creator_id,
         db.or_(Video.status == None, ~Video.status.in_(["deleted", "cancelled", "canceled"]))
     ).scalar()
-    return int(total or 0)
+    edited_total = 0
+    try:
+        db.session.execute(db.text("ALTER TABLE bsm_cart_order_item ADD COLUMN IF NOT EXISTS edited_file_size_bytes BIGINT DEFAULT 0"))
+        db.session.commit()
+        row = db.session.execute(db.text("""
+            SELECT COALESCE(SUM(COALESCE(i.edited_file_size_bytes,0)),0) AS total
+            FROM bsm_cart_order_item i
+            LEFT JOIN video v ON v.id = i.video_id
+            WHERE (i.creator_id = :creator_id OR v.creator_id = :creator_id)
+              AND COALESCE(i.edited_r2_key, '') <> ''
+        """), {"creator_id": creator_id}).mappings().first()
+        edited_total = int(row.get("total") or 0)
+    except Exception:
+        db.session.rollback()
+    return int(original_total or 0) + int(edited_total or 0)
+
 
 @creator_bp.route("/upload", methods=["GET"])
 def upload():
@@ -3908,7 +3923,7 @@ def creator_upload_edited_video_v463(item_id):
         except Exception: pass
         return "Edited video uploaded but order status could not be updated", 500
 
-    _bsm_v468_recalc_creator_storage_usage(creator_id)
+    _recalculate_creator_storage(creator_id)
     sent = _bsm_v463_send_edited_ready_email(row.get("buyer_email"), row.get("order_id"))
 
     try:
@@ -4033,7 +4048,7 @@ def creator_edited_upload_complete_v464(item_id):
         return jsonify({"ok": False, "error": "Could not save edited delivery"}), 500
 
     try:
-        _bsm_v468_recalc_creator_storage_usage(creator_id)
+        _recalculate_creator_storage(creator_id)
     except Exception:
         pass
 
@@ -4115,7 +4130,7 @@ def creator_delete_edited_video_v464(item_id):
             db.session.rollback()
 
     # v468 recalc storage after delete
-    _bsm_v468_recalc_creator_storage_usage(creator_id)
+    _recalculate_creator_storage(creator_id)
     try: flash("Edited video deleted after expiration.")
     except Exception: pass
     return redirect(request.referrer or "/creator/orders")
@@ -4205,7 +4220,7 @@ def creator_delete_edited_mistake_v467(item_id):
         except Exception:
             db.session.rollback()
 
-    _bsm_v468_recalc_creator_storage_usage(creator_id)
+    _recalculate_creator_storage(creator_id)
     try:
         flash("Edited video deleted and reset to Pending Edit. You can upload the correct edited video now.")
     except Exception:

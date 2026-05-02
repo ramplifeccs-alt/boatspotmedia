@@ -477,35 +477,36 @@ def _bsm_public_r2_url_v468(key):
     return ""
 
 
+
 def _bsm_make_delivery_v443(ix, delivery_type, order_created_at=None):
     """
-    delivery_type: original or edited
+    Build buyer delivery rows.
+    Edited delivery must use edited_r2_key public R2 URL and must not be overwritten.
+    Original side of a bundle must remain downloadable even if edited side is pending_edit.
     """
     delivery = dict(ix)
-    # v468 direct edited r2 url
-    delivery["item_id"] = delivery.get("item_id") or delivery.get("id") or delivery.get("order_item_id")
-    if delivery_type == "edited" and delivery.get("edited_r2_key"):
-        direct_edited_url_v468 = _bsm_public_r2_url_v468(delivery.get("edited_r2_key"))
-        if direct_edited_url_v468:
-            delivery["download_url"] = direct_edited_url_v468
-            delivery["download_locked"] = False
-            delivery["status_label"] = "Ready"
-    delivery["item_id"] = delivery.get("item_id") or delivery.get("id")
+    delivery["item_id"] = delivery.get("item_id") or delivery.get("order_item_id") or delivery.get("id")
     delivery["delivery_type"] = delivery_type
     delivery["delivery_label"] = "Edited Version" if delivery_type == "edited" else "Original Clip / Instant Download"
 
-    # For edited bundle, mark pending until edited upload is ready.
+    discount_status = str(delivery.get("discount_status") or "").lower()
+    delivery_status = str(delivery.get("delivery_status") or "").lower()
+
     if delivery_type == "edited":
-        # v466 edited delivery url fix
-        ready = bool(delivery.get("edited_r2_key")) and str(delivery.get("delivery_status") or "").lower() in ["ready_to_download", "ready", "delivered"]
-        delivery["download_locked"] = not ready or bool(delivery.get("download_locked"))
-        delivery["download_url"] = None if delivery["download_locked"] else "/download-video/" + str(delivery.get("id") or delivery.get("item_id") or delivery.get("order_item_id") or delivery.get("video_id")) + "?delivery=edited"
+        ready = bool(delivery.get("edited_r2_key")) and delivery_status in ["ready_to_download", "ready", "delivered"]
+        delivery["download_locked"] = not ready
+        if ready:
+            delivery["download_url"] = _bsm_public_r2_url_v468(delivery.get("edited_r2_key"))
+            delivery["status_label"] = "Ready"
+        else:
+            delivery["download_url"] = None
+            delivery["status_label"] = "Pending edit"
         timer = _bsm_download_timer_v441(delivery, order_created_at) if "_bsm_download_timer_v441" in globals() else _bsm_download_timer_v442(delivery, order_created_at)
     else:
-        # original side of bundle is downloadable immediately unless discount approval locks it
-        delivery["download_locked"] = bool(delivery.get("download_locked")) or str(delivery.get("discount_status") or "").lower() in ["pending_review","pending","awaiting_creator","needs_approval"]
-        delivery["download_url"] = None if delivery["download_locked"] else "/download-video/" + str(delivery.get("id") or delivery.get("item_id") or delivery.get("order_item_id") or delivery.get("video_id")) + ("?delivery=edited" if delivery_type == "edited" else "?delivery=original")
-        # Force original package for timer from order created_at
+        locked_by_discount = discount_status in ["pending_review", "pending", "awaiting_creator", "needs_approval"]
+        delivery["download_locked"] = bool(locked_by_discount)
+        delivery["download_url"] = None if delivery["download_locked"] else "/download-video/" + str(delivery.get("item_id") or delivery.get("id") or delivery.get("video_id")) + "?delivery=original"
+        delivery["status_label"] = "Pending approval" if locked_by_discount else "Ready"
         delivery["package"] = "original"
         timer = _bsm_download_timer_v441(delivery, order_created_at) if "_bsm_download_timer_v441" in globals() else _bsm_download_timer_v442(delivery, order_created_at)
 
@@ -515,6 +516,7 @@ def _bsm_make_delivery_v443(ix, delivery_type, order_created_at=None):
     if delivery["download_expired"]:
         delivery["download_url"] = None
     return delivery
+
 
 def _bsm_group_order_items_for_display_v443(order_items, order_created_at=None):
     """

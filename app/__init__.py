@@ -59,6 +59,14 @@ def create_app():
 
 
     # BoatSpotMedia v43.7 create_app R2 presigned download routes
+
+    def _bsm_public_r2_url_v469(key):
+        import os
+        base = (os.environ.get("R2_PUBLIC_URL") or os.environ.get("R2_PUBLIC_BASE_URL") or "").strip().rstrip("/")
+        if base and key:
+            return base + "/" + str(key).lstrip("/")
+        return None
+
     def _bsm_download_video_v437(video_ref):
         from flask import session, redirect, request
         import os
@@ -75,6 +83,32 @@ def create_app():
 
         uid = session.get("user_id")
         email = (session.get("user_email") or "").lower()
+
+        # v469 edited download must resolve order item before original video fallback
+        try:
+            if str(request.args.get("delivery") or "").lower() == "edited":
+                edited_item = db.session.execute(db.text("""
+                    SELECT i.edited_r2_key, i.delivery_status
+                    FROM bsm_cart_order_item i
+                    JOIN bsm_cart_order o ON o.id = i.cart_order_id
+                    WHERE i.id = :ref
+                      AND (
+                            o.buyer_user_id = :uid
+                            OR lower(coalesce(o.buyer_email,'')) = lower(:email)
+                          )
+                    LIMIT 1
+                """), {"ref": ref, "uid": uid or 0, "email": email}).mappings().first()
+                if edited_item and edited_item.get("edited_r2_key"):
+                    edited_url = _bsm_public_r2_url_v469(edited_item.get("edited_r2_key"))
+                    if edited_url:
+                        return redirect(edited_url)
+                return "This edited video is not ready for download yet.", 404
+        except Exception as e:
+            try:
+                db.session.rollback()
+                print("v469 edited download early warning:", e)
+            except Exception:
+                pass
 
         try:
             db.session.execute(db.text("ALTER TABLE bsm_cart_order ADD COLUMN IF NOT EXISTS buyer_user_id INTEGER"))
@@ -236,6 +270,33 @@ def create_app():
 
         uid = session.get("user_id")
         email = (session.get("user_email") or "").lower()
+
+
+        # v469 edited download must resolve order item before original video fallback
+        try:
+            if str(request.args.get("delivery") or "").lower() == "edited":
+                edited_item = db.session.execute(db.text("""
+                    SELECT i.edited_r2_key, i.delivery_status
+                    FROM bsm_cart_order_item i
+                    JOIN bsm_cart_order o ON o.id = i.cart_order_id
+                    WHERE i.id = :ref
+                      AND (
+                            o.buyer_user_id = :uid
+                            OR lower(coalesce(o.buyer_email,'')) = lower(:email)
+                          )
+                    LIMIT 1
+                """), {"ref": ref, "uid": uid or 0, "email": email}).mappings().first()
+                if edited_item and edited_item.get("edited_r2_key"):
+                    edited_url = _bsm_public_r2_url_v469(edited_item.get("edited_r2_key"))
+                    if edited_url:
+                        return redirect(edited_url)
+                return "This edited video is not ready for download yet.", 404
+        except Exception as e:
+            try:
+                db.session.rollback()
+                print("v469 edited download early warning:", e)
+            except Exception:
+                pass
 
         try:
             db.session.execute(db.text("ALTER TABLE bsm_cart_order ADD COLUMN IF NOT EXISTS buyer_user_id INTEGER"))
