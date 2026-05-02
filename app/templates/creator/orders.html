@@ -81,10 +81,16 @@
 
               <div class="bsm-order-actions-v459">
                 {% if sale.needs_edit %}
-                  <form method="POST" action="/creator/order-item/{{ sale.item_id }}/upload-edited-v463" enctype="multipart/form-data">
+                  
+                  <form class="bsm-edited-upload-form-v464" data-item-id="{{ sale.item_id }}">
                     <input type="file" name="edited_video" accept="video/*" required>
                     <button type="submit">Upload Edited Video</button>
+                    <div class="bsm-upload-progress-v464" style="display:none;">
+                      <div class="bar"><span></span></div>
+                      <small>Preparing upload...</small>
+                    </div>
                   </form>
+    
                 {% endif %}
 
                 {% if sale.needs_discount %}
@@ -93,6 +99,12 @@
                   </form>
                   <form method="POST" action="/creator/order-item/{{ sale.item_id }}/reject-discount-v447">
                     <button type="submit" class="danger">Reject Discount</button>
+                  </form>
+                {% endif %}
+
+                {% if sale.has_edited_file and sale.edited_can_delete %}
+                  <form method="POST" action="/creator/order-item/{{ sale.item_id }}/delete-edited" onsubmit="return confirm('Delete this edited video from storage? This is only allowed after the 72-hour download window.');">
+                    <button type="submit" class="danger">Delete Expired Edited Video</button>
                   </form>
                 {% endif %}
               </div>
@@ -127,5 +139,95 @@
     </div>
   </main>
 </div>
+
+<script>
+(function bsmEditedUploadV464(){
+  function setProgress(box, percent, text){
+    if(!box) return;
+    box.style.display = 'block';
+    const span = box.querySelector('.bar span');
+    const small = box.querySelector('small');
+    if(span) span.style.width = Math.max(0, Math.min(100, percent)) + '%';
+    if(small) small.textContent = text || (percent + '%');
+  }
+
+  document.addEventListener('submit', async function(e){
+    const form = e.target.closest('.bsm-edited-upload-form-v464');
+    if(!form) return;
+
+    e.preventDefault();
+
+    const itemId = form.getAttribute('data-item-id');
+    const input = form.querySelector('input[type="file"]');
+    const button = form.querySelector('button[type="submit"]');
+    const progress = form.querySelector('.bsm-upload-progress-v464');
+    const file = input && input.files && input.files[0];
+
+    if(!file){
+      alert('Please select an edited video file.');
+      return;
+    }
+
+    if(button) button.disabled = true;
+    setProgress(progress, 1, 'Preparing upload...');
+
+    try{
+      const presignRes = await fetch('/creator/order-item/' + itemId + '/edited-upload-url', {
+        method: 'POST',
+        headers: {'Content-Type':'application/json'},
+        body: JSON.stringify({
+          filename: file.name,
+          content_type: file.type || 'video/mp4',
+          file_size: file.size
+        })
+      });
+      const presign = await presignRes.json();
+      if(!presign.ok){
+        throw new Error(presign.error || 'Could not prepare upload.');
+      }
+
+      await new Promise(function(resolve, reject){
+        const xhr = new XMLHttpRequest();
+        xhr.open('PUT', presign.upload_url, true);
+        xhr.setRequestHeader('Content-Type', presign.content_type || file.type || 'video/mp4');
+        xhr.upload.onprogress = function(evt){
+          if(evt.lengthComputable){
+            const pct = Math.round((evt.loaded / evt.total) * 100);
+            setProgress(progress, pct, 'Uploading... ' + pct + '%');
+          }
+        };
+        xhr.onload = function(){
+          if(xhr.status >= 200 && xhr.status < 300) resolve();
+          else reject(new Error('R2 upload failed: HTTP ' + xhr.status));
+        };
+        xhr.onerror = function(){ reject(new Error('Network error during upload.')); };
+        xhr.send(file);
+      });
+
+      setProgress(progress, 100, 'Saving delivery...');
+      const completeRes = await fetch('/creator/order-item/' + itemId + '/edited-upload-complete', {
+        method:'POST',
+        headers:{'Content-Type':'application/json'},
+        body: JSON.stringify({
+          r2_key: presign.r2_key,
+          file_size: file.size
+        })
+      });
+      const complete = await completeRes.json();
+      if(!complete.ok){
+        throw new Error(complete.error || 'Could not save delivery.');
+      }
+
+      setProgress(progress, 100, complete.message || 'Done.');
+      setTimeout(function(){ window.location.reload(); }, 900);
+    }catch(err){
+      alert(err.message || 'Upload failed.');
+      setProgress(progress, 0, 'Upload failed.');
+      if(button) button.disabled = false;
+    }
+  });
+})();
+</script>
+
 </body>
 </html>

@@ -2007,6 +2007,45 @@ def _bsm_v463_send_edited_ready_email(to_email, order_id=None):
         return False
 
 
+
+def _bsm_v464_get_r2_public_url_for_key(key):
+    import os
+    base = (os.environ.get("R2_PUBLIC_URL") or os.environ.get("R2_PUBLIC_BASE_URL") or "").strip().rstrip("/")
+    if base and key:
+        return base + "/" + str(key).lstrip("/")
+    return ""
+
+
+def _bsm_v464_edited_expired(row):
+    """
+    Edited files can be removed by creator after 72 hours from edited_uploaded_at.
+    """
+    try:
+        from datetime import datetime, timezone, timedelta
+        uploaded_at = row.get("edited_uploaded_at") if hasattr(row, "get") else None
+        if not uploaded_at:
+            return False
+        if getattr(uploaded_at, "tzinfo", None) is None:
+            uploaded_at = uploaded_at.replace(tzinfo=timezone.utc)
+        return datetime.now(timezone.utc) >= uploaded_at + timedelta(hours=72)
+    except Exception:
+        return False
+
+
+def _bsm_v464_presigned_put_url(bucket, key, content_type):
+    from app.services.r2 import r2_client
+    client = r2_client()
+    return client.generate_presigned_url(
+        "put_object",
+        Params={
+            "Bucket": bucket,
+            "Key": key,
+            "ContentType": content_type or "video/mp4",
+        },
+        ExpiresIn=60 * 30,
+    )
+
+
 @creator_bp.route("/creator/batches/<int:batch_id>/safe-delete", methods=["POST"])
 def creator_safe_delete_batch_v442(batch_id):
     result = _bsm_safe_delete_batch_v442(batch_id)
@@ -2414,6 +2453,8 @@ def _bsm_creator_orders_data_v461(creator_id, page=1, q=""):
                 thumb = "/media/" + str(key).lstrip("/")
         item["thumbnail_url"] = thumb
         item["display_filename"] = item.get("filename") or item.get("internal_filename") or ("Video #" + str(item.get("video_id") or ""))
+        item["edited_can_delete"] = _bsm_v464_edited_expired(item) if item.get("edited_r2_key") else False
+        item["has_edited_file"] = bool(item.get("edited_r2_key"))
         orders.append(item)
 
     # Fallback old ORM order_item table, only when modern table has no rows for this query/page.
@@ -3785,4 +3826,205 @@ def creator_upload_edited_video_v463(item_id):
         flash("Edited video uploaded. Buyer download is now active." + (" Email sent." if sent else " Email not sent; check SendGrid."))
     except Exception:
         pass
+    return redirect(request.referrer or "/creator/orders")
+
+
+
+@creator_bp.route("/order-item/<int:item_id>/edited-upload-url", methods=["POST"], endpoint="edited_upload_url_v464")
+def creator_edited_upload_url_v464(item_id):
+    creator = current_creator()
+    creator_id = creator.id if creator else None
+
+    payload = request.get_json(silent=True) or {}
+    filename = payload.get("filename") or "edited_video.mp4"
+    content_type = payload.get("content_type") or "video/mp4"
+    file_size = int(payload.get("file_size") or 0)
+
+    try:
+        row = db.session.execute(db.text("""
+            SELECT i.*, o.buyer_email, o.id AS order_id
+            FROM bsm_cart_order_item i
+            JOIN bsm_cart_order o ON o.id = i.cart_order_id
+            WHERE i.id=:item_id
+            LIMIT 1
+        """), {"item_id": item_id}).mappings().first()
+    except Exception:
+        db.session.rollback()
+        row = None
+
+    if not row:
+        return jsonify({"ok": False, "error": "Order item not found"}), 404
+
+    try:
+        check = db.session.execute(db.text("""
+            SELECT creator_id
+            FROM video
+            WHERE id=:video_id
+            LIMIT 1
+        """), {"video_id": row.get("video_id")}).mappings().first()
+        video_creator_id = check.get("creator_id") if check else None
+    except Exception:
+        db.session.rollback()
+        video_creator_id = None
+
+    if creator_id and row.get("creator_id") and int(row.get("creator_id")) != int(creator_id) and str(video_creator_id) != str(creator_id):
+        return jsonify({"ok": False, "error": "Not authorized"}), 403
+
+    storage = _bsm_v463_get_creator_storage_status(creator_id) if "_bsm_v463_get_creator_storage_status" in globals() else {"used": 0, "limit": None}
+    if storage.get("limit") is not None and storage.get("used", 0) + file_size > storage.get("limit"):
+        return jsonify({"ok": False, "error": "Storage limit reached. Upgrade your plan or delete expired/unneeded videos before uploading this edited delivery."}), 400
+
+    import re as _re
+    import uuid
+    safe_name = _re.sub(r"[^A-Za-z0-9_.-]+", "_", filename)
+    key = f"edited/creators/{creator_id}/orders/{row.get('order_id')}/items/{item_id}/{uuid.uuid4().hex}_{safe_name}"
+
+    try:
+        from app.services.r2 import _bucket_name
+        bucket = _bucket_name()
+        upload_url = _bsm_v464_presigned_put_url(bucket, key, content_type)
+    except Exception as e:
+        try: print("edited presign warning v46.4:", e)
+        except Exception: pass
+        return jsonify({"ok": False, "error": "Could not create R2 upload link"}), 500
+
+    return jsonify({
+        "ok": True,
+        "upload_url": upload_url,
+        "r2_key": key,
+        "content_type": content_type,
+        "file_size": file_size,
+    })
+
+
+@creator_bp.route("/order-item/<int:item_id>/edited-upload-complete", methods=["POST"], endpoint="edited_upload_complete_v464")
+def creator_edited_upload_complete_v464(item_id):
+    creator = current_creator()
+    creator_id = creator.id if creator else None
+    payload = request.get_json(silent=True) or {}
+    key = (payload.get("r2_key") or "").strip()
+    file_size = int(payload.get("file_size") or 0)
+
+    if not key:
+        return jsonify({"ok": False, "error": "Missing R2 key"}), 400
+
+    try:
+        row = db.session.execute(db.text("""
+            SELECT i.*, o.buyer_email, o.id AS order_id
+            FROM bsm_cart_order_item i
+            JOIN bsm_cart_order o ON o.id = i.cart_order_id
+            WHERE i.id=:item_id
+            LIMIT 1
+        """), {"item_id": item_id}).mappings().first()
+    except Exception:
+        db.session.rollback()
+        row = None
+
+    if not row:
+        return jsonify({"ok": False, "error": "Order item not found"}), 404
+
+    try:
+        db.session.execute(db.text("ALTER TABLE bsm_cart_order_item ADD COLUMN IF NOT EXISTS edited_r2_key TEXT"))
+        db.session.execute(db.text("ALTER TABLE bsm_cart_order_item ADD COLUMN IF NOT EXISTS edited_uploaded_at TIMESTAMP"))
+        db.session.execute(db.text("ALTER TABLE bsm_cart_order_item ADD COLUMN IF NOT EXISTS edited_file_size_bytes BIGINT DEFAULT 0"))
+        db.session.execute(db.text("""
+            UPDATE bsm_cart_order_item
+            SET edited_r2_key=:key,
+                edited_file_size_bytes=:file_size,
+                delivery_status='ready_to_download',
+                edited_uploaded_at=CURRENT_TIMESTAMP,
+                creator_id=COALESCE(creator_id, :creator_id)
+            WHERE id=:item_id
+        """), {"key": key, "file_size": file_size, "creator_id": creator_id, "item_id": item_id})
+        db.session.commit()
+    except Exception as e:
+        db.session.rollback()
+        try: print("edited upload complete DB warning v46.4:", e)
+        except Exception: pass
+        return jsonify({"ok": False, "error": "Could not save edited delivery"}), 500
+
+    try:
+        _bsm_v463_add_creator_storage_usage(creator_id, file_size)
+    except Exception:
+        pass
+
+    sent = False
+    try:
+        sent = _bsm_v463_send_edited_ready_email(row.get("buyer_email"), row.get("order_id"))
+    except Exception:
+        sent = False
+
+    return jsonify({"ok": True, "email_sent": bool(sent), "message": "Edited video uploaded. Buyer download is now active."})
+
+
+@creator_bp.route("/order-item/<int:item_id>/delete-edited", methods=["POST"], endpoint="delete_edited_v464")
+def creator_delete_edited_video_v464(item_id):
+    creator = current_creator()
+    creator_id = creator.id if creator else None
+
+    try:
+        row = db.session.execute(db.text("""
+            SELECT i.*, o.id AS order_id
+            FROM bsm_cart_order_item i
+            JOIN bsm_cart_order o ON o.id = i.cart_order_id
+            WHERE i.id=:item_id
+            LIMIT 1
+        """), {"item_id": item_id}).mappings().first()
+    except Exception:
+        db.session.rollback()
+        row = None
+
+    if not row:
+        return "Order item not found", 404
+
+    if not row.get("edited_r2_key"):
+        try: flash("No edited video found for this order item.")
+        except Exception: pass
+        return redirect(request.referrer or "/creator/orders")
+
+    if not _bsm_v464_edited_expired(row):
+        try: flash("This edited video cannot be deleted yet. Wait until the 72-hour download window has expired.")
+        except Exception: pass
+        return redirect(request.referrer or "/creator/orders")
+
+    key = row.get("edited_r2_key")
+    size = int(row.get("edited_file_size_bytes") or 0)
+
+    try:
+        from app.services.r2 import r2_client, _bucket_name
+        r2_client().delete_object(Bucket=_bucket_name(), Key=key)
+    except Exception as e:
+        try: print("delete edited r2 warning v46.4:", e)
+        except Exception: pass
+
+    try:
+        db.session.execute(db.text("""
+            UPDATE bsm_cart_order_item
+            SET edited_r2_key=NULL,
+                edited_file_size_bytes=0,
+                delivery_status='edited_deleted_after_expiration'
+            WHERE id=:item_id
+        """), {"item_id": item_id})
+        db.session.commit()
+    except Exception as e:
+        db.session.rollback()
+        try: print("delete edited DB warning v46.4:", e)
+        except Exception: pass
+        return "Edited file deleted from R2 but DB update failed", 500
+
+    # subtract storage if a storage usage column exists
+    for col in ["storage_used_bytes", "used_storage_bytes", "storage_bytes_used", "storage_used"]:
+        try:
+            db.session.execute(db.text(f"""
+                UPDATE creator_profile
+                SET {col} = GREATEST(COALESCE({col}, 0) - :size, 0)
+                WHERE id=:creator_id
+            """), {"size": size, "creator_id": creator_id})
+            db.session.commit()
+            break
+        except Exception:
+            db.session.rollback()
+
+    try: flash("Edited video deleted after expiration.")
+    except Exception: pass
     return redirect(request.referrer or "/creator/orders")

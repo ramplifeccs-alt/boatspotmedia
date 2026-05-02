@@ -1,9 +1,10 @@
-BoatSpotMedia v46.3 Creator Filename + Pending Edits + Storage
-Base: v46.2.
+BoatSpotMedia v46.4 Edited Upload Progress + Background + Delete
+Base: v46.3.
 Adds:
-- Creator Orders shows filename explicitly.
-- Adds /creator/pending-edits filtered panel.
-- Upload Edited Video route v46.3 stores edited file in R2.
-- Edited uploads activate buyer download and send SendGrid email.
-- Edited uploaded file size is saved on order item and added to creator storage usage when storage column exists.
-- Basic storage limit check before uploading edited video.
+- Edited video upload uses direct-to-R2 presigned PUT from browser.
+- Upload progress bar for edited deliveries.
+- Page no longer freezes during edited upload.
+- Backend only marks delivery complete after R2 upload finishes.
+- Buyer download activates and email sends after completion.
+- Edited file size counts against creator storage.
+- Creator can delete edited video after 72-hour download window expires.
