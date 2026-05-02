@@ -2130,6 +2130,129 @@ def _recalculate_creator_storage(creator_id):
     return total
 
 
+
+# v47.2 Creator billing/subscriptions
+def _bsm_creator_plans_v472():
+    import os
+    return [
+        {"key":"free","name":"Free","price_label":"$0/mo","storage_gb":int(os.environ.get("CREATOR_FREE_STORAGE_GB","5")),"price_id":""},
+        {"key":"starter","name":"Starter","price_label":os.environ.get("CREATOR_STARTER_PRICE_LABEL","$19/mo"),"storage_gb":int(os.environ.get("CREATOR_STARTER_STORAGE_GB","100")),"price_id":os.environ.get("STRIPE_PRICE_CREATOR_STARTER","")},
+        {"key":"pro","name":"Pro","price_label":os.environ.get("CREATOR_PRO_PRICE_LABEL","$49/mo"),"storage_gb":int(os.environ.get("CREATOR_PRO_STORAGE_GB","512")),"price_id":os.environ.get("STRIPE_PRICE_CREATOR_PRO","")},
+        {"key":"studio","name":"Studio","price_label":os.environ.get("CREATOR_STUDIO_PRICE_LABEL","$149/mo"),"storage_gb":int(os.environ.get("CREATOR_STUDIO_STORAGE_GB","2048")),"price_id":os.environ.get("STRIPE_PRICE_CREATOR_STUDIO","")},
+    ]
+
+def _bsm_ensure_creator_subscription_table_v472():
+    try:
+        db.session.execute(db.text("""
+            CREATE TABLE IF NOT EXISTS creator_subscription (
+              id SERIAL PRIMARY KEY,
+              creator_id INTEGER UNIQUE NOT NULL,
+              plan_key TEXT NOT NULL DEFAULT 'free',
+              status TEXT NOT NULL DEFAULT 'active',
+              storage_limit_gb INTEGER NOT NULL DEFAULT 5,
+              stripe_customer_id TEXT,
+              stripe_subscription_id TEXT,
+              current_period_end TIMESTAMP,
+              cancel_at_period_end BOOLEAN DEFAULT FALSE,
+              created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+              updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            )
+        """))
+        db.session.commit()
+    except Exception:
+        db.session.rollback()
+
+def _bsm_get_creator_subscription_v472(creator_id):
+    _bsm_ensure_creator_subscription_table_v472()
+    row=None
+    try:
+        row=db.session.execute(db.text("SELECT * FROM creator_subscription WHERE creator_id=:cid LIMIT 1"),{"cid":creator_id}).mappings().first()
+    except Exception:
+        db.session.rollback()
+    if not row:
+        free=_bsm_creator_plans_v472()[0]
+        try:
+            db.session.execute(db.text("""
+                INSERT INTO creator_subscription (creator_id, plan_key, status, storage_limit_gb)
+                VALUES (:cid,'free','active',:gb)
+                ON CONFLICT (creator_id) DO NOTHING
+            """),{"cid":creator_id,"gb":free["storage_gb"]})
+            db.session.commit()
+            row=db.session.execute(db.text("SELECT * FROM creator_subscription WHERE creator_id=:cid LIMIT 1"),{"cid":creator_id}).mappings().first()
+        except Exception:
+            db.session.rollback()
+    return dict(row) if row else {"creator_id":creator_id,"plan_key":"free","status":"active","storage_limit_gb":5}
+
+def _bsm_sync_creator_storage_limit_v472(creator_id, gb):
+    for col in ["storage_limit_gb","storage_gb","max_storage_gb"]:
+        try:
+            db.session.execute(db.text(f"UPDATE creator_profile SET {col}=:gb WHERE id=:cid"),{"gb":int(gb),"cid":creator_id})
+            db.session.commit(); break
+        except Exception: db.session.rollback()
+    for col in ["storage_limit_bytes","storage_quota_bytes","max_storage_bytes"]:
+        try:
+            db.session.execute(db.text(f"UPDATE creator_profile SET {col}=:b WHERE id=:cid"),{"b":int(gb)*1024*1024*1024,"cid":creator_id})
+            db.session.commit(); break
+        except Exception: db.session.rollback()
+
+def _bsm_subscription_allows_upload_v472(creator_id):
+    sub=_bsm_get_creator_subscription_v472(creator_id)
+    if str(sub.get("plan_key","free")).lower()=="free":
+        return True
+    return str(sub.get("status","")).lower() in ["active","trialing"]
+
+@creator_bp.route("/billing", endpoint="billing_v472")
+def creator_billing_v472():
+    c=current_creator()
+    if not c: return redirect("/creator/login")
+    sub=_bsm_get_creator_subscription_v472(c.id)
+    used=0
+    try: used=_creator_used_storage_bytes(c.id)
+    except Exception: used=0
+    return render_template("creator/billing.html", plans=_bsm_creator_plans_v472(), subscription=sub, used_bytes=used, used_gb=round(float(used or 0)/1024/1024/1024,2))
+
+@creator_bp.route("/billing/checkout/<plan_key>", methods=["POST"], endpoint="billing_checkout_v472")
+def creator_billing_checkout_v472(plan_key):
+    c=current_creator()
+    if not c: return redirect("/creator/login")
+    plan=next((p for p in _bsm_creator_plans_v472() if p["key"]==plan_key), None)
+    if not plan:
+        flash("Invalid plan."); return redirect("/creator/billing")
+    if plan_key=="free":
+        _bsm_get_creator_subscription_v472(c.id)
+        try:
+            db.session.execute(db.text("UPDATE creator_subscription SET plan_key='free', status='active', storage_limit_gb=:gb, updated_at=CURRENT_TIMESTAMP WHERE creator_id=:cid"),{"gb":plan["storage_gb"],"cid":c.id})
+            db.session.commit()
+            _bsm_sync_creator_storage_limit_v472(c.id, plan["storage_gb"])
+            flash("Free plan activated.")
+        except Exception: db.session.rollback()
+        return redirect("/creator/billing")
+    if not plan.get("price_id"):
+        flash("This plan is missing its Stripe Price ID in Railway variables.")
+        return redirect("/creator/billing")
+    try:
+        import os, stripe
+        stripe.api_key=os.environ.get("STRIPE_SECRET_KEY")
+        base=(os.environ.get("PUBLIC_BASE_URL") or os.environ.get("BASE_URL") or "https://boatspotmedia.com").rstrip("/")
+        sub=_bsm_get_creator_subscription_v472(c.id)
+        checkout=stripe.checkout.Session.create(
+            mode="subscription",
+            payment_method_types=["card"],
+            line_items=[{"price":plan["price_id"],"quantity":1}],
+            success_url=base+"/creator/billing?subscription=success&session_id={CHECKOUT_SESSION_ID}",
+            cancel_url=base+"/creator/billing?subscription=cancelled",
+            customer=sub.get("stripe_customer_id") or None,
+            client_reference_id=str(c.id),
+            metadata={"billing_type":"creator_subscription","creator_id":str(c.id),"plan_key":plan_key,"storage_limit_gb":str(plan["storage_gb"])},
+            subscription_data={"metadata":{"billing_type":"creator_subscription","creator_id":str(c.id),"plan_key":plan_key,"storage_limit_gb":str(plan["storage_gb"])}}
+        )
+        return redirect(checkout.url, code=303)
+    except Exception as e:
+        print("creator billing checkout warning v47.2:", e)
+        flash("Stripe checkout failed. Check Stripe keys and Price IDs.")
+        return redirect("/creator/billing")
+
+
 @creator_bp.route("/creator/batches/<int:batch_id>/safe-delete", methods=["POST"])
 def creator_safe_delete_batch_v442(batch_id):
     result = _bsm_safe_delete_batch_v442(batch_id)
@@ -2836,6 +2959,14 @@ def _creator_used_storage_bytes(creator_id):
 
 @creator_bp.route("/upload", methods=["GET"])
 def upload():
+    # v472 subscription upload guard
+    try:
+        c=current_creator()
+        if c and not _bsm_subscription_allows_upload_v472(c.id):
+            flash("Your subscription is not active. Please update billing before uploading.")
+            return redirect("/creator/billing")
+    except Exception:
+        pass
     _ensure_creator_profile_deleted_column()
     creator = current_creator()
     if not creator:

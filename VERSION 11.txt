@@ -1,0 +1,7 @@
+BoatSpotMedia v47.0 Creator Orders Real Sections
+Base: v46.9.
+Fix:
+- Instant Downloads section now renders only instant/original orders.
+- Edited Videos section now renders only edited and bundle orders.
+- Pending Edited Videos and Ready to Delete still show filtered lists.
+- Search and pagination remain active.

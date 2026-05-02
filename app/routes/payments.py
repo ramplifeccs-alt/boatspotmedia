@@ -476,6 +476,52 @@ def _bsm_fix_order_item_creator_id_v460(order_id=None):
             pass
 
 
+
+# v47.2 creator subscription webhook helper
+def _bsm_creator_apply_subscription_v472(creator_id, plan_key, status, stripe_customer_id=None, stripe_subscription_id=None, current_period_end=0, storage_limit_gb=5, cancel_at_period_end=False):
+    try:
+        db.session.execute(db.text("""
+            CREATE TABLE IF NOT EXISTS creator_subscription (
+              id SERIAL PRIMARY KEY, creator_id INTEGER UNIQUE NOT NULL, plan_key TEXT NOT NULL DEFAULT 'free',
+              status TEXT NOT NULL DEFAULT 'active', storage_limit_gb INTEGER NOT NULL DEFAULT 5,
+              stripe_customer_id TEXT, stripe_subscription_id TEXT, current_period_end TIMESTAMP,
+              cancel_at_period_end BOOLEAN DEFAULT FALSE, created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+              updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            )
+        """)); db.session.commit()
+    except Exception: db.session.rollback()
+    try:
+        db.session.execute(db.text("""
+            INSERT INTO creator_subscription (creator_id,plan_key,status,storage_limit_gb,stripe_customer_id,stripe_subscription_id,current_period_end,cancel_at_period_end,updated_at)
+            VALUES (:cid,:plan,:status,:gb,:cust,:sub,to_timestamp(:period),:cancel,CURRENT_TIMESTAMP)
+            ON CONFLICT (creator_id) DO UPDATE SET plan_key=EXCLUDED.plan_key,status=EXCLUDED.status,storage_limit_gb=EXCLUDED.storage_limit_gb,
+            stripe_customer_id=COALESCE(EXCLUDED.stripe_customer_id,creator_subscription.stripe_customer_id),
+            stripe_subscription_id=COALESCE(EXCLUDED.stripe_subscription_id,creator_subscription.stripe_subscription_id),
+            current_period_end=EXCLUDED.current_period_end,cancel_at_period_end=EXCLUDED.cancel_at_period_end,updated_at=CURRENT_TIMESTAMP
+        """),{"cid":creator_id,"plan":plan_key,"status":status,"gb":int(storage_limit_gb or 5),"cust":stripe_customer_id,"sub":stripe_subscription_id,"period":int(current_period_end or 0),"cancel":bool(cancel_at_period_end)})
+        db.session.commit()
+    except Exception as e:
+        db.session.rollback(); print("creator subscription apply warning v47.2:", e)
+
+def _bsm_handle_creator_subscription_event_v472(event):
+    obj=event.get("data",{}).get("object",{})
+    typ=event.get("type")
+    if typ=="checkout.session.completed" and obj.get("mode")=="subscription":
+        md=obj.get("metadata") or {}
+        if md.get("billing_type")=="creator_subscription":
+            _bsm_creator_apply_subscription_v472(int(md.get("creator_id") or obj.get("client_reference_id") or 0), md.get("plan_key") or "pro", "active", obj.get("customer"), obj.get("subscription"), 0, int(md.get("storage_limit_gb") or 5))
+    elif typ in ["invoice.payment_failed","invoice.paid"]:
+        status="past_due" if typ=="invoice.payment_failed" else "active"
+        try:
+            db.session.execute(db.text("UPDATE creator_subscription SET status=:s, updated_at=CURRENT_TIMESTAMP WHERE stripe_subscription_id=:sub"),{"s":status,"sub":obj.get("subscription")})
+            db.session.commit()
+        except Exception: db.session.rollback()
+    elif typ=="customer.subscription.deleted":
+        md=obj.get("metadata") or {}
+        cid=int(md.get("creator_id") or 0)
+        if cid: _bsm_creator_apply_subscription_v472(cid,"free","active",obj.get("customer"),obj.get("id"),obj.get("current_period_end") or 0,5)
+
+
 @payments_bp.route("/payment/success")
 def payment_success_v423():
     """

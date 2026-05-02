@@ -1724,3 +1724,13 @@ body.creator-dashboard-v449 main{
 .bsm-orders-list-v459 + .bsm-section-title-v467{
   margin-top:28px;
 }
+
+/* v47.2 creator billing subscriptions */
+.bsm-billing-wrap-v472{max-width:1200px;margin:0 auto}.bsm-billing-wrap-v472 .muted{color:#64748b}
+.bsm-billing-current-v472{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px;margin:18px 0}
+.bsm-billing-current-v472 div,.bsm-plan-card-v472,.bsm-billing-note-v472{background:#fff;border:1px solid #e5e7eb;border-radius:16px;padding:16px;box-shadow:0 8px 24px rgba(15,23,42,.05)}
+.bsm-billing-current-v472 span{display:block;color:#64748b;font-size:12px;text-transform:uppercase}.bsm-billing-current-v472 strong{font-size:18px}
+.bsm-storage-bar-v472{height:14px;background:#e5e7eb;border-radius:999px;overflow:hidden;margin:12px 0 24px}.bsm-storage-bar-v472 span{display:block;height:100%;background:#2563eb}
+.bsm-plan-grid-v472{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:14px}.bsm-plan-card-v472.active{border-color:#2563eb;box-shadow:0 0 0 3px rgba(37,99,235,.12)}
+.bsm-plan-card-v472 button{width:100%;padding:11px 12px;border-radius:10px;border:0;background:#2563eb;color:#fff;font-weight:800}.bsm-plan-card-v472 button:disabled{background:#94a3b8}
+.bsm-plan-card-v472 small{display:block;margin-top:8px;color:#b45309}@media(max-width:950px){.bsm-billing-current-v472,.bsm-plan-grid-v472{grid-template-columns:repeat(2,minmax(0,1fr))}}@media(max-width:560px){.bsm-billing-current-v472,.bsm-plan-grid-v472{grid-template-columns:1fr}}

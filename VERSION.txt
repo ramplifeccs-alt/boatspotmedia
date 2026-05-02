@@ -1,7 +1,2 @@
-BoatSpotMedia v47.1 Creator Orders Sections Template Fix
-Base: v47.0.
-Fix:
-- All Orders uses the existing `orders` list again.
-- Instant Downloads and Edited Videos are split directly in the template.
-- Pending Edited Videos remains unchanged.
-- No dependency on missing/empty backend arrays instant_orders / edited_orders.
+BoatSpotMedia v47.2 Creator Stripe Subscriptions
+Adds /creator/billing, Stripe subscription checkout, creator_subscription table, webhook sync helper, billing sidebar links.

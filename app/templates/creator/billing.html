@@ -1,0 +1,32 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Creator Billing - BoatSpotMedia</title><link rel="stylesheet" href="/static/css/style.css"></head>
+<body class="creator-dashboard-v459"><div class="bsm-creator-page-shell-v459">
+<aside class="bsm-creator-sidebar-v459">
+<a href="/creator/dashboard" class="bsm-creator-logo-v459"><img src="/static/img/logo-header.png" alt="BoatSpotMedia"></a>
+<div class="bsm-creator-handle-v459">@BoatSpotMedia.com</div>
+<nav class="bsm-creator-nav-v459">
+<a href="/creator/dashboard">Dashboard</a><a href="/creator/upload">Uploads</a><a href="/creator/batches">Batches</a><a href="/creator/orders">Orders</a><a href="/creator/pricing">Pricing</a><a href="/creator/billing" class="active">Billing</a><a href="/creator/dashboard#settings">Settings</a><a href="/logout" class="logout">Log out</a>
+</nav></aside>
+<main class="bsm-creator-main-v459"><div class="bsm-billing-wrap-v472">
+<h1>Creator Billing</h1><p class="muted">Manage your subscription and storage limit.</p>
+<section class="bsm-billing-current-v472">
+<div><span>Current plan</span><strong>{{ subscription.plan_key|title }}</strong></div>
+<div><span>Status</span><strong>{{ subscription.status|title }}</strong></div>
+<div><span>Storage</span><strong>{{ used_gb }} GB / {{ subscription.storage_limit_gb }} GB</strong></div>
+<div><span>Renewal</span><strong>{{ subscription.current_period_end or "N/A" }}</strong></div>
+</section>
+{% set pct = ((used_gb / (subscription.storage_limit_gb or 1)) * 100) %}
+<div class="bsm-storage-bar-v472"><span style="width: {{ 100 if pct > 100 else pct }}%;"></span></div>
+<h2>Available plans</h2><div class="bsm-plan-grid-v472">
+{% for plan in plans %}
+<article class="bsm-plan-card-v472 {% if subscription.plan_key == plan.key %}active{% endif %}">
+<h3>{{ plan.name }}</h3><strong>{{ plan.price_label }}</strong><p><b>Storage:</b> {{ plan.storage_gb }} GB</p>
+{% if subscription.plan_key == plan.key %}<button disabled>Current Plan</button>
+{% elif plan.key == "free" %}<form method="POST" action="/creator/billing/checkout/free"><button type="submit">Switch to Free</button></form>
+{% elif plan.price_id %}<form method="POST" action="/creator/billing/checkout/{{ plan.key }}"><button type="submit">Choose {{ plan.name }}</button></form>
+{% else %}<button disabled>Stripe Price ID needed</button><small>Add STRIPE_PRICE_CREATOR_{{ plan.key|upper }} in Railway variables.</small>{% endif %}
+</article>{% endfor %}
+</div>
+<section class="bsm-billing-note-v472"><h2>Billing rules</h2><p>Paid plans renew automatically with Stripe. If payment fails, new uploads can be blocked while existing purchases stay protected.</p></section>
+</div></main></div></body></html>
