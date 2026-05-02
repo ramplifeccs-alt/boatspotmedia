@@ -1,7 +1,9 @@
-BoatSpotMedia v46.2 Creator Orders Endpoint Fix
-Base: v46.1.
-Fix:
-- Removes duplicate creator.orders endpoint causing Gunicorn boot failure.
-- Keeps one clean /creator/orders route with endpoint='orders_page_v462'.
-- Keeps search by buyer email or order number.
-- Keeps creator_id matching via current_creator().id.
+BoatSpotMedia v46.3 Creator Filename + Pending Edits + Storage
+Base: v46.2.
+Adds:
+- Creator Orders shows filename explicitly.
+- Adds /creator/pending-edits filtered panel.
+- Upload Edited Video route v46.3 stores edited file in R2.
+- Edited uploads activate buyer download and send SendGrid email.
+- Edited uploaded file size is saved on order item and added to creator storage usage when storage column exists.
+- Basic storage limit check before uploading edited video.

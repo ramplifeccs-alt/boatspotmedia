@@ -29,12 +29,13 @@
     <div class="bsm-orders-container-v459">
       <div class="bsm-orders-header-v459">
         <div>
-          <h1>Orders / Sales</h1>
+          <h1>{% if pending_only %}Pending Edited Videos{% else %}Orders / Sales{% endif %}</h1>
           <p>Search and manage buyer orders, edited video deliveries, and discount approvals.</p>
           <small style="color:#94a3b8;">Creator ID: {{ creator_id_debug }}</small>
         </div>
       </div>
 
+      <div style="margin:14px 0;display:flex;gap:10px;flex-wrap:wrap;"><a class="btn" href="/creator/orders">All Orders</a><a class="btn" href="/creator/pending-edits">Pending Edited Videos</a></div>
       <form method="GET" action="/creator/orders" class="bsm-orders-search-v459">
         <input type="text" name="q" value="{{ q or '' }}" placeholder="Search by buyer email or order number">
         <button type="submit">Search</button>
@@ -67,6 +68,7 @@
                 <div class="bsm-order-meta-v459">
                   Order #{{ sale.order_id }} · {{ sale.order_created_at }}<br>
                   Buyer: <strong>{{ sale.buyer_email }}</strong><br>
+                  Filename: <strong>{{ sale.display_filename or sale.filename or sale.internal_filename }}</strong><br>
                   Package: {{ sale.package_label }} · Price: ${{ "%.2f"|format(sale.unit_price or 0) }}
                 </div>
                 <div class="bsm-order-pills-v459">
@@ -79,7 +81,7 @@
 
               <div class="bsm-order-actions-v459">
                 {% if sale.needs_edit %}
-                  <form method="POST" action="/creator/order-item/{{ sale.item_id }}/upload-edited-v447" enctype="multipart/form-data">
+                  <form method="POST" action="/creator/order-item/{{ sale.item_id }}/upload-edited-v463" enctype="multipart/form-data">
                     <input type="file" name="edited_video" accept="video/*" required>
                     <button type="submit">Upload Edited Video</button>
                   </form>

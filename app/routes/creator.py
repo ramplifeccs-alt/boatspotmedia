@@ -1873,6 +1873,140 @@ def _bsm_fix_order_item_creator_id_v460(order_id=None):
             pass
 
 
+
+def _bsm_v463_get_creator_storage_status(creator_id):
+    """
+    Returns creator storage usage/limit in bytes. Uses flexible column detection.
+    If no storage limit column exists yet, allows upload and reports limit as None.
+    """
+    try:
+        # Try creator_profile first
+        row = db.session.execute(db.text("""
+            SELECT *
+            FROM creator_profile
+            WHERE id = :creator_id
+            LIMIT 1
+        """), {"creator_id": creator_id}).mappings().first()
+    except Exception:
+        db.session.rollback()
+        row = None
+
+    used = 0
+    limit = None
+
+    if row:
+        for key in ["storage_used_bytes", "used_storage_bytes", "storage_bytes_used", "storage_used"]:
+            if key in row and row.get(key) is not None:
+                try:
+                    used = int(row.get(key) or 0)
+                    break
+                except Exception:
+                    pass
+
+        for key in ["storage_limit_bytes", "storage_quota_bytes", "max_storage_bytes"]:
+            if key in row and row.get(key) is not None:
+                try:
+                    limit = int(row.get(key) or 0)
+                    break
+                except Exception:
+                    pass
+
+        # Some plans may store GB as numeric.
+        if limit is None:
+            for key in ["storage_limit_gb", "storage_gb", "max_storage_gb"]:
+                if key in row and row.get(key) is not None:
+                    try:
+                        limit = int(float(row.get(key)) * 1024 * 1024 * 1024)
+                        break
+                    except Exception:
+                        pass
+
+    # If there is no stored usage, calculate from videos + edited items if file_size columns exist.
+    if used == 0:
+        try:
+            calc = db.session.execute(db.text("""
+                SELECT COALESCE(SUM(COALESCE(file_size_bytes, size_bytes, 0)),0) AS total
+                FROM video
+                WHERE creator_id = :creator_id
+            """), {"creator_id": creator_id}).mappings().first()
+            used += int(calc.get("total") or 0)
+        except Exception:
+            db.session.rollback()
+
+        try:
+            calc2 = db.session.execute(db.text("""
+                SELECT COALESCE(SUM(COALESCE(edited_file_size_bytes, 0)),0) AS total
+                FROM bsm_cart_order_item
+                WHERE creator_id = :creator_id
+            """), {"creator_id": creator_id}).mappings().first()
+            used += int(calc2.get("total") or 0)
+        except Exception:
+            db.session.rollback()
+
+    return {"used": used, "limit": limit}
+
+
+def _bsm_v463_add_creator_storage_usage(creator_id, bytes_to_add):
+    """
+    Adds edited delivery file size to creator storage usage when possible.
+    Safe if storage column does not exist: keeps edited_file_size_bytes on order item.
+    """
+    if not creator_id or not bytes_to_add:
+        return
+
+    possible_columns = ["storage_used_bytes", "used_storage_bytes", "storage_bytes_used", "storage_used"]
+    for col in possible_columns:
+        try:
+            db.session.execute(db.text(f"""
+                UPDATE creator_profile
+                SET {col} = COALESCE({col}, 0) + :bytes_to_add
+                WHERE id = :creator_id
+            """), {"bytes_to_add": int(bytes_to_add), "creator_id": creator_id})
+            db.session.commit()
+            return
+        except Exception:
+            db.session.rollback()
+
+
+def _bsm_v463_send_edited_ready_email(to_email, order_id=None):
+    if not to_email:
+        return False
+    try:
+        import os, requests
+        api_key = os.environ.get("SENDGRID_API_KEY")
+        from_email = os.environ.get("SENDGRID_FROM_EMAIL") or os.environ.get("FROM_EMAIL")
+        if not api_key or not from_email:
+            print("SendGrid missing for edited ready email v46.3")
+            return False
+
+        base_url = (os.environ.get("PUBLIC_BASE_URL") or os.environ.get("BASE_URL") or "https://boatspotmedia.com").rstrip("/")
+        dashboard_url = base_url + "/buyer/dashboard"
+
+        payload = {
+            "personalizations": [{"to": [{"email": to_email}]}],
+            "from": {"email": from_email},
+            "subject": "Your edited video is ready",
+            "content": [{"type": "text/html", "value": f"""
+              <h2>Your edited video is ready</h2>
+              <p>Your edited video from BoatSpotMedia is ready to download.</p>
+              <p><strong>Order:</strong> #{order_id or ""}</p>
+              <p><a href="{dashboard_url}" style="background:#2563eb;color:#fff;padding:12px 16px;border-radius:8px;text-decoration:none;">Open My Orders</a></p>
+              <p>For best results, download on a computer. On phones, the video may open for playback.</p>
+            """}],
+        }
+        r = requests.post(
+            "https://api.sendgrid.com/v3/mail/send",
+            headers={"Authorization": "Bearer " + api_key, "Content-Type": "application/json"},
+            json=payload,
+            timeout=12,
+        )
+        return r.status_code in (200, 202)
+    except Exception as e:
+        try: print("edited ready email warning v46.3:", e)
+        except Exception: pass
+        return False
+
+
 @creator_bp.route("/creator/batches/<int:batch_id>/safe-delete", methods=["POST"])
 def creator_safe_delete_batch_v442(batch_id):
     result = _bsm_safe_delete_batch_v442(batch_id)
@@ -2279,6 +2413,7 @@ def _bsm_creator_orders_data_v461(creator_id, page=1, q=""):
             if key:
                 thumb = "/media/" + str(key).lstrip("/")
         item["thumbnail_url"] = thumb
+        item["display_filename"] = item.get("filename") or item.get("internal_filename") or ("Video #" + str(item.get("video_id") or ""))
         orders.append(item)
 
     # Fallback old ORM order_item table, only when modern table has no rows for this query/page.
@@ -3537,3 +3672,117 @@ def creator_pricing_page_v452():
     return render_template("creator/pricing.html")
 
 
+
+
+
+@creator_bp.route("/pending-edits", endpoint="pending_edits_v463")
+def creator_pending_edits_v463():
+    creator = current_creator()
+    creator_id = creator.id if creator else None
+    data = _bsm_creator_orders_data_v461(creator_id, request.args.get("page", 1), request.args.get("q", ""))
+    data["orders"] = [x for x in data.get("orders", []) if x.get("needs_edit")]
+    data["total"] = len(data["orders"])
+    data["pending_only"] = True
+    return render_template("creator/orders.html", **data)
+
+
+@creator_bp.route("/order-item/<int:item_id>/upload-edited-v463", methods=["POST"], endpoint="upload_edited_v463")
+def creator_upload_edited_video_v463(item_id):
+    creator = current_creator()
+    creator_id = creator.id if creator else None
+
+    file = request.files.get("edited_video")
+    if not file or not file.filename:
+        try: flash("Please select an edited video file.")
+        except Exception: pass
+        return redirect(request.referrer or "/creator/orders")
+
+    try:
+        file.stream.seek(0, 2)
+        file_size = file.stream.tell()
+        file.stream.seek(0)
+    except Exception:
+        file_size = 0
+
+    storage = _bsm_v463_get_creator_storage_status(creator_id)
+    if storage.get("limit") is not None and storage.get("used", 0) + int(file_size or 0) > storage.get("limit"):
+        try:
+            flash("Storage limit reached. Upgrade your plan or delete expired/unneeded videos before uploading this edited delivery.")
+        except Exception:
+            pass
+        return redirect(request.referrer or "/creator/orders")
+
+    try:
+        row = db.session.execute(db.text("""
+            SELECT i.*, o.buyer_email, o.id AS order_id
+            FROM bsm_cart_order_item i
+            JOIN bsm_cart_order o ON o.id = i.cart_order_id
+            WHERE i.id=:item_id
+            LIMIT 1
+        """), {"item_id": item_id}).mappings().first()
+    except Exception:
+        db.session.rollback()
+        row = None
+
+    if not row:
+        return "Order item not found", 404
+
+    # Security: order item must belong to this creator or video creator.
+    try:
+        check = db.session.execute(db.text("""
+            SELECT v.creator_id
+            FROM video v
+            WHERE v.id=:video_id
+            LIMIT 1
+        """), {"video_id": row.get("video_id")}).mappings().first()
+        video_creator_id = check.get("creator_id") if check else None
+    except Exception:
+        db.session.rollback()
+        video_creator_id = None
+
+    if creator_id and row.get("creator_id") and int(row.get("creator_id")) != int(creator_id) and str(video_creator_id) != str(creator_id):
+        return "Not authorized for this order item", 403
+
+    import re as _re
+    safe_name = _re.sub(r"[^A-Za-z0-9_.-]+", "_", file.filename)
+    key = f"edited/creators/{creator_id}/orders/{row.get('order_id')}/items/{item_id}/{safe_name}"
+
+    try:
+        from app.services.r2 import r2_client, _bucket_name
+        client = r2_client()
+        bucket = _bucket_name()
+        file.stream.seek(0)
+        client.upload_fileobj(file.stream, bucket, key, ExtraArgs={"ContentType": file.mimetype or "video/mp4"})
+    except Exception as e:
+        try: print("edited upload R2 warning v46.3:", e)
+        except Exception: pass
+        return "Could not upload edited video to R2", 500
+
+    try:
+        db.session.execute(db.text("ALTER TABLE bsm_cart_order_item ADD COLUMN IF NOT EXISTS edited_r2_key TEXT"))
+        db.session.execute(db.text("ALTER TABLE bsm_cart_order_item ADD COLUMN IF NOT EXISTS edited_uploaded_at TIMESTAMP"))
+        db.session.execute(db.text("ALTER TABLE bsm_cart_order_item ADD COLUMN IF NOT EXISTS edited_file_size_bytes BIGINT DEFAULT 0"))
+        db.session.execute(db.text("""
+            UPDATE bsm_cart_order_item
+            SET edited_r2_key=:key,
+                edited_file_size_bytes=:file_size,
+                delivery_status='ready_to_download',
+                edited_uploaded_at=CURRENT_TIMESTAMP,
+                creator_id=COALESCE(creator_id, :creator_id)
+            WHERE id=:item_id
+        """), {"key": key, "file_size": int(file_size or 0), "creator_id": creator_id, "item_id": item_id})
+        db.session.commit()
+    except Exception as e:
+        db.session.rollback()
+        try: print("edited order update warning v46.3:", e)
+        except Exception: pass
+        return "Edited video uploaded but order status could not be updated", 500
+
+    _bsm_v463_add_creator_storage_usage(creator_id, file_size)
+    sent = _bsm_v463_send_edited_ready_email(row.get("buyer_email"), row.get("order_id"))
+
+    try:
+        flash("Edited video uploaded. Buyer download is now active." + (" Email sent." if sent else " Email not sent; check SendGrid."))
+    except Exception:
+        pass
+    return redirect(request.referrer or "/creator/orders")

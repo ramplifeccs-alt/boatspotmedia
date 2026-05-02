@@ -1663,3 +1663,14 @@ body.creator-dashboard-v449 main{
 @media(max-width:520px){
   .bsm-orders-stats-v459{grid-template-columns:1fr;}
 }
+
+/* v46.3 creator filename pending edits storage */
+.bsm-orders-container-v459 .btn{
+  display:inline-block;
+  background:#2563eb;
+  color:#fff!important;
+  padding:10px 14px;
+  border-radius:10px;
+  text-decoration:none;
+  font-weight:800;
+}
