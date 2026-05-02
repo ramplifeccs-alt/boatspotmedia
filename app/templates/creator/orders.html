@@ -29,13 +29,13 @@
     <div class="bsm-orders-container-v459">
       <div class="bsm-orders-header-v459">
         <div>
-          <h1>{% if pending_only %}Pending Edited Videos{% else %}Orders / Sales{% endif %}</h1>
+          <h1>{% if pending_only %}Pending Edited Videos{% elif delete_ready_only %}Edited Videos Ready to Delete{% else %}Orders / Sales{% endif %}</h1>
           <p>Search and manage buyer orders, edited video deliveries, and discount approvals. Delete button appears after 72 hours.</p>
           <small style="color:#94a3b8;">Creator ID: {{ creator_id_debug }}</small>
         </div>
       </div>
 
-      <div style="margin:14px 0;display:flex;gap:10px;flex-wrap:wrap;"><a class="btn" href="/creator/orders">All Orders</a><a class="btn" href="/creator/pending-edits">Pending Edited Videos</a></div>
+      <div style="margin:14px 0;display:flex;gap:10px;flex-wrap:wrap;"><a class="btn" href="/creator/orders">All Orders</a><a class="btn" href="/creator/pending-edits">Pending Edited Videos</a><a class="btn" href="/creator/edited-ready-to-delete">Edited Videos Ready to Delete</a></div>
       <form method="GET" action="/creator/orders" class="bsm-orders-search-v459">
         <input type="text" name="q" value="{{ q or '' }}" placeholder="Search by buyer email or order number">
         <button type="submit">Search</button>
@@ -69,7 +69,9 @@
                   Order #{{ sale.order_id }} · {{ sale.order_created_at }}<br>
                   Buyer: <strong>{{ sale.buyer_email }}</strong><br>
                   Filename: <strong>{{ sale.display_filename or sale.filename or sale.internal_filename }}</strong><br>
-                  Package: {{ sale.package_label }} · Price: ${{ "%.2f"|format(sale.unit_price or 0) }}
+                  Package: {{ sale.package_label }} · Price: ${{ "%.2f"|format(sale.unit_price or 0) }}<br>
+                  Creator download timer: <strong class="bsm-creator-countdown-v466" data-seconds="{{ sale.creator_download_remaining_seconds or 0 }}">{{ sale.creator_download_expires_at or "" }}</strong><br>
+                  Expires: {{ sale.creator_download_expires_at or "N/A" }}
                 </div>
                 <div class="bsm-order-pills-v459">
                   <span>{{ sale.status_label }}</span>
@@ -226,6 +228,33 @@
       if(button) button.disabled = false;
     }
   });
+})();
+</script>
+
+
+<script>
+(function bsmCreatorCountdownV466(){
+  function fmt(seconds){
+    seconds = Math.max(0, parseInt(seconds || 0, 10));
+    if(seconds <= 0) return "Expired";
+    const h = Math.floor(seconds / 3600);
+    const m = Math.floor((seconds % 3600) / 60);
+    const s = seconds % 60;
+    if(h >= 24){
+      const d = Math.floor(h / 24);
+      return d + "d " + (h % 24) + "h " + m + "m";
+    }
+    return h + "h " + m + "m " + s + "s";
+  }
+  function tick(){
+    document.querySelectorAll(".bsm-creator-countdown-v466").forEach(function(el){
+      let sec = parseInt(el.getAttribute("data-seconds") || "0", 10);
+      el.textContent = fmt(sec);
+      if(sec > 0) el.setAttribute("data-seconds", sec - 1);
+    });
+  }
+  tick();
+  setInterval(tick, 1000);
 })();
 </script>
 

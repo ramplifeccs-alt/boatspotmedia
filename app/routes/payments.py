@@ -648,6 +648,22 @@ def stripe_webhook():
         # This keeps the system safe even if detailed Order models differ by version.
         metadata = obj.get("metadata", {}) or {}
         _bsm_fix_order_item_creator_id_v460()
+        
+        # bsm_v466_pending_edit_status
+        try:
+            db.session.execute(db.text("""
+                UPDATE bsm_cart_order_item
+                SET delivery_status = 'pending_edit'
+                WHERE package IN ('edited','edit','instagram_edit','tiktok_edit','reel_edit','short_edit','bundle','combo','original_plus_edited','original_edited','original+edited','original_edit')
+                  AND (edited_r2_key IS NULL OR edited_r2_key = '')
+                  AND delivery_status IN ('ready_to_download','ready','delivered','paid','')
+            """))
+            db.session.commit()
+        except Exception as e:
+            db.session.rollback()
+            try: print("pending edit status correction v46.6:", e)
+            except Exception: pass
+
         print("STRIPE CHECKOUT COMPLETED:", {
             "session_id": obj.get("id"),
             "amount_total": obj.get("amount_total"),

@@ -1459,7 +1459,7 @@ def _bsm_creator_orders_v446(creator_id):
 
         is_edited = package in ["edited", "edit", "instagram_edit", "tiktok_edit", "reel_edit", "short_edit"]
         is_bundle = package in ["bundle", "combo", "original_plus_edited", "original_edited", "original+edited", "original_edit"]
-        needs_edit = (is_edited or is_bundle) and delivery not in ["ready_to_download", "ready", "delivered"]
+        needs_edit = (is_edited or is_bundle) and not bool(item.get("edited_r2_key"))
         needs_discount = discount in ["pending_review", "pending", "awaiting_creator", "needs_approval"]
 
         item["is_edited"] = is_edited
@@ -1498,6 +1498,16 @@ def _bsm_creator_orders_v446(creator_id):
         else:
             item["status_label"] = item.get("order_status") or "Paid"
 
+        if "display_filename" not in item:
+            item["display_filename"] = item.get("filename") or item.get("internal_filename") or ("Video #" + str(item.get("video_id") or ""))
+        if "has_edited_file" not in item:
+            item["has_edited_file"] = bool(item.get("edited_r2_key"))
+        if "creator_download_remaining_seconds" not in item:
+            timer_v466 = _bsm_v466_download_timer_from_dt(item.get("edited_uploaded_at") if item.get("edited_r2_key") else item.get("order_created_at"))
+            item["creator_download_expires_at"] = timer_v466.get("expires_at")
+            item["creator_download_remaining_seconds"] = timer_v466.get("remaining_seconds")
+            item["creator_download_expired"] = timer_v466.get("expired")
+            item["edited_can_delete"] = bool(item.get("edited_r2_key")) and bool(timer_v466.get("expired"))
         orders.append(item)
 
     return {
@@ -1610,7 +1620,7 @@ def _bsm_creator_orders_v447(creator_id):
 
         is_edited = package in ["edited", "edit", "instagram_edit", "tiktok_edit", "reel_edit", "short_edit"]
         is_bundle = package in ["bundle", "combo", "original_plus_edited", "original_edited", "original+edited", "original_edit"]
-        needs_edit = (is_edited or is_bundle) and delivery not in ["ready_to_download", "ready", "delivered"]
+        needs_edit = (is_edited or is_bundle) and not bool(item.get("edited_r2_key"))
         needs_discount = discount in ["pending_review", "pending", "awaiting_creator", "needs_approval"]
 
         item["is_edited"] = is_edited
@@ -1789,7 +1799,7 @@ def _bsm_creator_orders_v459(creator_id, page=1, q=""):
 
         item["is_edited"] = package in ["edited", "edit", "instagram_edit", "tiktok_edit", "reel_edit", "short_edit"]
         item["is_bundle"] = package in ["bundle", "combo", "original_plus_edited", "original_edited", "original+edited", "original_edit"]
-        item["needs_edit"] = (item["is_edited"] or item["is_bundle"]) and delivery not in ["ready_to_download", "ready", "delivered"]
+        item["needs_edit"] = (item["is_edited"] or item["is_bundle"]) and not bool(item.get("edited_r2_key"))
         item["needs_discount"] = discount in ["pending_review", "pending", "awaiting_creator", "needs_approval"]
 
         if item["is_bundle"]:
@@ -2050,6 +2060,26 @@ def _bsm_v464_presigned_put_url(bucket, key, content_type):
         },
         ExpiresIn=60 * 30,
     )
+
+
+
+def _bsm_v466_download_timer_from_dt(start_dt):
+    try:
+        from datetime import datetime, timezone, timedelta
+        if not start_dt:
+            return {"expires_at": "", "remaining_seconds": 0, "expired": False}
+        if getattr(start_dt, "tzinfo", None) is None:
+            start_dt = start_dt.replace(tzinfo=timezone.utc)
+        expires = start_dt + timedelta(hours=72)
+        remaining = int((expires - datetime.now(timezone.utc)).total_seconds())
+        try:
+            from zoneinfo import ZoneInfo
+            display = expires.astimezone(ZoneInfo("America/New_York")).strftime("%m/%d/%Y %I:%M %p")
+        except Exception:
+            display = expires.strftime("%m/%d/%Y %I:%M %p")
+        return {"expires_at": display, "remaining_seconds": max(0, remaining), "expired": remaining <= 0}
+    except Exception:
+        return {"expires_at": "", "remaining_seconds": 0, "expired": False}
 
 
 @creator_bp.route("/creator/batches/<int:batch_id>/safe-delete", methods=["POST"])
@@ -2421,7 +2451,7 @@ def _bsm_creator_orders_data_v461(creator_id, page=1, q=""):
 
         is_edited = package in ["edited", "edit", "instagram_edit", "tiktok_edit", "reel_edit", "short_edit"]
         is_bundle = package in ["bundle", "combo", "original_plus_edited", "original_edited", "original+edited", "original_edit"]
-        needs_edit = (is_edited or is_bundle) and delivery not in ["ready_to_download", "ready", "delivered"]
+        needs_edit = (is_edited or is_bundle) and not bool(item.get("edited_r2_key"))
         needs_discount = discount in ["pending_review", "pending", "awaiting_creator", "needs_approval"]
 
         item["is_edited"] = is_edited
@@ -2459,8 +2489,16 @@ def _bsm_creator_orders_data_v461(creator_id, page=1, q=""):
                 thumb = "/media/" + str(key).lstrip("/")
         item["thumbnail_url"] = thumb
         item["display_filename"] = item.get("filename") or item.get("internal_filename") or ("Video #" + str(item.get("video_id") or ""))
-        item["edited_can_delete"] = _bsm_v464_edited_expired(item) if item.get("edited_r2_key") else False
         item["has_edited_file"] = bool(item.get("edited_r2_key"))
+        # Creator sees the same 72-hour timer. Original timer starts at order_created_at. Edited timer starts at edited_uploaded_at.
+        if item.get("edited_r2_key"):
+            timer_v466 = _bsm_v466_download_timer_from_dt(item.get("edited_uploaded_at"))
+        else:
+            timer_v466 = _bsm_v466_download_timer_from_dt(item.get("order_created_at"))
+        item["creator_download_expires_at"] = timer_v466.get("expires_at")
+        item["creator_download_remaining_seconds"] = timer_v466.get("remaining_seconds")
+        item["creator_download_expired"] = timer_v466.get("expired")
+        item["edited_can_delete"] = bool(item.get("edited_r2_key")) and bool(timer_v466.get("expired"))
         orders.append(item)
 
     # Fallback old ORM order_item table, only when modern table has no rows for this query/page.
@@ -4034,3 +4072,15 @@ def creator_delete_edited_video_v464(item_id):
     try: flash("Edited video deleted after expiration.")
     except Exception: pass
     return redirect(request.referrer or "/creator/orders")
+
+
+
+@creator_bp.route("/edited-ready-to-delete", endpoint="edited_ready_delete_v466")
+def creator_edited_ready_delete_v466():
+    creator = current_creator()
+    creator_id = creator.id if creator else None
+    data = _bsm_creator_orders_data_v461(creator_id, request.args.get("page", 1), request.args.get("q", ""))
+    data["orders"] = [x for x in data.get("orders", []) if x.get("edited_can_delete")]
+    data["total"] = len(data["orders"])
+    data["delete_ready_only"] = True
+    return render_template("creator/orders.html", **data)

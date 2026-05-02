@@ -1,8 +1,9 @@
-BoatSpotMedia v46.5 Buyer Edited Download + Bundle + Storage Fix
-Base: v46.4.
+BoatSpotMedia v46.6 Edited Download Pending Timer Delete Section
+Base: v46.5.
 Fixes:
-- Buyer edited download now uses bsm_cart_order_item.edited_r2_key, not the original video R2 path.
-- Bundle deliveries keep original and edited download paths separated.
-- Buyer dashboard fallback links include ?delivery=original or ?delivery=edited.
-- Edited delete button appears only after 72 hours from edited_uploaded_at.
-- Storage calculation ensures edited_file_size_bytes exists and includes edited uploads.
+- Buyer edited download uses bsm_cart_order_item.edited_r2_key via ?delivery=edited.
+- Edited-only and bundle orders show as Pending Edit until edited_r2_key exists.
+- Bundle orders show Upload Edited Video button when edited file is missing.
+- Creator Orders shows buyer-style 72-hour timer.
+- Adds /creator/edited-ready-to-delete section.
+- Delete edited button only appears after 72-hour edited download window expires.
