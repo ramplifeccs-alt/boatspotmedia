@@ -2145,6 +2145,207 @@ def delete_selected_videos():
     db.session.commit()
     return redirect(request.referrer or url_for("creator.batches"))
 
+
+def _bsm_creator_orders_data_v461(creator_id, page=1, q=""):
+    try:
+        page = max(1, int(page or 1))
+    except Exception:
+        page = 1
+
+    per_page = 25
+    offset = (page - 1) * per_page
+    q = (q or "").strip()
+
+    # Backfill cart order item creator_id from video.creator_id.
+    try:
+        db.session.execute(db.text("""
+            UPDATE bsm_cart_order_item i
+            SET creator_id = v.creator_id
+            FROM video v
+            WHERE i.video_id = v.id
+              AND (i.creator_id IS NULL OR i.creator_id = 0)
+              AND v.creator_id IS NOT NULL
+        """))
+        db.session.commit()
+    except Exception:
+        db.session.rollback()
+
+    orders = []
+    total = 0
+    gross_page = 0.0
+    pending_edits_page = 0
+    pending_discount_page = 0
+
+    search_sql = ""
+    params = {"creator_id": creator_id, "limit": per_page, "offset": offset}
+    if q:
+        params["q"] = f"%{q.lower()}%"
+        params["q_exact"] = q
+        search_sql = """
+          AND (
+            LOWER(COALESCE(o.buyer_email, '')) LIKE :q
+            OR CAST(o.id AS TEXT) = :q_exact
+          )
+        """
+
+    # Primary modern cart order tables
+    try:
+        count_row = db.session.execute(db.text(f"""
+            SELECT COUNT(*) AS total
+            FROM bsm_cart_order_item i
+            JOIN bsm_cart_order o ON o.id = i.cart_order_id
+            LEFT JOIN video v ON v.id = i.video_id
+            WHERE (i.creator_id = :creator_id OR v.creator_id = :creator_id)
+            {search_sql}
+        """), params).mappings().first()
+        total = int(count_row.get("total") or 0)
+    except Exception as e:
+        db.session.rollback()
+        try: print("creator orders count v46.1 warning:", e)
+        except Exception: pass
+        total = 0
+
+    try:
+        rows = db.session.execute(db.text(f"""
+            SELECT
+                i.*,
+                i.id AS item_id,
+                o.id AS order_id,
+                o.buyer_email,
+                o.status AS order_status,
+                o.created_at AS order_created_at,
+                v.location,
+                v.filename,
+                v.internal_filename,
+                v.thumbnail_path,
+                v.public_thumbnail_url,
+                v.r2_thumbnail_key
+            FROM bsm_cart_order_item i
+            JOIN bsm_cart_order o ON o.id = i.cart_order_id
+            LEFT JOIN video v ON v.id = i.video_id
+            WHERE (i.creator_id = :creator_id OR v.creator_id = :creator_id)
+            {search_sql}
+            ORDER BY o.created_at DESC, i.id DESC
+            LIMIT :limit OFFSET :offset
+        """), params).mappings().all()
+    except Exception as e:
+        db.session.rollback()
+        try: print("creator orders rows v46.1 warning:", e)
+        except Exception: pass
+        rows = []
+
+    for r in rows:
+        item = dict(r)
+        package = str(item.get("package") or "").lower()
+        delivery = str(item.get("delivery_status") or "").lower()
+        discount = str(item.get("discount_status") or "").lower()
+
+        is_edited = package in ["edited", "edit", "instagram_edit", "tiktok_edit", "reel_edit", "short_edit"]
+        is_bundle = package in ["bundle", "combo", "original_plus_edited", "original_edited", "original+edited", "original_edit"]
+        needs_edit = (is_edited or is_bundle) and delivery not in ["ready_to_download", "ready", "delivered"]
+        needs_discount = discount in ["pending_review", "pending", "awaiting_creator", "needs_approval"]
+
+        item["is_edited"] = is_edited
+        item["is_bundle"] = is_bundle
+        item["needs_edit"] = needs_edit
+        item["needs_discount"] = needs_discount
+
+        if is_bundle:
+            item["package_label"] = "Bundle: Original + Edited"
+        elif is_edited:
+            item["package_label"] = "Edited Video"
+        else:
+            item["package_label"] = "Original / Instant Download"
+
+        if needs_edit:
+            item["status_label"] = "Pending edit upload"
+            pending_edits_page += 1
+        elif needs_discount:
+            item["status_label"] = "Discount approval pending"
+            pending_discount_page += 1
+        elif delivery in ["ready_to_download", "ready", "delivered"]:
+            item["status_label"] = "Delivered / Ready"
+        else:
+            item["status_label"] = item.get("order_status") or "Paid"
+
+        try:
+            gross_page += float(item.get("unit_price") or 0) * int(item.get("quantity") or 1)
+        except Exception:
+            pass
+
+        thumb = item.get("public_thumbnail_url")
+        if not thumb:
+            key = item.get("thumbnail_path") or item.get("r2_thumbnail_key")
+            if key:
+                thumb = "/media/" + str(key).lstrip("/")
+        item["thumbnail_url"] = thumb
+        orders.append(item)
+
+    # Fallback old ORM order_item table, only when modern table has no rows for this query/page.
+    if total == 0:
+        try:
+            old_q = db.session.query(OrderItem).filter(OrderItem.creator_id == creator_id)
+            if q:
+                if q.isdigit():
+                    old_q = old_q.filter(OrderItem.order_id == int(q))
+                else:
+                    old_q = old_q.join(Order, OrderItem.order_id == Order.id).filter(db.func.lower(Order.buyer_email).like(f"%{q.lower()}%"))
+            old_total = old_q.count()
+            old_items = old_q.order_by(OrderItem.id.desc()).limit(per_page).offset(offset).all()
+            total = old_total
+            for oi in old_items:
+                video = getattr(oi, "video", None)
+                order = getattr(oi, "order", None)
+                package = getattr(oi, "purchase_type", None) or "original"
+                item = {
+                    "item_id": oi.id,
+                    "video_id": getattr(oi, "video_id", None),
+                    "order_id": getattr(oi, "order_id", None),
+                    "buyer_email": getattr(order, "buyer_email", "") if order else "",
+                    "order_created_at": getattr(order, "created_at", "") if order else "",
+                    "location": getattr(video, "location", None) if video else None,
+                    "filename": getattr(video, "filename", None) if video else None,
+                    "internal_filename": getattr(video, "internal_filename", None) if video else None,
+                    "unit_price": float(getattr(oi, "price", 0) or 0),
+                    "package_label": "Bundle: Original + Edited" if package == "bundle" else ("Edited Video" if package == "edited" else "Original / Instant Download"),
+                    "status_label": getattr(oi, "edited_status", "") or "Paid",
+                    "is_edited": package == "edited",
+                    "is_bundle": package == "bundle",
+                    "needs_edit": getattr(oi, "edited_status", "") == "pending",
+                    "needs_discount": False,
+                }
+                thumb = getattr(video, "public_thumbnail_url", None) if video else None
+                if not thumb and video:
+                    key = getattr(video, "thumbnail_path", None) or getattr(video, "r2_thumbnail_key", None)
+                    if key:
+                        thumb = "/media/" + str(key).lstrip("/")
+                item["thumbnail_url"] = thumb
+                orders.append(item)
+        except Exception as e:
+            db.session.rollback()
+            try: print("old order_item fallback v46.1 warning:", e)
+            except Exception: pass
+
+    total_pages = max(1, (int(total or 0) + per_page - 1) // per_page)
+
+    return {
+        "orders": orders,
+        "q": q,
+        "page": page,
+        "per_page": per_page,
+        "total": total,
+        "total_pages": total_pages,
+        "has_prev": page > 1,
+        "has_next": page < total_pages,
+        "prev_page": max(1, page - 1),
+        "next_page": min(total_pages, page + 1),
+        "gross_page": gross_page,
+        "pending_edits_page": pending_edits_page,
+        "pending_discount_page": pending_discount_page,
+        "creator_id_debug": creator_id,
+    }
+
+
 @creator_bp.route("/orders")
 def orders():
     creator = current_creator()
@@ -3220,13 +3421,6 @@ def creator_reject_discount_v446(item_id):
 
 
 
-@creator_bp.route("/creator/orders")
-def creator_orders_page_v459():
-    _bsm_backfill_order_item_creator_ids_v460()
-    creator_id = session.get("creator_id") or session.get("user_id")
-    page = request.args.get("page", 1)
-    q = request.args.get("q", "")
-    return render_template("creator/orders.html", **_bsm_creator_orders_v459(creator_id, page, q))
 
 @creator_bp.route("/creator/order-item/<int:item_id>/upload-edited-v447", methods=["POST"])
 def creator_upload_edited_video_v447(item_id):
@@ -3331,3 +3525,12 @@ def creator_reject_discount_v447(item_id):
 @creator_bp.route("/creator/pricing")
 def creator_pricing_page_v452():
     return render_template("creator/pricing.html")
+
+
+@creator_bp.route("/orders")
+def orders():
+    creator = current_creator()
+    creator_id = creator.id if creator else None
+    page = request.args.get("page", 1)
+    q = request.args.get("q", "")
+    return render_template("creator/orders.html", **_bsm_creator_orders_data_v461(creator_id, page, q))

@@ -31,11 +31,12 @@
         <div>
           <h1>Orders / Sales</h1>
           <p>Search and manage buyer orders, edited video deliveries, and discount approvals.</p>
+          <small style="color:#94a3b8;">Creator ID: {{ creator_id_debug }}</small>
         </div>
       </div>
 
       <form method="GET" action="/creator/orders" class="bsm-orders-search-v459">
-        <input type="text" name="q" value="{{ q or '' }}" placeholder="Search by buyer email or order ID">
+        <input type="text" name="q" value="{{ q or '' }}" placeholder="Search by buyer email or order number">
         <button type="submit">Search</button>
         {% if q %}
           <a href="/creator/orders">Clear</a>
@@ -117,7 +118,7 @@
           {% if q %}
             No orders found for “{{ q }}”.
           {% else %}
-            No orders found for this creator yet. If you just made a purchase, refresh once; the system now links orders to the video creator automatically.
+            No orders found for this creator yet.
           {% endif %}
         </div>
       {% endif %}

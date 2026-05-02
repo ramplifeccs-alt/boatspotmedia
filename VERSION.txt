@@ -1,8 +1,8 @@
-BoatSpotMedia v46.0 Creator Order Link Fix
-Base: v45.9.
-Fix:
-- Orders/Sales panel was empty because order items were not linked to creator_id.
-- Backfills bsm_cart_order_item.creator_id from video.creator_id.
-- Creator orders query now also matches video.creator_id as fallback.
-- Future checkouts run creator_id link fix after order creation.
-- Keeps pagination/search.
+BoatSpotMedia v46.1 Creator Orders Route Fix
+Base: v46.0.
+Real fix:
+- Corrects the actual route used by /creator/orders: @creator_bp.route("/orders").
+- Uses current_creator().id instead of session user_id, because video.creator_id references creator_profile.id.
+- Search works by buyer email or order number.
+- Fallback includes old OrderItem table if legacy purchases exist there.
+- Removes mistaken /creator/creator/orders route.
