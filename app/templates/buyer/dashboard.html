@@ -86,7 +86,7 @@
                           {% elif delivery.download_locked or delivery.discount_status in ["pending_review","pending","awaiting_creator","needs_approval"] %}
                             <button class="bsm-download-btn bsm-download-disabled" disabled>Pending Approval</button>
                           {% else %}
-                            <a class="bsm-download-btn" href="{{ delivery.download_url or ('/download-video/' ~ (delivery.id or delivery.video_id) ~ '?delivery=' ~ delivery.delivery_type) }}">
+                            <a class="bsm-download-btn" href="{{ delivery.download_url or ('/download-video/' ~ (delivery.id or delivery.item_id or delivery.video_id) ~ '?delivery=' ~ delivery.delivery_type) }}">
                               {% if delivery.delivery_type == "edited" %}Download Edited Video{% else %}Download Original Video{% endif %}
                             </a>
                           {% endif %}

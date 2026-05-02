@@ -1799,6 +1799,7 @@ def _bsm_creator_orders_v459(creator_id, page=1, q=""):
 
         item["is_edited"] = package in ["edited", "edit", "instagram_edit", "tiktok_edit", "reel_edit", "short_edit"]
         item["is_bundle"] = package in ["bundle", "combo", "original_plus_edited", "original_edited", "original+edited", "original_edit"]
+        item["section_type"] = "edited" if (item["is_edited"] or item["is_bundle"]) else "instant"
         item["needs_edit"] = (item["is_edited"] or item["is_bundle"]) and not bool(item.get("edited_r2_key"))
         item["needs_discount"] = discount in ["pending_review", "pending", "awaiting_creator", "needs_approval"]
 
@@ -4084,3 +4085,82 @@ def creator_edited_ready_delete_v466():
     data["total"] = len(data["orders"])
     data["delete_ready_only"] = True
     return render_template("creator/orders.html", **data)
+
+
+
+@creator_bp.route("/order-item/<int:item_id>/delete-edited-mistake", methods=["POST"], endpoint="delete_edited_mistake_v467")
+def creator_delete_edited_mistake_v467(item_id):
+    creator = current_creator()
+    creator_id = creator.id if creator else None
+
+    try:
+        row = db.session.execute(db.text("""
+            SELECT i.*, o.id AS order_id
+            FROM bsm_cart_order_item i
+            JOIN bsm_cart_order o ON o.id = i.cart_order_id
+            WHERE i.id=:item_id
+            LIMIT 1
+        """), {"item_id": item_id}).mappings().first()
+    except Exception:
+        db.session.rollback()
+        row = None
+
+    if not row:
+        return "Order item not found", 404
+
+    # Only owner creator of item/video can delete mistake
+    try:
+        vrow = db.session.execute(db.text("SELECT creator_id FROM video WHERE id=:video_id LIMIT 1"), {"video_id": row.get("video_id")}).mappings().first()
+        video_creator_id = vrow.get("creator_id") if vrow else None
+    except Exception:
+        db.session.rollback()
+        video_creator_id = None
+
+    if creator_id and row.get("creator_id") and str(row.get("creator_id")) != str(creator_id) and str(video_creator_id) != str(creator_id):
+        return "Not authorized", 403
+
+    key = row.get("edited_r2_key")
+    size = int(row.get("edited_file_size_bytes") or 0)
+
+    if key:
+        try:
+            from app.services.r2 import r2_client, _bucket_name
+            r2_client().delete_object(Bucket=_bucket_name(), Key=key)
+        except Exception as e:
+            try: print("delete edited mistake r2 warning v46.7:", e)
+            except Exception: pass
+
+    try:
+        db.session.execute(db.text("""
+            UPDATE bsm_cart_order_item
+            SET edited_r2_key=NULL,
+                edited_file_size_bytes=0,
+                edited_uploaded_at=NULL,
+                delivery_status='pending_edit'
+            WHERE id=:item_id
+        """), {"item_id": item_id})
+        db.session.commit()
+    except Exception as e:
+        db.session.rollback()
+        try: print("delete edited mistake DB warning v46.7:", e)
+        except Exception: pass
+        return "Could not reset edited delivery", 500
+
+    # subtract storage immediately
+    for col in ["storage_used_bytes", "used_storage_bytes", "storage_bytes_used", "storage_used"]:
+        try:
+            db.session.execute(db.text(f"""
+                UPDATE creator_profile
+                SET {col} = GREATEST(COALESCE({col}, 0) - :size, 0)
+                WHERE id=:creator_id
+            """), {"size": size, "creator_id": creator_id})
+            db.session.commit()
+            break
+        except Exception:
+            db.session.rollback()
+
+    try:
+        flash("Edited video deleted and reset to Pending Edit. You can upload the correct edited video now.")
+    except Exception:
+        pass
+    return redirect(request.referrer or "/creator/orders")

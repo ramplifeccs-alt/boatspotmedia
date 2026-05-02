@@ -35,7 +35,7 @@
         </div>
       </div>
 
-      <div style="margin:14px 0;display:flex;gap:10px;flex-wrap:wrap;"><a class="btn" href="/creator/orders">All Orders</a><a class="btn" href="/creator/pending-edits">Pending Edited Videos</a><a class="btn" href="/creator/edited-ready-to-delete">Edited Videos Ready to Delete</a></div>
+      <div style="margin:14px 0;display:flex;gap:10px;flex-wrap:wrap;"><a class="btn" href="/creator/orders">All Orders</a><a class="btn" href="/creator/pending-edits">Pending Edited Videos</a><a class="btn" href="/creator/edited-ready-to-delete">Edited Videos Ready to Delete</a><a class="btn" href="#instant-section">Instant Downloads</a><a class="btn" href="#edited-section">Edited Videos</a></div>
       <form method="GET" action="/creator/orders" class="bsm-orders-search-v459">
         <input type="text" name="q" value="{{ q or '' }}" placeholder="Search by buyer email or order number">
         <button type="submit">Search</button>
@@ -52,9 +52,11 @@
       </div>
 
       {% if orders %}
+        <h2 id="instant-section" class="bsm-section-title-v467">Instant Downloads</h2>
+        <h2 id="edited-section" class="bsm-section-title-v467">Edited Videos</h2>
         <div class="bsm-orders-list-v459">
           {% for sale in orders %}
-            <div class="bsm-order-card-v459">
+            <div class="bsm-order-card-v459" data-section="{{ sale.section_type or 'instant' }}">
               <div class="bsm-order-thumb-v459">
                 {% if sale.thumbnail_url %}
                   <img src="{{ sale.thumbnail_url }}" alt="thumbnail">
@@ -69,8 +71,9 @@
                   Order #{{ sale.order_id }} · {{ sale.order_created_at }}<br>
                   Buyer: <strong>{{ sale.buyer_email }}</strong><br>
                   Filename: <strong>{{ sale.display_filename or sale.filename or sale.internal_filename }}</strong><br>
+                  Section: <strong>{% if sale.section_type == "edited" %}Edited Videos{% else %}Instant Downloads{% endif %}</strong><br>
                   Package: {{ sale.package_label }} · Price: ${{ "%.2f"|format(sale.unit_price or 0) }}<br>
-                  Creator download timer: <strong class="bsm-creator-countdown-v466" data-seconds="{{ sale.creator_download_remaining_seconds or 0 }}">{{ sale.creator_download_expires_at or "" }}</strong><br>
+                  Creator download timer: <strong class="bsm-creator-countdown-v466 bsm-red-timer-v467" data-seconds="{{ sale.creator_download_remaining_seconds or 0 }}">{{ sale.creator_download_expires_at or "" }}</strong><br>
                   Expires: {{ sale.creator_download_expires_at or "N/A" }}
                 </div>
                 <div class="bsm-order-pills-v459">
@@ -101,6 +104,12 @@
                   </form>
                   <form method="POST" action="/creator/order-item/{{ sale.item_id }}/reject-discount-v447">
                     <button type="submit" class="danger">Reject Discount</button>
+                  </form>
+                {% endif %}
+
+                {% if sale.has_edited_file %}
+                  <form method="POST" action="/creator/order-item/{{ sale.item_id }}/delete-edited-mistake" onsubmit="return confirm('Delete this edited video now and reset the order so you can upload the correct file?');">
+                    <button type="submit" class="danger">Uploaded by Mistake / Delete & Re-upload</button>
                   </form>
                 {% endif %}
 

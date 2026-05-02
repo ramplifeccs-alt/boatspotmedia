@@ -1699,3 +1699,19 @@ body.creator-dashboard-v449 main{
   color:#475569;
   font-size:12px;
 }
+
+/* v46.7 edited sections mistake red timer */
+.bsm-red-timer-v467{
+  color:#dc2626!important;
+  font-weight:900;
+}
+.bsm-section-title-v467{
+  margin:18px 0 8px;
+  color:#0f172a;
+}
+.bsm-order-card-v459[data-section="edited"]{
+  border-left:5px solid #2563eb;
+}
+.bsm-order-card-v459[data-section="instant"]{
+  border-left:5px solid #16a34a;
+}

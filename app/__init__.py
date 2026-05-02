@@ -452,3 +452,12 @@ def _bsm_public_r2_url_v466(key):
     return None
 
 
+
+def _bsm_public_r2_url_v467(key):
+    import os
+    base = (os.environ.get("R2_PUBLIC_URL") or os.environ.get("R2_PUBLIC_BASE_URL") or "").strip().rstrip("/")
+    if base and key:
+        return base + "/" + str(key).lstrip("/")
+    return None
+
+

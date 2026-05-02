@@ -213,6 +213,7 @@ def _bsm_make_delivery_v443(ix, delivery_type, order_created_at=None):
     delivery_type: original or edited
     """
     delivery = dict(ix)
+    delivery["item_id"] = delivery.get("item_id") or delivery.get("id")
     delivery["delivery_type"] = delivery_type
     delivery["delivery_label"] = "Edited Version" if delivery_type == "edited" else "Original Clip / Instant Download"
 
@@ -221,12 +222,12 @@ def _bsm_make_delivery_v443(ix, delivery_type, order_created_at=None):
         # v466 edited delivery url fix
         ready = bool(delivery.get("edited_r2_key")) and str(delivery.get("delivery_status") or "").lower() in ["ready_to_download", "ready", "delivered"]
         delivery["download_locked"] = not ready or bool(delivery.get("download_locked"))
-        delivery["download_url"] = None if delivery["download_locked"] else "/download-video/" + str(delivery.get("id") or delivery.get("item_id") or delivery.get("video_id")) + "?delivery=edited"
+        delivery["download_url"] = None if delivery["download_locked"] else "/download-video/" + str(delivery.get("id") or delivery.get("item_id") or delivery.get("order_item_id") or delivery.get("video_id")) + "?delivery=edited"
         timer = _bsm_download_timer_v441(delivery, order_created_at) if "_bsm_download_timer_v441" in globals() else _bsm_download_timer_v442(delivery, order_created_at)
     else:
         # original side of bundle is downloadable immediately unless discount approval locks it
         delivery["download_locked"] = bool(delivery.get("download_locked")) or str(delivery.get("discount_status") or "").lower() in ["pending_review","pending","awaiting_creator","needs_approval"]
-        delivery["download_url"] = None if delivery["download_locked"] else "/download-video/" + str(delivery.get("id") or delivery.get("item_id") or delivery.get("video_id")) + ("?delivery=edited" if delivery_type == "edited" else "?delivery=original")
+        delivery["download_url"] = None if delivery["download_locked"] else "/download-video/" + str(delivery.get("id") or delivery.get("item_id") or delivery.get("order_item_id") or delivery.get("video_id")) + ("?delivery=edited" if delivery_type == "edited" else "?delivery=original")
         # Force original package for timer from order created_at
         delivery["package"] = "original"
         timer = _bsm_download_timer_v441(delivery, order_created_at) if "_bsm_download_timer_v441" in globals() else _bsm_download_timer_v442(delivery, order_created_at)
