@@ -1715,3 +1715,12 @@ body.creator-dashboard-v449 main{
 .bsm-order-card-v459[data-section="instant"]{
   border-left:5px solid #16a34a;
 }
+
+/* v47.0 real split sections */
+.bsm-section-title-v467{
+  border-bottom:1px solid #e5e7eb;
+  padding-bottom:8px;
+}
+.bsm-orders-list-v459 + .bsm-section-title-v467{
+  margin-top:28px;
+}

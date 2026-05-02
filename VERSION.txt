@@ -1,8 +1,7 @@
-BoatSpotMedia v46.9 REAL Edited Download + Storage Fix
-Base: v46.8.
-Real fixes after code review:
-- Replaced buyer/public _bsm_make_delivery_v443 so edited URL is not overwritten by /download-video original fallback.
-- Patched first registered download route v437. It now handles ?delivery=edited by order_item id before any original video lookup.
-- Original side of bundle no longer locks because edited side is pending_edit.
-- Buyer dashboard fallback uses order item id before video id.
-- Storage dashboard now counts original video file sizes + edited_file_size_bytes.
+BoatSpotMedia v47.0 Creator Orders Real Sections
+Base: v46.9.
+Fix:
+- Instant Downloads section now renders only instant/original orders.
+- Edited Videos section now renders only edited and bundle orders.
+- Pending Edited Videos and Ready to Delete still show filtered lists.
+- Search and pagination remain active.

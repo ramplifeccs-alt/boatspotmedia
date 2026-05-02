@@ -1839,6 +1839,8 @@ def _bsm_creator_orders_v459(creator_id, page=1, q=""):
 
     return {
         "orders": orders,
+        "instant_orders": instant_orders,
+        "edited_orders": edited_orders,
         "q": q,
         "page": page,
         "per_page": per_page,
@@ -2591,6 +2593,8 @@ def _bsm_creator_orders_data_v461(creator_id, page=1, q=""):
             try: print("old order_item fallback v46.1 warning:", e)
             except Exception: pass
 
+    instant_orders = [o for o in orders if str(o.get("section_type") or "instant").lower() == "instant"]
+    edited_orders = [o for o in orders if str(o.get("section_type") or "instant").lower() == "edited"]
     total_pages = max(1, (int(total or 0) + per_page - 1) // per_page)
 
     return {
@@ -3826,6 +3830,8 @@ def creator_pending_edits_v463():
     creator_id = creator.id if creator else None
     data = _bsm_creator_orders_data_v461(creator_id, request.args.get("page", 1), request.args.get("q", ""))
     data["orders"] = [x for x in data.get("orders", []) if x.get("needs_edit")]
+    data["instant_orders"] = []
+    data["edited_orders"] = data["orders"]
     data["total"] = len(data["orders"])
     data["pending_only"] = True
     return render_template("creator/orders.html", **data)
@@ -4143,6 +4149,8 @@ def creator_edited_ready_delete_v466():
     creator_id = creator.id if creator else None
     data = _bsm_creator_orders_data_v461(creator_id, request.args.get("page", 1), request.args.get("q", ""))
     data["orders"] = [x for x in data.get("orders", []) if x.get("edited_can_delete")]
+    data["instant_orders"] = []
+    data["edited_orders"] = data["orders"]
     data["total"] = len(data["orders"])
     data["delete_ready_only"] = True
     return render_template("creator/orders.html", **data)

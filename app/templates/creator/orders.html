@@ -35,7 +35,14 @@
         </div>
       </div>
 
-      <div style="margin:14px 0;display:flex;gap:10px;flex-wrap:wrap;"><a class="btn" href="/creator/orders">All Orders</a><a class="btn" href="/creator/pending-edits">Pending Edited Videos</a><a class="btn" href="/creator/edited-ready-to-delete">Edited Videos Ready to Delete</a><a class="btn" href="#instant-section">Instant Downloads</a><a class="btn" href="#edited-section">Edited Videos</a></div>
+      <div style="margin:14px 0;display:flex;gap:10px;flex-wrap:wrap;">
+        <a class="btn" href="/creator/orders">All Orders</a>
+        <a class="btn" href="/creator/pending-edits">Pending Edited Videos</a>
+        <a class="btn" href="/creator/edited-ready-to-delete">Edited Videos Ready to Delete</a>
+        <a class="btn" href="#instant-section">Instant Downloads</a>
+        <a class="btn" href="#edited-section">Edited Videos</a>
+      </div>
+
       <form method="GET" action="/creator/orders" class="bsm-orders-search-v459">
         <input type="text" name="q" value="{{ q or '' }}" placeholder="Search by buyer email or order number">
         <button type="submit">Search</button>
@@ -51,77 +58,104 @@
         <div><span>Discount approvals</span><strong>{{ pending_discount_page or 0 }}</strong></div>
       </div>
 
-      {% if orders %}
-        <h2 id="instant-section" class="bsm-section-title-v467">Instant Downloads</h2>
-        <h2 id="edited-section" class="bsm-section-title-v467">Edited Videos</h2>
-        <div class="bsm-orders-list-v459">
-          {% for sale in orders %}
-            <div class="bsm-order-card-v459" data-section="{{ sale.section_type or 'instant' }}">
-              <div class="bsm-order-thumb-v459">
-                {% if sale.thumbnail_url %}
-                  <img src="{{ sale.thumbnail_url }}" alt="thumbnail">
-                {% else %}
-                  <span>No thumbnail</span>
-                {% endif %}
-              </div>
+      {% macro order_card(sale) %}
+        <div class="bsm-order-card-v459" data-section="{{ sale.section_type or 'instant' }}">
+          <div class="bsm-order-thumb-v459">
+            {% if sale.thumbnail_url %}
+              <img src="{{ sale.thumbnail_url }}" alt="thumbnail">
+            {% else %}
+              <span>No thumbnail</span>
+            {% endif %}
+          </div>
 
-              <div class="bsm-order-info-v459">
-                <strong>{{ sale.location or sale.filename or sale.internal_filename or ("Video #" ~ sale.video_id) }}</strong>
-                <div class="bsm-order-meta-v459">
-                  Order #{{ sale.order_id }} · {{ sale.order_created_at }}<br>
-                  Buyer: <strong>{{ sale.buyer_email }}</strong><br>
-                  Filename: <strong>{{ sale.display_filename or sale.filename or sale.internal_filename }}</strong><br>
-                  Section: <strong>{% if sale.section_type == "edited" %}Edited Videos{% else %}Instant Downloads{% endif %}</strong><br>
-                  Package: {{ sale.package_label }} · Price: ${{ "%.2f"|format(sale.unit_price or 0) }}<br>
-                  Creator download timer: <strong class="bsm-creator-countdown-v466 bsm-red-timer-v467" data-seconds="{{ sale.creator_download_remaining_seconds or 0 }}">{{ sale.creator_download_expires_at or "" }}</strong><br>
-                  Expires: {{ sale.creator_download_expires_at or "N/A" }}
-                </div>
-                <div class="bsm-order-pills-v459">
-                  <span>{{ sale.status_label }}</span>
-                  {% if sale.is_bundle %}<span class="blue">Bundle</span>{% endif %}
-                  {% if sale.needs_edit %}<span class="orange">Needs edit upload</span>{% endif %}
-                  {% if sale.needs_discount %}<span class="red">Needs discount approval</span>{% endif %}
-                </div>
-              </div>
-
-              <div class="bsm-order-actions-v459">
-                {% if sale.needs_edit %}
-                  
-                  <form class="bsm-edited-upload-form-v464" data-item-id="{{ sale.item_id }}">
-                    <input type="file" name="edited_video" accept="video/*" required>
-                    <button type="submit">Upload Edited Video</button>
-                    <div class="bsm-upload-progress-v464" style="display:none;">
-                      <div class="bar"><span></span></div>
-                      <small>Preparing upload...</small>
-                    </div>
-                  </form>
-    
-                {% endif %}
-
-                {% if sale.needs_discount %}
-                  <form method="POST" action="/creator/order-item/{{ sale.item_id }}/approve-discount-v447">
-                    <button type="submit">Approve Discount</button>
-                  </form>
-                  <form method="POST" action="/creator/order-item/{{ sale.item_id }}/reject-discount-v447">
-                    <button type="submit" class="danger">Reject Discount</button>
-                  </form>
-                {% endif %}
-
-                {% if sale.has_edited_file %}
-                  <form method="POST" action="/creator/order-item/{{ sale.item_id }}/delete-edited-mistake" onsubmit="return confirm('Delete this edited video now and reset the order so you can upload the correct file?');">
-                    <button type="submit" class="danger">Uploaded by Mistake / Delete & Re-upload</button>
-                  </form>
-                {% endif %}
-
-                {% if sale.has_edited_file and sale.edited_can_delete %}
-                  <form method="POST" action="/creator/order-item/{{ sale.item_id }}/delete-edited" onsubmit="return confirm('Delete this edited video from storage? This is only allowed after the 72-hour download window.');">
-                    <button type="submit" class="danger">Delete Expired Edited Video</button>
-                  </form>
-                {% endif %}
-              </div>
+          <div class="bsm-order-info-v459">
+            <strong>{{ sale.location or sale.filename or sale.internal_filename or ("Video #" ~ sale.video_id) }}</strong>
+            <div class="bsm-order-meta-v459">
+              Order #{{ sale.order_id }} · {{ sale.order_created_at }}<br>
+              Buyer: <strong>{{ sale.buyer_email }}</strong><br>
+              Filename: <strong>{{ sale.display_filename or sale.filename or sale.internal_filename }}</strong><br>
+              Section: <strong>{% if sale.section_type == "edited" %}Edited Videos{% else %}Instant Downloads{% endif %}</strong><br>
+              Package: {{ sale.package_label }} · Price: ${{ "%.2f"|format(sale.unit_price or 0) }}<br>
+              Creator download timer:
+              <strong class="bsm-creator-countdown-v466 bsm-red-timer-v467" data-seconds="{{ sale.creator_download_remaining_seconds or 0 }}">
+                {{ sale.creator_download_expires_at or "" }}
+              </strong><br>
+              Expires: {{ sale.creator_download_expires_at or "N/A" }}
             </div>
-          {% endfor %}
+            <div class="bsm-order-pills-v459">
+              <span>{{ sale.status_label }}</span>
+              {% if sale.is_bundle %}<span class="blue">Bundle</span>{% endif %}
+              {% if sale.needs_edit %}<span class="orange">Needs edit upload</span>{% endif %}
+              {% if sale.needs_discount %}<span class="red">Needs discount approval</span>{% endif %}
+            </div>
+          </div>
+
+          <div class="bsm-order-actions-v459">
+            {% if sale.needs_edit %}
+              <form class="bsm-edited-upload-form-v464" data-item-id="{{ sale.item_id }}">
+                <input type="file" name="edited_video" accept="video/*" required>
+                <button type="submit">Upload Edited Video</button>
+                <div class="bsm-upload-progress-v464" style="display:none;">
+                  <div class="bar"><span></span></div>
+                  <small>Preparing upload...</small>
+                </div>
+              </form>
+            {% endif %}
+
+            {% if sale.needs_discount %}
+              <form method="POST" action="/creator/order-item/{{ sale.item_id }}/approve-discount-v447">
+                <button type="submit">Approve Discount</button>
+              </form>
+              <form method="POST" action="/creator/order-item/{{ sale.item_id }}/reject-discount-v447">
+                <button type="submit" class="danger">Reject Discount</button>
+              </form>
+            {% endif %}
+
+            {% if sale.has_edited_file %}
+              <form method="POST" action="/creator/order-item/{{ sale.item_id }}/delete-edited-mistake" onsubmit="return confirm('Delete this edited video now and reset the order so you can upload the correct file?');">
+                <button type="submit" class="danger">Uploaded by Mistake / Delete & Re-upload</button>
+              </form>
+            {% endif %}
+
+            {% if sale.has_edited_file and sale.edited_can_delete %}
+              <form method="POST" action="/creator/order-item/{{ sale.item_id }}/delete-edited" onsubmit="return confirm('Delete this edited video from storage? This is only allowed after the 72-hour download window.');">
+                <button type="submit" class="danger">Delete Expired Edited Video</button>
+              </form>
+            {% endif %}
+          </div>
         </div>
+      {% endmacro %}
+
+      {% if orders %}
+        {% if not pending_only and not delete_ready_only %}
+          <h2 id="instant-section" class="bsm-section-title-v467">Instant Downloads</h2>
+          {% if instant_orders %}
+            <div class="bsm-orders-list-v459">
+              {% for sale in instant_orders %}
+                {{ order_card(sale) }}
+              {% endfor %}
+            </div>
+          {% else %}
+            <div class="bsm-empty-orders-v459">No instant downloads in this page/search.</div>
+          {% endif %}
+
+          <h2 id="edited-section" class="bsm-section-title-v467">Edited Videos</h2>
+          {% if edited_orders %}
+            <div class="bsm-orders-list-v459">
+              {% for sale in edited_orders %}
+                {{ order_card(sale) }}
+              {% endfor %}
+            </div>
+          {% else %}
+            <div class="bsm-empty-orders-v459">No edited videos in this page/search.</div>
+          {% endif %}
+        {% else %}
+          <div class="bsm-orders-list-v459">
+            {% for sale in orders %}
+              {{ order_card(sale) }}
+            {% endfor %}
+          </div>
+        {% endif %}
 
         <div class="bsm-pagination-v459">
           {% if has_prev %}
@@ -238,10 +272,7 @@
     }
   });
 })();
-</script>
 
-
-<script>
 (function bsmCreatorCountdownV466(){
   function fmt(seconds){
     seconds = Math.max(0, parseInt(seconds || 0, 10));
@@ -266,6 +297,5 @@
   setInterval(tick, 1000);
 })();
 </script>
-
 </body>
 </html>
