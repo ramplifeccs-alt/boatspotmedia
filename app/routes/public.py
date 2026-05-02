@@ -188,6 +188,7 @@ def _ensure_video_tracking_columns_raw():
         db.session.execute(db.text("ALTER TABLE video ADD COLUMN IF NOT EXISTS preview_views INTEGER DEFAULT 0"))
         db.session.execute(db.text("ALTER TABLE video ADD COLUMN IF NOT EXISTS preview_clicks INTEGER DEFAULT 0"))
         db.session.commit()
+        _bsm_fix_order_item_creator_id_v460()
     except Exception as e:
         db.session.rollback()
         try:
@@ -520,6 +521,36 @@ def _bsm_group_order_items_for_display_v443(order_items, order_created_at=None):
         item["deliveries"] = sorted(item.get("deliveries", []), key=lambda d: 1 if d.get("delivery_type") == "edited" else 0)
         result.append(item)
     return result
+
+
+
+def _bsm_fix_order_item_creator_id_v460(order_id=None):
+    """
+    After checkout, attach creator_id to order items from the purchased videos.
+    This prevents creator orders dashboard from showing empty sales.
+    """
+    try:
+        params = {}
+        where_order = ""
+        if order_id:
+            params["order_id"] = order_id
+            where_order = " AND i.cart_order_id = :order_id "
+        db.session.execute(db.text(f"""
+            UPDATE bsm_cart_order_item i
+            SET creator_id = v.creator_id
+            FROM video v
+            WHERE i.video_id = v.id
+              AND (i.creator_id IS NULL OR i.creator_id = 0)
+              AND v.creator_id IS NOT NULL
+              {where_order}
+        """), params)
+        db.session.commit()
+    except Exception as e:
+        db.session.rollback()
+        try:
+            print("order item creator_id fix warning v46.0:", e)
+        except Exception:
+            pass
 
 
 @public_bp.route("/buyer/register", methods=["GET", "POST"])

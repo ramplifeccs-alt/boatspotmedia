@@ -1,9 +1,8 @@
-BoatSpotMedia v45.9 Creator Orders Search Pagination
-Base: v45.8.
-Adds:
-- Orders/Sales paginated: 25 items per page.
-- Search by buyer email or order ID.
-- Keeps buyer email visible.
-- Shows thumbnail, package, status, price, date.
-- Keeps upload edited video and approve/reject discount actions.
-- Does not load thousands of sales at once.
+BoatSpotMedia v46.0 Creator Order Link Fix
+Base: v45.9.
+Fix:
+- Orders/Sales panel was empty because order items were not linked to creator_id.
+- Backfills bsm_cart_order_item.creator_id from video.creator_id.
+- Creator orders query now also matches video.creator_id as fallback.
+- Future checkouts run creator_id link fix after order creation.
+- Keeps pagination/search.

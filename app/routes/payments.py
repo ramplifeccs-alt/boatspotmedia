@@ -446,6 +446,36 @@ def _record_cart_order_from_webhook_v420(obj):
 
 
 
+
+def _bsm_fix_order_item_creator_id_v460(order_id=None):
+    """
+    After checkout, attach creator_id to order items from the purchased videos.
+    This prevents creator orders dashboard from showing empty sales.
+    """
+    try:
+        params = {}
+        where_order = ""
+        if order_id:
+            params["order_id"] = order_id
+            where_order = " AND i.cart_order_id = :order_id "
+        db.session.execute(db.text(f"""
+            UPDATE bsm_cart_order_item i
+            SET creator_id = v.creator_id
+            FROM video v
+            WHERE i.video_id = v.id
+              AND (i.creator_id IS NULL OR i.creator_id = 0)
+              AND v.creator_id IS NOT NULL
+              {where_order}
+        """), params)
+        db.session.commit()
+    except Exception as e:
+        db.session.rollback()
+        try:
+            print("order item creator_id fix warning v46.0:", e)
+        except Exception:
+            pass
+
+
 @payments_bp.route("/payment/success")
 def payment_success_v423():
     """
@@ -617,6 +647,7 @@ def stripe_webhook():
         # Basic order record hook.
         # This keeps the system safe even if detailed Order models differ by version.
         metadata = obj.get("metadata", {}) or {}
+        _bsm_fix_order_item_creator_id_v460()
         print("STRIPE CHECKOUT COMPLETED:", {
             "session_id": obj.get("id"),
             "amount_total": obj.get("amount_total"),

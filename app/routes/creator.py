@@ -41,6 +41,7 @@ def _ensure_creator_profile_deleted_column():
         db.session.execute(db.text("ALTER TABLE creator_profile ADD COLUMN IF NOT EXISTS deleted BOOLEAN DEFAULT FALSE"))
         db.session.execute(db.text("UPDATE creator_profile SET deleted = FALSE WHERE deleted IS NULL"))
         db.session.commit()
+        _bsm_fix_order_item_creator_id_v460()
     except Exception as e:
         db.session.rollback()
         print("creator_profile.deleted repair warning:", e)
@@ -1302,7 +1303,7 @@ def _creator_sales_panel_v445(creator_id):
             FROM bsm_cart_order_item i
             JOIN bsm_cart_order o ON o.id = i.cart_order_id
             LEFT JOIN video v ON v.id = i.video_id
-            WHERE i.creator_id = :creator_id
+            WHERE (i.creator_id = :creator_id OR v.creator_id = :creator_id)
             ORDER BY o.created_at DESC, i.id DESC
             LIMIT 100
         """), {"creator_id": creator_id}).mappings().all()
@@ -1378,6 +1379,31 @@ def _bsm_creator_id_v446():
     return session.get("creator_id") or session.get("user_id")
 
 
+
+def _bsm_backfill_order_item_creator_ids_v460():
+    """
+    Ensures every order item is connected to the video creator.
+    This fixes purchases that were created without creator_id in bsm_cart_order_item.
+    Safe to run repeatedly.
+    """
+    try:
+        db.session.execute(db.text("""
+            UPDATE bsm_cart_order_item i
+            SET creator_id = v.creator_id
+            FROM video v
+            WHERE i.video_id = v.id
+              AND (i.creator_id IS NULL OR i.creator_id = 0)
+              AND v.creator_id IS NOT NULL
+        """))
+        db.session.commit()
+    except Exception as e:
+        db.session.rollback()
+        try:
+            print("creator_id backfill warning v46.0:", e)
+        except Exception:
+            pass
+
+
 def _bsm_creator_orders_v446(creator_id):
     """
     Creator Orders Panel v44.6.
@@ -1409,7 +1435,7 @@ def _bsm_creator_orders_v446(creator_id):
             FROM bsm_cart_order_item i
             JOIN bsm_cart_order o ON o.id = i.cart_order_id
             LEFT JOIN video v ON v.id = i.video_id
-            WHERE i.creator_id = :creator_id
+            WHERE (i.creator_id = :creator_id OR v.creator_id = :creator_id)
             ORDER BY o.created_at DESC, i.id DESC
             LIMIT 150
         """), {"creator_id": creator_id}).mappings().all()
@@ -1560,7 +1586,7 @@ def _bsm_creator_orders_v447(creator_id):
             FROM bsm_cart_order_item i
             JOIN bsm_cart_order o ON o.id = i.cart_order_id
             LEFT JOIN video v ON v.id = i.video_id
-            WHERE i.creator_id = :creator_id
+            WHERE (i.creator_id = :creator_id OR v.creator_id = :creator_id)
             ORDER BY o.created_at DESC, i.id DESC
             LIMIT 200
         """), {"creator_id": creator_id}).mappings().all()
@@ -1674,6 +1700,7 @@ def _send_edited_ready_email_v447(to_email, order_id=None):
 
 
 def _bsm_creator_orders_v459(creator_id, page=1, q=""):
+    _bsm_backfill_order_item_creator_ids_v460()
     """
     Creator Orders v45.9:
     - pagination so creators with thousands of sales do not load everything
@@ -1689,7 +1716,7 @@ def _bsm_creator_orders_v459(creator_id, page=1, q=""):
     offset = (page - 1) * per_page
     q = (q or "").strip()
 
-    base_where = "WHERE i.creator_id = :creator_id"
+    base_where = "WHERE (i.creator_id = :creator_id OR v.creator_id = :creator_id)"
     params = {"creator_id": creator_id, "limit": per_page, "offset": offset}
 
     search_sql = ""
@@ -1709,6 +1736,7 @@ def _bsm_creator_orders_v459(creator_id, page=1, q=""):
             SELECT COUNT(*) AS total
             FROM bsm_cart_order_item i
             JOIN bsm_cart_order o ON o.id = i.cart_order_id
+            LEFT JOIN video v ON v.id = i.video_id
             {base_where}
             {search_sql}
         """), params).mappings().first()
@@ -1813,6 +1841,36 @@ def _bsm_creator_orders_v459(creator_id, page=1, q=""):
         "pending_edits_page": pending_edits_page,
         "pending_discount_page": pending_discount_page,
     }
+
+
+
+def _bsm_fix_order_item_creator_id_v460(order_id=None):
+    """
+    After checkout, attach creator_id to order items from the purchased videos.
+    This prevents creator orders dashboard from showing empty sales.
+    """
+    try:
+        params = {}
+        where_order = ""
+        if order_id:
+            params["order_id"] = order_id
+            where_order = " AND i.cart_order_id = :order_id "
+        db.session.execute(db.text(f"""
+            UPDATE bsm_cart_order_item i
+            SET creator_id = v.creator_id
+            FROM video v
+            WHERE i.video_id = v.id
+              AND (i.creator_id IS NULL OR i.creator_id = 0)
+              AND v.creator_id IS NOT NULL
+              {where_order}
+        """), params)
+        db.session.commit()
+    except Exception as e:
+        db.session.rollback()
+        try:
+            print("order item creator_id fix warning v46.0:", e)
+        except Exception:
+            pass
 
 
 @creator_bp.route("/creator/batches/<int:batch_id>/safe-delete", methods=["POST"])
@@ -3164,6 +3222,7 @@ def creator_reject_discount_v446(item_id):
 
 @creator_bp.route("/creator/orders")
 def creator_orders_page_v459():
+    _bsm_backfill_order_item_creator_ids_v460()
     creator_id = session.get("creator_id") or session.get("user_id")
     page = request.args.get("page", 1)
     q = request.args.get("q", "")
