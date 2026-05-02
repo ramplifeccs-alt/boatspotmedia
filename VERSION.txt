@@ -1,7 +1,7 @@
-BoatSpotMedia v47.0 Creator Orders Real Sections
-Base: v46.9.
+BoatSpotMedia v47.1 Creator Orders Sections Template Fix
+Base: v47.0.
 Fix:
-- Instant Downloads section now renders only instant/original orders.
-- Edited Videos section now renders only edited and bundle orders.
-- Pending Edited Videos and Ready to Delete still show filtered lists.
-- Search and pagination remain active.
+- All Orders uses the existing `orders` list again.
+- Instant Downloads and Edited Videos are split directly in the template.
+- Pending Edited Videos remains unchanged.
+- No dependency on missing/empty backend arrays instant_orders / edited_orders.

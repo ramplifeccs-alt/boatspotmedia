@@ -1508,6 +1508,7 @@ def _bsm_creator_orders_v446(creator_id):
             item["creator_download_remaining_seconds"] = timer_v466.get("remaining_seconds")
             item["creator_download_expired"] = timer_v466.get("expired")
             item["edited_can_delete"] = bool(item.get("edited_r2_key")) and bool(timer_v466.get("expired"))
+        item["section_type"] = "edited" if (item.get("is_edited") or item.get("is_bundle")) else "instant"
         orders.append(item)
 
     return {

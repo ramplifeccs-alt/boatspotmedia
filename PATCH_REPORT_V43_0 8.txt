@@ -1,0 +1,5 @@
+app/templates/public/home.html
+app/templates/cart/view.html
+app/static/css/style.css
+app/templates/buyer/dashboard.html
+app/routes/public.py

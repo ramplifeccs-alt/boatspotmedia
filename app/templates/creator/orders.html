@@ -129,24 +129,30 @@
       {% if orders %}
         {% if not pending_only and not delete_ready_only %}
           <h2 id="instant-section" class="bsm-section-title-v467">Instant Downloads</h2>
-          {% if instant_orders %}
-            <div class="bsm-orders-list-v459">
-              {% for sale in instant_orders %}
+          <div class="bsm-orders-list-v459">
+            {% set instant_count = namespace(value=0) %}
+            {% for sale in orders %}
+              {% if not sale.is_edited and not sale.is_bundle and (sale.section_type or 'instant') != 'edited' %}
+                {% set instant_count.value = instant_count.value + 1 %}
                 {{ order_card(sale) }}
-              {% endfor %}
-            </div>
-          {% else %}
+              {% endif %}
+            {% endfor %}
+          </div>
+          {% if instant_count.value == 0 %}
             <div class="bsm-empty-orders-v459">No instant downloads in this page/search.</div>
           {% endif %}
 
           <h2 id="edited-section" class="bsm-section-title-v467">Edited Videos</h2>
-          {% if edited_orders %}
-            <div class="bsm-orders-list-v459">
-              {% for sale in edited_orders %}
+          <div class="bsm-orders-list-v459">
+            {% set edited_count = namespace(value=0) %}
+            {% for sale in orders %}
+              {% if sale.is_edited or sale.is_bundle or (sale.section_type or '') == 'edited' %}
+                {% set edited_count.value = edited_count.value + 1 %}
                 {{ order_card(sale) }}
-              {% endfor %}
-            </div>
-          {% else %}
+              {% endif %}
+            {% endfor %}
+          </div>
+          {% if edited_count.value == 0 %}
             <div class="bsm-empty-orders-v459">No edited videos in this page/search.</div>
           {% endif %}
         {% else %}
