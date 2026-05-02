@@ -1,4 +1,4 @@
-from flask import Flask
+from flask import Flask, redirect, request
 from config import Config
 from .services.db import db
 
@@ -294,6 +294,12 @@ def create_app():
         is_bundle_v443 = package in ["bundle", "combo", "original_plus_edited", "original_edited", "original+edited", "original_edit"]
         if is_bundle_v443 and requested_delivery_v443 in ["original", "edited"]:
             is_edited = requested_delivery_v443 == "edited"
+        # edited_r2_key download fix v465
+        if is_edited and purchased.get("edited_r2_key"):
+            edited_url_v465 = _bsm_public_r2_url_v465(purchased.get("edited_r2_key"))
+            if edited_url_v465:
+                return redirect(edited_url_v465)
+
         else:
             is_edited = package in ["edited", "edit", "instagram_edit", "tiktok_edit", "reel_edit", "short_edit"]
 
@@ -427,4 +433,13 @@ except Exception as e:
         print("buyer blueprint registration warning:", e)
     except Exception:
         pass
+
+
+def _bsm_public_r2_url_v465(key):
+    import os
+    base = (os.environ.get("R2_PUBLIC_URL") or os.environ.get("R2_PUBLIC_BASE_URL") or "").strip().rstrip("/")
+    if base and key:
+        return base + "/" + str(key).lstrip("/")
+    return None
+
 

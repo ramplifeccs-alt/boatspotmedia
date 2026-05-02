@@ -1,10 +1,8 @@
-BoatSpotMedia v46.4 Edited Upload Progress + Background + Delete
-Base: v46.3.
-Adds:
-- Edited video upload uses direct-to-R2 presigned PUT from browser.
-- Upload progress bar for edited deliveries.
-- Page no longer freezes during edited upload.
-- Backend only marks delivery complete after R2 upload finishes.
-- Buyer download activates and email sends after completion.
-- Edited file size counts against creator storage.
-- Creator can delete edited video after 72-hour download window expires.
+BoatSpotMedia v46.5 Buyer Edited Download + Bundle + Storage Fix
+Base: v46.4.
+Fixes:
+- Buyer edited download now uses bsm_cart_order_item.edited_r2_key, not the original video R2 path.
+- Bundle deliveries keep original and edited download paths separated.
+- Buyer dashboard fallback links include ?delivery=original or ?delivery=edited.
+- Edited delete button appears only after 72 hours from edited_uploaded_at.
+- Storage calculation ensures edited_file_size_bytes exists and includes edited uploads.

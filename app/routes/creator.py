@@ -1879,6 +1879,12 @@ def _bsm_v463_get_creator_storage_status(creator_id):
     Returns creator storage usage/limit in bytes. Uses flexible column detection.
     If no storage limit column exists yet, allows upload and reports limit as None.
     """
+    # storage edited_file_size_bytes ensure v465
+    try:
+        db.session.execute(db.text("ALTER TABLE bsm_cart_order_item ADD COLUMN IF NOT EXISTS edited_file_size_bytes BIGINT DEFAULT 0"))
+        db.session.commit()
+    except Exception:
+        db.session.rollback()
     try:
         # Try creator_profile first
         row = db.session.execute(db.text("""
