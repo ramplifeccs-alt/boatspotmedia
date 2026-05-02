@@ -468,11 +468,28 @@ def _bsm_is_edited_package_v443(package):
 def _bsm_is_bundle_package_v443(package):
     return str(package or "").lower() in ["bundle", "combo", "original_plus_edited", "original_edited", "original+edited", "original_edit"]
 
+
+def _bsm_public_r2_url_v468(key):
+    import os
+    base = (os.environ.get("R2_PUBLIC_URL") or os.environ.get("R2_PUBLIC_BASE_URL") or "").strip().rstrip("/")
+    if base and key:
+        return base + "/" + str(key).lstrip("/")
+    return ""
+
+
 def _bsm_make_delivery_v443(ix, delivery_type, order_created_at=None):
     """
     delivery_type: original or edited
     """
     delivery = dict(ix)
+    # v468 direct edited r2 url
+    delivery["item_id"] = delivery.get("item_id") or delivery.get("id") or delivery.get("order_item_id")
+    if delivery_type == "edited" and delivery.get("edited_r2_key"):
+        direct_edited_url_v468 = _bsm_public_r2_url_v468(delivery.get("edited_r2_key"))
+        if direct_edited_url_v468:
+            delivery["download_url"] = direct_edited_url_v468
+            delivery["download_locked"] = False
+            delivery["status_label"] = "Ready"
     delivery["item_id"] = delivery.get("item_id") or delivery.get("id")
     delivery["delivery_type"] = delivery_type
     delivery["delivery_label"] = "Edited Version" if delivery_type == "edited" else "Original Clip / Instant Download"

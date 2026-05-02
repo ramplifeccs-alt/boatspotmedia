@@ -1,10 +1,8 @@
-BoatSpotMedia v46.7 Edited Download Sections + Mistake Fix
-Base: v46.6.
+BoatSpotMedia v46.8 Direct Edited R2 + Storage Recalc
+Base: v46.7.
 Fixes:
-- Buyer edited download is forced through bsm_cart_order_item.id and ?delivery=edited.
-- Edited download redirects to edited_r2_key, not original video path.
-- Creator Orders labels Instant Downloads vs Edited Videos.
-- Edited videos remain classified as Edited after upload.
-- Timer shown in red.
-- Adds Uploaded by Mistake / Delete & Re-upload button.
-- Mistake delete removes edited file immediately from R2, resets order to pending_edit, and subtracts storage.
+- Buyer Download Edited Video uses direct public R2 URL from edited_r2_key.
+- Download route forces ?delivery=edited to resolve bsm_cart_order_item.id before original fallback.
+- Bundle original should not show Pending Approval unless discount_status is actually pending.
+- Storage used recalculates as original video file sizes + edited_file_size_bytes.
+- After edited upload/delete/mistake delete, storage is recalculated.
