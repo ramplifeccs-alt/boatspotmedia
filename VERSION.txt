@@ -1,8 +1,7 @@
-BoatSpotMedia v46.1 Creator Orders Route Fix
-Base: v46.0.
-Real fix:
-- Corrects the actual route used by /creator/orders: @creator_bp.route("/orders").
-- Uses current_creator().id instead of session user_id, because video.creator_id references creator_profile.id.
-- Search works by buyer email or order number.
-- Fallback includes old OrderItem table if legacy purchases exist there.
-- Removes mistaken /creator/creator/orders route.
+BoatSpotMedia v46.2 Creator Orders Endpoint Fix
+Base: v46.1.
+Fix:
+- Removes duplicate creator.orders endpoint causing Gunicorn boot failure.
+- Keeps one clean /creator/orders route with endpoint='orders_page_v462'.
+- Keeps search by buyer email or order number.
+- Keeps creator_id matching via current_creator().id.

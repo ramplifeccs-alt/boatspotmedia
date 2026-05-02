@@ -2346,6 +2346,16 @@ def _bsm_creator_orders_data_v461(creator_id, page=1, q=""):
     }
 
 
+
+@creator_bp.route("/orders", endpoint="orders_page_v462")
+def creator_orders_page_v462():
+    creator = current_creator()
+    creator_id = creator.id if creator else None
+    page = request.args.get("page", 1)
+    q = request.args.get("q", "")
+    return render_template("creator/orders.html", **_bsm_creator_orders_data_v461(creator_id, page, q))
+
+
 @creator_bp.route("/orders")
 def orders():
     creator = current_creator()
@@ -3527,10 +3537,3 @@ def creator_pricing_page_v452():
     return render_template("creator/pricing.html")
 
 
-@creator_bp.route("/orders")
-def orders():
-    creator = current_creator()
-    creator_id = creator.id if creator else None
-    page = request.args.get("page", 1)
-    q = request.args.get("q", "")
-    return render_template("creator/orders.html", **_bsm_creator_orders_data_v461(creator_id, page, q))
