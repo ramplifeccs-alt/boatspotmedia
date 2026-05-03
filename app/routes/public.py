@@ -836,35 +836,6 @@ def apply_creator_v488():
 
 
 
-# v49.1 compatibility: preserve old creator login Google button endpoint.
-@public_bp.route("/auth/google/register/<account_type>", endpoint="auth_google_register")
-@public_bp.route("/auth/google/<account_type>")
-def auth_google_register(account_type="buyer"):
-    """
-    Compatibility route for old templates using:
-    url_for('public.auth_google_register', account_type='creator')
-    It redirects to the existing Google/OAuth route if present, otherwise to the correct login.
-    """
-    account_type = account_type or request.args.get("account_type") or "buyer"
-    # Try common existing OAuth routes without assuming one exact name.
-    for endpoint in [
-        "public.google_login",
-        "public.auth_google",
-        "public.google_auth",
-        "public.oauth_google",
-        "public.login_google",
-        "public.google_register",
-    ]:
-        try:
-            return redirect(url_for(endpoint, account_type=account_type))
-        except Exception:
-            pass
-    # Fallback keeps the page working instead of crashing.
-    if account_type == "creator":
-        return redirect("/creator/login")
-    return redirect("/buyer/login")
-
-
 
 # v49.2 Creator registration/application flow.
 # This is NOT creator login. This only stores a pending application.
@@ -931,3 +902,71 @@ def creator_register_v492():
 def logout_v493():
     session.clear()
     return redirect("/")
+
+
+
+# v49.4 Google OAuth compatibility wrapper.
+# Keeps old templates working without hijacking the real OAuth flow.
+@public_bp.route("/auth/google/register/<account_type>", endpoint="auth_google_register")
+@public_bp.route("/auth/google/register")
+def auth_google_register(account_type="buyer"):
+    account_type = account_type or request.args.get("account_type") or "buyer"
+
+    # Preferred: call an existing internal endpoint if present.
+    candidates = [
+        "public.google_login",
+        "public.google_register",
+        "public.google_auth",
+        "public.auth_google",
+        "public.oauth_google",
+        "public.login_google",
+        "public.google_oauth",
+        "public.start_google_auth",
+    ]
+    for endpoint in candidates:
+        try:
+            return redirect(url_for(endpoint, account_type=account_type))
+        except Exception:
+            pass
+        try:
+            return redirect(url_for(endpoint))
+        except Exception:
+            pass
+
+    # Fallback: try common direct OAuth paths used by earlier builds.
+    # If one of these exists, Flask/browser will continue the OAuth flow.
+    direct_paths = [
+        f"/google/login?account_type={account_type}",
+        f"/auth/google?account_type={account_type}",
+        f"/oauth/google?account_type={account_type}",
+        f"/login/google?account_type={account_type}",
+    ]
+    return redirect(direct_paths[0])
+
+
+
+# v49.4 Apple OAuth compatibility wrapper.
+@public_bp.route("/auth/apple/register/<account_type>", endpoint="auth_apple_register")
+@public_bp.route("/auth/apple/register")
+def auth_apple_register(account_type="buyer"):
+    account_type = account_type or request.args.get("account_type") or "buyer"
+    candidates = [
+        "public.apple_login",
+        "public.apple_register",
+        "public.apple_auth",
+        "public.auth_apple",
+        "public.oauth_apple",
+        "public.login_apple",
+        "public.apple_oauth",
+        "public.start_apple_auth",
+    ]
+    for endpoint in candidates:
+        try:
+            return redirect(url_for(endpoint, account_type=account_type))
+        except Exception:
+            pass
+        try:
+            return redirect(url_for(endpoint))
+        except Exception:
+            pass
+    return redirect(f"/auth/apple?account_type={account_type}")

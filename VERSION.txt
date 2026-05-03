@@ -1,9 +1,8 @@
-BoatSpotMedia v49.3 Creator ID Upload Logout Plan Fix
-Base: v49.2.
+BoatSpotMedia v49.4 Restore Google Login Flow
+Base: v49.3.
 Fixes:
-- video.creator_id uses user.id, not creator_profile.id.
-- Creator session keeps creator_id/user_id for videos and creator_profile_id for plan/storage.
-- Upload route normalizes creator_id before saving video.
-- Owner Creators compact card layout.
-- Logout route aliases clear session and redirect home.
-- Plan/storage prefers creator_subscription.storage_limit_gb.
+- Removes previous compatibility blocks that redirected Google to normal login.
+- Restores stable public.auth_google_register endpoint expected by templates.
+- Wrapper tries real existing Google OAuth endpoints first.
+- Keeps Google/Apple buttons; does not remove them.
+- Keeps creator register/apply and logout fixes from v49.3.

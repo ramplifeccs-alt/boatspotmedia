@@ -1,0 +1,7 @@
+Google/OAuth functions found before wrapper:
+apply_with_google, auth_google_register
+Apple functions found before wrapper:
+apple_login_under_construction, apply_with_apple_under_construction
+
+Patched:
+app/routes/public.py

@@ -1,0 +1,9 @@
+BoatSpotMedia v49.2 Creator Register Application Flow
+Base: v49.1.
+Fixes:
+- Adds real Creator Registration/Application separate from Creator Login.
+- Routes: /creator/register, /creator/apply, /apply-creator, /apply.
+- Saves creator application data to existing creator_application table.
+- Captures first_name, last_name, brand_name, email, phone, instagram, location, website, notes.
+- Adds Apply to become a creator link on creator login and home.
+- Does not touch Google or Apple creator login.
