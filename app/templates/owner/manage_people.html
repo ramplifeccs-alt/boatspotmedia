@@ -5,19 +5,29 @@
 <aside class="owner-sidebar-v475"><a href="/owner/panel" class="owner-logo-v475"><img src="/static/img/logo-header.png" alt="BoatSpotMedia"></a><nav><a href="/owner/panel">Owner Dashboard</a><a href="/owner/applications">Creator Applications</a><a href="/owner/creators" {% if kind=='creator' %}class="active"{% endif %}>Creators</a><a href="/owner/buyers" {% if kind=='buyer' %}class="active"{% endif %}>Buyers</a><a href="/owner/creator-plans">Creator Plans</a><a href="/owner/db-debug">DB Debug</a><a href="/logout" class="danger">Log out</a></nav></aside>
 <main class="owner-main-v475"><div class="owner-card-v475"><h1>{{ title }}</h1><p>Source table: <strong>{{ table_name }}</strong></p></div>
 {% with messages = get_flashed_messages() %}{% if messages %}<div class="owner-flash-v474">{% for msg in messages %}<div>{{ msg }}</div>{% endfor %}</div>{% endif %}{% endwith %}
-<div class="owner-content-v475 owner-table-wrap-v476"><table class="owner-table-v476">
+<div class="owner-content-v475">
 {% if kind == 'buyer' %}
-<thead><tr><th>ID</th><th>Name</th><th>Email</th><th>Phone</th><th>Status</th><th>Actions</th></tr></thead>
+<table class="owner-table-v476 compact-v493"><thead><tr><th>ID</th><th>Name</th><th>Email</th><th>Phone</th><th>Status</th><th>Actions</th></tr></thead><tbody>
+{% for r in rows %}<tr><td>{{ r.id }}</td><td><strong>{{ r.display_name }}</strong></td><td>{{ r.display_email }}</td><td>{{ r.display_phone }}</td><td>{{ r.display_status }}</td><td class="owner-actions-v478"><a href="/owner/buyer/{{ r.id }}/edit">Edit</a><form method="POST" action="/owner/buyer/{{ r.id }}/status/suspended"><button type="submit">Suspend</button></form><form method="POST" action="/owner/buyer/{{ r.id }}/status/active"><button type="submit">Reactivate</button></form><form method="POST" action="/owner/buyer/{{ r.id }}/reset-password"><input name="new_password" placeholder="New password"><button type="submit">Reset</button></form></td></tr>{% else %}<tr><td colspan="6">No records found.</td></tr>{% endfor %}
+</tbody></table>
 {% else %}
-<thead><tr><th>Creator ID</th><th>Name</th><th>Email</th><th>Phone</th><th>Brand/Location</th><th>Instagram</th><th>Plan</th><th>Storage</th><th>Status</th><th>Actions</th></tr></thead>
+<div class="creator-cards-v493">
+{% for r in rows %}
+<div class="creator-card-v493">
+<div><strong>{{ r.display_name }}</strong></div>
+<div class="muted-v493">User ID: {{ r.id }} · Profile ID: {{ r.profile_id }}</div>
+<div>{{ r.display_email }}</div>
+<div>{{ r.display_phone }}</div>
+<div>Plan: <strong>{{ r.plan_key }}</strong> · Limit: <strong>{{ r.storage_limit_gb }} GB</strong> · Commission: <strong>{{ r.commission_rate }}%</strong></div>
+<div>Status: {{ r.display_status }}</div>
+<div class="owner-actions-v478">
+<a href="/owner/creator/{{ r.id }}/edit">Edit</a>
+<form method="POST" action="/owner/creator/{{ r.id }}/status/suspended"><button type="submit">Suspend</button></form>
+<form method="POST" action="/owner/creator/{{ r.id }}/status/active"><button type="submit">Reactivate</button></form>
+<form method="POST" action="/owner/creator/{{ r.id }}/reset-password"><input name="new_password" placeholder="New password"><button type="submit">Reset</button></form>
+</div>
+</div>
+{% else %}<div>No records found.</div>{% endfor %}
+</div>
 {% endif %}
-<tbody>{% for r in rows %}<tr>
-<td>{{ r.id }}</td><td><strong>{{ r.display_name }}</strong>{% if r.user_id %}<br><small>User ID: {{ r.user_id }}</small>{% endif %}</td><td>{{ r.display_email }}</td><td>{{ r.display_phone }}</td>
-{% if kind != 'buyer' %}<td>{{ r.display_brand }}</td><td>{{ r.display_social }}</td><td>{{ r.plan_key }}</td><td>{{ r.storage_limit_gb }} GB</td>{% endif %}
-<td>{{ r.display_status }}</td><td class="owner-actions-v478">
-{% if kind == 'buyer' %}
-<a href="/owner/buyer/{{ r.id }}/edit">Edit</a><form method="POST" action="/owner/buyer/{{ r.id }}/status/suspended"><button type="submit">Suspend</button></form><form method="POST" action="/owner/buyer/{{ r.id }}/status/active"><button type="submit">Reactivate</button></form><form method="POST" action="/owner/buyer/{{ r.id }}/reset-password"><input name="new_password" placeholder="New password"><button type="submit">Reset Password</button></form>
-{% else %}
-<a href="/owner/creator/{{ r.id }}/edit">Edit</a><form method="POST" action="/owner/creator/{{ r.id }}/status/suspended"><button type="submit">Suspend</button></form><form method="POST" action="/owner/creator/{{ r.id }}/status/active"><button type="submit">Reactivate</button></form><form method="POST" action="/owner/creator/{{ r.id }}/reset-password"><input name="new_password" placeholder="New password"><button type="submit">Reset Password</button></form>
-{% endif %}
-</td></tr>{% else %}<tr><td colspan="10">No records found.</td></tr>{% endfor %}</tbody></table></div></main></div></body></html>
+</div></main></div></body></html>

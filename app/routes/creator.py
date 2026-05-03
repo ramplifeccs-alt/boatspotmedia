@@ -88,6 +88,7 @@ def current_creator():
     user_id = session.get("user_id")
     user_email = session.get("user_email") or session.get("email")
     creator_id = session.get("creator_id")
+    creator_id = _creator_user_id_v493() or creator_id
 
     q = CreatorProfile.query.filter(
         CreatorProfile.approved == True,
@@ -664,8 +665,7 @@ def _schedule_creator_pricing_update(creator):
         import threading
         from flask import current_app
         app = current_app._get_current_object()
-        creator_id = creator.id
-
+        creator_id = _creator_user_id_v493()
         def worker():
             with app.app_context():
                 _apply_creator_pricing_to_existing_videos_by_id(creator_id)
@@ -2275,6 +2275,7 @@ def _bsm_subscription_allows_upload_v472(creator_id):
 # v49.1 dashboard safety only: do not replace creator login/OAuth.
 def _creator_has_valid_profile_v491():
     creator_id = session.get("creator_id") or session.get("creator_user_id")
+    creator_id = _creator_user_id_v493() or creator_id
     if not creator_id:
         return False
     try:
@@ -2295,6 +2296,70 @@ def _creator_has_valid_profile_v491():
 def _creator_clear_bad_session_v491():
     for k in ["creator_id", "creator_user_id", "creator_email", "creator_name"]:
         session.pop(k, None)
+
+
+
+# v49.3 real creator identity helpers
+# video.creator_id has FK to "user".id, so uploads/videos must use creator_user_id.
+def _creator_identity_v493():
+    user_id = session.get("creator_user_id") or session.get("creator_id")
+    profile_id = session.get("creator_profile_id")
+
+    if not user_id and profile_id:
+        try:
+            row = db.session.execute(db.text("""
+                SELECT user_id FROM creator_profile WHERE id=:profile_id LIMIT 1
+            """), {"profile_id": profile_id}).mappings().first()
+            if row:
+                user_id = row["user_id"]
+                session["creator_user_id"] = user_id
+                session["creator_id"] = user_id
+        except Exception:
+            db.session.rollback()
+
+    if user_id:
+        try:
+            row = db.session.execute(db.text("""
+                SELECT u.id AS user_id,
+                       cp.id AS profile_id,
+                       u.email,
+                       COALESCE(u.display_name, u.public_name, TRIM(COALESCE(u.first_name,'') || ' ' || COALESCE(u.last_name,'')), u.email) AS display_name,
+                       COALESCE(u.is_active,true) AS is_active,
+                       COALESCE(cs.plan_key, 'free') AS plan_key,
+                       COALESCE(cs.storage_limit_gb, cp.storage_limit_gb, 5) AS storage_limit_gb,
+                       COALESCE(cp.storage_used_bytes,0) AS storage_used_bytes,
+                       COALESCE(cp.commission_rate,15) AS commission_rate
+                FROM "user" u
+                LEFT JOIN creator_profile cp ON cp.user_id = u.id
+                LEFT JOIN creator_subscription cs ON cs.creator_id = cp.id
+                WHERE u.id=:user_id
+                  AND LOWER(COALESCE(u.role,''))='creator'
+                LIMIT 1
+            """), {"user_id": user_id}).mappings().first()
+            if row and row.get("profile_id"):
+                session["creator_user_id"] = row["user_id"]
+                session["creator_id"] = row["user_id"]
+                session["creator_profile_id"] = row["profile_id"]
+                return row
+        except Exception:
+            db.session.rollback()
+    return None
+
+def _creator_require_identity_v493():
+    ident = _creator_identity_v493()
+    if not ident or not ident.get("is_active", True):
+        for k in ["creator_id", "creator_user_id", "creator_profile_id", "creator_email", "creator_name"]:
+            session.pop(k, None)
+        return None
+    return ident
+
+def _creator_user_id_v493():
+    ident = _creator_require_identity_v493()
+    return ident["user_id"] if ident else None
+
+def _creator_profile_id_v493():
+    ident = _creator_require_identity_v493()
+    return ident["profile_id"] if ident else None
 
 
 @creator_bp.route("/billing", endpoint="billing_v472")
@@ -2574,6 +2639,12 @@ def apple_login_under_construction():
 
 @creator_bp.route("/dashboard")
 def dashboard():
+    # dashboard identity guard v49.3
+    creator_identity_v493 = _creator_require_identity_v493()
+    if not creator_identity_v493:
+        flash("Please log in as a creator.")
+        return redirect("/creator/login")
+
     # dashboard safety guard v49.1
     if not _creator_has_valid_profile_v491():
         _creator_clear_bad_session_v491()
@@ -2965,6 +3036,7 @@ def delete_pricing(preset_id):
 @creator_bp.route("/settings", methods=["GET","POST"], endpoint="settings_v488")
 def creator_settings_v488():
     creator_id = session.get("creator_id") or session.get("creator_user_id")
+    creator_id = _creator_user_id_v493() or creator_id
     if not creator_id:
         return redirect("/creator/login")
 
@@ -3101,6 +3173,15 @@ def _creator_used_storage_bytes(creator_id):
 
 @creator_bp.route("/upload", methods=["GET"])
 def upload():
+    # upload batch creator_id correction v49.3
+    _creator_ident = _creator_require_identity_v493()
+    if not _creator_ident:
+        flash("Please log in as a creator.")
+        return redirect("/creator/login")
+    session["creator_id"] = _creator_ident["user_id"]
+    session["creator_user_id"] = _creator_ident["user_id"]
+    session["creator_profile_id"] = _creator_ident["profile_id"]
+
     # v472 subscription upload guard
     try:
         c=current_creator()

@@ -920,3 +920,14 @@ def creator_register_v492():
             flash("Could not submit application. Please try again.")
 
     return render_template("public/apply_creator.html", submitted=False)
+
+
+# v49.3 robust logout for buyer/creator/owner
+@public_bp.route("/logout", endpoint="logout_v493")
+@public_bp.route("/auth/logout")
+@public_bp.route("/creator/logout")
+@public_bp.route("/buyer/logout")
+@public_bp.route("/owner/logout")
+def logout_v493():
+    session.clear()
+    return redirect("/")

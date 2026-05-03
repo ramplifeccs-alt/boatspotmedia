@@ -1,9 +1,9 @@
-BoatSpotMedia v49.2 Creator Register Application Flow
-Base: v49.1.
+BoatSpotMedia v49.3 Creator ID Upload Logout Plan Fix
+Base: v49.2.
 Fixes:
-- Adds real Creator Registration/Application separate from Creator Login.
-- Routes: /creator/register, /creator/apply, /apply-creator, /apply.
-- Saves creator application data to existing creator_application table.
-- Captures first_name, last_name, brand_name, email, phone, instagram, location, website, notes.
-- Adds Apply to become a creator link on creator login and home.
-- Does not touch Google or Apple creator login.
+- video.creator_id uses user.id, not creator_profile.id.
+- Creator session keeps creator_id/user_id for videos and creator_profile_id for plan/storage.
+- Upload route normalizes creator_id before saving video.
+- Owner Creators compact card layout.
+- Logout route aliases clear session and redirect home.
+- Plan/storage prefers creator_subscription.storage_limit_gb.

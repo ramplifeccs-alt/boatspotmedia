@@ -1013,27 +1013,30 @@ def _owner_current_applications_v488():
 def _owner_current_creators_v488():
     _owner_bootstrap_v488()
     return _owner_rows_v488("""
-        SELECT cp.id AS id,
-               cp.id AS creator_id,
+        SELECT u.id AS id,
+               u.id AS creator_user_id,
+               cp.id AS profile_id,
                cp.user_id AS user_id,
-               COALESCE(u.display_name, u.public_name, TRIM(COALESCE(u.first_name,'') || ' ' || COALESCE(u.last_name,'')), u.email, 'Creator #' || cp.id::text) AS display_name,
+               COALESCE(u.display_name, u.public_name, TRIM(COALESCE(u.first_name,'') || ' ' || COALESCE(u.last_name,'')), u.email, 'Creator #' || u.id::text) AS display_name,
                COALESCE(u.primary_location,'') AS display_brand,
                COALESCE(u.email,'') AS display_email,
                COALESCE(u.phone,'') AS display_phone,
                COALESCE(cp.instagram, u.social_link, u.social_link_2, '') AS display_social,
                CASE WHEN COALESCE(u.is_active,true)=true THEN 'active' ELSE 'inactive' END AS display_status,
-               COALESCE(cs.plan_key, cp.plan_id::text, '') AS plan_key,
-               COALESCE(cs.status,'') AS subscription_status,
-               COALESCE(cs.storage_limit_gb, cp.storage_limit_gb, 0) AS storage_limit_gb,
+               COALESCE(cs.plan_key, cp.plan_id::text, 'free') AS plan_key,
+               COALESCE(cs.status,'active') AS subscription_status,
+               COALESCE(cs.storage_limit_gb, cp.storage_limit_gb, 5) AS storage_limit_gb,
                COALESCE(cp.storage_used_bytes,0) AS storage_used_bytes,
-               COALESCE(cp.commission_rate, 0) AS commission_rate,
-               cp.created_at
-        FROM creator_profile cp
-        LEFT JOIN "user" u ON u.id = cp.user_id
+               COALESCE(cp.commission_rate, 15) AS commission_rate,
+               u.created_at
+        FROM "user" u
+        JOIN creator_profile cp ON cp.user_id = u.id
         LEFT JOIN creator_subscription cs ON cs.creator_id = cp.id
-        ORDER BY cp.id DESC
+        WHERE LOWER(COALESCE(u.role,''))='creator'
+        ORDER BY u.id DESC
         LIMIT 300
     """)
+
 
 def _owner_current_buyers_v488():
     _owner_bootstrap_v488()
@@ -1061,7 +1064,8 @@ def _owner_get_application_v488(row_id):
 
 def _owner_get_creator_v488(creator_id):
     rows = _owner_rows_v488("""
-        SELECT cp.id AS id,
+        SELECT u.id AS id,
+               cp.id AS profile_id,
                cp.user_id,
                u.email,
                u.first_name,
@@ -1072,17 +1076,18 @@ def _owner_get_creator_v488(creator_id):
                u.phone,
                u.is_active,
                cp.instagram,
-               COALESCE(cs.storage_limit_gb, cp.storage_limit_gb, 0) AS storage_limit_gb,
+               COALESCE(cs.storage_limit_gb, cp.storage_limit_gb, 5) AS storage_limit_gb,
                cp.storage_used_bytes,
                cp.commission_rate,
-               COALESCE(cs.plan_key,'') AS plan_key
-        FROM creator_profile cp
-        LEFT JOIN "user" u ON u.id = cp.user_id
+               COALESCE(cs.plan_key,'free') AS plan_key
+        FROM "user" u
+        JOIN creator_profile cp ON cp.user_id = u.id
         LEFT JOIN creator_subscription cs ON cs.creator_id=cp.id
-        WHERE cp.id=:id
+        WHERE u.id=:id AND LOWER(COALESCE(u.role,''))='creator'
         LIMIT 1
     """, {"id": creator_id})
     return rows[0] if rows else None
+
 
 def _owner_get_buyer_v488(row_id):
     rows = _owner_rows_v488("""
@@ -1169,7 +1174,7 @@ def _owner_find_or_create_creator_from_application_v488(app):
                 commission_rate=COALESCE(commission_rate, :commission_rate)
             WHERE id=:creator_id
         """), {
-            "creator_id": creator_id,
+            "creator_id": row.get("profile_id"),
             "instagram": instagram,
             "commission_rate": plan["commission_rate"],
         })
@@ -1203,7 +1208,7 @@ def _owner_find_or_create_creator_from_application_v488(app):
                 updated_at=CURRENT_TIMESTAMP
             WHERE creator_id=:creator_id
         """), {
-            "creator_id": creator_id,
+            "creator_id": row.get("profile_id"),
             "plan_key": plan["plan_key"],
             "storage_limit_gb": plan["storage_limit_gb"],
         })
@@ -1213,7 +1218,7 @@ def _owner_find_or_create_creator_from_application_v488(app):
             (creator_id, plan_key, status, storage_limit_gb, created_at, updated_at)
             VALUES (:creator_id, :plan_key, 'active', :storage_limit_gb, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
         """), {
-            "creator_id": creator_id,
+            "creator_id": row.get("profile_id"),
             "plan_key": plan["plan_key"],
             "storage_limit_gb": plan["storage_limit_gb"],
         })
@@ -1337,7 +1342,7 @@ def owner_edit_creator_v488(creator_id):
                     is_active=:is_active
                 WHERE id=:user_id
             """), {
-                "user_id": row.get("user_id"),
+                "user_id": row.get("user_id") or row.get("id"),
                 "email": request.form.get("email") or "",
                 "first_name": request.form.get("first_name") or "",
                 "last_name": request.form.get("last_name") or "",
@@ -1352,7 +1357,7 @@ def owner_edit_creator_v488(creator_id):
                     commission_rate=:commission_rate
                 WHERE id=:creator_id
             """), {
-                "creator_id": creator_id,
+                "creator_id": row.get("profile_id"),
                 "instagram": request.form.get("instagram") or "",
                 "commission_rate": float(request.form.get("commission_rate") or 0),
             })
@@ -1362,7 +1367,7 @@ def owner_edit_creator_v488(creator_id):
                     updated_at=CURRENT_TIMESTAMP
                 WHERE creator_id=:creator_id
             """), {
-                "creator_id": creator_id,
+                "creator_id": row.get("profile_id"),
                 "storage_limit_gb": float(request.form.get("storage_limit_gb") or 0),
             })
             db.session.commit()
@@ -1385,7 +1390,7 @@ def owner_creator_status_v488(creator_id, status):
         return redirect("/owner/creators")
     ok = _owner_exec_v488('UPDATE "user" SET is_active=:active WHERE id=:user_id', {
         "active": status in ["active", "approved"],
-        "user_id": row.get("user_id"),
+        "user_id": row.get("user_id") or row.get("id"),
     })
     flash("Creator status updated." if ok else "Could not update creator.")
     return redirect("/owner/creators")
@@ -1403,7 +1408,7 @@ def owner_creator_reset_password_v488(creator_id):
     from werkzeug.security import generate_password_hash
     ok = _owner_exec_v488('UPDATE "user" SET password_hash=:p WHERE id=:user_id', {
         "p": generate_password_hash(new_password),
-        "user_id": row.get("user_id"),
+        "user_id": row.get("user_id") or row.get("id"),
     })
     flash("Creator password reset successfully." if ok else "Could not reset creator password.")
     return redirect("/owner/creators")
