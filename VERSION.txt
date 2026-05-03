@@ -1,7 +1,13 @@
-BoatSpotMedia v49.1G Restore Buyer Items + R2 Download Fix
-Base: v49.1E_FROM_49_1D_POPUP_INSTANT_FIX.
+BoatSpotMedia v49.1H from v49.1F Approve Creator Sequence + Free Plan Fix
+Base: v49.1F_FROM_49_1E_DIRECT_ORIGINAL_DOWNLOAD_FIX.
 Fixes:
-- Reverts away from v49.1F broken buyer item query by starting from v49.1E.
-- Adds safe /download-video/<item_id>?delivery=original route.
-- Route redirects to original R2 public file using video.file_path/r2_video_key/public_url.
-- Does NOT change buyer dashboard item queries, templates, Google, Apple, login, upload, batches, creators, checkout, or DB.
+- Restores correct creator architecture:
+  user.id = account id
+  creator_profile.id = its own sequential creator id
+  creator_profile.user_id = user.id
+- Approving creator applications no longer forces creator_profile.id = user.id.
+- Free/default plan comes from storage_plan.id=5 when available.
+- creator_profile.storage_limit_gb defaults to plan value, expected 5 GB.
+- creator_subscription uses creator_profile.id and storage_limit_gb from plan.
+- Removes Repair ID Match link.
+Does not touch Google, Apple, buyer/creator login, buyer dashboard, downloads, uploads, checkout, batches, or DB constraints.
