@@ -314,8 +314,15 @@ def owner_panel_v477():
     return render_template("owner/panel.html", metrics=metrics, q=q)
 
 
+
 @owner_bp.route("/applications")
 def owner_applications_v479():
+    """
+    Show creator applications cleanly:
+    - one row per email
+    - newest/highest id wins
+    - fallback display fields normalized
+    """
     table = _owner_table_for_v478("application")
     rows = []
     if table:
@@ -326,23 +333,48 @@ def owner_applications_v479():
         status_expr = _owner_status_expr_v479(cols)
         social_expr = _owner_social_expr_v479(cols)
         brand_expr = "COALESCE(brand,'')" if "brand" in cols else ("COALESCE(brand_name,'')" if "brand_name" in cols else ("COALESCE(company_name,'')" if "company_name" in cols else "''"))
+        email_col = "email" if "email" in cols else None
+        date_order = "created_at DESC," if "created_at" in cols else ""
         try:
-            rows = db.session.execute(db.text(f"""
-                SELECT id,
-                       {name_expr} AS display_name,
-                       {brand_expr} AS display_brand,
-                       {email_expr} AS display_email,
-                       {phone_expr} AS display_phone,
-                       {social_expr} AS display_social,
-                       {status_expr} AS display_status,
-                       *
-                FROM {table}
-                ORDER BY id DESC
-                LIMIT 300
-            """)).mappings().all()
+            if email_col:
+                rows = db.session.execute(db.text(f"""
+                    SELECT *
+                    FROM (
+                        SELECT id,
+                               {name_expr} AS display_name,
+                               {brand_expr} AS display_brand,
+                               {email_expr} AS display_email,
+                               {phone_expr} AS display_phone,
+                               {social_expr} AS display_social,
+                               {status_expr} AS display_status,
+                               ROW_NUMBER() OVER (
+                                   PARTITION BY LOWER(COALESCE({email_col}, ''))
+                                   ORDER BY {date_order} id DESC
+                               ) AS rn,
+                               *
+                        FROM {table}
+                    ) x
+                    WHERE rn = 1
+                    ORDER BY id DESC
+                    LIMIT 300
+                """)).mappings().all()
+            else:
+                rows = db.session.execute(db.text(f"""
+                    SELECT id,
+                           {name_expr} AS display_name,
+                           {brand_expr} AS display_brand,
+                           {email_expr} AS display_email,
+                           {phone_expr} AS display_phone,
+                           {social_expr} AS display_social,
+                           {status_expr} AS display_status,
+                           *
+                    FROM {table}
+                    ORDER BY id DESC
+                    LIMIT 300
+                """)).mappings().all()
         except Exception as e:
             db.session.rollback()
-            try: print("owner applications v47.9 warning:", e)
+            try: print("owner applications v48.0 warning:", e)
             except Exception: pass
     return render_template("owner/applications.html", applications=rows)
 

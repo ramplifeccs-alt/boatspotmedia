@@ -1,8 +1,9 @@
-BoatSpotMedia v47.9 Owner Fix + Home Buyer Only
-Base: v47.8.
+BoatSpotMedia v48.0 Owner Applications + Home Login Fix
+Base: v47.9.
 Fixes:
-- Applications table uses normalized/fallback display columns.
-- Creators table uses normalized display columns.
-- Buyers table supports users table with role='buyer'.
-- Storage original counts only active/non-deleted videos when supported by schema.
-- Home cleanup removes creator/services/charters/owner login/apply links and keeps/adds buyer login/register.
+- Creator Applications shows one latest row per email.
+- Creator list shows current/latest data, no duplicate emails.
+- Removes old Creator Passwords / Reset Password link from Owner Dashboard.
+- Adds Creators and Buyers to owner menu.
+- Home / generic /login links now go to /buyer/login.
+- Adds /login redirect to /buyer/login.

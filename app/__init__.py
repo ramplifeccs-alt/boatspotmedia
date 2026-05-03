@@ -449,6 +449,11 @@ def create_app():
     flask_app.add_url_rule("/buyer/download-item/<path:video_ref>", "bsm_buyer_download_item_v441", _bsm_download_video_v441)
 
 
+
+    @flask_app.route("/login")
+    def _bsm_redirect_login_to_buyer_v480():
+        return redirect("/buyer/login")
+
     return flask_app
 
 
