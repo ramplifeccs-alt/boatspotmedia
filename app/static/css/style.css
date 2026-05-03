@@ -1953,3 +1953,41 @@ body.creator-dashboard-v449 main{
 .owner-tile-v475{text-decoration:none;color:#0f172a!important;display:block}
 .owner-tile-v475 p{color:#64748b}
 @media(max-width:850px){.owner-shell-v475{grid-template-columns:1fr}.owner-sidebar-v475{position:relative;height:auto}.owner-grid-v475{grid-template-columns:1fr}}
+
+/* v47.6 owner remove old inner menu */
+.owner-table-wrap-v476{
+  overflow:auto;
+}
+.owner-table-v476{
+  width:100%;
+  border-collapse:collapse;
+  background:#fff;
+}
+.owner-table-v476 th,
+.owner-table-v476 td{
+  padding:12px;
+  border-bottom:1px solid #e5e7eb;
+  text-align:left;
+  vertical-align:top;
+}
+.owner-table-v476 th{
+  background:#f8fafc;
+  color:#334155;
+  font-weight:900;
+}
+.owner-table-v476 button,
+.owner-button-row-v476 a{
+  display:inline-block;
+  padding:9px 12px;
+  border:0;
+  border-radius:10px;
+  background:#2563eb;
+  color:#fff!important;
+  font-weight:800;
+  text-decoration:none;
+}
+.owner-button-row-v476{
+  display:flex;
+  gap:10px;
+  flex-wrap:wrap;
+}

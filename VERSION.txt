@@ -1,11 +1,7 @@
-BoatSpotMedia v47.5 Owner UI + Phone/SMS + Home Cleanup
-Base: v47.4.
-Adds:
-- New Owner Dashboard shell.
-- New Creator Applications shell.
-- Creator Plans remains in new owner shell.
-- Home cleanup: hides creator/services/charters login links where found.
-- Phone field added to matching buyer/creator forms.
-- Optional Twilio SMS helper added.
-Safe note:
-- Does not modify buyer.py, creator.py or public.py registration logic in this package.
+BoatSpotMedia v47.6 Owner Remove Old Inner Menu
+Base: v47.5.
+Fix:
+- Owner Dashboard no longer embeds old full dashboard/menu inside right block.
+- Creator Applications no longer embeds old full dashboard/menu inside right block.
+- Only the new left Owner menu remains.
+- Creator Applications shows clean table with phone column.

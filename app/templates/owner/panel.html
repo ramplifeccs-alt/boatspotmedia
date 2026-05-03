@@ -6,25 +6,53 @@
   <title>Owner Dashboard - BoatSpotMedia Owner</title>
   <link rel="stylesheet" href="/static/css/style.css">
 </head>
-<body class="owner-dashboard-v475">
-{% set owner_active = 'dashboard' %}
+<body class="owner-dashboard-v476">
 <div class="owner-shell-v475">
-  
-<aside class="owner-sidebar-v475">
-  <a href="/owner/panel" class="owner-logo-v475">
-    <img src="/static/img/logo-header.png" alt="BoatSpotMedia">
-  </a>
-  <nav>
-    <a href="/owner/panel" class="{% if owner_active == 'dashboard' %}active{% endif %}">Owner Dashboard</a>
-    <a href="/owner/applications" class="{% if owner_active == 'applications' %}active{% endif %}">Creator Applications</a>
-    <a href="/owner/creator-plans" class="{% if owner_active == 'plans' %}active{% endif %}">Creator Plans</a>
-    <a href="/logout" class="danger">Log out</a>
-  </nav>
-</aside>
+  <aside class="owner-sidebar-v475">
+    <a href="/owner/panel" class="owner-logo-v475">
+      <img src="/static/img/logo-header.png" alt="BoatSpotMedia">
+    </a>
+    <nav>
+      <a href="/owner/panel" class="active">Owner Dashboard</a>
+      <a href="/owner/applications">Creator Applications</a>
+      <a href="/owner/creator-plans">Creator Plans</a>
+      <a href="/logout" class="danger">Log out</a>
+    </nav>
+  </aside>
 
   <main class="owner-main-v475">
-    <div class="owner-card-v475"><h1>Owner Dashboard</h1></div><div class="owner-content-v475"><div class="container"><h1>Owner Panel</h1><a class="btn" href="/owner/applications">Open Creator Applications</a></div><script src="/static/js/mobile.js"></script>
-<p style="padding:16px;"><a href="/owner/creator-plans">Creator Subscription Plans</a></p></div>
+    <div class="owner-card-v475">
+      <h1>Owner Dashboard</h1>
+      <p>Manage BoatSpotMedia operations from one clean panel.</p>
+    </div>
+
+    {% with messages = get_flashed_messages() %}
+      {% if messages %}
+        <div class="owner-flash-v474">
+          {% for msg in messages %}<div>{{ msg }}</div>{% endfor %}
+        </div>
+      {% endif %}
+    {% endwith %}
+
+    <div class="owner-grid-v475">
+      <a class="owner-tile-v475" href="/owner/applications">
+        <h2>Creator Applications</h2>
+        <p>Review new creators, approve applications, and prepare SMS login links.</p>
+      </a>
+      <a class="owner-tile-v475" href="/owner/creator-plans">
+        <h2>Creator Plans</h2>
+        <p>Edit subscription prices, descriptions, storage limits and Stripe Price IDs.</p>
+      </a>
+    </div>
+
+    <div class="owner-content-v475">
+      <h2>Support Tools</h2>
+      <div class="owner-button-row-v476">
+        <a href="/owner/creator-passwords">Creator Passwords / Reset Password</a>
+        <a href="/owner/applications">Applications</a>
+        <a href="/owner/creator-plans">Plans</a>
+      </div>
+    </div>
   </main>
 </div>
 </body>
