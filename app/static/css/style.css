@@ -2150,3 +2150,13 @@ body.creator-dashboard-v449 main{
   margin:40px auto;
   padding:20px;
 }
+
+/* v49.0 creator login dashboard fix */
+.creator-login-v490{
+  max-width:520px;
+  margin:48px auto;
+  padding:20px;
+}
+.creator-login-v490 h1{
+  text-align:center;
+}

@@ -1,38 +1,35 @@
 <!doctype html>
 <html lang="en">
 <head>
-<meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
-<title>BoatSpotMedia</title>
-<style>
-body{font-family:Arial,sans-serif;background:#f5f7fb;margin:0;color:#111827}
-.card{max-width:460px;margin:40px auto;background:#fff;border-radius:18px;padding:26px;box-shadow:0 10px 30px rgba(0,0,0,.08)}
-input{width:100%;padding:13px;margin:8px 0 14px;border:1px solid #d1d5db;border-radius:10px;box-sizing:border-box}
-button,.btn{display:inline-block;border:0;border-radius:10px;padding:12px 16px;text-decoration:none;cursor:pointer;font-weight:700}
-.blue{background:#2563eb;color:#fff}.dark{background:#1f2937;color:#fff}.gray{background:#e5e7eb;color:#111827}
-.row{display:flex;gap:10px;flex-wrap:wrap;margin:14px 0}.flash{padding:10px 12px;background:#fff7ed;border-radius:10px;margin:8px 0}
-.brand{text-decoration:none;color:inherit;}
-</style>
-  <link rel="icon" type="image/png" href="/static/img/favicon.png">
-  <link rel="apple-touch-icon" href="/static/img/apple-touch-icon.png">
-  <meta name="theme-color" content="#071b34">
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Creator Login - BoatSpotMedia</title>
+  <link rel="stylesheet" href="/static/css/style.css">
 </head>
 <body>
-<div class="card">
-<h1>Creator Login</h1>
-<p>Creator accounts are invite-only and must be approved first.</p>
-{% with messages = get_flashed_messages(with_categories=true) %}
-  {% if messages %}{% for category,message in messages %}<div class="flash">{{ message }}</div>{% endfor %}{% endif %}
-{% endwith %}
-<form method="post">
-<input type="email" name="email" placeholder="Email" required>
-<input type="password" name="password" placeholder="Password" required>
-<button class="blue" type="submit">Login</button>
-</form>
-<div class="row">
-  <a class="btn dark" href="{{ url_for('public.auth_google_register', account_type='creator') }}">Login with Google</a>
-  <a class="btn gray" href="{{ url_for('creator.apple_login_under_construction') }}">Login with Apple</a>
-</div>
-<p><a href="{{ url_for('creator.apply') }}">Apply to become a creator</a></p>
-</div>
+  <div class="creator-login-v490">
+    <h1>Creator Login</h1>
+
+    {% with messages = get_flashed_messages() %}
+      {% if messages %}
+        <div class="owner-flash-v474">
+          {% for msg in messages %}<div>{{ msg }}</div>{% endfor %}
+        </div>
+      {% endif %}
+    {% endwith %}
+
+    <form method="POST" class="owner-card-v475 owner-edit-form-v474">
+      <label>Email
+        <input type="email" name="email" required autocomplete="email">
+      </label>
+      <label>Password
+        <input type="password" name="password" required autocomplete="current-password">
+      </label>
+      <div class="full actions">
+        <button type="submit">Login</button>
+        <a href="/">Back Home</a>
+      </div>
+    </form>
+  </div>
 </body>
 </html>

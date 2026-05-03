@@ -1,6 +1,7 @@
-BoatSpotMedia v48.9 Owner Approve Redirect Endpoint Fix
-Base: v48.8.
+BoatSpotMedia v49.0 Creator Login Dashboard Fix
+Base: v48.9.
 Fixes:
-- Old approve route crash: url_for("owner.applications") BuildError.
-- Redirects now use /owner/applications directly.
-- Adds endpoint compatibility alias for owner.applications.
+- creator/login.html no longer calls missing public.auth_google_register.
+- /creator/login uses user(role='creator') + creator_profile.
+- login stores session creator_id as creator_profile.id.
+- /creator/dashboard redirects to /creator/login if session/profile is invalid instead of crashing.
