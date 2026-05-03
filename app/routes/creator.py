@@ -2927,36 +2927,37 @@ def delete_pricing(preset_id):
         pass
     return redirect(url_for("creator.pricing"))
 
-@creator_bp.route("/settings", methods=["GET", "POST"])
-def settings():
-    creator = current_creator()
 
+@creator_bp.route("/settings", methods=["GET","POST"], endpoint="settings_v486")
+def creator_settings_v486():
+    creator_id = session.get("creator_id") or session.get("creator_user_id")
+    if not creator_id:
+        return redirect("/creator/login")
+    try:
+        row = db.session.execute(db.text("SELECT id, public_name, company_name, email, username, instagram FROM creators WHERE id=:id LIMIT 1"), {"id": creator_id}).mappings().first()
+    except Exception:
+        db.session.rollback()
+        row = None
+    if not row:
+        flash("Creator not found.")
+        return redirect("/creator/dashboard")
     if request.method == "POST":
-        action = request.form.get("action")
-
-        if action == "change_plan":
-            plan_id = request.form.get("plan_id")
-            plan = StoragePlan.query.get(plan_id) if plan_id else None
-            if plan and plan.active:
-                creator.plan_id = plan.id
-                creator.storage_limit_gb = plan.storage_limit_gb
-                creator.commission_rate = plan.commission_rate
-                db.session.commit()
-                try:
-                    _schedule_creator_pricing_update(creator)
-                except Exception:
-                    pass
-            return redirect(url_for("creator.settings"))
-
-        if creator.user:
-            creator.user.display_name = request.form.get("display_name") or creator.user.display_name
-            creator.user.email = request.form.get("email") or creator.user.email
-
-        db.session.commit()
-        return redirect(url_for("creator.settings"))
-
-    plans = StoragePlan.query.filter_by(active=True).order_by(StoragePlan.storage_limit_gb.asc()).all()
-    return render_creator_template("creator/settings.html", creator=creator, plans=plans)
+        try:
+            db.session.execute(db.text("UPDATE creators SET public_name=:public_name, company_name=:company_name, email=:email, username=:username, instagram=:instagram WHERE id=:id"), {
+                "id": creator_id,
+                "public_name": request.form.get("public_name") or "",
+                "company_name": request.form.get("company_name") or "",
+                "email": request.form.get("email") or "",
+                "username": request.form.get("username") or "",
+                "instagram": request.form.get("instagram") or "",
+            })
+            db.session.commit()
+            flash("Settings saved.")
+            return redirect("/creator/settings")
+        except Exception:
+            db.session.rollback()
+            flash("Could not save settings.")
+    return render_template("creator/settings.html", creator=row)
 
 
 @creator_bp.route("/products/<int:product_id>/variants", methods=["GET", "POST"])

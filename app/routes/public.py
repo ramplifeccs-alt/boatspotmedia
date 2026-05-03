@@ -1,6 +1,6 @@
 import os
 from datetime import datetime
-from flask import Blueprint, redirect, render_template, request, url_for, session, jsonify
+from flask import Blueprint, redirect, render_template, request, url_for, session, jsonify, flash
 from sqlalchemy import text
 from werkzeug.security import generate_password_hash, check_password_hash
 from app.models import Video, Location, ServiceAd, CharterListing, User
@@ -1528,3 +1528,28 @@ def terms_v444():
 @public_bp.route("/privacy")
 def privacy_v444():
     return render_template("public/privacy.html")
+
+@public_bp.route("/apply-creator", methods=["GET","POST"])
+@public_bp.route("/creator/apply", methods=["GET","POST"])
+def apply_creator_v486():
+    if request.method == "POST":
+        first_name = request.form.get("first_name") or ""
+        last_name = request.form.get("last_name") or ""
+        company_name = request.form.get("company_name") or request.form.get("brand_name") or ""
+        email = request.form.get("email") or ""
+        phone = request.form.get("phone") or ""
+        instagram = request.form.get("instagram") or ""
+        try:
+            exists = db.session.execute(db.text("SELECT EXISTS (SELECT 1 FROM information_schema.tables WHERE table_schema='public' AND table_name='creator_applications')")).scalar()
+            if exists:
+                db.session.execute(db.text("ALTER TABLE creator_applications ADD COLUMN IF NOT EXISTS phone TEXT"))
+                db.session.execute(db.text("INSERT INTO creator_applications (first_name,last_name,company_name,email,instagram,phone,status,created_at) VALUES (:first_name,:last_name,:company_name,:email,:instagram,:phone,'pending',CURRENT_TIMESTAMP)"), {"first_name":first_name,"last_name":last_name,"company_name":company_name,"email":email,"instagram":instagram,"phone":phone})
+            else:
+                db.session.execute(db.text("ALTER TABLE creator_application ADD COLUMN IF NOT EXISTS phone TEXT"))
+                db.session.execute(db.text("INSERT INTO creator_application (first_name,last_name,brand_name,email,instagram,phone,status,submitted_at) VALUES (:first_name,:last_name,:company_name,:email,:instagram,:phone,'pending',CURRENT_TIMESTAMP)"), {"first_name":first_name,"last_name":last_name,"company_name":company_name,"email":email,"instagram":instagram,"phone":phone})
+            db.session.commit()
+            return render_template("public/apply_creator.html", submitted=True)
+        except Exception:
+            db.session.rollback()
+            flash("Could not submit application. Please try again.")
+    return render_template("public/apply_creator.html", submitted=False)

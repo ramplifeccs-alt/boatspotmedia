@@ -2108,3 +2108,6 @@ body.creator-dashboard-v449 main{
 .owner-card-v475 summary{font-weight:900;cursor:pointer}
 .owner-table-v476 small{color:#64748b}
 .creator-apply-link-v485{display:inline-block;margin:14px;padding:12px 18px;border-radius:12px;background:#0f172a;color:#fff!important;text-decoration:none;font-weight:900;}
+
+/* v48.6 creator single source */
+.creator-apply-link-v486{display:inline-block;margin:12px;padding:12px 18px;border-radius:12px;background:#0f172a;color:#fff!important;text-decoration:none;font-weight:900}.apply-creator-v486,.creator-settings-v486{max-width:720px;margin:40px auto;padding:20px}
