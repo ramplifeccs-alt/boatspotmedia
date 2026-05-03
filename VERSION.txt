@@ -1,7 +1,7 @@
-BoatSpotMedia v49.1E from v49.1D Popup + Instant Checkout Fix
-Base: v49.1D_APPROVE_CREATOR_SAME_AS_WORKING_UPLOAD.
+BoatSpotMedia v49.1F Direct Original Download Fix
+Base: v49.1E_FROM_49_1D_POPUP_INSTANT_FIX.
 Only changes:
-- Prevents duplicate upload success popup.
-- Normalizes instant/download/original purchases as package='original'.
-- Uses pricing preset delivery/type/title to determine original vs edited vs bundle.
-- Does not touch Google, Apple, login, logout, creator structure, upload backend, delete, batches, or DB foreign keys.
+- Buyer dashboard original/instant download buttons now use the real original file URL from video row/R2.
+- Adds original file columns to buyer order item queries.
+- Keeps /download-video only as fallback.
+- Does not touch Google, Apple, login, upload, batches, creator logic, DB schema, or checkout normalization.

@@ -1,0 +1,8 @@
+BoatSpotMedia v49.1D Approve Creator Same As Working Upload
+Base: v49.1B.
+Only changes:
+- Does NOT touch upload/delete/batches/search.
+- Fixes Owner approve application so NEW creators are created like the old working flow.
+- New creator_profile.id is forced to equal user.id.
+- This keeps session["creator_id"] = CreatorProfile.id compatible with video.creator_id FK to user.id.
+- Adds optional Owner repair link for mismatched new creators only.
