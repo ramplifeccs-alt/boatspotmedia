@@ -1,7 +1,7 @@
-BoatSpotMedia v49.1F Direct Original Download Fix
+BoatSpotMedia v49.1G Restore Buyer Items + R2 Download Fix
 Base: v49.1E_FROM_49_1D_POPUP_INSTANT_FIX.
-Only changes:
-- Buyer dashboard original/instant download buttons now use the real original file URL from video row/R2.
-- Adds original file columns to buyer order item queries.
-- Keeps /download-video only as fallback.
-- Does not touch Google, Apple, login, upload, batches, creator logic, DB schema, or checkout normalization.
+Fixes:
+- Reverts away from v49.1F broken buyer item query by starting from v49.1E.
+- Adds safe /download-video/<item_id>?delivery=original route.
+- Route redirects to original R2 public file using video.file_path/r2_video_key/public_url.
+- Does NOT change buyer dashboard item queries, templates, Google, Apple, login, upload, batches, creators, checkout, or DB.
