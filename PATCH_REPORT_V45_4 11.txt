@@ -1,0 +1,2 @@
+app/templates/creator/upload.html
+app/static/css/style.css

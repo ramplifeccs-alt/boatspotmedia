@@ -488,55 +488,7 @@ document.addEventListener("DOMContentLoaded", function(){
 
   window.BSMUploadProgressV385 = State;
 })();
-
-
-
-// BoatSpotMedia v38.6 final upload completion + cancel cleanup
-(function(){
-  if(window.__BSM_V386_FINALIZER__) return;
-  window.__BSM_V386_FINALIZER__ = true;
-
-  function findProgressBox(){
-    return document.getElementById('bsm-upload-v385') || document.getElementById('bsm-upload-progress-box');
-  }
-
-  function finishUploadAndGoBatches(){
-    var box = findProgressBox();
-    if(box) box.style.display = 'none';
-    setTimeout(function(){
-      alert('Upload completed successfully. Your files were saved.');
-      window.location.href = '/creator/batches';
-    }, 250);
-  }
-
-  var nativeFetch = window.fetch;
-  window.fetch = function(){
-    var args = arguments;
-    return nativeFetch.apply(this, args).then(function(resp){
-      try{
-        var url = String(args[0] || '');
-        if((url.indexOf('/creator/upload/r2/complete') !== -1 || url.indexOf('/upload/r2/complete') !== -1) && resp && resp.ok){
-          setTimeout(finishUploadAndGoBatches, 500);
-        }
-      }catch(e){}
-      return resp;
-    });
-  };
-
-  document.addEventListener('click', async function(e){
-    var btn = e.target.closest('button, a, input');
-    if(!btn) return;
-    var text = (btn.textContent || btn.value || '').toLowerCase();
-    if(text.indexOf('cancel upload') === -1) return;
-    var bid = window.currentBatchId || window.BSM_CURRENT_BATCH_ID || window.current_batch_id || null;
-    if(bid){
-      try{ await fetch('/r2-clean/batch/' + bid, {method:'POST'}); }catch(err){}
-    }
-  }, true);
-})();
-
-
-
+// v49.1E: removed duplicate upload completion finalizer. Single completion handler remains.
 // BoatSpotMedia v38.7 completion popup and redirect
 (function(){
   if(window.__BSM_V387_COMPLETE__) return;
@@ -548,6 +500,8 @@ document.addEventListener("DOMContentLoaded", function(){
       try{
         const url = String(args[0] || "");
         if((url.includes("/creator/upload/r2/complete") || url.includes("/upload/r2/complete")) && resp && resp.ok){
+          if(window.__BSM_UPLOAD_DONE_ALERT_SHOWN__) return resp;
+          window.__BSM_UPLOAD_DONE_ALERT_SHOWN__ = true;
           setTimeout(function(){
             const box = document.getElementById("bsm-upload-v385") || document.getElementById("bsm-upload-progress-box");
             if(box) box.style.display = "none";

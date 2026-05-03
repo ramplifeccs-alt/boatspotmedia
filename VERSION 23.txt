@@ -1,0 +1,7 @@
+BoatSpotMedia v49.1C Upload Creator User ID Fix
+Base: v49.1B.
+Only backend logic changed:
+- Fixes upload insert ForeignKeyViolation on video.creator_id.
+- video.creator_id now uses user.id, not creator_profile.id.
+- If session has creator_profile.id, upload converts it to creator_profile.user_id before saving.
+- Does not touch Google, Apple, logout, Owner UI, templates, or OAuth.

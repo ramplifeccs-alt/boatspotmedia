@@ -9,6 +9,28 @@ from flask import Blueprint, request, redirect, jsonify, url_for
 
 payments_bp = Blueprint("payments", __name__)
 
+
+def _normalize_paid_video_package_v491e(video, item):
+    package = (item.get("package") or "original").lower().strip()
+    price_id = item.get("price_id")
+    try:
+        from app.services.cart import _normalize_video_package_v491e
+        return _normalize_video_package_v491e(video, package, price_id)
+    except Exception:
+        if package in ["instant", "instant_download", "download", "original", "4k", "original_4k"]:
+            return "original"
+        if package in ["bundle", "combo", "original_plus_edited", "original_edited", "original+edited", "original_edit"]:
+            return "bundle"
+        if package in ["edited", "edit", "instagram_edit", "tiktok_edit", "reel_edit", "short_edit"]:
+            try:
+                if float(getattr(video, "edited_price", 0) or 0) <= 0 and float(getattr(video, "original_price", 0) or 0) > 0:
+                    return "original"
+            except Exception:
+                pass
+            return "edited"
+        return "original"
+
+
 def stripe_ready():
     return bool(os.getenv("STRIPE_SECRET_KEY"))
 
@@ -209,7 +231,7 @@ def _record_cart_order_from_session(stripe_session):
             continue
 
         creator_id = item.get("creator_id") or getattr(video, "creator_id", None) or getattr(video, "creator_profile_id", None)
-        package = item.get("package", "original")
+        package = _normalize_paid_video_package_v491e(video, item)
         unit_price = float(item.get("unit_price") or 0)
         qty = int(item.get("quantity") or 1)
 
@@ -409,7 +431,7 @@ def _record_cart_order_from_webhook_v420(obj):
             if not video:
                 continue
             creator_id = item.get("creator_id") or getattr(video, "creator_id", None) or getattr(video, "creator_profile_id", None)
-            package = item.get("package", "original")
+            package = _normalize_paid_video_package_v491e(video, item)
             unit_price = float(item.get("unit_price") or 0)
             qty = int(item.get("quantity") or 1)
             delivery_status = "pending_edit" if package == "edited" else "ready_to_download"

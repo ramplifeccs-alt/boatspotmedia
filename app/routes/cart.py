@@ -12,7 +12,7 @@ def view_cart():
 def add_video(video_id):
     from app.models import Video
     video = Video.query.get_or_404(video_id)
-    add_video_to_cart(video, package=request.values.get("package","original"), price_id=request.values.get("price_id"))
+    add_video_to_cart(video, package=request.values.get("package", "original"), price_id=request.values.get("price_id"))
     return redirect("/cart")
 
 @cart_bp.route("/cart/remove/<int:index>", methods=["POST"])

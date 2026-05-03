@@ -12,7 +12,54 @@ def _save_cart(cart):
 def clear_cart():
     _save_cart([])
 
+
+def _normalize_video_package_v491e(video, package="original", price_id=None):
+    """
+    v49.1E: Selected pricing option controls package.
+    Prevents instant/original purchases from being saved as edited.
+    """
+    pkg = (package or "original").lower().strip()
+
+    def detect(label):
+        label = (label or "").lower()
+        if any(x in label for x in ["bundle", "combo", "original +", "original plus"]):
+            return "bundle"
+        if any(x in label for x in ["edit", "edited", "instagram", "tiktok", "reel", "short"]):
+            return "edited"
+        if any(x in label for x in ["instant", "download", "original", "4k"]):
+            return "original"
+        return None
+
+    if price_id:
+        try:
+            from app.models import VideoPricingPreset
+            p = VideoPricingPreset.query.get(int(price_id))
+            if p:
+                label = f"{getattr(p,'delivery_type','') or ''} {getattr(p,'title','') or ''} {getattr(p,'description','') or ''}"
+                found = detect(label)
+                if found:
+                    return found
+        except Exception:
+            pass
+
+    if pkg in ["instant", "instant_download", "download", "original", "4k", "original_4k"]:
+        return "original"
+    if pkg in ["bundle", "combo", "original_plus_edited", "original_edited", "original+edited", "original_edit"]:
+        return "bundle"
+    if pkg in ["edited", "edit", "instagram_edit", "tiktok_edit", "reel_edit", "short_edit"]:
+        try:
+            # If edited price is not configured but original is, never force edited.
+            if float(getattr(video, "edited_price", 0) or 0) <= 0 and float(getattr(video, "original_price", 0) or 0) > 0:
+                return "original"
+        except Exception:
+            pass
+        return "edited"
+
+    return "original"
+
+
 def _video_price(video, package="original", price_id=None):
+    package = _normalize_video_package_v491e(video, package, price_id)
     try:
         if price_id:
             from app.models import VideoPricingPreset
@@ -42,6 +89,7 @@ def _boat_group_key(video):
     return f"{creator_id}|{location}|{date_val}|{time_val}"
 
 def add_video_to_cart(video, package="original", price_id=None, quantity=1):
+    package = _normalize_video_package_v491e(video, package, price_id)
     creator_id = getattr(video, "creator_id", None) or getattr(video, "creator_profile_id", None)
     item = {
         "item_type": "video",

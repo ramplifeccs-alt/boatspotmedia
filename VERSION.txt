@@ -1,8 +1,7 @@
-BoatSpotMedia v49.1D Approve Creator Same As Working Upload
-Base: v49.1B.
+BoatSpotMedia v49.1E from v49.1D Popup + Instant Checkout Fix
+Base: v49.1D_APPROVE_CREATOR_SAME_AS_WORKING_UPLOAD.
 Only changes:
-- Does NOT touch upload/delete/batches/search.
-- Fixes Owner approve application so NEW creators are created like the old working flow.
-- New creator_profile.id is forced to equal user.id.
-- This keeps session["creator_id"] = CreatorProfile.id compatible with video.creator_id FK to user.id.
-- Adds optional Owner repair link for mismatched new creators only.
+- Prevents duplicate upload success popup.
+- Normalizes instant/download/original purchases as package='original'.
+- Uses pricing preset delivery/type/title to determine original vs edited vs bundle.
+- Does not touch Google, Apple, login, logout, creator structure, upload backend, delete, batches, or DB foreign keys.
