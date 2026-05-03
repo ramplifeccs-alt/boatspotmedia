@@ -1,1 +1,10 @@
-BoatSpotMedia v48.6 Creator Single Source Fix
+BoatSpotMedia v48.8 Approve Creator Profile Flow Fix
+Base: latest available v48.7/v48.6/v48.5.
+Fixes:
+- Approve application creates/updates user(role='creator'), creator_profile, and creator_subscription.
+- Supports buyer -> creator upgrade without duplicate user accounts.
+- Owner Creators reads creator_profile + user + creator_subscription only.
+- Does not use old empty creators table.
+- Creator Settings reads/updates user + creator_profile.
+- Apply form writes to creator_application only.
+- Storage limit source is creator_subscription.storage_limit_gb when available.

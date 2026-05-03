@@ -796,13 +796,20 @@ def _owner_ensure_creator_plan_table_v473():
 
 
 
+
+
 # ============================================================
-# v48.6 Owner fixed: creators table is the ONLY creator source.
-# videos/R2/creator dashboard use creators.id, so Owner must not
-# mix user(role=creator) into creator management.
+# v48.8 Owner Dashboard: REAL creator flow
+# Confirmed production schema:
+# - "user" stores login/account.
+# - creator_profile.id is real creator_id for video/R2/storage.
+# - creator_profile.user_id joins to "user".id.
+# - creator_subscription.creator_id joins to creator_profile.id.
+# - creator_application stores applications.
+# - DO NOT use empty/old creators table.
 # ============================================================
 
-def _owner_scalar_v486(sql, params=None, default=0):
+def _owner_scalar_v488(sql, params=None, default=0):
     try:
         row = db.session.execute(db.text(sql), params or {}).mappings().first()
         if not row:
@@ -810,149 +817,226 @@ def _owner_scalar_v486(sql, params=None, default=0):
         return list(row.values())[0]
     except Exception as e:
         db.session.rollback()
-        try: print("owner scalar v48.6 warning:", e, sql)
-        except Exception: pass
+        try:
+            print("owner scalar v48.8 warning:", e, sql)
+        except Exception:
+            pass
         return default
 
-def _owner_rows_v486(sql, params=None):
+def _owner_rows_v488(sql, params=None):
     try:
         return [dict(r) for r in db.session.execute(db.text(sql), params or {}).mappings().all()]
     except Exception as e:
         db.session.rollback()
-        try: print("owner rows v48.6 warning:", e, sql)
-        except Exception: pass
+        try:
+            print("owner rows v48.8 warning:", e, sql)
+        except Exception:
+            pass
         return []
 
-def _owner_exec_v486(sql, params=None):
+def _owner_exec_v488(sql, params=None):
     try:
         db.session.execute(db.text(sql), params or {})
         db.session.commit()
         return True
     except Exception as e:
         db.session.rollback()
-        try: print("owner exec v48.6 warning:", e, sql)
-        except Exception: pass
+        try:
+            print("owner exec v48.8 warning:", e, sql)
+        except Exception:
+            pass
         return False
 
-def _owner_table_exists_v486(table_name):
-    return bool(_owner_scalar_v486(
-        "SELECT EXISTS (SELECT 1 FROM information_schema.tables WHERE table_schema='public' AND table_name=:t)",
-        {"t": table_name}, False
-    ))
+def _owner_table_exists_v488(table_name):
+    return bool(_owner_scalar_v488("""
+        SELECT EXISTS (
+            SELECT 1 FROM information_schema.tables
+            WHERE table_schema='public' AND table_name=:t
+        )
+    """, {"t": table_name}, False))
 
-def _owner_col_exists_v486(table_name, col_name):
-    return bool(_owner_scalar_v486(
-        "SELECT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_schema='public' AND table_name=:t AND column_name=:c)",
-        {"t": table_name, "c": col_name}, False
-    ))
+def _owner_col_exists_v488(table_name, col_name):
+    return bool(_owner_scalar_v488("""
+        SELECT EXISTS (
+            SELECT 1 FROM information_schema.columns
+            WHERE table_schema='public' AND table_name=:t AND column_name=:c
+        )
+    """, {"t": table_name, "c": col_name}, False))
 
-def _owner_bootstrap_phone_v486():
-    _owner_exec_v486('ALTER TABLE "user" ADD COLUMN IF NOT EXISTS phone TEXT')
-    if _owner_table_exists_v486("creator_application"):
-        _owner_exec_v486("ALTER TABLE creator_application ADD COLUMN IF NOT EXISTS phone TEXT")
-    if _owner_table_exists_v486("creator_applications"):
-        _owner_exec_v486("ALTER TABLE creator_applications ADD COLUMN IF NOT EXISTS phone TEXT")
+def _owner_bootstrap_v488():
+    # Safe columns only. No new duplicate tables.
+    _owner_exec_v488('ALTER TABLE "user" ADD COLUMN IF NOT EXISTS phone TEXT')
+    _owner_exec_v488("ALTER TABLE creator_application ADD COLUMN IF NOT EXISTS phone TEXT")
+    _owner_exec_v488("ALTER TABLE creator_profile ADD COLUMN IF NOT EXISTS instagram TEXT")
+    _owner_exec_v488("ALTER TABLE creator_profile ADD COLUMN IF NOT EXISTS commission_rate NUMERIC DEFAULT 15")
+    _owner_exec_v488("ALTER TABLE creator_subscription ADD COLUMN IF NOT EXISTS storage_limit_gb NUMERIC DEFAULT 5")
+    _owner_exec_v488("ALTER TABLE creator_subscription ADD COLUMN IF NOT EXISTS updated_at TIMESTAMP")
+
+def _owner_default_creator_plan_v488():
+    # Use existing creator_plan/storage_plan if available, but do not require it.
+    plan_id = None
+    plan_key = "free"
+    storage_limit_gb = 5
+    commission_rate = 15
+
+    if _owner_table_exists_v488("creator_plan"):
+        row = db.session.execute(db.text("""
+            SELECT id, plan_key, storage_gb, commission_percent
+            FROM creator_plan
+            WHERE COALESCE(is_active,true)=true
+            ORDER BY CASE WHEN plan_key='free' THEN 0 ELSE 1 END, sort_order ASC, id ASC
+            LIMIT 1
+        """)).mappings().first()
+        if row:
+            plan_id = row.get("id")
+            plan_key = row.get("plan_key") or "free"
+            storage_limit_gb = row.get("storage_gb") or storage_limit_gb
+            commission_rate = row.get("commission_percent") or commission_rate
+    elif _owner_table_exists_v488("storage_plan"):
+        row = db.session.execute(db.text("""
+            SELECT id, name, storage_limit_gb, commission_rate
+            FROM storage_plan
+            WHERE COALESCE(active,true)=true
+            ORDER BY CASE WHEN LOWER(name)='free' THEN 0 ELSE 1 END, id ASC
+            LIMIT 1
+        """)).mappings().first()
+        if row:
+            plan_id = row.get("id")
+            plan_key = (row.get("name") or "free").lower()
+            storage_limit_gb = row.get("storage_limit_gb") or storage_limit_gb
+            commission_rate = row.get("commission_rate") or commission_rate
+
+    return {
+        "plan_id": plan_id,
+        "plan_key": plan_key,
+        "storage_limit_gb": float(storage_limit_gb or 5),
+        "commission_rate": float(commission_rate or 15),
+    }
 
 def _owner_dashboard_metrics_v477():
-    _owner_bootstrap_phone_v486()
+    _owner_bootstrap_v488()
     metrics = {}
-    metrics["applications_total"] = _owner_scalar_v486("SELECT COUNT(*) FROM creator_application")
-    if _owner_table_exists_v486("creator_applications"):
-        metrics["applications_total"] += _owner_scalar_v486("SELECT COUNT(*) FROM creator_applications")
+    metrics["applications_total"] = _owner_scalar_v488("SELECT COUNT(*) FROM creator_application")
+    metrics["applications_pending"] = _owner_scalar_v488("SELECT COUNT(*) FROM creator_application WHERE COALESCE(status,'pending')='pending'")
+    metrics["applications_approved"] = _owner_scalar_v488("SELECT COUNT(*) FROM creator_application WHERE COALESCE(status,'')='approved'")
+    metrics["applications_rejected"] = _owner_scalar_v488("SELECT COUNT(*) FROM creator_application WHERE COALESCE(status,'') IN ('rejected','denied')")
 
-    metrics["applications_pending"] = _owner_scalar_v486("SELECT COUNT(*) FROM creator_application WHERE COALESCE(status,'pending')='pending'")
-    if _owner_table_exists_v486("creator_applications"):
-        metrics["applications_pending"] += _owner_scalar_v486("SELECT COUNT(*) FROM creator_applications WHERE COALESCE(status,'pending')='pending'")
+    metrics["creators_total"] = _owner_scalar_v488("SELECT COUNT(*) FROM creator_profile")
+    metrics["creators_active"] = _owner_scalar_v488("""
+        SELECT COUNT(*)
+        FROM creator_profile cp
+        LEFT JOIN "user" u ON u.id = cp.user_id
+        WHERE COALESCE(u.is_active,true)=true
+    """)
+    metrics["subscriptions_past_due"] = _owner_scalar_v488("""
+        SELECT COUNT(*)
+        FROM creator_subscription
+        WHERE COALESCE(status,'active') NOT IN ('active','trialing')
+    """)
+    metrics["orders_total"] = _owner_scalar_v488("SELECT COUNT(*) FROM bsm_cart_order")
+    metrics["sales_total"] = _owner_scalar_v488("""
+        SELECT COALESCE(SUM(COALESCE(amount_total,0)),0)
+        FROM bsm_cart_order
+        WHERE COALESCE(status,'') IN ('paid','complete','completed')
+    """)
+    metrics["sales_today"] = _owner_scalar_v488("""
+        SELECT COALESCE(SUM(COALESCE(amount_total,0)),0)
+        FROM bsm_cart_order
+        WHERE COALESCE(status,'') IN ('paid','complete','completed')
+          AND DATE(created_at)=CURRENT_DATE
+    """)
+    metrics["pending_edits"] = _owner_scalar_v488("""
+        SELECT COUNT(*)
+        FROM bsm_cart_order_item
+        WHERE package IN ('edited','edit','bundle','combo','original_plus_edited','original_edited','original+edited','original_edit')
+          AND (edited_r2_key IS NULL OR edited_r2_key='')
+    """)
+    metrics["discount_approvals"] = _owner_scalar_v488("""
+        SELECT COUNT(*)
+        FROM bsm_cart_order_item
+        WHERE COALESCE(discount_status,'') IN ('pending','pending_review','awaiting_creator','needs_approval')
+    """)
 
-    metrics["applications_approved"] = _owner_scalar_v486("SELECT COUNT(*) FROM creator_application WHERE COALESCE(status,'')='approved'")
-    if _owner_table_exists_v486("creator_applications"):
-        metrics["applications_approved"] += _owner_scalar_v486("SELECT COUNT(*) FROM creator_applications WHERE COALESCE(status,'')='approved'")
-
-    metrics["applications_rejected"] = _owner_scalar_v486("SELECT COUNT(*) FROM creator_application WHERE COALESCE(status,'') IN ('rejected','denied')")
-    if _owner_table_exists_v486("creator_applications"):
-        metrics["applications_rejected"] += _owner_scalar_v486("SELECT COUNT(*) FROM creator_applications WHERE COALESCE(status,'') IN ('rejected','denied')")
-
-    metrics["creators_total"] = _owner_scalar_v486("SELECT COUNT(*) FROM creators")
-    metrics["creators_active"] = _owner_scalar_v486("SELECT COUNT(*) FROM creators WHERE COALESCE(approved,false)=true")
-    metrics["subscriptions_past_due"] = _owner_scalar_v486("SELECT COUNT(*) FROM creator_subscription WHERE COALESCE(status,'active') NOT IN ('active','trialing')")
-    metrics["orders_total"] = _owner_scalar_v486("SELECT COUNT(*) FROM bsm_cart_order")
-    metrics["sales_total"] = _owner_scalar_v486("SELECT COALESCE(SUM(COALESCE(amount_total,0)),0) FROM bsm_cart_order WHERE COALESCE(status,'') IN ('paid','complete','completed')")
-    metrics["sales_today"] = _owner_scalar_v486("SELECT COALESCE(SUM(COALESCE(amount_total,0)),0) FROM bsm_cart_order WHERE COALESCE(status,'') IN ('paid','complete','completed') AND DATE(created_at)=CURRENT_DATE")
-    metrics["pending_edits"] = _owner_scalar_v486("SELECT COUNT(*) FROM bsm_cart_order_item WHERE package IN ('edited','edit','bundle','combo','original_plus_edited','original_edited','original+edited','original_edit') AND (edited_r2_key IS NULL OR edited_r2_key='')")
-    metrics["discount_approvals"] = _owner_scalar_v486("SELECT COUNT(*) FROM bsm_cart_order_item WHERE COALESCE(discount_status,'') IN ('pending','pending_review','awaiting_creator','needs_approval')")
-    metrics["original_storage_bytes"] = _owner_scalar_v486("SELECT COALESCE(SUM(COALESCE(file_size_bytes,0)),0) FROM video WHERE COALESCE(status,'active') NOT IN ('deleted','cancelled','canceled','removed') AND COALESCE(r2_video_key,'') <> ''")
-    metrics["edited_storage_bytes"] = _owner_scalar_v486("SELECT COALESCE(SUM(COALESCE(edited_file_size_bytes,0)),0) FROM bsm_cart_order_item WHERE COALESCE(edited_r2_key,'') <> ''")
+    metrics["original_storage_bytes"] = _owner_scalar_v488("""
+        SELECT COALESCE(SUM(COALESCE(file_size_bytes,0)),0)
+        FROM video
+        WHERE COALESCE(status,'active') NOT IN ('deleted','cancelled','canceled','removed')
+          AND COALESCE(r2_video_key,'') <> ''
+    """)
+    metrics["edited_storage_bytes"] = _owner_scalar_v488("""
+        SELECT COALESCE(SUM(COALESCE(edited_file_size_bytes,0)),0)
+        FROM bsm_cart_order_item
+        WHERE COALESCE(edited_r2_key,'') <> ''
+    """)
     metrics["storage_total_bytes"] = int(metrics["original_storage_bytes"] or 0) + int(metrics["edited_storage_bytes"] or 0)
 
     def gb(x):
-        try: return round(float(x or 0)/1024/1024/1024, 2)
-        except Exception: return 0
+        try:
+            return round(float(x or 0) / 1024 / 1024 / 1024, 2)
+        except Exception:
+            return 0
 
     metrics["original_storage_gb"] = gb(metrics["original_storage_bytes"])
     metrics["edited_storage_gb"] = gb(metrics["edited_storage_bytes"])
     metrics["storage_total_gb"] = gb(metrics["storage_total_bytes"])
-    metrics["creators_near_limit"] = _owner_scalar_v486("SELECT COUNT(*) FROM creator_profile WHERE COALESCE(storage_limit_gb,0)>0 AND (COALESCE(storage_used_bytes,0)::numeric/1024/1024/1024) >= (COALESCE(storage_limit_gb,0)::numeric*0.85)")
+    metrics["creators_near_limit"] = _owner_scalar_v488("""
+        SELECT COUNT(*)
+        FROM creator_profile cp
+        LEFT JOIN creator_subscription cs ON cs.creator_id=cp.id
+        WHERE COALESCE(cs.storage_limit_gb, cp.storage_limit_gb, 0) > 0
+          AND (COALESCE(cp.storage_used_bytes,0)::numeric / 1024 / 1024 / 1024) >= (COALESCE(cs.storage_limit_gb, cp.storage_limit_gb, 0)::numeric * 0.85)
+    """)
     return metrics
 
-def _owner_current_creator_applications_v486():
-    _owner_bootstrap_phone_v486()
-    rows = []
-    rows += _owner_rows_v486("""
-        SELECT 'creator_application' AS source_table,
-               id,
+def _owner_current_applications_v488():
+    _owner_bootstrap_v488()
+    return _owner_rows_v488("""
+        SELECT id,
                TRIM(COALESCE(first_name,'') || ' ' || COALESCE(last_name,'')) AS display_name,
                COALESCE(brand_name,'') AS display_brand,
                COALESCE(email,'') AS display_email,
                COALESCE(phone,'') AS display_phone,
                COALESCE(instagram,'') AS display_social,
                COALESCE(status,'pending') AS display_status,
-               submitted_at AS sort_date
+               submitted_at
         FROM creator_application
-    """)
-    if _owner_table_exists_v486("creator_applications"):
-        phone_expr = "COALESCE(phone,'')" if _owner_col_exists_v486("creator_applications", "phone") else "''"
-        rows += _owner_rows_v486(f"""
-            SELECT 'creator_applications' AS source_table,
-                   id,
-                   TRIM(COALESCE(first_name,'') || ' ' || COALESCE(last_name,'')) AS display_name,
-                   COALESCE(company_name,'') AS display_brand,
-                   COALESCE(email,'') AS display_email,
-                   {phone_expr} AS display_phone,
-                   COALESCE(instagram, facebook, youtube, '') AS display_social,
-                   COALESCE(status,'pending') AS display_status,
-                   created_at AS sort_date
-            FROM creator_applications
-        """)
-    rows.sort(key=lambda r: (str(r.get("sort_date") or ""), int(r.get("id") or 0)), reverse=True)
-    return rows[:300]
-
-def _owner_current_creators_v486():
-    return _owner_rows_v486("""
-        SELECT 'creators' AS source_table,
-               id,
-               COALESCE(public_name, company_name, username, email, 'Creator #' || id::text) AS display_name,
-               COALESCE(company_name,'') AS display_brand,
-               COALESCE(email,'') AS display_email,
-               '' AS display_phone,
-               COALESCE(instagram,'') AS display_social,
-               CASE WHEN COALESCE(approved,false)=true THEN 'approved' ELSE 'suspended/pending' END AS display_status,
-               COALESCE(username,'') AS username,
-               created_at
-        FROM creators
         ORDER BY id DESC
         LIMIT 300
     """)
 
-def _owner_current_buyers_v486():
-    _owner_bootstrap_phone_v486()
-    return _owner_rows_v486("""
-        SELECT 'user' AS source_table,
-               id,
+def _owner_current_creators_v488():
+    _owner_bootstrap_v488()
+    return _owner_rows_v488("""
+        SELECT cp.id AS id,
+               cp.id AS creator_id,
+               cp.user_id AS user_id,
+               COALESCE(u.display_name, u.public_name, TRIM(COALESCE(u.first_name,'') || ' ' || COALESCE(u.last_name,'')), u.email, 'Creator #' || cp.id::text) AS display_name,
+               COALESCE(u.primary_location,'') AS display_brand,
+               COALESCE(u.email,'') AS display_email,
+               COALESCE(u.phone,'') AS display_phone,
+               COALESCE(cp.instagram, u.social_link, u.social_link_2, '') AS display_social,
+               CASE WHEN COALESCE(u.is_active,true)=true THEN 'active' ELSE 'inactive' END AS display_status,
+               COALESCE(cs.plan_key, cp.plan_id::text, '') AS plan_key,
+               COALESCE(cs.status,'') AS subscription_status,
+               COALESCE(cs.storage_limit_gb, cp.storage_limit_gb, 0) AS storage_limit_gb,
+               COALESCE(cp.storage_used_bytes,0) AS storage_used_bytes,
+               COALESCE(cp.commission_rate, 0) AS commission_rate,
+               cp.created_at
+        FROM creator_profile cp
+        LEFT JOIN "user" u ON u.id = cp.user_id
+        LEFT JOIN creator_subscription cs ON cs.creator_id = cp.id
+        ORDER BY cp.id DESC
+        LIMIT 300
+    """)
+
+def _owner_current_buyers_v488():
+    _owner_bootstrap_v488()
+    return _owner_rows_v488("""
+        SELECT id,
                COALESCE(display_name, public_name, TRIM(COALESCE(first_name,'') || ' ' || COALESCE(last_name,'')), email, 'Buyer #' || id::text) AS display_name,
                COALESCE(email,'') AS display_email,
                COALESCE(phone,'') AS display_phone,
                CASE WHEN COALESCE(is_active,true)=true THEN 'active' ELSE 'inactive' END AS display_status,
-               role,
                created_at
         FROM "user"
         WHERE LOWER(COALESCE(role,''))='buyer'
@@ -960,108 +1044,381 @@ def _owner_current_buyers_v486():
         LIMIT 300
     """)
 
+def _owner_get_application_v488(row_id):
+    rows = _owner_rows_v488("""
+        SELECT id, first_name, last_name, brand_name, email, phone, instagram, status
+        FROM creator_application
+        WHERE id=:id
+        LIMIT 1
+    """, {"id": row_id})
+    return rows[0] if rows else None
+
+def _owner_get_creator_v488(creator_id):
+    rows = _owner_rows_v488("""
+        SELECT cp.id AS id,
+               cp.user_id,
+               u.email,
+               u.first_name,
+               u.last_name,
+               u.public_name,
+               u.display_name,
+               u.primary_location,
+               u.phone,
+               u.is_active,
+               cp.instagram,
+               COALESCE(cs.storage_limit_gb, cp.storage_limit_gb, 0) AS storage_limit_gb,
+               cp.storage_used_bytes,
+               cp.commission_rate,
+               COALESCE(cs.plan_key,'') AS plan_key
+        FROM creator_profile cp
+        LEFT JOIN "user" u ON u.id = cp.user_id
+        LEFT JOIN creator_subscription cs ON cs.creator_id=cp.id
+        WHERE cp.id=:id
+        LIMIT 1
+    """, {"id": creator_id})
+    return rows[0] if rows else None
+
+def _owner_get_buyer_v488(row_id):
+    rows = _owner_rows_v488("""
+        SELECT id, email, first_name, last_name, display_name, phone, is_active
+        FROM "user"
+        WHERE id=:id AND LOWER(COALESCE(role,''))='buyer'
+        LIMIT 1
+    """, {"id": row_id})
+    return rows[0] if rows else None
+
+def _owner_find_or_create_creator_from_application_v488(app):
+    from werkzeug.security import generate_password_hash
+
+    plan = _owner_default_creator_plan_v488()
+    email = (app.get("email") or "").strip().lower()
+    first_name = app.get("first_name") or ""
+    last_name = app.get("last_name") or ""
+    brand_name = app.get("brand_name") or ""
+    phone = app.get("phone") or ""
+    instagram = app.get("instagram") or ""
+    display_name = (brand_name or (first_name + " " + last_name).strip() or email).strip()
+    temp_password = "BoatSpot123!"
+
+    user_row = db.session.execute(db.text("""
+        SELECT id, role
+        FROM "user"
+        WHERE LOWER(email)=:email
+        LIMIT 1
+    """), {"email": email}).mappings().first()
+
+    if user_row:
+        user_id = user_row["id"]
+        current_role = (user_row.get("role") or "").lower()
+        # Support buyer -> creator upgrade without duplicating account.
+        new_role = "creator" if current_role in ["", "buyer", "customer", "creator"] else current_role
+        db.session.execute(db.text("""
+            UPDATE "user"
+            SET role=:role,
+                first_name=:first_name,
+                last_name=:last_name,
+                display_name=:display_name,
+                public_name=:display_name,
+                phone=:phone,
+                primary_location=:primary_location,
+                is_active=true
+            WHERE id=:id
+        """), {
+            "id": user_id,
+            "role": new_role,
+            "first_name": first_name,
+            "last_name": last_name,
+            "display_name": display_name,
+            "phone": phone,
+            "primary_location": brand_name,
+        })
+    else:
+        user_id = db.session.execute(db.text("""
+            INSERT INTO "user"
+            (role, email, password_hash, first_name, last_name, display_name, public_name, phone, primary_location, is_active, created_at)
+            VALUES ('creator', :email, :password_hash, :first_name, :last_name, :display_name, :display_name, :phone, :primary_location, true, CURRENT_TIMESTAMP)
+            RETURNING id
+        """), {
+            "email": email,
+            "password_hash": generate_password_hash(temp_password),
+            "first_name": first_name,
+            "last_name": last_name,
+            "display_name": display_name,
+            "phone": phone,
+            "primary_location": brand_name,
+        }).scalar()
+
+    profile = db.session.execute(db.text("""
+        SELECT id
+        FROM creator_profile
+        WHERE user_id=:user_id
+        LIMIT 1
+    """), {"user_id": user_id}).mappings().first()
+
+    if profile:
+        creator_id = profile["id"]
+        db.session.execute(db.text("""
+            UPDATE creator_profile
+            SET instagram=:instagram,
+                commission_rate=COALESCE(commission_rate, :commission_rate)
+            WHERE id=:creator_id
+        """), {
+            "creator_id": creator_id,
+            "instagram": instagram,
+            "commission_rate": plan["commission_rate"],
+        })
+    else:
+        creator_id = db.session.execute(db.text("""
+            INSERT INTO creator_profile
+            (user_id, plan_id, storage_limit_gb, storage_used_bytes, commission_rate, instagram, created_at)
+            VALUES (:user_id, :plan_id, :storage_limit_gb, 0, :commission_rate, :instagram, CURRENT_TIMESTAMP)
+            RETURNING id
+        """), {
+            "user_id": user_id,
+            "plan_id": plan["plan_id"],
+            "storage_limit_gb": plan["storage_limit_gb"],
+            "commission_rate": plan["commission_rate"],
+            "instagram": instagram,
+        }).scalar()
+
+    sub = db.session.execute(db.text("""
+        SELECT id
+        FROM creator_subscription
+        WHERE creator_id=:creator_id
+        LIMIT 1
+    """), {"creator_id": creator_id}).mappings().first()
+
+    if sub:
+        db.session.execute(db.text("""
+            UPDATE creator_subscription
+            SET plan_key=COALESCE(NULLIF(plan_key,''), :plan_key),
+                status=COALESCE(NULLIF(status,''), 'active'),
+                storage_limit_gb=COALESCE(storage_limit_gb, :storage_limit_gb),
+                updated_at=CURRENT_TIMESTAMP
+            WHERE creator_id=:creator_id
+        """), {
+            "creator_id": creator_id,
+            "plan_key": plan["plan_key"],
+            "storage_limit_gb": plan["storage_limit_gb"],
+        })
+    else:
+        db.session.execute(db.text("""
+            INSERT INTO creator_subscription
+            (creator_id, plan_key, status, storage_limit_gb, created_at, updated_at)
+            VALUES (:creator_id, :plan_key, 'active', :storage_limit_gb, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
+        """), {
+            "creator_id": creator_id,
+            "plan_key": plan["plan_key"],
+            "storage_limit_gb": plan["storage_limit_gb"],
+        })
+
+    return creator_id, temp_password
+
 @owner_bp.route("/panel")
 def owner_panel_v477():
     return render_template("owner/panel.html", metrics=_owner_dashboard_metrics_v477(), q=(request.args.get("q") or "").strip())
 
 @owner_bp.route("/applications")
 def owner_applications_v479():
-    return render_template("owner/applications.html", applications=_owner_current_creator_applications_v486(), table_name="creator_application + creator_applications", columns=[])
+    return render_template("owner/applications.html", applications=_owner_current_applications_v488(), table_name="creator_application", columns=[])
 
 @owner_bp.route("/creators", endpoint="owner_creators_v478")
 def owner_creators_v478():
-    return render_template("owner/manage_people.html", rows=_owner_current_creators_v486(), columns=[], table_name="creators", kind="creator", title="Creators")
+    return render_template("owner/manage_people.html", rows=_owner_current_creators_v488(), columns=[], table_name='creator_profile + user + creator_subscription', kind="creator", title="Creators")
 
 @owner_bp.route("/buyers", endpoint="owner_buyers_v478")
 def owner_buyers_v478():
-    return render_template("owner/manage_people.html", rows=_owner_current_buyers_v486(), columns=[], table_name='user(role=buyer)', kind="buyer", title="Buyers")
+    return render_template("owner/manage_people.html", rows=_owner_current_buyers_v488(), columns=[], table_name='user(role=buyer)', kind="buyer", title="Buyers")
 
-@owner_bp.route("/applications/<source>/<int:row_id>/approve", methods=["POST"])
-def owner_approve_application_v486(source, row_id):
-    table = "creator_applications" if source == "creator_applications" else "creator_application"
-    ok = _owner_exec_v486(f"UPDATE {table} SET status='approved' WHERE id=:id", {"id": row_id})
-    if table == "creator_application" and _owner_col_exists_v486(table, "reviewed_at"):
-        _owner_exec_v486("UPDATE creator_application SET reviewed_at=CURRENT_TIMESTAMP WHERE id=:id", {"id": row_id})
-    flash("Application approved." if ok else "Could not approve application.")
+@owner_bp.route("/applications/<int:row_id>/approve", methods=["POST"])
+def owner_approve_application_v488(row_id):
+    _owner_bootstrap_v488()
+    app = _owner_get_application_v488(row_id)
+    if not app:
+        flash("Application not found.")
+        return redirect("/owner/applications")
+
+    if not (app.get("email") or "").strip():
+        flash("Application needs an email before approval.")
+        return redirect("/owner/applications")
+
+    try:
+        creator_id, temp_password = _owner_find_or_create_creator_from_application_v488(app)
+        db.session.execute(db.text("""
+            UPDATE creator_application
+            SET status='approved'
+            WHERE id=:id
+        """), {"id": row_id})
+        if _owner_col_exists_v488("creator_application", "reviewed_at"):
+            db.session.execute(db.text("""
+                UPDATE creator_application
+                SET reviewed_at=CURRENT_TIMESTAMP
+                WHERE id=:id
+            """), {"id": row_id})
+        db.session.commit()
+        flash(f"Application approved. Creator ID #{creator_id} is ready. Temporary password: {temp_password}")
+    except Exception as e:
+        db.session.rollback()
+        try:
+            print("approve application v48.8 warning:", e)
+        except Exception:
+            pass
+        flash("Could not approve application.")
     return redirect("/owner/applications")
 
-@owner_bp.route("/application/<source>/<int:row_id>/status/<status>", methods=["POST"])
-def owner_application_status_source_v486(source, row_id, status):
-    table = "creator_applications" if source == "creator_applications" else "creator_application"
+@owner_bp.route("/application/<int:row_id>/status/<status>", methods=["POST"])
+def owner_application_status_v488(row_id, status):
     if status not in ["pending", "approved", "suspended", "rejected"]:
         status = "pending"
-    ok = _owner_exec_v486(f"UPDATE {table} SET status=:status WHERE id=:id", {"id": row_id, "status": status})
+    ok = _owner_exec_v488("UPDATE creator_application SET status=:status WHERE id=:id", {"id": row_id, "status": status})
     flash("Application status updated." if ok else "Could not update application.")
     return redirect("/owner/applications")
 
-@owner_bp.route("/application/<source>/<int:row_id>/delete", methods=["POST"])
-def owner_application_delete_source_v486(source, row_id):
-    table = "creator_applications" if source == "creator_applications" else "creator_application"
-    ok = _owner_exec_v486(f"DELETE FROM {table} WHERE id=:id", {"id": row_id})
+@owner_bp.route("/application/<int:row_id>/delete", methods=["POST"])
+def owner_application_delete_v488(row_id):
+    ok = _owner_exec_v488("DELETE FROM creator_application WHERE id=:id", {"id": row_id})
     flash("Application deleted." if ok else "Could not delete application.")
     return redirect("/owner/applications")
 
-@owner_bp.route("/application/<source>/<int:row_id>/edit", methods=["GET","POST"])
-def owner_edit_application_source_v486(source, row_id):
-    table = "creator_applications" if source == "creator_applications" else "creator_application"
-    if table == "creator_applications":
-        rows = _owner_rows_v486("SELECT id, first_name, last_name, company_name AS brand_name, email, instagram, status, phone FROM creator_applications WHERE id=:id LIMIT 1", {"id": row_id})
-    else:
-        rows = _owner_rows_v486("SELECT id, first_name, last_name, brand_name, email, instagram, status, phone FROM creator_application WHERE id=:id LIMIT 1", {"id": row_id})
-    row = rows[0] if rows else None
+@owner_bp.route("/application/<int:row_id>/edit", methods=["GET","POST"])
+def owner_edit_application_v488(row_id):
+    row = _owner_get_application_v488(row_id)
     if not row:
         flash("Application not found.")
         return redirect("/owner/applications")
     if request.method == "POST":
-        params = {
+        ok = _owner_exec_v488("""
+            UPDATE creator_application
+            SET first_name=:first_name,
+                last_name=:last_name,
+                brand_name=:brand_name,
+                email=:email,
+                phone=:phone,
+                instagram=:instagram,
+                status=:status
+            WHERE id=:id
+        """, {
             "id": row_id,
             "first_name": request.form.get("first_name") or "",
             "last_name": request.form.get("last_name") or "",
             "brand_name": request.form.get("brand_name") or "",
             "email": request.form.get("email") or "",
+            "phone": request.form.get("phone") or "",
             "instagram": request.form.get("instagram") or "",
             "status": request.form.get("status") or "pending",
-            "phone": request.form.get("phone") or "",
-        }
-        if table == "creator_applications":
-            ok = _owner_exec_v486("UPDATE creator_applications SET first_name=:first_name,last_name=:last_name,company_name=:brand_name,email=:email,instagram=:instagram,status=:status,phone=:phone WHERE id=:id", params)
-        else:
-            ok = _owner_exec_v486("UPDATE creator_application SET first_name=:first_name,last_name=:last_name,brand_name=:brand_name,email=:email,instagram=:instagram,status=:status,phone=:phone WHERE id=:id", params)
+        })
         flash("Application saved." if ok else "Could not save application.")
         return redirect("/owner/applications")
-    return render_template("owner/edit_person.html", row=row, kind="application", title="Edit Application", source=source)
+    return render_template("owner/edit_person.html", row=row, kind="application", title="Edit Application")
 
-@owner_bp.route("/creator/<source>/<int:row_id>/edit", methods=["GET","POST"])
-def owner_edit_creator_source_v486(source, row_id):
-    rows = _owner_rows_v486("SELECT id, public_name, company_name, email, username, instagram, approved FROM creators WHERE id=:id LIMIT 1", {"id": row_id})
-    row = rows[0] if rows else None
+@owner_bp.route("/creator/<int:creator_id>/edit", methods=["GET","POST"])
+def owner_edit_creator_v488(creator_id):
+    row = _owner_get_creator_v488(creator_id)
     if not row:
         flash("Creator not found.")
         return redirect("/owner/creators")
     if request.method == "POST":
-        ok = _owner_exec_v486("UPDATE creators SET public_name=:public_name, company_name=:company_name, email=:email, username=:username, instagram=:instagram, approved=:approved WHERE id=:id", {
-            "id": row_id,
-            "public_name": request.form.get("public_name") or "",
-            "company_name": request.form.get("company_name") or "",
-            "email": request.form.get("email") or "",
-            "username": request.form.get("username") or "",
-            "instagram": request.form.get("instagram") or "",
-            "approved": True if request.form.get("approved") else False,
-        })
-        flash("Creator saved." if ok else "Could not save creator.")
+        try:
+            db.session.execute(db.text("""
+                UPDATE "user"
+                SET email=:email,
+                    first_name=:first_name,
+                    last_name=:last_name,
+                    display_name=:display_name,
+                    public_name=:display_name,
+                    phone=:phone,
+                    primary_location=:primary_location,
+                    is_active=:is_active
+                WHERE id=:user_id
+            """), {
+                "user_id": row.get("user_id"),
+                "email": request.form.get("email") or "",
+                "first_name": request.form.get("first_name") or "",
+                "last_name": request.form.get("last_name") or "",
+                "display_name": request.form.get("display_name") or "",
+                "phone": request.form.get("phone") or "",
+                "primary_location": request.form.get("primary_location") or "",
+                "is_active": True if request.form.get("is_active") else False,
+            })
+            db.session.execute(db.text("""
+                UPDATE creator_profile
+                SET instagram=:instagram,
+                    commission_rate=:commission_rate
+                WHERE id=:creator_id
+            """), {
+                "creator_id": creator_id,
+                "instagram": request.form.get("instagram") or "",
+                "commission_rate": float(request.form.get("commission_rate") or 0),
+            })
+            db.session.execute(db.text("""
+                UPDATE creator_subscription
+                SET storage_limit_gb=:storage_limit_gb,
+                    updated_at=CURRENT_TIMESTAMP
+                WHERE creator_id=:creator_id
+            """), {
+                "creator_id": creator_id,
+                "storage_limit_gb": float(request.form.get("storage_limit_gb") or 0),
+            })
+            db.session.commit()
+            flash("Creator saved.")
+        except Exception as e:
+            db.session.rollback()
+            try:
+                print("owner edit creator v48.8 warning:", e)
+            except Exception:
+                pass
+            flash("Could not save creator.")
         return redirect("/owner/creators")
-    return render_template("owner/edit_person.html", row=row, kind="creator", title="Edit Creator")
+    return render_template("owner/edit_person.html", row=row, kind="creator_profile", title="Edit Creator")
 
-@owner_bp.route("/buyer/<int:row_id>/edit", methods=["GET","POST"], endpoint="owner_edit_buyer_v484")
-def owner_edit_buyer_v484(row_id):
-    _owner_bootstrap_phone_v486()
-    rows = _owner_rows_v486('SELECT id,email,first_name,last_name,display_name,phone,is_active FROM "user" WHERE id=:id AND LOWER(COALESCE(role,\'\'))=\'buyer\' LIMIT 1', {"id": row_id})
-    row = rows[0] if rows else None
+@owner_bp.route("/creator/<int:creator_id>/status/<status>", methods=["POST"])
+def owner_creator_status_v488(creator_id, status):
+    row = _owner_get_creator_v488(creator_id)
+    if not row:
+        flash("Creator not found.")
+        return redirect("/owner/creators")
+    ok = _owner_exec_v488('UPDATE "user" SET is_active=:active WHERE id=:user_id', {
+        "active": status in ["active", "approved"],
+        "user_id": row.get("user_id"),
+    })
+    flash("Creator status updated." if ok else "Could not update creator.")
+    return redirect("/owner/creators")
+
+@owner_bp.route("/creator/<int:creator_id>/reset-password", methods=["POST"])
+def owner_creator_reset_password_v488(creator_id):
+    row = _owner_get_creator_v488(creator_id)
+    if not row:
+        flash("Creator not found.")
+        return redirect("/owner/creators")
+    new_password = (request.form.get("new_password") or "").strip()
+    if not new_password:
+        flash("Enter a new password.")
+        return redirect("/owner/creators")
+    from werkzeug.security import generate_password_hash
+    ok = _owner_exec_v488('UPDATE "user" SET password_hash=:p WHERE id=:user_id', {
+        "p": generate_password_hash(new_password),
+        "user_id": row.get("user_id"),
+    })
+    flash("Creator password reset successfully." if ok else "Could not reset creator password.")
+    return redirect("/owner/creators")
+
+@owner_bp.route("/buyer/<int:row_id>/edit", methods=["GET","POST"])
+def owner_edit_buyer_v488(row_id):
+    row = _owner_get_buyer_v488(row_id)
     if not row:
         flash("Buyer not found.")
         return redirect("/owner/buyers")
     if request.method == "POST":
-        ok = _owner_exec_v486('UPDATE "user" SET email=:email,first_name=:first_name,last_name=:last_name,display_name=:display_name,phone=:phone,is_active=:is_active WHERE id=:id', {
+        ok = _owner_exec_v488("""
+            UPDATE "user"
+            SET email=:email,
+                first_name=:first_name,
+                last_name=:last_name,
+                display_name=:display_name,
+                phone=:phone,
+                is_active=:is_active
+            WHERE id=:id
+        """, {
             "id": row_id,
             "email": request.form.get("email") or "",
             "first_name": request.form.get("first_name") or "",
@@ -1074,53 +1431,53 @@ def owner_edit_buyer_v484(row_id):
         return redirect("/owner/buyers")
     return render_template("owner/edit_person.html", row=row, kind="buyer", title="Edit Buyer")
 
-@owner_bp.route("/creator/<source>/<int:row_id>/status/<status>", methods=["POST"])
-def owner_creator_status_v486(source, row_id, status):
-    ok = _owner_exec_v486("UPDATE creators SET approved=:v WHERE id=:id", {"v": status in ["active","approved"], "id": row_id})
-    flash("Creator status updated." if ok else "Could not update creator.")
-    return redirect("/owner/creators")
-
 @owner_bp.route("/buyer/<int:row_id>/status/<status>", methods=["POST"])
-def owner_buyer_status_v486(row_id, status):
-    ok = _owner_exec_v486('UPDATE "user" SET is_active=:v WHERE id=:id', {"v": status in ["active","approved"], "id": row_id})
+def owner_buyer_status_v488(row_id, status):
+    ok = _owner_exec_v488('UPDATE "user" SET is_active=:active WHERE id=:id', {
+        "active": status in ["active", "approved"],
+        "id": row_id,
+    })
     flash("Buyer status updated." if ok else "Could not update buyer.")
     return redirect("/owner/buyers")
 
-@owner_bp.route("/creator/<source>/<int:row_id>/delete", methods=["POST"])
-def owner_creator_delete_v486(source, row_id):
-    ok = _owner_exec_v486("DELETE FROM creators WHERE id=:id", {"id": row_id})
-    flash("Creator deleted." if ok else "Could not delete creator.")
-    return redirect("/owner/creators")
-
-@owner_bp.route("/buyer/<int:row_id>/delete", methods=["POST"])
-def owner_buyer_delete_v486(row_id):
-    ok = _owner_exec_v486('DELETE FROM "user" WHERE id=:id AND LOWER(COALESCE(role,\'\'))=\'buyer\'', {"id": row_id})
-    flash("Buyer deleted." if ok else "Could not delete buyer.")
-    return redirect("/owner/buyers")
-
-@owner_bp.route("/creator/<source>/<int:row_id>/reset-password", methods=["POST"])
-def owner_creator_reset_password_v486(source, row_id):
-    new_password = (request.form.get("new_password") or "").strip()
-    if not new_password:
-        flash("Enter a new password.")
-        return redirect("/owner/creators")
-    from werkzeug.security import generate_password_hash
-    hashed = generate_password_hash(new_password)
-    ok = _owner_exec_v486("UPDATE creators SET password=:p WHERE id=:id", {"p": hashed, "id": row_id})
-    flash("Password reset successfully." if ok else "Could not reset password.")
-    return redirect("/owner/creators")
-
 @owner_bp.route("/buyer/<int:row_id>/reset-password", methods=["POST"])
-def owner_buyer_reset_password_v486(row_id):
+def owner_buyer_reset_password_v488(row_id):
     new_password = (request.form.get("new_password") or "").strip()
     if not new_password:
         flash("Enter a new password.")
         return redirect("/owner/buyers")
     from werkzeug.security import generate_password_hash
-    hashed = generate_password_hash(new_password)
-    ok = _owner_exec_v486('UPDATE "user" SET password_hash=:p WHERE id=:id', {"p": hashed, "id": row_id})
+    ok = _owner_exec_v488('UPDATE "user" SET password_hash=:p WHERE id=:id', {
+        "p": generate_password_hash(new_password),
+        "id": row_id,
+    })
     flash("Buyer password reset successfully." if ok else "Could not reset buyer password.")
     return redirect("/owner/buyers")
+
+@owner_bp.route("/db-debug")
+def owner_db_debug_v488():
+    try:
+        tables = []
+        rows = db.session.execute(db.text("""
+            SELECT table_name
+            FROM information_schema.tables
+            WHERE table_schema='public'
+            ORDER BY table_name
+        """)).mappings().all()
+        for r in rows:
+            t = r.get("table_name")
+            if any(x in t.lower() for x in ["creator","buyer","user","order","video","plan","application"]):
+                cols = db.session.execute(db.text("""
+                    SELECT column_name
+                    FROM information_schema.columns
+                    WHERE table_schema='public' AND table_name=:t
+                    ORDER BY ordinal_position
+                """), {"t": t}).mappings().all()
+                tables.append({"name": t, "columns": [c.get("column_name") for c in cols]})
+        return render_template("owner/db_debug.html", tables=tables)
+    except Exception:
+        db.session.rollback()
+        return render_template("owner/db_debug.html", tables=[])
 
 
 @owner_bp.route("/creator-plans", methods=["GET", "POST"])

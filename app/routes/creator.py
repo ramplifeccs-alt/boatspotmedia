@@ -2928,27 +2928,66 @@ def delete_pricing(preset_id):
     return redirect(url_for("creator.pricing"))
 
 
-@creator_bp.route("/settings", methods=["GET","POST"], endpoint="settings_v486")
-def creator_settings_v486():
+
+
+@creator_bp.route("/settings", methods=["GET","POST"], endpoint="settings_v488")
+def creator_settings_v488():
     creator_id = session.get("creator_id") or session.get("creator_user_id")
     if not creator_id:
         return redirect("/creator/login")
+
     try:
-        row = db.session.execute(db.text("SELECT id, public_name, company_name, email, username, instagram FROM creators WHERE id=:id LIMIT 1"), {"id": creator_id}).mappings().first()
+        row = db.session.execute(db.text("""
+            SELECT cp.id AS id,
+                   cp.user_id,
+                   u.email,
+                   u.first_name,
+                   u.last_name,
+                   u.display_name,
+                   u.public_name,
+                   u.primary_location,
+                   u.phone,
+                   cp.instagram
+            FROM creator_profile cp
+            LEFT JOIN "user" u ON u.id = cp.user_id
+            WHERE cp.id=:id
+            LIMIT 1
+        """), {"id": creator_id}).mappings().first()
     except Exception:
         db.session.rollback()
         row = None
+
     if not row:
         flash("Creator not found.")
         return redirect("/creator/dashboard")
+
     if request.method == "POST":
         try:
-            db.session.execute(db.text("UPDATE creators SET public_name=:public_name, company_name=:company_name, email=:email, username=:username, instagram=:instagram WHERE id=:id"), {
-                "id": creator_id,
-                "public_name": request.form.get("public_name") or "",
-                "company_name": request.form.get("company_name") or "",
+            db.session.execute(db.text("""
+                UPDATE "user"
+                SET email=:email,
+                    first_name=:first_name,
+                    last_name=:last_name,
+                    display_name=:display_name,
+                    public_name=:display_name,
+                    primary_location=:primary_location,
+                    phone=:phone
+                WHERE id=:user_id
+            """), {
+                "user_id": row.get("user_id"),
                 "email": request.form.get("email") or "",
-                "username": request.form.get("username") or "",
+                "first_name": request.form.get("first_name") or "",
+                "last_name": request.form.get("last_name") or "",
+                "display_name": request.form.get("display_name") or "",
+                "primary_location": request.form.get("primary_location") or "",
+                "phone": request.form.get("phone") or "",
+            })
+            db.session.execute(db.text("""
+                UPDATE creator_profile
+                SET instagram=:instagram
+                WHERE id=:creator_id
+            """), {
+                "creator_id": creator_id,
                 "instagram": request.form.get("instagram") or "",
             })
             db.session.commit()

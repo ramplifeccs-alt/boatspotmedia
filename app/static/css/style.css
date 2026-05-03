@@ -2111,3 +2111,42 @@ body.creator-dashboard-v449 main{
 
 /* v48.6 creator single source */
 .creator-apply-link-v486{display:inline-block;margin:12px;padding:12px 18px;border-radius:12px;background:#0f172a;color:#fff!important;text-decoration:none;font-weight:900}.apply-creator-v486,.creator-settings-v486{max-width:720px;margin:40px auto;padding:20px}
+
+/* v48.7 creator_profile real source */
+.creator-apply-link-v487,
+.creator-apply-link-v486,
+.creator-apply-link-v485{
+  display:inline-block;
+  margin:12px;
+  padding:12px 18px;
+  border-radius:12px;
+  background:#0f172a;
+  color:#fff!important;
+  text-decoration:none;
+  font-weight:900;
+}
+.apply-creator-v486,.creator-settings-v486{
+  max-width:720px;
+  margin:40px auto;
+  padding:20px;
+}
+
+/* v48.8 approve creator profile flow */
+.creator-apply-link-v488,
+.creator-apply-link-v487,
+.creator-apply-link-v486,
+.creator-apply-link-v485{
+  display:inline-block;
+  margin:12px;
+  padding:12px 18px;
+  border-radius:12px;
+  background:#0f172a;
+  color:#fff!important;
+  text-decoration:none;
+  font-weight:900;
+}
+.apply-creator-v488,.creator-settings-v488{
+  max-width:720px;
+  margin:40px auto;
+  padding:20px;
+}
