@@ -1,9 +1,11 @@
-BoatSpotMedia v47.4 Owner Creator Plans Panel UI
-Base: v47.3.
-Fix:
-- Adds Creator Plans as Owner menu/panel item.
-- Creator Plans now opens as clean Owner panel with left menu and right content.
-- Shows plan list first.
-- Edit button opens editable fields for one plan.
-- Save shows flash message and returns to the list.
-- Explains Stripe Price ID and Sort Order inside the panel.
+BoatSpotMedia v47.5 Owner UI + Phone/SMS + Home Cleanup
+Base: v47.4.
+Adds:
+- New Owner Dashboard shell.
+- New Creator Applications shell.
+- Creator Plans remains in new owner shell.
+- Home cleanup: hides creator/services/charters login links where found.
+- Phone field added to matching buyer/creator forms.
+- Optional Twilio SMS helper added.
+Safe note:
+- Does not modify buyer.py, creator.py or public.py registration logic in this package.

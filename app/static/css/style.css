@@ -1937,3 +1937,19 @@ body.creator-dashboard-v449 main{
     display:none;
   }
 }
+
+/* v47.5 owner shell + phone/SMS cleanup */
+.owner-shell-v475{display:grid;grid-template-columns:240px minmax(0,1fr);min-height:100vh;background:#f1f5f9}
+.owner-sidebar-v475{position:sticky;top:0;height:100vh;background:#071b34;padding:18px 14px;color:#fff;box-sizing:border-box}
+.owner-logo-v475{display:block;padding-bottom:14px;border-bottom:1px solid rgba(255,255,255,.15);margin-bottom:14px}
+.owner-logo-v475 img{max-width:190px;width:100%}
+.owner-sidebar-v475 nav{display:grid;gap:8px}
+.owner-sidebar-v475 a{color:#fff!important;text-decoration:none;font-weight:800;padding:10px 12px;border-radius:10px;background:rgba(255,255,255,.04)}
+.owner-sidebar-v475 a.active,.owner-sidebar-v475 a:hover{background:rgba(37,99,235,.45)}
+.owner-sidebar-v475 a.danger{background:rgba(220,38,38,.85)}
+.owner-main-v475{padding:24px;min-width:0}
+.owner-card-v475,.owner-content-v475,.owner-tile-v475{background:#fff;border:1px solid #e5e7eb;border-radius:16px;padding:16px;margin-bottom:16px;box-shadow:0 8px 24px rgba(15,23,42,.05)}
+.owner-grid-v475{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:16px}
+.owner-tile-v475{text-decoration:none;color:#0f172a!important;display:block}
+.owner-tile-v475 p{color:#64748b}
+@media(max-width:850px){.owner-shell-v475{grid-template-columns:1fr}.owner-sidebar-v475{position:relative;height:auto}.owner-grid-v475{grid-template-columns:1fr}}

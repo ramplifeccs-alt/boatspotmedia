@@ -3,24 +3,27 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width,initial-scale=1">
-  <title>Owner - Creator Plans</title>
+  <title>Creator Plans - BoatSpotMedia Owner</title>
   <link rel="stylesheet" href="/static/css/style.css">
 </head>
-<body class="owner-dashboard-v474">
-<div class="owner-shell-v474">
-  <aside class="owner-sidebar-v474">
-    <a href="/owner/panel" class="owner-logo-v474">
-      <img src="/static/img/logo-header.png" alt="BoatSpotMedia">
-    </a>
-    <nav>
-      <a href="/owner/panel">Owner Dashboard</a>
-      <a href="/owner/applications">Creator Applications</a>
-      <a href="/owner/creator-plans" class="active">Creator Plans</a>
-      <a href="/logout" class="danger">Log out</a>
-    </nav>
-  </aside>
+<body class="owner-dashboard-v475">
+{% set owner_active = 'plans' %}
+<div class="owner-shell-v475">
+  
+<aside class="owner-sidebar-v475">
+  <a href="/owner/panel" class="owner-logo-v475">
+    <img src="/static/img/logo-header.png" alt="BoatSpotMedia">
+  </a>
+  <nav>
+    <a href="/owner/panel" class="{% if owner_active == 'dashboard' %}active{% endif %}">Owner Dashboard</a>
+    <a href="/owner/applications" class="{% if owner_active == 'applications' %}active{% endif %}">Creator Applications</a>
+    <a href="/owner/creator-plans" class="{% if owner_active == 'plans' %}active{% endif %}">Creator Plans</a>
+    <a href="/logout" class="danger">Log out</a>
+  </nav>
+</aside>
 
-  <main class="owner-main-v474">
+  <main class="owner-main-v475">
+    
     <div class="owner-plans-v474">
       <h1>Creator Subscription Plans</h1>
       <p class="muted">Control what creators see in Billing: price label, description, storage limit, and Stripe subscription Price ID.</p>
@@ -128,6 +131,7 @@
         </section>
       {% endif %}
     </div>
+  
   </main>
 </div>
 </body>
