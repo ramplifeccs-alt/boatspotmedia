@@ -833,3 +833,33 @@ def apply_creator_v488():
             flash("Could not submit application. Please try again.")
     return render_template("public/apply_creator.html", submitted=False)
 
+
+
+
+# v49.1 compatibility: preserve old creator login Google button endpoint.
+@public_bp.route("/auth/google/register/<account_type>", endpoint="auth_google_register")
+@public_bp.route("/auth/google/<account_type>")
+def auth_google_register(account_type="buyer"):
+    """
+    Compatibility route for old templates using:
+    url_for('public.auth_google_register', account_type='creator')
+    It redirects to the existing Google/OAuth route if present, otherwise to the correct login.
+    """
+    account_type = account_type or request.args.get("account_type") or "buyer"
+    # Try common existing OAuth routes without assuming one exact name.
+    for endpoint in [
+        "public.google_login",
+        "public.auth_google",
+        "public.google_auth",
+        "public.oauth_google",
+        "public.login_google",
+        "public.google_register",
+    ]:
+        try:
+            return redirect(url_for(endpoint, account_type=account_type))
+        except Exception:
+            pass
+    # Fallback keeps the page working instead of crashing.
+    if account_type == "creator":
+        return redirect("/creator/login")
+    return redirect("/buyer/login")

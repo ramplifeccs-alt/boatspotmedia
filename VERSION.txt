@@ -1,7 +1,9 @@
-BoatSpotMedia v49.0 Creator Login Dashboard Fix
+BoatSpotMedia v49.1 Restore Creator Login OAuth
 Base: v48.9.
 Fixes:
-- creator/login.html no longer calls missing public.auth_google_register.
-- /creator/login uses user(role='creator') + creator_profile.
-- login stores session creator_id as creator_profile.id.
-- /creator/dashboard redirects to /creator/login if session/profile is invalid instead of crashing.
+- Restores original creator/login.html from v48.9.
+- Does NOT remove Google login.
+- Does NOT remove Apple login.
+- Adds compatibility endpoint public.auth_google_register so the old Google button no longer crashes.
+- Adds Apple compatibility only if the template references public.auth_apple_register.
+- Keeps dashboard invalid-session guard only.

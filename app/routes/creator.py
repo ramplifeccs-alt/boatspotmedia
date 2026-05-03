@@ -2272,14 +2272,14 @@ def _bsm_subscription_allows_upload_v472(creator_id):
     return str(sub.get("status","")).lower() in ["active","trialing"]
 
 
-# v49.0 creator login/dashboard safety
-def _creator_current_profile_v490():
+# v49.1 dashboard safety only: do not replace creator login/OAuth.
+def _creator_has_valid_profile_v491():
     creator_id = session.get("creator_id") or session.get("creator_user_id")
     if not creator_id:
-        return None
+        return False
     try:
-        return db.session.execute(db.text("""
-            SELECT cp.*
+        row = db.session.execute(db.text("""
+            SELECT cp.id
             FROM creator_profile cp
             JOIN "user" u ON u.id = cp.user_id
             WHERE cp.id=:creator_id
@@ -2287,11 +2287,12 @@ def _creator_current_profile_v490():
               AND COALESCE(u.is_active,true)=true
             LIMIT 1
         """), {"creator_id": creator_id}).mappings().first()
+        return bool(row)
     except Exception:
         db.session.rollback()
-        return None
+        return False
 
-def _creator_clear_session_v490():
+def _creator_clear_bad_session_v491():
     for k in ["creator_id", "creator_user_id", "creator_email", "creator_name"]:
         session.pop(k, None)
 
@@ -2514,50 +2515,55 @@ def health():
 def logout():
     return redirect("/")
 
-
-@creator_bp.route("/login", methods=["GET", "POST"], endpoint="login_v490")
-def login_v490():
+@creator_bp.route("/login", methods=["GET", "POST"])
+def login():
+    _ensure_creator_profile_deleted_column()
     if request.method == "POST":
-        email = (request.form.get("email") or "").strip().lower()
+        email = (request.form.get("email") or request.form.get("username") or "").strip().lower()
         password = request.form.get("password") or ""
 
+        user = User.query.filter(db.func.lower(User.email) == email).first()
+        if not user:
+            flash("Email or password is incorrect. Please check and try again.", "error")
+            return render_template("creator/login.html")
+
+        stored_hash = getattr(user, "password_hash", None) or getattr(user, "password", None)
+        valid_password = False
         try:
-            from werkzeug.security import check_password_hash
-            user = db.session.execute(db.text("""
-                SELECT id, email, password_hash, display_name, public_name, first_name, last_name, is_active
-                FROM "user"
-                WHERE LOWER(email)=:email
-                  AND LOWER(COALESCE(role,''))='creator'
-                LIMIT 1
-            """), {"email": email}).mappings().first()
+            valid_password = bool(stored_hash and check_password_hash(stored_hash, password))
+        except Exception:
+            valid_password = False
+        if not valid_password and stored_hash and stored_hash == password:
+            valid_password = True
 
-            if user and user.get("password_hash") and check_password_hash(user["password_hash"], password):
-                if not user.get("is_active", True):
-                    flash("Creator account is inactive.")
-                    return render_template("creator/login.html")
+        if not valid_password:
+            flash("Email or password is incorrect. Please check and try again.", "error")
+            return render_template("creator/login.html")
 
-                profile = db.session.execute(db.text("""
-                    SELECT id
-                    FROM creator_profile
-                    WHERE user_id=:user_id
-                    LIMIT 1
-                """), {"user_id": user["id"]}).mappings().first()
+        creator = CreatorProfile.query.filter(
+            CreatorProfile.user_id == user.id,
+            CreatorProfile.approved == True,
+            CreatorProfile.suspended == False,
+            db.or_(CreatorProfile.deleted == False, CreatorProfile.deleted.is_(None))
+        ).first()
 
-                if profile:
-                    session["creator_id"] = profile["id"]
-                    session["creator_user_id"] = profile["id"]
-                    session["creator_email"] = user["email"]
-                    session["creator_name"] = user.get("display_name") or user.get("public_name") or ((user.get("first_name") or "") + " " + (user.get("last_name") or "")).strip()
-                    return redirect("/creator/dashboard")
+        if not creator:
+            flash("Creator account is not approved or is no longer active.", "error")
+            return render_template("creator/login.html")
 
-            flash("Invalid creator login.")
-        except Exception as e:
-            db.session.rollback()
-            try: print("creator login v49.0 warning:", e)
-            except Exception: pass
-            flash("Could not log in. Please try again.")
+        session.clear()
+        session["user_id"] = user.id
+        session["user_email"] = user.email
+        session["creator_id"] = creator.id
+        session["role"] = "creator"
+        session["user_role"] = "creator"
+        session["display_name"] = creator_display_name(creator)
+        session["creator_name"] = creator_display_name(creator)
+        return redirect(url_for("creator.dashboard"))
 
     return render_template("creator/login.html")
+
+
 
 
 @creator_bp.route("/login/apple")
@@ -2568,10 +2574,9 @@ def apple_login_under_construction():
 
 @creator_bp.route("/dashboard")
 def dashboard():
-    # creator dashboard guard v49.0
-    creator = _creator_current_profile_v490()
-    if not creator:
-        _creator_clear_session_v490()
+    # dashboard safety guard v49.1
+    if not _creator_has_valid_profile_v491():
+        _creator_clear_bad_session_v491()
         flash("Please log in as a creator.")
         return redirect("/creator/login")
 
@@ -2580,7 +2585,7 @@ def dashboard():
     if creator:
         _recalculate_creator_storage(creator.id)
     storage_limit_gb, max_batch_gb = _creator_plan_limits(creator)
-    storage_used_gb = _creator_storage_used_gb(creator.get('id') if hasattr(creator, 'get') else creator.id)
+    storage_used_gb = _creator_storage_used_gb(creator.id if creator is not None else session.get('creator_id'))
     if not creator:
         flash('Please log in with an approved creator account.', 'error')
         return redirect(url_for('creator.login'))
@@ -3112,7 +3117,7 @@ def upload():
     used = _creator_used_storage_bytes(creator.id)
     limit = _creator_storage_limit_bytes(creator)
     storage_limit_gb, max_batch_gb = _creator_plan_limits(creator)
-    storage_used_gb = _creator_storage_used_gb(creator.get('id') if hasattr(creator, 'get') else creator.id)
+    storage_used_gb = _creator_storage_used_gb(creator.id if creator is not None else session.get('creator_id'))
     return render_template("creator/upload.html",
         used_bytes=used,
         limit_bytes=limit,
@@ -3281,7 +3286,7 @@ def upload_r2_prepare():
     _ensure_video_upload_columns()
     creator = current_creator()
     storage_limit_gb, max_batch_gb = _creator_plan_limits(creator)
-    storage_used_gb = _creator_storage_used_gb(creator.get('id') if hasattr(creator, 'get') else creator.id)
+    storage_used_gb = _creator_storage_used_gb(creator.id if creator is not None else session.get('creator_id'))
     if not creator:
         return jsonify({"ok": False, "error": "Creator login required."}), 401
 
