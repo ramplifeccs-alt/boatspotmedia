@@ -1,4 +1,4 @@
-from flask import Flask, redirect, request
+from flask import Flask, redirect, request, session
 from config import Config
 from .services.db import db
 
@@ -453,6 +453,16 @@ def create_app():
     @flask_app.route("/login")
     def _bsm_redirect_login_to_buyer_v480():
         return redirect("/buyer/login")
+
+
+    @flask_app.route("/logout")
+    @flask_app.route("/auth/logout")
+    @flask_app.route("/buyer/logout")
+    @flask_app.route("/creator/logout")
+    @flask_app.route("/owner/logout")
+    def _bsm_logout_v491a():
+        session.clear()
+        return redirect("/")
 
     return flask_app
 

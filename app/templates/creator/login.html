@@ -28,12 +28,6 @@ button,.btn{display:inline-block;border:0;border-radius:10px;padding:12px 16px;t
 <input type="password" name="password" placeholder="Password" required>
 <button class="blue" type="submit">Login</button>
 </form>
-
-<div class="creator-register-link-v492">
-  <p>Not approved yet?</p>
-  <a href="/creator/register">Apply to become a creator</a>
-</div>
-
 <div class="row">
   <a class="btn dark" href="{{ url_for('public.auth_google_register', account_type='creator') }}">Login with Google</a>
   <a class="btn gray" href="{{ url_for('creator.apple_login_under_construction') }}">Login with Apple</a>
