@@ -1,10 +1,8 @@
-BoatSpotMedia v49.1I Restore My Orders + Keep Approve Fix
-Base: v49.1E, because My Orders was working there.
-Merged from v49.1H:
-- Correct approve creator sequence.
-- creator_profile.id stays autoincrement/sequence.
-- creator_profile.user_id links to user.id.
-- Free plan uses storage_plan.id=5 and storage limit 5 GB.
-Also:
-- Adds safe /download-video fallback route without changing buyer dashboard queries.
-Does not touch Google, Apple, login, upload, batches, checkout, or My Orders query.
+BoatSpotMedia v49.1J Clean Download Fix
+Base: v49.1I.
+Only changes:
+- Clean /download-video/<id>?delivery=original route.
+- Supports both order_item.id and video.id.
+- Redirects to R2 using public_url, file_path, r2_video_key, or internal_filename.
+- Edited delivery uses edited_r2_key only if present.
+- Does not change My Orders query, templates, Google, Apple, login, upload, batches, creators, checkout, or DB.
