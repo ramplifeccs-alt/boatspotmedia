@@ -2133,6 +2133,21 @@ def _recalculate_creator_storage(creator_id):
 
 
 # v49.1L Creator subscription + Stripe Connect helpers
+
+def _bsm_creator_email_v491m(creator_id):
+    try:
+        row = db.session.execute(db.text("""
+            SELECT u.email
+            FROM creator_profile cp
+            JOIN "user" u ON u.id = cp.user_id
+            WHERE cp.id=:cid
+            LIMIT 1
+        """), {"cid": creator_id}).mappings().first()
+        return row.get("email") if row else None
+    except Exception:
+        db.session.rollback()
+        return None
+
 def _bsm_public_base_url_v491l():
     base = (os.environ.get("PUBLIC_BASE_URL") or os.environ.get("BASE_URL") or os.environ.get("APP_URL") or request.url_root).strip().rstrip("/")
     if base.startswith("http://"):
@@ -2373,7 +2388,7 @@ def creator_billing_v472():
     except Exception: used=0
     return render_template("creator/billing.html", plans=_bsm_creator_plans_v472(), subscription=sub, used_bytes=used, used_gb=round(float(used or 0)/1024/1024/1024,2), stripe_account_id=_bsm_creator_stripe_account_id_v491l(c.id))
 
-@creator_bp.route("/billing/checkout/<plan_key>", methods=["POST"], endpoint="billing_checkout_v472")
+@creator_bp.route("/billing/checkout/<plan_key>", methods=["GET", "POST"], endpoint="billing_checkout_v472")
 def creator_billing_checkout_v472(plan_key):
     c = current_creator()
     if not c:
@@ -2426,7 +2441,7 @@ def creator_billing_checkout_v472(plan_key):
             success_url=base + "/creator/billing?subscription=success&session_id={CHECKOUT_SESSION_ID}",
             cancel_url=base + "/creator/billing?subscription=cancelled",
             customer=sub.get("stripe_customer_id") or None,
-            customer_email=None if sub.get("stripe_customer_id") else getattr(c, "email", None),
+            customer_email=None if sub.get("stripe_customer_id") else (_bsm_creator_email_v491m(c.id) or getattr(c, "email", None)),
             client_reference_id=str(c.id),
             metadata={
                 "billing_type": "creator_subscription",
@@ -2455,31 +2470,6 @@ def creator_billing_checkout_v472(plan_key):
             pass
         flash("Stripe checkout failed. Check Stripe keys and Price IDs.")
         return redirect("/creator/billing")
-    if not plan.get("price_id"):
-        flash("This plan is missing its Stripe Price ID in Railway variables.")
-        return redirect("/creator/billing")
-    try:
-        import os, stripe
-        stripe.api_key=os.environ.get("STRIPE_SECRET_KEY")
-        base=(os.environ.get("PUBLIC_BASE_URL") or os.environ.get("BASE_URL") or "https://boatspotmedia.com").rstrip("/")
-        sub=_bsm_get_creator_subscription_v472(c.id)
-        checkout=stripe.checkout.Session.create(
-            mode="subscription",
-            payment_method_types=["card"],
-            line_items=[{"price":plan["price_id"],"quantity":1}],
-            success_url=base+"/creator/billing?subscription=success&session_id={CHECKOUT_SESSION_ID}",
-            cancel_url=base+"/creator/billing?subscription=cancelled",
-            customer=sub.get("stripe_customer_id") or None,
-            client_reference_id=str(c.id),
-            metadata={"billing_type":"creator_subscription","creator_id":str(c.id),"plan_key":plan_key,"storage_limit_gb":str(plan["storage_gb"])},
-            subscription_data={"metadata":{"billing_type":"creator_subscription","creator_id":str(c.id),"plan_key":plan_key,"storage_limit_gb":str(plan["storage_gb"])}}
-        )
-        return redirect(checkout.url, code=303)
-    except Exception as e:
-        print("creator billing checkout warning v47.2:", e)
-        flash("Stripe checkout failed. Check Stripe keys and Price IDs.")
-        return redirect("/creator/billing")
-
 
 
 @creator_bp.route("/billing/connect-stripe", methods=["POST"], endpoint="billing_connect_stripe_v491l")

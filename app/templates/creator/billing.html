@@ -9,7 +9,16 @@
 <a href="/creator/dashboard">Dashboard</a><a href="/creator/upload">Uploads</a><a href="/creator/batches">Batches</a><a href="/creator/orders">Orders</a><a href="/creator/pricing">Pricing</a><a href="/creator/billing" class="active">Billing</a><a href="/creator/dashboard#settings">Settings</a><a href="/logout" class="logout">Log out</a>
 </nav></aside>
 <main class="bsm-creator-main-v459"><div class="bsm-billing-wrap-v472">
-<h1>Creator Billing</h1><p class="muted">Manage your subscription and storage limit.</p>
+<h1>Creator Billing</h1>
+
+{% with messages = get_flashed_messages() %}
+  {% if messages %}
+    <div class="bsm-billing-flashes-v491m">
+      {% for msg in messages %}<div>{{ msg }}</div>{% endfor %}
+    </div>
+  {% endif %}
+{% endwith %}
+<p class="muted">Manage your subscription and storage limit.</p>
 <section class="bsm-billing-current-v472">
 <div><span>Current plan</span><strong>{{ subscription.plan_key|title }}</strong></div>
 <div><span>Status</span><strong>{{ subscription.status|title }}</strong></div>
@@ -39,8 +48,8 @@
 <article class="bsm-plan-card-v472 {% if subscription.plan_key == plan.key %}active{% endif %}">
 <h3>{{ plan.name }}</h3><strong>{{ plan.price_label }}</strong><p>{{ plan.description }}</p><p><b>Storage:</b> {{ plan.storage_gb }} GB</p><p><b>Platform commission:</b> {{ plan.commission_percent or 0 }}%</p>
 {% if subscription.plan_key == plan.key %}<button disabled>Current Plan</button>
-{% elif plan.key == "free" %}<form method="POST" action="/creator/billing/checkout/free"><button type="submit">Switch to Free</button></form>
-{% elif plan.price_id %}<form method="POST" action="/creator/billing/checkout/{{ plan.key }}"><button type="submit">Choose {{ plan.name }}</button></form>
+{% elif plan.key == "free" %}<a class="billing-plan-button-v491m" href="/creator/billing/checkout/free">Switch to Free</a>
+{% elif plan.price_id %}<a class="billing-plan-button-v491m" href="/creator/billing/checkout/{{ plan.key }}">Choose {{ plan.name }}</a>
 {% else %}<button disabled>Stripe Price ID needed</button><small>Add Stripe Price ID in Owner Plans or STRIPE_PRICE_CREATOR_{{ plan.key|upper }} in Railway variables.</small>{% endif %}
 </article>{% endfor %}
 </div>
