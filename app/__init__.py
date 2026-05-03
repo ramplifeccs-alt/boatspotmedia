@@ -464,6 +464,31 @@ def create_app():
         session.clear()
         return redirect("/")
 
+
+    # v49.1P safe buyer creator name helper
+    @flask_app.context_processor
+    def _bsm_buyer_creator_name_context_v491p():
+        def bsm_creator_name_for_video(video_id):
+            try:
+                if not video_id:
+                    return ""
+                row = db.session.execute(db.text("""
+                    SELECT COALESCE(u.display_name, u.public_name, u.primary_location, u.email, 'Creator') AS creator_name
+                    FROM video v
+                    LEFT JOIN creator_profile cp ON cp.id = v.creator_id
+                    LEFT JOIN "user" u ON u.id = cp.user_id
+                    WHERE v.id=:video_id
+                    LIMIT 1
+                """), {"video_id": video_id}).mappings().first()
+                return (row.get("creator_name") if row else "") or ""
+            except Exception:
+                try:
+                    db.session.rollback()
+                except Exception:
+                    pass
+                return ""
+        return dict(bsm_creator_name_for_video=bsm_creator_name_for_video)
+
     return flask_app
 
 

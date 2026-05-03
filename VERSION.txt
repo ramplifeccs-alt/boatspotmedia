@@ -1,9 +1,7 @@
-BoatSpotMedia v49.1O Stripe Subscription Activation Final
-Base: v49.1N.
-Changes only Billing/Stripe:
-- Stripe Checkout sends metadata in BOTH checkout.session.metadata and subscription_data.metadata.
-- Return URL confirms session and activates plan even if webhook is delayed.
-- Webhook handles checkout.session.completed, customer.subscription.created/updated/deleted.
-- Updates creator_subscription and creator_profile.storage_limit_gb / commission_rate.
-- Supports both /stripe/webhook and /webhooks/stripe.
-Does not touch upload, downloads, My Orders, batches, Google, Apple, buyer login, creator login, video purchase checkout, or R2.
+BoatSpotMedia v49.1P Restore My Orders + Creator Name
+Base: v49.1O, with buyer/public My Orders restored from v49.1M.
+Fixes:
+- Restores My Orders button/items to working version, removing "No video items found" regression.
+- Keeps v49.1O subscription activation code.
+- Adds creator name safely via template helper, without changing fragile My Orders SQL.
+Does not touch upload, downloads route logic, batches, Stripe subscription code, Google, Apple, buyer login, creator login, or video purchase checkout.

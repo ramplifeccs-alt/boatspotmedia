@@ -342,7 +342,7 @@ def _bsm_buyer_orders_for_user_v424(user_id, email):
 def _bsm_buyer_order_items_v422(order_id):
     try:
         return db.session.execute(db.text("""
-            SELECT i.*, v.location, COALESCE(cu_buyer_v491n.display_name, cu_buyer_v491n.public_name, cu_buyer_v491n.primary_location, cu_buyer_v491n.email, 'Creator') AS buyer_creator_name_v491n, v.filename, v.internal_filename, v.thumbnail_path, v.public_thumbnail_url, v.r2_thumbnail_key
+            SELECT i.*, v.location, v.filename, v.internal_filename, v.thumbnail_path, v.public_thumbnail_url, v.r2_thumbnail_key
             FROM bsm_cart_order_item i
             LEFT JOIN video v ON v.id=i.video_id
             WHERE i.cart_order_id=:oid
@@ -903,8 +903,6 @@ def public_download_video_v491i(item_id):
                    v.internal_filename
             FROM bsm_cart_order_item i
             LEFT JOIN video v ON v.id = i.video_id
-            LEFT JOIN creator_profile cp_buyer_v491n ON cp_buyer_v491n.id = v.creator_id
-            LEFT JOIN "user" cu_buyer_v491n ON cu_buyer_v491n.id = cp_buyer_v491n.user_id
             WHERE i.id=:item_id
             LIMIT 1
         """), {"item_id": item_id}).mappings().first()
@@ -947,5 +945,3 @@ def public_download_video_v491i(item_id):
             pass
         return "Download error", 500
 
-
-# buyer_creator_name_v491n marker

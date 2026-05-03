@@ -2309,3 +2309,11 @@ body.creator-dashboard-v449 main{
   font-weight:800;
   margin:4px 0 8px;
 }
+
+/* v49.1P buyer creator name */
+.buyer-creator-name-v491p{
+  font-size:13px;
+  color:#475569;
+  font-weight:900;
+  margin:4px 0 8px;
+}
