@@ -536,30 +536,173 @@ def login():
 
 
 
+
+# v49.1D helper: create new creators exactly compatible with the old working upload flow.
+def _v491d_create_creator_profile_matching_user_id(user, selected_plan, brand_name="", instagram=""):
+    """
+    Old working flow:
+        session["creator_id"] = CreatorProfile.id
+        upload saves video.creator_id = session["creator_id"]
+
+    Production DB requires video.creator_id to exist in "user".id.
+    Therefore any NEW creator must have:
+        creator_profile.id == user.id
+        creator_profile.user_id == user.id
+
+    This avoids touching upload/delete/batches/search logic that already works.
+    """
+    existing = CreatorProfile.query.filter_by(user_id=user.id).first()
+    if existing:
+        # Do not force-change old working creators. Only keep them active.
+        existing.approved = True
+        existing.suspended = False
+        if hasattr(existing, "deleted"):
+            existing.deleted = False
+        if selected_plan:
+            existing.plan_id = selected_plan.id
+            existing.storage_limit_gb = selected_plan.storage_limit_gb
+            existing.commission_rate = selected_plan.commission_rate
+        if hasattr(existing, "instagram") and instagram:
+            existing.instagram = instagram
+        return existing
+
+    # If profile id=user.id already exists for any reason, reuse it.
+    by_id = CreatorProfile.query.get(user.id)
+    if by_id:
+        by_id.user_id = user.id
+        by_id.approved = True
+        by_id.suspended = False
+        if hasattr(by_id, "deleted"):
+            by_id.deleted = False
+        if selected_plan:
+            by_id.plan_id = selected_plan.id
+            by_id.storage_limit_gb = selected_plan.storage_limit_gb
+            by_id.commission_rate = selected_plan.commission_rate
+        if hasattr(by_id, "instagram") and instagram:
+            by_id.instagram = instagram
+        return by_id
+
+    creator = CreatorProfile(
+        id=user.id,
+        user_id=user.id,
+        plan_id=selected_plan.id if selected_plan else None,
+        storage_limit_gb=selected_plan.storage_limit_gb if selected_plan else 512,
+        commission_rate=selected_plan.commission_rate if selected_plan else 20,
+        product_commission_rate=20,
+        approved=True,
+        suspended=False
+    )
+    if hasattr(creator, "instagram") and instagram:
+        creator.instagram = instagram
+    db.session.add(creator)
+    db.session.flush()
+    return creator
+
+def _v491d_repair_specific_creator_profile_id(old_profile_id, user_id):
+    """
+    Manual repair helper for newly-created mismatched creators only.
+    It does not run automatically on old creators.
+    """
+    if not old_profile_id or not user_id or int(old_profile_id) == int(user_id):
+        return False
+    try:
+        # Only repair if target profile id does not already exist.
+        target = CreatorProfile.query.get(int(user_id))
+        old = CreatorProfile.query.get(int(old_profile_id))
+        if target or not old or int(old.user_id) != int(user_id):
+            return False
+
+        # Best effort: update known creator_id references that were created by the bad new profile.
+        for table in ["creator_subscription", "batch", "video_batch", "bsm_cart_order_item", "product", "commission_override_log"]:
+            try:
+                db.session.execute(text(f"UPDATE {table} SET creator_id=:new WHERE creator_id=:old"), {"new": int(user_id), "old": int(old_profile_id)})
+            except Exception:
+                db.session.rollback()
+
+        db.session.execute(text("UPDATE creator_profile SET id=:new WHERE id=:old AND user_id=:new"), {"new": int(user_id), "old": int(old_profile_id)})
+        db.session.commit()
+        return True
+    except Exception as e:
+        db.session.rollback()
+        try:
+            print("v49.1D repair warning:", e)
+        except Exception:
+            pass
+        return False
+
+@owner_bp.route("/repair-new-creator-profile/<int:old_profile_id>/<int:user_id>", methods=["POST", "GET"])
+def repair_new_creator_profile_v491d(old_profile_id, user_id):
+    ok = _v491d_repair_specific_creator_profile_id(old_profile_id, user_id)
+    flash("Creator profile repaired." if ok else "Creator profile was not repaired.")
+    return redirect("/owner/creators")
+
+
 @owner_bp.route("/applications/<int:app_id>/approve", methods=["POST"])
 def approve_application(app_id):
-    repair_all_known_tables(); repair_creator_application_table()
+    repair_all_known_tables()
+    repair_creator_application_table()
+
     selected_plan = StoragePlan.query.get(request.form.get("plan_id")) if request.form.get("plan_id") else StoragePlan.query.first()
     row = db.session.execute(text("SELECT * FROM creator_application WHERE id=:id LIMIT 1"), {"id": app_id}).mappings().first()
-    if not row: return redirect("/owner/applications")
+    if not row:
+        return redirect("/owner/applications")
+
     email = (row.get("email") or "").lower().strip()
     brand_name = row.get("brand_name") or row.get("instagram") or "Boat Creator"
+    instagram = row.get("instagram") or ""
+
     user = User.query.filter_by(email=email).first()
     if not user:
-        user = User(email=email, password_hash=generate_password_hash("TempCreator123!"), role="creator", display_name=brand_name, is_active=True)
-        db.session.add(user); db.session.flush()
+        user = User(
+            email=email,
+            password_hash=generate_password_hash("TempCreator123!"),
+            role="creator",
+            display_name=brand_name,
+            is_active=True
+        )
+        # Store application data on the same user record when those fields exist.
+        if hasattr(user, "first_name"):
+            user.first_name = row.get("first_name") or ""
+        if hasattr(user, "last_name"):
+            user.last_name = row.get("last_name") or ""
+        if hasattr(user, "phone"):
+            user.phone = row.get("phone") or ""
+        if hasattr(user, "primary_location"):
+            user.primary_location = brand_name
+        db.session.add(user)
+        db.session.flush()
     else:
-        user.display_name = user.display_name or brand_name; user.is_active=True; user.role="creator"
-    creator = CreatorProfile.query.filter_by(user_id=user.id).first()
-    if not creator:
-        creator = CreatorProfile(user_id=user.id, plan_id=selected_plan.id if selected_plan else None, storage_limit_gb=selected_plan.storage_limit_gb if selected_plan else 512, commission_rate=selected_plan.commission_rate if selected_plan else 20, product_commission_rate=20, approved=True, suspended=False)
-        db.session.add(creator)
-    else:
-        creator.approved=True; creator.suspended=False; creator.deleted=False
-        if selected_plan:
-            creator.plan_id=selected_plan.id; creator.storage_limit_gb=selected_plan.storage_limit_gb; creator.commission_rate=selected_plan.commission_rate
+        user.display_name = user.display_name or brand_name
+        user.is_active = True
+        user.role = "creator"
+        if hasattr(user, "first_name") and row.get("first_name"):
+            user.first_name = row.get("first_name")
+        if hasattr(user, "last_name") and row.get("last_name"):
+            user.last_name = row.get("last_name")
+        if hasattr(user, "phone") and row.get("phone"):
+            user.phone = row.get("phone")
+        if hasattr(user, "primary_location") and brand_name:
+            user.primary_location = brand_name
+        db.session.flush()
+
+    creator = _v491d_create_creator_profile_matching_user_id(user, selected_plan, brand_name=brand_name, instagram=instagram)
+
+    # Keep creator_subscription compatible with the same creator id that upload uses.
+    try:
+        db.session.execute(text("""
+            INSERT INTO creator_subscription (creator_id, plan_key, status, storage_limit_gb, created_at, updated_at)
+            VALUES (:creator_id, 'free', 'active', :storage_limit_gb, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
+            ON CONFLICT DO NOTHING
+        """), {
+            "creator_id": creator.id,
+            "storage_limit_gb": selected_plan.storage_limit_gb if selected_plan else 512
+        })
+    except Exception:
+        db.session.rollback()
+
     db.session.execute(text("UPDATE creator_application SET status='approved', reviewed_at=CURRENT_TIMESTAMP WHERE id=:id"), {"id": app_id})
     db.session.commit()
+
     send_email(email, "BoatSpotMedia Creator Approved", "Your creator application was approved. Login at /creator/login. Temporary password: TempCreator123!")
     return redirect("/owner/applications")
 

@@ -88,7 +88,6 @@ def current_creator():
     user_id = session.get("user_id")
     user_email = session.get("user_email") or session.get("email")
     creator_id = session.get("creator_id")
-    creator_id = _creator_video_user_id_v491c(creator_id)
 
     q = CreatorProfile.query.filter(
         CreatorProfile.approved == True,
@@ -365,7 +364,7 @@ def _delete_batch_r2_objects(batch):
         deleted = len(keys or []) + len(prefixes or [])
         _schedule_batch_r2_delete({'keys': keys, 'prefixes': prefixes}, batch_id=getattr(batch, 'id', None))
         try:
-            print("R2 delete batch cleanup:", {"batch_id": batch_id, "creator_id": _creator_video_user_id_v491c(creator_id), "keys": len(keys), "deleted": deleted})
+            print("R2 delete batch cleanup:", {"batch_id": batch_id, "creator_id": creator_id, "keys": len(keys), "deleted": deleted})
         except Exception:
             pass
         return deleted
@@ -643,7 +642,7 @@ def _apply_creator_pricing_to_existing_videos_by_id(creator_id):
 
         db.session.commit()
         try:
-            print("Creator pricing background update complete:", {"creator_id": _creator_video_user_id_v491c(creator_id), "updated": updated})
+            print("Creator pricing background update complete:", {"creator_id": creator_id, "updated": updated})
         except Exception:
             pass
         return updated
@@ -665,7 +664,8 @@ def _schedule_creator_pricing_update(creator):
         import threading
         from flask import current_app
         app = current_app._get_current_object()
-        creator_id = _creator_video_user_id_v491c(creator.id)
+        creator_id = creator.id
+
         def worker():
             with app.app_context():
                 _apply_creator_pricing_to_existing_videos_by_id(creator_id)
@@ -1306,7 +1306,7 @@ def _creator_sales_panel_v445(creator_id):
             WHERE (i.creator_id = :creator_id OR v.creator_id = :creator_id)
             ORDER BY o.created_at DESC, i.id DESC
             LIMIT 100
-        """), {"creator_id": _creator_video_user_id_v491c(creator_id)}).mappings().all()
+        """), {"creator_id": creator_id}).mappings().all()
     except Exception as e:
         try:
             db.session.rollback()
@@ -1438,7 +1438,7 @@ def _bsm_creator_orders_v446(creator_id):
             WHERE (i.creator_id = :creator_id OR v.creator_id = :creator_id)
             ORDER BY o.created_at DESC, i.id DESC
             LIMIT 150
-        """), {"creator_id": _creator_video_user_id_v491c(creator_id)}).mappings().all()
+        """), {"creator_id": creator_id}).mappings().all()
     except Exception as e:
         db.session.rollback()
         try: print("creator orders warning v44.6:", e)
@@ -1600,7 +1600,7 @@ def _bsm_creator_orders_v447(creator_id):
             WHERE (i.creator_id = :creator_id OR v.creator_id = :creator_id)
             ORDER BY o.created_at DESC, i.id DESC
             LIMIT 200
-        """), {"creator_id": _creator_video_user_id_v491c(creator_id)}).mappings().all()
+        """), {"creator_id": creator_id}).mappings().all()
     except Exception as e:
         db.session.rollback()
         try: print("creator orders page warning v44.7:", e)
@@ -1728,7 +1728,7 @@ def _bsm_creator_orders_v459(creator_id, page=1, q=""):
     q = (q or "").strip()
 
     base_where = "WHERE (i.creator_id = :creator_id OR v.creator_id = :creator_id)"
-    params = {"creator_id": _creator_video_user_id_v491c(creator_id), "limit": per_page, "offset": offset}
+    params = {"creator_id": creator_id, "limit": per_page, "offset": offset}
 
     search_sql = ""
     if q:
@@ -1906,7 +1906,7 @@ def _bsm_v463_get_creator_storage_status(creator_id):
             FROM creator_profile
             WHERE id = :creator_id
             LIMIT 1
-        """), {"creator_id": _creator_video_user_id_v491c(creator_id)}).mappings().first()
+        """), {"creator_id": creator_id}).mappings().first()
     except Exception:
         db.session.rollback()
         row = None
@@ -1948,7 +1948,7 @@ def _bsm_v463_get_creator_storage_status(creator_id):
                 SELECT COALESCE(SUM(COALESCE(file_size_bytes, size_bytes, 0)),0) AS total
                 FROM video
                 WHERE creator_id = :creator_id
-            """), {"creator_id": _creator_video_user_id_v491c(creator_id)}).mappings().first()
+            """), {"creator_id": creator_id}).mappings().first()
             used += int(calc.get("total") or 0)
         except Exception:
             db.session.rollback()
@@ -1958,7 +1958,7 @@ def _bsm_v463_get_creator_storage_status(creator_id):
                 SELECT COALESCE(SUM(COALESCE(edited_file_size_bytes, 0)),0) AS total
                 FROM bsm_cart_order_item
                 WHERE creator_id = :creator_id
-            """), {"creator_id": _creator_video_user_id_v491c(creator_id)}).mappings().first()
+            """), {"creator_id": creator_id}).mappings().first()
             used += int(calc2.get("total") or 0)
         except Exception:
             db.session.rollback()
@@ -1981,7 +1981,7 @@ def _bsm_v463_add_creator_storage_usage(creator_id, bytes_to_add):
                 UPDATE creator_profile
                 SET {col} = COALESCE({col}, 0) + :bytes_to_add
                 WHERE id = :creator_id
-            """), {"bytes_to_add": int(bytes_to_add), "creator_id": _creator_video_user_id_v491c(creator_id)})
+            """), {"bytes_to_add": int(bytes_to_add), "creator_id": creator_id})
             db.session.commit()
             return
         except Exception:
@@ -2100,7 +2100,7 @@ def _recalculate_creator_storage(creator_id):
             SELECT COALESCE(SUM(COALESCE(file_size_bytes, size_bytes, 0)),0) AS total
             FROM video
             WHERE creator_id=:creator_id
-        """), {"creator_id": _creator_video_user_id_v491c(creator_id)}).mappings().first()
+        """), {"creator_id": creator_id}).mappings().first()
         total += int(v.get("total") or 0)
     except Exception:
         db.session.rollback()
@@ -2112,7 +2112,7 @@ def _recalculate_creator_storage(creator_id):
             FROM bsm_cart_order_item i
             LEFT JOIN video v ON v.id = i.video_id
             WHERE (i.creator_id=:creator_id OR v.creator_id=:creator_id)
-        """), {"creator_id": _creator_video_user_id_v491c(creator_id)}).mappings().first()
+        """), {"creator_id": creator_id}).mappings().first()
         total += int(e.get("total") or 0)
     except Exception:
         db.session.rollback()
@@ -2122,7 +2122,7 @@ def _recalculate_creator_storage(creator_id):
                 UPDATE creator_profile
                 SET {col}=:total
                 WHERE id=:creator_id
-            """), {"total": total, "creator_id": _creator_video_user_id_v491c(creator_id)})
+            """), {"total": total, "creator_id": creator_id})
             db.session.commit()
             break
         except Exception:
@@ -2275,7 +2275,6 @@ def _bsm_subscription_allows_upload_v472(creator_id):
 # v49.1 dashboard safety only: do not replace creator login/OAuth.
 def _creator_has_valid_profile_v491():
     creator_id = session.get("creator_id") or session.get("creator_user_id")
-    creator_id = _creator_video_user_id_v491c(creator_id)
     if not creator_id:
         return False
     try:
@@ -2287,7 +2286,7 @@ def _creator_has_valid_profile_v491():
               AND LOWER(COALESCE(u.role,''))='creator'
               AND COALESCE(u.is_active,true)=true
             LIMIT 1
-        """), {"creator_id": _creator_video_user_id_v491c(creator_id)}).mappings().first()
+        """), {"creator_id": creator_id}).mappings().first()
         return bool(row)
     except Exception:
         db.session.rollback()
@@ -2296,53 +2295,6 @@ def _creator_has_valid_profile_v491():
 def _creator_clear_bad_session_v491():
     for k in ["creator_id", "creator_user_id", "creator_email", "creator_name"]:
         session.pop(k, None)
-
-
-
-# v49.1C upload fix:
-# video.creator_id has FK to "user".id.
-# If session currently stores creator_profile.id, convert it to creator_profile.user_id.
-def _creator_video_user_id_v491c(raw_creator_id=None):
-    candidate = raw_creator_id or session.get("creator_user_id") or session.get("creator_id") or session.get("creator_profile_id")
-    if not candidate:
-        return None
-
-    try:
-        # First: if candidate is already a user.id with role creator, use it.
-        row = db.session.execute(db.text("""
-            SELECT id
-            FROM "user"
-            WHERE id=:id
-              AND LOWER(COALESCE(role,''))='creator'
-            LIMIT 1
-        """), {"id": candidate}).mappings().first()
-        if row:
-            session["creator_user_id"] = row["id"]
-            session["creator_id"] = row["id"]
-            return row["id"]
-
-        # Second: if candidate is creator_profile.id, convert to user_id.
-        row = db.session.execute(db.text("""
-            SELECT cp.id AS profile_id, cp.user_id
-            FROM creator_profile cp
-            JOIN "user" u ON u.id = cp.user_id
-            WHERE cp.id=:id
-              AND LOWER(COALESCE(u.role,''))='creator'
-            LIMIT 1
-        """), {"id": candidate}).mappings().first()
-        if row:
-            session["creator_profile_id"] = row["profile_id"]
-            session["creator_user_id"] = row["user_id"]
-            session["creator_id"] = row["user_id"]
-            return row["user_id"]
-    except Exception as e:
-        db.session.rollback()
-        try:
-            print("creator video user id v49.1C warning:", e)
-        except Exception:
-            pass
-
-    return candidate
 
 
 @creator_bp.route("/billing", endpoint="billing_v472")
@@ -2707,7 +2659,7 @@ def _bsm_creator_orders_data_v461(creator_id, page=1, q=""):
     pending_discount_page = 0
 
     search_sql = ""
-    params = {"creator_id": _creator_video_user_id_v491c(creator_id), "limit": per_page, "offset": offset}
+    params = {"creator_id": creator_id, "limit": per_page, "offset": offset}
     if q:
         params["q"] = f"%{q.lower()}%"
         params["q_exact"] = q
@@ -3013,7 +2965,6 @@ def delete_pricing(preset_id):
 @creator_bp.route("/settings", methods=["GET","POST"], endpoint="settings_v488")
 def creator_settings_v488():
     creator_id = session.get("creator_id") or session.get("creator_user_id")
-    creator_id = _creator_video_user_id_v491c(creator_id)
     if not creator_id:
         return redirect("/creator/login")
 
@@ -3068,7 +3019,7 @@ def creator_settings_v488():
                 SET instagram=:instagram
                 WHERE id=:creator_id
             """), {
-                "creator_id": _creator_video_user_id_v491c(creator_id),
+                "creator_id": creator_id,
                 "instagram": request.form.get("instagram") or "",
             })
             db.session.commit()
@@ -3141,7 +3092,7 @@ def _creator_used_storage_bytes(creator_id):
             LEFT JOIN video v ON v.id = i.video_id
             WHERE (i.creator_id = :creator_id OR v.creator_id = :creator_id)
               AND COALESCE(i.edited_r2_key, '') <> ''
-        """), {"creator_id": _creator_video_user_id_v491c(creator_id)}).mappings().first()
+        """), {"creator_id": creator_id}).mappings().first()
         edited_total = int(row.get("total") or 0)
     except Exception:
         db.session.rollback()
@@ -3150,12 +3101,6 @@ def _creator_used_storage_bytes(creator_id):
 
 @creator_bp.route("/upload", methods=["GET"])
 def upload():
-    # upload creator_id normalization v49.1C
-    _video_creator_user_id = _creator_video_user_id_v491c()
-    if _video_creator_user_id:
-        session["creator_id"] = _video_creator_user_id
-        session["creator_user_id"] = _video_creator_user_id
-
     # v472 subscription upload guard
     try:
         c=current_creator()
@@ -3284,7 +3229,7 @@ def _ensure_batch_exists_for_upload(batch_id, creator_id, batch_name="", locatio
                 ON CONFLICT (id) DO NOTHING
             """), {
                 "id": batch_id,
-                "creator_id": _creator_video_user_id_v491c(creator_id),
+                "creator_id": creator_id,
                 "name": batch_name or f"Batch {batch_id}",
                 "location": location or ""
             })
@@ -4250,7 +4195,7 @@ def creator_upload_edited_video_v463(item_id):
                 edited_uploaded_at=CURRENT_TIMESTAMP,
                 creator_id=COALESCE(creator_id, :creator_id)
             WHERE id=:item_id
-        """), {"key": key, "file_size": int(file_size or 0), "creator_id": _creator_video_user_id_v491c(creator_id), "item_id": item_id})
+        """), {"key": key, "file_size": int(file_size or 0), "creator_id": creator_id, "item_id": item_id})
         db.session.commit()
     except Exception as e:
         db.session.rollback()
@@ -4374,7 +4319,7 @@ def creator_edited_upload_complete_v464(item_id):
                 edited_uploaded_at=CURRENT_TIMESTAMP,
                 creator_id=COALESCE(creator_id, :creator_id)
             WHERE id=:item_id
-        """), {"key": key, "file_size": file_size, "creator_id": _creator_video_user_id_v491c(creator_id), "item_id": item_id})
+        """), {"key": key, "file_size": file_size, "creator_id": creator_id, "item_id": item_id})
         db.session.commit()
     except Exception as e:
         db.session.rollback()
@@ -4458,7 +4403,7 @@ def creator_delete_edited_video_v464(item_id):
                 UPDATE creator_profile
                 SET {col} = GREATEST(COALESCE({col}, 0) - :size, 0)
                 WHERE id=:creator_id
-            """), {"size": size, "creator_id": _creator_video_user_id_v491c(creator_id)})
+            """), {"size": size, "creator_id": creator_id})
             db.session.commit()
             break
         except Exception:
@@ -4551,7 +4496,7 @@ def creator_delete_edited_mistake_v467(item_id):
                 UPDATE creator_profile
                 SET {col} = GREATEST(COALESCE({col}, 0) - :size, 0)
                 WHERE id=:creator_id
-            """), {"size": size, "creator_id": _creator_video_user_id_v491c(creator_id)})
+            """), {"size": size, "creator_id": creator_id})
             db.session.commit()
             break
         except Exception:

@@ -1,0 +1,6 @@
+BoatSpotMedia v49.1B Owner Creators Compact Menu Fix
+Base: v49.1A.
+Only changes:
+- Replaces Owner Creators/Buyers wide table with responsive cards.
+- No horizontal scroll needed.
+- Does not touch Google, Apple, login, logout, uploads, or backend logic.
