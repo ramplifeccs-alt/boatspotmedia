@@ -200,9 +200,9 @@ def _owner_dashboard_metrics_v477():
     metrics["original_storage_bytes"] = 0
     if video_table:
         if _owner_col_exists_v478(video_table,"size_bytes"):
-            metrics["original_storage_bytes"] = _owner_scalar_v478(f"SELECT COALESCE(SUM(COALESCE(size_bytes,0)),0) FROM {video_table}")
+            metrics["original_storage_bytes"] = _owner_scalar_v478(f"SELECT COALESCE(SUM(COALESCE(size_bytes,0)),0) FROM {video_table} {_owner_storage_original_filter_v479(video_table)}")
         elif _owner_col_exists_v478(video_table,"file_size_bytes"):
-            metrics["original_storage_bytes"] = _owner_scalar_v478(f"SELECT COALESCE(SUM(COALESCE(file_size_bytes,0)),0) FROM {video_table}")
+            metrics["original_storage_bytes"] = _owner_scalar_v478(f"SELECT COALESCE(SUM(COALESCE(file_size_bytes,0)),0) FROM {video_table} {_owner_storage_original_filter_v479(video_table)}")
 
     metrics["edited_storage_bytes"] = 0
     if items_table and _owner_col_exists_v478(items_table,"edited_file_size_bytes"):
@@ -235,6 +235,72 @@ def _owner_dashboard_metrics_v477():
     return metrics
 
 
+
+# v47.9 owner schema helpers
+def _owner_columns_v479(table_name):
+    try:
+        rows = db.session.execute(db.text("""
+            SELECT column_name
+            FROM information_schema.columns
+            WHERE table_schema='public' AND table_name=:t
+        """), {"t": table_name}).mappings().all()
+        return {r.get("column_name") for r in rows}
+    except Exception:
+        db.session.rollback()
+        return set()
+
+def _owner_select_expr_v479(cols, choices, default_sql="''"):
+    for c in choices:
+        if c in cols:
+            return c
+    return default_sql
+
+def _owner_name_expr_v479(cols):
+    if "name" in cols: return "COALESCE(name,'')"
+    if "full_name" in cols: return "COALESCE(full_name,'')"
+    if "brand" in cols: return "COALESCE(brand,'')"
+    if "brand_name" in cols: return "COALESCE(brand_name,'')"
+    if "company_name" in cols: return "COALESCE(company_name,'')"
+    if "first_name" in cols and "last_name" in cols: return "TRIM(COALESCE(first_name,'') || ' ' || COALESCE(last_name,''))"
+    if "first_name" in cols: return "COALESCE(first_name,'')"
+    return "''"
+
+def _owner_email_expr_v479(cols):
+    return "email" if "email" in cols else "''"
+
+def _owner_phone_expr_v479(cols):
+    if "phone" in cols: return "COALESCE(phone,'')"
+    if "phone_number" in cols: return "COALESCE(phone_number,'')"
+    if "mobile" in cols: return "COALESCE(mobile,'')"
+    return "''"
+
+def _owner_status_expr_v479(cols):
+    return "COALESCE(status,'active')" if "status" in cols else "'active'"
+
+def _owner_social_expr_v479(cols):
+    for c in ["instagram","instagram_handle","social_handle","tiktok","youtube"]:
+        if c in cols:
+            return f"COALESCE({c},'')"
+    return "''"
+
+def _owner_storage_original_filter_v479(video_table):
+    cols = _owner_columns_v479(video_table)
+    filters = []
+    if "deleted_at" in cols:
+        filters.append("deleted_at IS NULL")
+    if "is_deleted" in cols:
+        filters.append("COALESCE(is_deleted,false)=false")
+    if "status" in cols:
+        filters.append("COALESCE(status,'active') NOT IN ('deleted','cancelled','canceled','removed')")
+    if "r2_key" in cols:
+        filters.append("COALESCE(r2_key,'') <> ''")
+    elif "r2_object_key" in cols:
+        filters.append("COALESCE(r2_object_key,'') <> ''")
+    elif "file_path" in cols:
+        filters.append("COALESCE(file_path,'') <> ''")
+    return ("WHERE " + " AND ".join(filters)) if filters else ""
+
+
 @owner_bp.route("/login", methods=["GET", "POST"])
 def login():
     if request.method == "POST":
@@ -247,19 +313,39 @@ def owner_panel_v477():
     q = (request.args.get("q") or "").strip()
     return render_template("owner/panel.html", metrics=metrics, q=q)
 
+
 @owner_bp.route("/applications")
-def applications():
-    _ensure_creator_profile_deleted_column()
-    repair_all_known_tables(); repair_creator_application_table()
-    rows = db.session.execute(text("SELECT * FROM creator_application WHERE COALESCE(status,'') <> 'deleted' ORDER BY CASE WHEN status='pending' THEN 0 ELSE 1 END, id DESC")).mappings().all()
-    plans = StoragePlan.query.filter_by(active=True).order_by(StoragePlan.storage_limit_gb.asc()).all()
-    show_all = request.args.get("show_all") == "1"
-    creator_query = CreatorProfile.query.filter((CreatorProfile.deleted == False) | (CreatorProfile.deleted.is_(None)))
-    if not show_all:
-        creator_query = creator_query.filter(CreatorProfile.approved == True, CreatorProfile.suspended == False)
-    creators = creator_query.order_by(CreatorProfile.id.desc()).all()
-    logs = CommissionOverrideLog.query.order_by(CommissionOverrideLog.created_at.desc()).limit(100).all()
-    return render_template("owner/applications.html", applications=rows, plans=plans, creators=creators, logs=logs)
+def owner_applications_v479():
+    table = _owner_table_for_v478("application")
+    rows = []
+    if table:
+        cols = _owner_columns_v479(table)
+        name_expr = _owner_name_expr_v479(cols)
+        email_expr = _owner_email_expr_v479(cols)
+        phone_expr = _owner_phone_expr_v479(cols)
+        status_expr = _owner_status_expr_v479(cols)
+        social_expr = _owner_social_expr_v479(cols)
+        brand_expr = "COALESCE(brand,'')" if "brand" in cols else ("COALESCE(brand_name,'')" if "brand_name" in cols else ("COALESCE(company_name,'')" if "company_name" in cols else "''"))
+        try:
+            rows = db.session.execute(db.text(f"""
+                SELECT id,
+                       {name_expr} AS display_name,
+                       {brand_expr} AS display_brand,
+                       {email_expr} AS display_email,
+                       {phone_expr} AS display_phone,
+                       {social_expr} AS display_social,
+                       {status_expr} AS display_status,
+                       *
+                FROM {table}
+                ORDER BY id DESC
+                LIMIT 300
+            """)).mappings().all()
+        except Exception as e:
+            db.session.rollback()
+            try: print("owner applications v47.9 warning:", e)
+            except Exception: pass
+    return render_template("owner/applications.html", applications=rows)
+
 
 @owner_bp.route("/applications/<int:app_id>/approve", methods=["POST"])
 def approve_application(app_id):
@@ -625,10 +711,11 @@ def _owner_table_for_v478(kind):
     if kind == "creator":
         return _owner_pick_table_v478("creator_profile","creators","creator")
     if kind == "buyer":
-        return _owner_pick_table_v478("buyer_user","buyers","buyer")
+        return _owner_pick_table_v478("buyer_user","buyers","buyer","users","user")
     if kind == "application":
         return _owner_pick_table_v478("creator_application","creator_applications")
     return None
+
 
 def _owner_read_row_v478(table, row_id):
     try:
@@ -768,3 +855,32 @@ def owner_application_delete_v478(row_id):
             db.session.rollback()
             flash("Could not delete application.")
     return redirect("/owner/applications")
+
+@owner_bp.route("/application/<int:row_id>/edit", methods=["GET","POST"], endpoint="owner_edit_application_v479")
+def owner_edit_application_v479(row_id):
+    table = _owner_table_for_v478("application")
+    if not table:
+        flash("Application table not found.")
+        return redirect("/owner/applications")
+    row = _owner_read_row_v478(table, row_id)
+    if not row:
+        flash("Application not found.")
+        return redirect("/owner/applications")
+    if request.method == "POST":
+        cols = _owner_columns_v479(table)
+        fields = {}
+        for col in ["name","full_name","first_name","last_name","email","phone","phone_number","brand","brand_name","company_name","instagram","instagram_handle","social_handle","status"]:
+            if col in cols and col in request.form:
+                fields[col] = request.form.get(col)
+        if fields:
+            set_sql = ", ".join([f"{k}=:{k}" for k in fields])
+            fields["id"] = row_id
+            try:
+                db.session.execute(db.text(f"UPDATE {table} SET {set_sql} WHERE id=:id"), fields)
+                db.session.commit()
+                flash("Application saved.")
+            except Exception:
+                db.session.rollback()
+                flash("Could not save application.")
+        return redirect("/owner/applications")
+    return render_template("owner/edit_person.html", row=row, kind="application", title="Edit Application")

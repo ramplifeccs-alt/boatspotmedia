@@ -1,84 +1,47 @@
 <!doctype html>
 <html lang="en">
-<head>
-  <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width,initial-scale=1">
-  <title>Creator Applications - BoatSpotMedia Owner</title>
-  <link rel="stylesheet" href="/static/css/style.css">
-</head>
+<head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Creator Applications - Owner</title><link rel="stylesheet" href="/static/css/style.css"></head>
 <body class="owner-dashboard-v476">
 <div class="owner-shell-v475">
   <aside class="owner-sidebar-v475">
-    <a href="/owner/panel" class="owner-logo-v475">
-      <img src="/static/img/logo-header.png" alt="BoatSpotMedia">
-    </a>
+    <a href="/owner/panel" class="owner-logo-v475"><img src="/static/img/logo-header.png" alt="BoatSpotMedia"></a>
     <nav>
       <a href="/owner/panel">Owner Dashboard</a>
       <a href="/owner/applications" class="active">Creator Applications</a>
+      <a href="/owner/creators">Creators</a>
+      <a href="/owner/buyers">Buyers</a>
       <a href="/owner/creator-plans">Creator Plans</a>
       <a href="/logout" class="danger">Log out</a>
     </nav>
   </aside>
-
   <main class="owner-main-v475">
-    <div class="owner-card-v475">
-      <h1>Creator Applications</h1>
-      <p>Review creator applications. Phone numbers are included for SMS workflow.</p>
-    </div>
-
-    {% with messages = get_flashed_messages() %}
-      {% if messages %}
-        <div class="owner-flash-v474">
-          {% for msg in messages %}<div>{{ msg }}</div>{% endfor %}
-        </div>
-      {% endif %}
-    {% endwith %}
-
-    <div class="owner-content-v475">
-      <div class="owner-table-wrap-v476">
-        <table class="owner-table-v476">
-          <thead>
-            <tr>
-              <th>ID</th>
-              <th>Name</th>
-              <th>Brand</th>
-              <th>Email</th>
-              <th>Phone</th>
-              <th>Instagram</th>
-              <th>Status</th>
-              <th>Action</th>
-            </tr>
-          </thead>
-          <tbody>
-            {% for a in applications %}
-              <tr>
-                <td>{{ a.id }}</td>
-                <td>{{ a.name or a.full_name or ((a.first_name or '') ~ ' ' ~ (a.last_name or '')) }}</td>
-                <td>{{ a.brand or a.brand_name or a.company_name or '' }}</td>
-                <td>{{ a.email }}</td>
-                <td>{{ a.phone or a.phone_number or '' }}</td>
-                <td>{{ a.instagram or a.instagram_handle or a.social_handle or '' }}</td>
-                <td>{{ a.status or 'pending' }}</td>
-                <td>
-                  {% if (a.status or '') != 'approved' %}
-                    <form method="POST" action="/owner/applications/{{ a.id }}/approve" style="display:inline;">
-                      <button type="submit">Approve</button>
-                    </form>
-                  {% else %}
-                    Reviewed
-                    <form method="POST" action="/owner/application/{{ app.id }}/status/suspended" style="display:inline;"><button type="submit">Suspend</button></form>
-                    <form method="POST" action="/owner/application/{{ app.id }}/delete" style="display:inline;" onsubmit="return confirm('Delete this application?');"><button class="danger" type="submit">Delete Application</button></form>
-                  {% endif %}
-                </td>
-              </tr>
-            {% else %}
-              <tr><td colspan="8">No creator applications found.</td></tr>
-            {% endfor %}
-          </tbody>
-        </table>
-      </div>
+    <div class="owner-card-v475"><h1>Creator Applications</h1><p>Approve, suspend, edit or delete creator applications.</p></div>
+    {% with messages = get_flashed_messages() %}{% if messages %}<div class="owner-flash-v474">{% for msg in messages %}<div>{{ msg }}</div>{% endfor %}</div>{% endif %}{% endwith %}
+    <div class="owner-content-v475 owner-table-wrap-v476">
+      <table class="owner-table-v476">
+        <thead><tr><th>ID</th><th>Name</th><th>Brand</th><th>Email</th><th>Phone</th><th>Social</th><th>Status</th><th>Actions</th></tr></thead>
+        <tbody>
+        {% for app in applications %}
+          <tr>
+            <td>{{ app.id }}</td>
+            <td>{{ app.display_name }}</td>
+            <td>{{ app.display_brand }}</td>
+            <td>{{ app.display_email }}</td>
+            <td>{{ app.display_phone }}</td>
+            <td>{{ app.display_social }}</td>
+            <td>{{ app.display_status }}</td>
+            <td class="owner-actions-v478">
+              <form method="POST" action="/owner/applications/{{ app.id }}/approve"><button type="submit">Approve</button></form>
+              <form method="POST" action="/owner/application/{{ app.id }}/status/suspended"><button type="submit">Suspend</button></form>
+              <a href="/owner/application/{{ app.id }}/edit">Edit</a>
+              <form method="POST" action="/owner/application/{{ app.id }}/delete" onsubmit="return confirm('Delete this application?');"><button class="danger" type="submit">Delete</button></form>
+            </td>
+          </tr>
+        {% else %}
+          <tr><td colspan="8">No applications found.</td></tr>
+        {% endfor %}
+        </tbody>
+      </table>
     </div>
   </main>
-</div>
-</body>
-</html>
+</div></body></html>

@@ -1,9 +1,8 @@
-BoatSpotMedia v47.8 Owner Real Metrics + Creator/Buyer Management
-Base: v47.7.
+BoatSpotMedia v47.9 Owner Fix + Home Buyer Only
+Base: v47.8.
 Fixes:
-- Owner Dashboard metrics now auto-detects real table/column names.
-- Orders, sales today, pending edits, discount approvals and storage use schema fallback.
-Adds:
-- Owner Creators management: edit, suspend/reactivate, delete, reset password.
-- Owner Buyers management: edit, suspend/reactivate, delete, reset password.
-- Application suspend/delete aliases.
+- Applications table uses normalized/fallback display columns.
+- Creators table uses normalized display columns.
+- Buyers table supports users table with role='buyer'.
+- Storage original counts only active/non-deleted videos when supported by schema.
+- Home cleanup removes creator/services/charters/owner login/apply links and keeps/adds buyer login/register.

@@ -2091,3 +2091,7 @@ body.creator-dashboard-v449 main{
 .owner-actions-v478 a,.owner-actions-v478 button{display:inline-block;padding:8px 10px;border:0;border-radius:9px;background:#2563eb;color:#fff!important;text-decoration:none;font-weight:800}
 .owner-actions-v478 button.danger,.owner-table-v476 button.danger{background:#dc2626!important}
 .owner-actions-v478 input{padding:8px;border:1px solid #cbd5e1;border-radius:8px;max-width:150px}
+
+/* v47.9 owner fixes + buyer-only home */
+.buyer-only-login-v479{display:flex;justify-content:center;margin:24px 0}
+.buyer-only-login-v479 a{background:#2563eb;color:#fff!important;text-decoration:none;font-weight:900;padding:12px 18px;border-radius:12px}

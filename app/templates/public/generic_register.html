@@ -11,11 +11,11 @@
   {% if session.get("user_role") == "buyer" %}
     <a href="/buyer/dashboard">Dashboard</a>
   {% elif session.get("user_role") == "creator" %}
-    <a href="/creator/dashboard">Dashboard</a>
+    
   {% elif session.get("user_role") in ["services", "service"] %}
-    <a href="/service-account/dashboard">Dashboard</a>
+    
   {% elif session.get("user_role") in ["charter", "charters"] %}
-    <a href="https://charters.boatspotmedia.com">Dashboard</a>
+    
   {% endif %}
   <a href="/logout">Logout</a>
 {% else %}

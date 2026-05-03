@@ -19,15 +19,16 @@
     {% with messages = get_flashed_messages() %}{% if messages %}<div class="owner-flash-v474">{% for msg in messages %}<div>{{ msg }}</div>{% endfor %}</div>{% endif %}{% endwith %}
     <div class="owner-content-v475 owner-table-wrap-v476">
       <table class="owner-table-v476">
-        <thead><tr><th>ID</th><th>Name</th><th>Email</th><th>Phone</th><th>Status</th><th>Actions</th></tr></thead>
+        <thead><tr><th>ID</th><th>Name/Brand</th><th>Email</th><th>Phone</th><th>Social</th><th>Status</th><th>Actions</th></tr></thead>
         <tbody>
         {% for r in rows %}
           <tr>
             <td>{{ r.id }}</td>
-            <td>{{ r.name or r.full_name or ((r.first_name or '') ~ ' ' ~ (r.last_name or '')) or r.brand or r.company_name }}</td>
-            <td>{{ r.email }}</td>
-            <td>{{ r.phone or r.phone_number or '' }}</td>
-            <td>{{ r.status or 'active' }}</td>
+            <td>{{ r.display_name }}</td>
+            <td>{{ r.display_email }}</td>
+            <td>{{ r.display_phone }}</td>
+            <td>{{ r.display_social }}</td>
+            <td>{{ r.display_status }}</td>
             <td class="owner-actions-v478">
               <a href="/owner/{{ kind }}/{{ r.id }}/edit">Edit</a>
               <form method="POST" action="/owner/{{ kind }}/{{ r.id }}/status/suspended"><button type="submit">Suspend</button></form>
@@ -40,11 +41,10 @@
             </td>
           </tr>
         {% else %}
-          <tr><td colspan="6">No records found.</td></tr>
+          <tr><td colspan="7">No records found.</td></tr>
         {% endfor %}
         </tbody>
       </table>
     </div>
   </main>
-</div>
-</body></html>
+</div></body></html>
