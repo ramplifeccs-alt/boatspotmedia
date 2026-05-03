@@ -2150,3 +2150,42 @@ body.creator-dashboard-v449 main{
   margin:40px auto;
   padding:20px;
 }
+
+/* v49.2 creator register application flow */
+.apply-creator-v492{
+  max-width:760px;
+  margin:40px auto;
+  padding:24px;
+}
+.creator-apply-link-v492{
+  display:inline-block;
+  margin:12px;
+  padding:12px 18px;
+  border-radius:12px;
+  background:#0f172a;
+  color:#fff!important;
+  text-decoration:none;
+  font-weight:900;
+}
+.creator-register-link-v492{
+  margin-top:18px;
+  text-align:center;
+}
+.creator-register-link-v492 a{
+  font-weight:900;
+}
+.muted-v492{
+  color:#64748b;
+}
+.success-v492{
+  padding:16px;
+  background:#ecfdf5;
+  border:1px solid #bbf7d0;
+  border-radius:14px;
+}
+.owner-edit-form-v474 textarea{
+  width:100%;
+  padding:10px;
+  border:1px solid #cbd5e1;
+  border-radius:10px;
+}

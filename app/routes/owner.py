@@ -867,6 +867,9 @@ def _owner_bootstrap_v488():
     # Safe columns only. No new duplicate tables.
     _owner_exec_v488('ALTER TABLE "user" ADD COLUMN IF NOT EXISTS phone TEXT')
     _owner_exec_v488("ALTER TABLE creator_application ADD COLUMN IF NOT EXISTS phone TEXT")
+    _owner_exec_v488("ALTER TABLE creator_application ADD COLUMN IF NOT EXISTS notes TEXT")
+    _owner_exec_v488("ALTER TABLE creator_application ADD COLUMN IF NOT EXISTS website TEXT")
+    _owner_exec_v488("ALTER TABLE creator_application ADD COLUMN IF NOT EXISTS location TEXT")
     _owner_exec_v488("ALTER TABLE creator_profile ADD COLUMN IF NOT EXISTS instagram TEXT")
     _owner_exec_v488("ALTER TABLE creator_profile ADD COLUMN IF NOT EXISTS commission_rate NUMERIC DEFAULT 15")
     _owner_exec_v488("ALTER TABLE creator_subscription ADD COLUMN IF NOT EXISTS storage_limit_gb NUMERIC DEFAULT 5")
@@ -998,6 +1001,9 @@ def _owner_current_applications_v488():
                COALESCE(phone,'') AS display_phone,
                COALESCE(instagram,'') AS display_social,
                COALESCE(status,'pending') AS display_status,
+               COALESCE(location,'') AS location,
+               COALESCE(website,'') AS website,
+               COALESCE(notes,'') AS notes,
                submitted_at
         FROM creator_application
         ORDER BY id DESC

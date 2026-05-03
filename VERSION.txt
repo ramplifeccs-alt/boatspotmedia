@@ -1,9 +1,9 @@
-BoatSpotMedia v49.1 Restore Creator Login OAuth
-Base: v48.9.
+BoatSpotMedia v49.2 Creator Register Application Flow
+Base: v49.1.
 Fixes:
-- Restores original creator/login.html from v48.9.
-- Does NOT remove Google login.
-- Does NOT remove Apple login.
-- Adds compatibility endpoint public.auth_google_register so the old Google button no longer crashes.
-- Adds Apple compatibility only if the template references public.auth_apple_register.
-- Keeps dashboard invalid-session guard only.
+- Adds real Creator Registration/Application separate from Creator Login.
+- Routes: /creator/register, /creator/apply, /apply-creator, /apply.
+- Saves creator application data to existing creator_application table.
+- Captures first_name, last_name, brand_name, email, phone, instagram, location, website, notes.
+- Adds Apply to become a creator link on creator login and home.
+- Does not touch Google or Apple creator login.
