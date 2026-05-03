@@ -44,7 +44,8 @@
               {% for item in order.order_items %}
                 <div class="bsm-bundle-card">
                   <div style="margin-bottom:10px;">
-                    <strong>{{ item.location or item.filename or item.internal_filename or ("Video #" ~ item.video_id) }}</strong>
+                    <strong>{% if item.buyer_creator_name_v491n %}<div class="buyer-creator-name-v491n">Creator: {{ item.buyer_creator_name_v491n }}</div>{% endif %}
+{{ item.location or item.filename or item.internal_filename or ("Video #" ~ item.video_id) }}</strong>
                     {% if item.display_package == "bundle" or item.deliveries|length > 1 %}
                       <div style="color:#64748b;font-size:14px;">Bundle / Combo</div>
                     {% endif %}

@@ -2301,3 +2301,11 @@ body.creator-dashboard-v449 main{
   font-weight:800;
 }
 .bsm-billing-flashes-v491m div{margin:3px 0;}
+
+/* v49.1N buyer creator name */
+.buyer-creator-name-v491n{
+  font-size:13px;
+  color:#475569;
+  font-weight:800;
+  margin:4px 0 8px;
+}

@@ -90,7 +90,7 @@ def _buyer_orders_for_user_v424(user_id, email):
 def _buyer_order_items(order_id):
     try:
         return db.session.execute(db.text("""
-            SELECT i.*, v.location, v.filename, v.internal_filename, v.thumbnail_path, v.public_thumbnail_url, v.r2_thumbnail_key
+            SELECT i.*, v.location, COALESCE(cu_buyer_v491n.display_name, cu_buyer_v491n.public_name, cu_buyer_v491n.primary_location, cu_buyer_v491n.email, 'Creator') AS buyer_creator_name_v491n, v.filename, v.internal_filename, v.thumbnail_path, v.public_thumbnail_url, v.r2_thumbnail_key
             FROM bsm_cart_order_item i
             LEFT JOIN video v ON v.id=i.video_id
             WHERE i.cart_order_id=:oid
@@ -573,3 +573,5 @@ def _bsm_direct_download_video_response_v435(video_id):
 @buyer_bp.route("/buyer/download-item/<int:video_id>")
 def bsm_download_video_buyer_v435(video_id):
     return _bsm_direct_download_video_response_v435(video_id)
+
+# buyer_creator_name_v491n marker
