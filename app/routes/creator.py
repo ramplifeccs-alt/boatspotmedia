@@ -2638,32 +2638,42 @@ def creator_billing_connect_stripe_v491l():
         import stripe
         stripe.api_key = os.environ.get("STRIPE_SECRET_KEY")
         if not stripe.api_key:
-            flash("Stripe is not configured. Missing STRIPE_SECRET_KEY.")
+            flash("Stripe Connect error: missing STRIPE_SECRET_KEY.")
             return redirect("/creator/billing")
 
         _bsm_ensure_creator_connect_columns_v491l()
         user_id = _bsm_get_creator_user_id_v491l(c.id)
         if not user_id:
-            flash("Creator profile is missing user account.")
+            flash("Stripe Connect error: creator profile is missing user account.")
             return redirect("/creator/billing")
 
         row = db.session.execute(db.text('SELECT email, stripe_account_id FROM "user" WHERE id=:uid LIMIT 1'), {"uid": user_id}).mappings().first()
         email = (row.get("email") if row else getattr(c, "email", None)) or None
         account_id = (row.get("stripe_account_id") if row else None) or ""
 
+        # For payouts to creators, only request transfers.
+        # Requesting card_payments can fail if the platform has not completed Connect setup.
         if not account_id:
-            account = stripe.Account.create(
-                type="express",
-                email=email,
-                capabilities={
+            account_kwargs = {
+                "type": "express",
+                "email": email,
+                "capabilities": {
                     "transfers": {"requested": True},
-                    "card_payments": {"requested": True},
                 },
-                business_type="individual",
-                metadata={"creator_id": str(c.id), "user_id": str(user_id)}
-            )
+                "metadata": {"creator_id": str(c.id), "user_id": str(user_id)}
+            }
+
+            country = (os.environ.get("STRIPE_CONNECT_COUNTRY") or "").strip().upper()
+            if country:
+                account_kwargs["country"] = country
+
+            account = stripe.Account.create(**account_kwargs)
             account_id = account.id
-            db.session.execute(db.text('UPDATE "user" SET stripe_account_id=:acct WHERE id=:uid'), {"acct": account_id, "uid": user_id})
+
+            db.session.execute(
+                db.text('UPDATE "user" SET stripe_account_id=:acct WHERE id=:uid'),
+                {"acct": account_id, "uid": user_id}
+            )
             db.session.commit()
 
         base = _bsm_public_base_url_v491l()
@@ -2674,14 +2684,19 @@ def creator_billing_connect_stripe_v491l():
             type="account_onboarding",
         )
         return redirect(link.url, code=303)
+
     except Exception as e:
         db.session.rollback()
+        err = str(e)
         try:
-            print("creator stripe connect warning v49.1L:", e)
+            print("creator stripe connect warning v49.1R:", err)
         except Exception:
             pass
-        flash("Could not start Stripe Connect onboarding.")
+        # Show the real Stripe error so it can be fixed without guessing.
+        flash("Stripe Connect error: " + err[:350])
         return redirect("/creator/billing")
+
+
 
 @creator_bp.route("/billing/stripe-dashboard", methods=["POST"], endpoint="billing_stripe_dashboard_v491l")
 def creator_billing_stripe_dashboard_v491l():

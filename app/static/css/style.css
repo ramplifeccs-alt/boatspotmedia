@@ -2317,3 +2317,14 @@ body.creator-dashboard-v449 main{
   font-weight:900;
   margin:4px 0 8px;
 }
+
+/* v49.1R connect error flash */
+.bsm-billing-flashes-v491r{
+  background:#fff7ed;
+  border:1px solid #fed7aa;
+  color:#9a3412;
+  border-radius:12px;
+  padding:10px 12px;
+  margin:12px 0;
+  font-weight:800;
+}

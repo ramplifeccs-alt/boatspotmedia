@@ -1,0 +1,7 @@
+BoatSpotMedia v49.1P Restore My Orders + Creator Name
+Base: v49.1O, with buyer/public My Orders restored from v49.1M.
+Fixes:
+- Restores My Orders button/items to working version, removing "No video items found" regression.
+- Keeps v49.1O subscription activation code.
+- Adds creator name safely via template helper, without changing fragile My Orders SQL.
+Does not touch upload, downloads route logic, batches, Stripe subscription code, Google, Apple, buyer login, creator login, or video purchase checkout.

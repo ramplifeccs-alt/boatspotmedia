@@ -1,11 +1,8 @@
-BoatSpotMedia v49.1Q Stripe Connect Split Payments
-Base: v49.1P.
-Changes only video purchase checkout/payment:
-- Detects single creator in cart.
-- If creator has user.stripe_account_id, Stripe Checkout payment uses destination charge:
-  payment_intent_data.application_fee_amount = BoatSpotMedia commission
-  payment_intent_data.transfer_data.destination = creator Stripe Express account.
-- Commission uses creator_profile.commission_rate, default 25%.
-- Adds optional order columns for creator/platform fee tracking.
-- If cart has multiple creators or creator has no Stripe account, old checkout path still works.
-Does not touch subscriptions, My Orders, downloads, upload, batches, Google, Apple, buyer login, creator login, or R2.
+BoatSpotMedia v49.1R Stripe Connect Onboarding Fix
+Base: v49.1Q.
+Changes only Stripe Connect onboarding:
+- Express account creation requests transfers capability only.
+- Optional STRIPE_CONNECT_COUNTRY env support.
+- Shows the real Stripe error on Creator Billing instead of generic message.
+- Saves stripe_account_id on user.
+Does not touch subscriptions, video sales split payments, My Orders, downloads, upload, batches, Google, Apple, buyer login, creator login, or R2.
