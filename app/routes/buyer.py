@@ -104,7 +104,7 @@ def _buyer_order_items(order_id):
 
 def _bsm_media_url_v427(row, kind="thumb"):
     try:
-        keys = ["thumbnail_path", "public_thumbnail_url", "r2_thumbnail_key"] if kind == "thumb" else ["file_path", "r2_video_key", "preview_url"]
+        keys = ["thumbnail_path", "public_thumbnail_url", "r2_thumbnail_key"] if kind == "thumb" else ["file_path", "r2_video_key", "public_url", "preview_url"]
         for key in keys:
             val = row.get(key) if hasattr(row, "get") else row[key]
             if val:

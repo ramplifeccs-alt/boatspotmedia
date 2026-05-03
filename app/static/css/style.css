@@ -2250,3 +2250,31 @@ body.creator-dashboard-v449 main{
   font-weight:900;
   text-decoration:none;
 }
+
+/* v49.1L creator billing stripe connect */
+.bsm-billing-connect-v491l{
+  margin:18px 0;
+  padding:16px;
+  border:1px solid #dbeafe;
+  background:#eff6ff;
+  border-radius:16px;
+}
+.bsm-billing-connect-v491l h2{margin-top:0;}
+.bsm-billing-connect-v491l button{
+  background:#2563eb;
+  color:#fff;
+  border:0;
+  border-radius:10px;
+  padding:10px 14px;
+  font-weight:800;
+  cursor:pointer;
+}
+.connect-status.ok{
+  background:#dcfce7;
+  color:#166534;
+  border:1px solid #86efac;
+  padding:10px;
+  border-radius:10px;
+  margin-bottom:10px;
+  font-weight:800;
+}

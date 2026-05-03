@@ -1,7 +1,11 @@
-BoatSpotMedia v49.1K Download No public_url Column Fix
-Base: v49.1I.
-Fixes:
-- /download-video no longer queries video.public_url because that column does not exist.
-- Uses video.file_path first, then r2_video_key, then internal_filename.
-- Keeps My Orders query untouched.
-- Does not touch Google, Apple, login, upload, checkout, creator approval, batches, or DB.
+BoatSpotMedia v49.1L Creator Subscriptions + Stripe Connect
+Base: v49.1K.
+Adds/fixes:
+- Creator Billing plan buttons use Owner creator_plan.stripe_price_id or Railway vars:
+  STRIPE_PRICE_CREATOR_STARTER, STRIPE_PRICE_CREATOR_PRO, STRIPE_PRICE_CREATOR_STUDIO.
+- Free plan remains 5 GB and 25% commission.
+- Paid subscription checkout uses Stripe Checkout mode=subscription.
+- Stripe webhook updates creator_subscription and creator_profile.storage_limit_gb.
+- Adds Stripe Connect Express onboarding button for creator payouts.
+- Saves stripe_account_id on "user".
+Does not touch My Orders, downloads, upload, batches, Google, Apple, buyer login, creator login, or checkout for video purchases.

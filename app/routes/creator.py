@@ -2131,6 +2131,72 @@ def _recalculate_creator_storage(creator_id):
 
 
 
+
+# v49.1L Creator subscription + Stripe Connect helpers
+def _bsm_public_base_url_v491l():
+    base = (os.environ.get("PUBLIC_BASE_URL") or os.environ.get("BASE_URL") or os.environ.get("APP_URL") or request.url_root).strip().rstrip("/")
+    if base.startswith("http://"):
+        base = "https://" + base[len("http://"):]
+    return base
+
+def _bsm_env_price_for_plan_v491l(plan_key):
+    key = (plan_key or "").upper().replace("-", "_")
+    return (
+        os.environ.get(f"STRIPE_PRICE_CREATOR_{key}")
+        or os.environ.get(f"CREATOR_{key}_STRIPE_PRICE_ID")
+        or os.environ.get(f"STRIPE_CREATOR_{key}_PRICE_ID")
+        or ""
+    ).strip()
+
+def _bsm_get_creator_user_id_v491l(creator_id):
+    try:
+        row = db.session.execute(db.text("SELECT user_id FROM creator_profile WHERE id=:cid LIMIT 1"), {"cid": creator_id}).mappings().first()
+        return row.get("user_id") if row else None
+    except Exception:
+        db.session.rollback()
+        return None
+
+def _bsm_creator_stripe_account_id_v491l(creator_id):
+    user_id = _bsm_get_creator_user_id_v491l(creator_id)
+    if not user_id:
+        return ""
+    try:
+        row = db.session.execute(db.text('SELECT stripe_account_id FROM "user" WHERE id=:uid LIMIT 1'), {"uid": user_id}).mappings().first()
+        return (row.get("stripe_account_id") if row else "") or ""
+    except Exception:
+        db.session.rollback()
+        return ""
+
+def _bsm_ensure_creator_connect_columns_v491l():
+    try:
+        db.session.execute(db.text('ALTER TABLE "user" ADD COLUMN IF NOT EXISTS stripe_account_id TEXT'))
+        db.session.execute(db.text('ALTER TABLE "user" ADD COLUMN IF NOT EXISTS payout_connected BOOLEAN DEFAULT false'))
+        db.session.commit()
+    except Exception:
+        db.session.rollback()
+
+def _bsm_plan_by_key_v491l(plan_key):
+    plans = _bsm_creator_plans_v472()
+    return next((p for p in plans if p.get("key") == plan_key), None)
+
+def _bsm_update_creator_profile_for_plan_v491l(creator_id, plan_key, storage_gb=None, commission_percent=None):
+    plan = _bsm_plan_by_key_v491l(plan_key) or {}
+    storage_gb = storage_gb if storage_gb is not None else plan.get("storage_gb") or 5
+    commission_percent = commission_percent if commission_percent is not None else plan.get("commission_percent") or 25
+    try:
+        db.session.execute(db.text("""
+            UPDATE creator_profile
+            SET storage_limit_gb=:gb,
+                commission_rate=:commission
+            WHERE id=:creator_id
+        """), {"gb": storage_gb, "commission": commission_percent, "creator_id": creator_id})
+        db.session.commit()
+    except Exception as e:
+        db.session.rollback()
+        try: print("profile plan update v49.1L warning:", e)
+        except Exception: pass
+
+
 # v47.2 Creator billing/subscriptions
 def _bsm_creator_plans_v472():
     """
@@ -2157,13 +2223,13 @@ def _bsm_creator_plans_v472():
                 stripe_price_id TEXT,
                 is_active BOOLEAN DEFAULT TRUE,
                 sort_order INTEGER DEFAULT 0,
-                commission_percent NUMERIC DEFAULT 20,
+                commission_percent NUMERIC DEFAULT 25,
                 created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
                 updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
             )
         """))
         db.session.commit()
-        db.session.execute(db.text("ALTER TABLE creator_plan ADD COLUMN IF NOT EXISTS commission_percent NUMERIC DEFAULT 20"))
+        db.session.execute(db.text("ALTER TABLE creator_plan ADD COLUMN IF NOT EXISTS commission_percent NUMERIC DEFAULT 25"))
         db.session.commit()
     except Exception:
         db.session.rollback()
@@ -2198,8 +2264,8 @@ def _bsm_creator_plans_v472():
                 "name": r.get("name"),
                 "price_label": r.get("price_label"),
                 "storage_gb": int(r.get("storage_gb") or 5),
-                "price_id": r.get("stripe_price_id") or "",
-                "stripe_price_id": r.get("stripe_price_id") or "",
+                "price_id": (r.get("stripe_price_id") or _bsm_env_price_for_plan_v491l(r.get("plan_key")) or ""),
+                "stripe_price_id": (r.get("stripe_price_id") or _bsm_env_price_for_plan_v491l(r.get("plan_key")) or ""),
                 "description": r.get("description") or "",
                 "is_active": bool(r.get("is_active")),
                 "sort_order": int(r.get("sort_order") or 0),
@@ -2305,23 +2371,89 @@ def creator_billing_v472():
     used=0
     try: used=_creator_used_storage_bytes(c.id)
     except Exception: used=0
-    return render_template("creator/billing.html", plans=_bsm_creator_plans_v472(), subscription=sub, used_bytes=used, used_gb=round(float(used or 0)/1024/1024/1024,2))
+    return render_template("creator/billing.html", plans=_bsm_creator_plans_v472(), subscription=sub, used_bytes=used, used_gb=round(float(used or 0)/1024/1024/1024,2), stripe_account_id=_bsm_creator_stripe_account_id_v491l(c.id))
 
 @creator_bp.route("/billing/checkout/<plan_key>", methods=["POST"], endpoint="billing_checkout_v472")
 def creator_billing_checkout_v472(plan_key):
-    c=current_creator()
-    if not c: return redirect("/creator/login")
-    plan=next((p for p in _bsm_creator_plans_v472() if p["key"]==plan_key), None)
+    c = current_creator()
+    if not c:
+        return redirect("/creator/login")
+
+    plan = next((p for p in _bsm_creator_plans_v472() if p["key"] == plan_key), None)
     if not plan:
-        flash("Invalid plan."); return redirect("/creator/billing")
-    if plan_key=="free":
+        flash("Invalid plan.")
+        return redirect("/creator/billing")
+
+    # Free plan: no Stripe checkout. Use 5 GB and free commission.
+    if plan_key == "free":
+        free_storage = plan.get("storage_gb") or 5
+        free_commission = plan.get("commission_percent") or 25
         _bsm_get_creator_subscription_v472(c.id)
         try:
-            db.session.execute(db.text("UPDATE creator_subscription SET plan_key='free', status='active', storage_limit_gb=:gb, updated_at=CURRENT_TIMESTAMP WHERE creator_id=:cid"),{"gb":plan["storage_gb"],"cid":c.id})
+            db.session.execute(db.text("""
+                UPDATE creator_subscription
+                SET plan_key='free',
+                    status='active',
+                    storage_limit_gb=:gb,
+                    updated_at=CURRENT_TIMESTAMP
+                WHERE creator_id=:cid
+            """), {"cid": c.id, "gb": free_storage})
             db.session.commit()
-            _bsm_sync_creator_storage_limit_v472(c.id, plan["storage_gb"])
-            flash("Free plan activated.")
-        except Exception: db.session.rollback()
+        except Exception:
+            db.session.rollback()
+        _bsm_update_creator_profile_for_plan_v491l(c.id, "free", free_storage, free_commission)
+        flash("Free plan activated.")
+        return redirect("/creator/billing")
+
+    price_id = (plan.get("price_id") or plan.get("stripe_price_id") or _bsm_env_price_for_plan_v491l(plan_key) or "").strip()
+    if not price_id:
+        flash("This plan is missing its Stripe Price ID. Add it in Owner Creator Plans or Railway variables.")
+        return redirect("/creator/billing")
+
+    try:
+        import stripe
+        stripe.api_key = os.environ.get("STRIPE_SECRET_KEY")
+        if not stripe.api_key:
+            flash("Stripe is not configured. Missing STRIPE_SECRET_KEY.")
+            return redirect("/creator/billing")
+
+        base = _bsm_public_base_url_v491l()
+        sub = _bsm_get_creator_subscription_v472(c.id)
+
+        checkout = stripe.checkout.Session.create(
+            mode="subscription",
+            line_items=[{"price": price_id, "quantity": 1}],
+            success_url=base + "/creator/billing?subscription=success&session_id={CHECKOUT_SESSION_ID}",
+            cancel_url=base + "/creator/billing?subscription=cancelled",
+            customer=sub.get("stripe_customer_id") or None,
+            customer_email=None if sub.get("stripe_customer_id") else getattr(c, "email", None),
+            client_reference_id=str(c.id),
+            metadata={
+                "billing_type": "creator_subscription",
+                "creator_id": str(c.id),
+                "plan_key": plan_key,
+                "storage_limit_gb": str(plan.get("storage_gb") or 5),
+                "commission_percent": str(plan.get("commission_percent") or 25),
+            },
+            subscription_data={
+                "metadata": {
+                    "billing_type": "creator_subscription",
+                    "creator_id": str(c.id),
+                    "plan_key": plan_key,
+                    "storage_limit_gb": str(plan.get("storage_gb") or 5),
+                    "commission_percent": str(plan.get("commission_percent") or 25),
+                }
+            },
+            allow_promotion_codes=True,
+        )
+        return redirect(checkout.url, code=303)
+    except Exception as e:
+        db.session.rollback()
+        try:
+            print("creator billing checkout warning v49.1L:", e)
+        except Exception:
+            pass
+        flash("Stripe checkout failed. Check Stripe keys and Price IDs.")
         return redirect("/creator/billing")
     if not plan.get("price_id"):
         flash("This plan is missing its Stripe Price ID in Railway variables.")
@@ -2346,6 +2478,85 @@ def creator_billing_checkout_v472(plan_key):
     except Exception as e:
         print("creator billing checkout warning v47.2:", e)
         flash("Stripe checkout failed. Check Stripe keys and Price IDs.")
+        return redirect("/creator/billing")
+
+
+
+@creator_bp.route("/billing/connect-stripe", methods=["POST"], endpoint="billing_connect_stripe_v491l")
+def creator_billing_connect_stripe_v491l():
+    c = current_creator()
+    if not c:
+        return redirect("/creator/login")
+
+    try:
+        import stripe
+        stripe.api_key = os.environ.get("STRIPE_SECRET_KEY")
+        if not stripe.api_key:
+            flash("Stripe is not configured. Missing STRIPE_SECRET_KEY.")
+            return redirect("/creator/billing")
+
+        _bsm_ensure_creator_connect_columns_v491l()
+        user_id = _bsm_get_creator_user_id_v491l(c.id)
+        if not user_id:
+            flash("Creator profile is missing user account.")
+            return redirect("/creator/billing")
+
+        row = db.session.execute(db.text('SELECT email, stripe_account_id FROM "user" WHERE id=:uid LIMIT 1'), {"uid": user_id}).mappings().first()
+        email = (row.get("email") if row else getattr(c, "email", None)) or None
+        account_id = (row.get("stripe_account_id") if row else None) or ""
+
+        if not account_id:
+            account = stripe.Account.create(
+                type="express",
+                email=email,
+                capabilities={
+                    "transfers": {"requested": True},
+                    "card_payments": {"requested": True},
+                },
+                business_type="individual",
+                metadata={"creator_id": str(c.id), "user_id": str(user_id)}
+            )
+            account_id = account.id
+            db.session.execute(db.text('UPDATE "user" SET stripe_account_id=:acct WHERE id=:uid'), {"acct": account_id, "uid": user_id})
+            db.session.commit()
+
+        base = _bsm_public_base_url_v491l()
+        link = stripe.AccountLink.create(
+            account=account_id,
+            refresh_url=base + "/creator/billing?stripe_connect=refresh",
+            return_url=base + "/creator/billing?stripe_connect=success",
+            type="account_onboarding",
+        )
+        return redirect(link.url, code=303)
+    except Exception as e:
+        db.session.rollback()
+        try:
+            print("creator stripe connect warning v49.1L:", e)
+        except Exception:
+            pass
+        flash("Could not start Stripe Connect onboarding.")
+        return redirect("/creator/billing")
+
+@creator_bp.route("/billing/stripe-dashboard", methods=["POST"], endpoint="billing_stripe_dashboard_v491l")
+def creator_billing_stripe_dashboard_v491l():
+    c = current_creator()
+    if not c:
+        return redirect("/creator/login")
+    try:
+        import stripe
+        stripe.api_key = os.environ.get("STRIPE_SECRET_KEY")
+        account_id = _bsm_creator_stripe_account_id_v491l(c.id)
+        if not account_id:
+            flash("Connect Stripe first.")
+            return redirect("/creator/billing")
+        link = stripe.Account.create_login_link(account_id)
+        return redirect(link.url, code=303)
+    except Exception as e:
+        try:
+            print("creator stripe dashboard warning v49.1L:", e)
+        except Exception:
+            pass
+        flash("Could not open Stripe dashboard.")
         return redirect("/creator/billing")
 
 

@@ -867,11 +867,13 @@ def auth_google_register(account_type="buyer"):
 
 
 
-# v49.1K safe download fallback. Does not use non-existing video.public_url column.
+# v49.1K safe download fallback using R2_PUBLIC_URL + video.file_path.
 @public_bp.route("/download-video/<int:item_id>")
 def public_download_video_v491i(item_id):
     delivery = (request.args.get("delivery") or "original").lower().strip()
-    base = (
+
+    # Correct public R2 base variable. Keep fallbacks for Railway env naming.
+    r2_public_url = (
         os.environ.get("R2_PUBLIC_URL")
         or os.environ.get("R2_PUBLIC_BASE_URL")
         or os.environ.get("PUBLIC_R2_URL")
@@ -888,10 +890,10 @@ def public_download_video_v491i(item_id):
             return key
         if key.startswith("/media/") or key.startswith("/static/"):
             return key
-        return base + "/" + key.lstrip("/")
+        return r2_public_url + "/" + key.lstrip("/")
 
     try:
-        # First assume item_id is bsm_cart_order_item.id.
+        # First: item_id is bsm_cart_order_item.id.
         row = db.session.execute(db.text("""
             SELECT i.id AS item_id,
                    i.video_id,
@@ -905,7 +907,7 @@ def public_download_video_v491i(item_id):
             LIMIT 1
         """), {"item_id": item_id}).mappings().first()
 
-        # Older links may pass video.id directly.
+        # Fallback: item_id may be video.id in older buttons.
         if not row:
             row = db.session.execute(db.text("""
                 SELECT NULL AS item_id,
@@ -927,7 +929,8 @@ def public_download_video_v491i(item_id):
             if url:
                 return redirect(url)
 
-        # Original / instant: file_path is the real public R2 key in this DB.
+        # Original / instant: use file_path first. This stores:
+        # creators/<creator_id>/batches/<batch_id>/<filename>.MP4
         for key in ["file_path", "r2_video_key", "internal_filename"]:
             url = make_url(row.get(key))
             if url:

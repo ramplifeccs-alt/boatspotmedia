@@ -521,6 +521,22 @@ def _bsm_creator_apply_subscription_v472(creator_id, plan_key, status, stripe_cu
             stripe_subscription_id=COALESCE(EXCLUDED.stripe_subscription_id,creator_subscription.stripe_subscription_id),
             current_period_end=EXCLUDED.current_period_end,cancel_at_period_end=EXCLUDED.cancel_at_period_end,updated_at=CURRENT_TIMESTAMP
         """),{"cid":creator_id,"plan":plan_key,"status":status,"gb":int(storage_limit_gb or 5),"cust":stripe_customer_id,"sub":stripe_subscription_id,"period":int(current_period_end or 0),"cancel":bool(cancel_at_period_end)})
+        db.session.execute(db.text("""
+            UPDATE creator_profile
+            SET storage_limit_gb=:gb
+            WHERE id=:cid
+        """), {"cid": creator_id, "gb": int(storage_limit_gb or 5)})
+        if commission_percent is not None:
+            db.session.execute(db.text("UPDATE creator_profile SET commission_rate=:commission WHERE id=:cid"), {"cid": creator_id, "commission": commission_percent})
+        # Optional commission from metadata, if supplied by checkout.
+        try:
+            commission_percent = None
+            if hasattr(storage_limit_gb, "get"):
+                commission_percent = storage_limit_gb.get("commission_percent")
+            if commission_percent is not None:
+                db.session.execute(db.text("UPDATE creator_profile SET commission_rate=:commission WHERE id=:cid"), {"cid": creator_id, "commission": commission_percent})
+        except Exception:
+            pass
         db.session.commit()
     except Exception as e:
         db.session.rollback(); print("creator subscription apply warning v47.2:", e)
@@ -531,7 +547,7 @@ def _bsm_handle_creator_subscription_event_v472(event):
     if typ=="checkout.session.completed" and obj.get("mode")=="subscription":
         md=obj.get("metadata") or {}
         if md.get("billing_type")=="creator_subscription":
-            _bsm_creator_apply_subscription_v472(int(md.get("creator_id") or obj.get("client_reference_id") or 0), md.get("plan_key") or "pro", "active", obj.get("customer"), obj.get("subscription"), 0, int(md.get("storage_limit_gb") or 5))
+            _bsm_creator_apply_subscription_v472(int(md.get("creator_id") or obj.get("client_reference_id") or 0), md.get("plan_key") or "pro", "active", obj.get("customer"), obj.get("subscription"), 0, int(md.get("storage_limit_gb") or 5, md.get("commission_percent")))
     elif typ in ["invoice.payment_failed","invoice.paid"]:
         status="past_due" if typ=="invoice.payment_failed" else "active"
         try:
