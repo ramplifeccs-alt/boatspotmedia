@@ -6,53 +6,129 @@
   <title>Owner - Creator Plans</title>
   <link rel="stylesheet" href="/static/css/style.css">
 </head>
-<body>
-<div class="owner-plans-v473">
-  <h1>Creator Subscription Plans</h1>
-  <p>Edit the prices, descriptions, storage limits, and Stripe Price IDs shown to creators.</p>
+<body class="owner-dashboard-v474">
+<div class="owner-shell-v474">
+  <aside class="owner-sidebar-v474">
+    <a href="/owner/panel" class="owner-logo-v474">
+      <img src="/static/img/logo-header.png" alt="BoatSpotMedia">
+    </a>
+    <nav>
+      <a href="/owner/panel">Owner Dashboard</a>
+      <a href="/owner/applications">Creator Applications</a>
+      <a href="/owner/creator-plans" class="active">Creator Plans</a>
+      <a href="/logout" class="danger">Log out</a>
+    </nav>
+  </aside>
 
-  <form method="POST" style="margin-bottom:18px;">
-    <input type="hidden" name="action" value="seed">
-    <button type="submit">Create Default Plans</button>
-  </form>
+  <main class="owner-main-v474">
+    <div class="owner-plans-v474">
+      <h1>Creator Subscription Plans</h1>
+      <p class="muted">Control what creators see in Billing: price label, description, storage limit, and Stripe subscription Price ID.</p>
 
-  <section class="owner-plan-form-v473">
-    <h2>Add / Update Plan</h2>
-    <form method="POST">
-      <input type="hidden" name="action" value="save">
-      <label>Plan Key <input name="plan_key" placeholder="starter" required></label>
-      <label>Name <input name="name" placeholder="Starter" required></label>
-      <label>Price Label <input name="price_label" placeholder="$19/mo"></label>
-      <label>Storage GB <input name="storage_gb" type="number" step="1" placeholder="100" required></label>
-      <label>Stripe Price ID <input name="stripe_price_id" placeholder="price_..."></label>
-      <label>Sort Order <input name="sort_order" type="number" step="1" value="10"></label>
-      <label>Description <textarea name="description" rows="3" placeholder="Plan description shown to creators"></textarea></label>
-      <label class="check"><input type="checkbox" name="is_active" checked> Active</label>
-      <button type="submit">Save Plan</button>
-    </form>
-  </section>
+      {% with messages = get_flashed_messages() %}
+        {% if messages %}
+          <div class="owner-flash-v474">
+            {% for msg in messages %}
+              <div>{{ msg }}</div>
+            {% endfor %}
+          </div>
+        {% endif %}
+      {% endwith %}
 
-  <section>
-    <h2>Current Plans</h2>
-    <div class="owner-plan-list-v473">
-      {% for p in plans %}
-        <form method="POST" class="owner-plan-card-v473">
-          <input type="hidden" name="action" value="save">
-          <label>Plan Key <input name="plan_key" value="{{ p.plan_key }}" readonly></label>
-          <label>Name <input name="name" value="{{ p.name }}"></label>
-          <label>Price Label <input name="price_label" value="{{ p.price_label }}"></label>
-          <label>Storage GB <input name="storage_gb" type="number" value="{{ p.storage_gb }}"></label>
-          <label>Stripe Price ID <input name="stripe_price_id" value="{{ p.stripe_price_id or '' }}"></label>
-          <label>Sort Order <input name="sort_order" type="number" value="{{ p.sort_order or 0 }}"></label>
-          <label>Description <textarea name="description" rows="3">{{ p.description or '' }}</textarea></label>
-          <label class="check"><input type="checkbox" name="is_active" {% if p.is_active %}checked{% endif %}> Active</label>
-          <button type="submit">Save Changes</button>
-        </form>
+      <section class="owner-help-v474">
+        <h2>Quick explanation</h2>
+        <p><strong>Stripe Price ID</strong> is the subscription price from Stripe, like <code>price_123...</code>. Create it in Stripe Products, then paste it here.</p>
+        <p><strong>Sort Order</strong> controls display order. Smaller numbers appear first. Example: Free = 0, Starter = 10, Pro = 20.</p>
+      </section>
+
+      {% if edit_plan %}
+        <section class="owner-edit-card-v474">
+          <div class="owner-section-head-v474">
+            <div>
+              <h2>Edit Plan: {{ edit_plan.name }}</h2>
+              <p>Save changes, then you will return to the plans list.</p>
+            </div>
+            <a href="/owner/creator-plans">Back to list</a>
+          </div>
+
+          <form method="POST" class="owner-edit-form-v474">
+            <label>Plan Key
+              <input name="plan_key" value="{{ edit_plan.plan_key }}" readonly>
+              <small>Internal key. Do not change after creators subscribe.</small>
+            </label>
+
+            <label>Name
+              <input name="name" value="{{ edit_plan.name }}" required>
+            </label>
+
+            <label>Price shown to creators
+              <input name="price_label" value="{{ edit_plan.price_label }}" placeholder="$19/mo">
+              <small>This is visual text only. The real charge comes from Stripe Price ID.</small>
+            </label>
+
+            <label>Storage GB
+              <input name="storage_gb" type="number" step="1" value="{{ edit_plan.storage_gb }}" required>
+            </label>
+
+            <label>Stripe Price ID
+              <input name="stripe_price_id" value="{{ edit_plan.stripe_price_id or '' }}" placeholder="price_...">
+              <small>Required for paid plans. Free plan can stay empty.</small>
+            </label>
+
+            <label>Sort Order
+              <input name="sort_order" type="number" step="1" value="{{ edit_plan.sort_order or 0 }}">
+            </label>
+
+            <label class="full">Description
+              <textarea name="description" rows="4">{{ edit_plan.description or '' }}</textarea>
+            </label>
+
+            <label class="check">
+              <input type="checkbox" name="is_active" {% if edit_plan.is_active %}checked{% endif %}>
+              Active / visible to creators
+            </label>
+
+            <div class="full actions">
+              <button type="submit">Save Plan</button>
+              <a href="/owner/creator-plans">Cancel</a>
+            </div>
+          </form>
+        </section>
       {% else %}
-        <div class="empty">No plans yet. Click Create Default Plans.</div>
-      {% endfor %}
+        <section class="owner-list-card-v474">
+          <div class="owner-section-head-v474">
+            <div>
+              <h2>Plans List</h2>
+              <p>Click Edit to update a plan.</p>
+            </div>
+          </div>
+
+          <div class="owner-plan-table-v474">
+            <div class="head">Plan</div>
+            <div class="head">Price</div>
+            <div class="head">Storage</div>
+            <div class="head">Status</div>
+            <div class="head">Stripe</div>
+            <div class="head">Action</div>
+
+            {% for p in plans %}
+              <div>
+                <strong>{{ p.name }}</strong>
+                <small>{{ p.plan_key }}</small>
+              </div>
+              <div>{{ p.price_label }}</div>
+              <div>{{ p.storage_gb }} GB</div>
+              <div>{% if p.is_active %}<span class="pill ok">Active</span>{% else %}<span class="pill off">Inactive</span>{% endif %}</div>
+              <div>{% if p.stripe_price_id %}<span class="pill ok">Configured</span>{% else %}<span class="pill warn">Missing</span>{% endif %}</div>
+              <div><a class="edit-btn" href="/owner/creator-plans?edit={{ p.plan_key }}">Edit</a></div>
+            {% else %}
+              <div class="empty full-row">No plans found. Reload this page to create defaults.</div>
+            {% endfor %}
+          </div>
+        </section>
+      {% endif %}
     </div>
-  </section>
+  </main>
 </div>
 </body>
 </html>

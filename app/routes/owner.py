@@ -363,33 +363,34 @@ def _owner_ensure_creator_plan_table_v473():
 def owner_creator_plans_v473():
     _owner_ensure_creator_plan_table_v473()
 
-    if request.method == "POST":
-        action = request.form.get("action") or "save"
-        if action == "seed":
-            defaults = [
-                ("free","Free","$0/mo","Basic creator testing plan.",5,"",True,0),
-                ("starter","Starter","$19/mo","Good for small creators starting to sell clips.",100,"",True,10),
-                ("pro","Pro","$49/mo","Recommended plan for active boat videographers.",512,"",True,20),
-                ("studio","Studio","$149/mo","High-volume plan for studios and multi-location creators.",2048,"",True,30),
-            ]
-            try:
-                for p in defaults:
-                    db.session.execute(db.text("""
-                        INSERT INTO creator_plan
-                        (plan_key, name, price_label, description, storage_gb, stripe_price_id, is_active, sort_order)
-                        VALUES (:plan_key,:name,:price_label,:description,:storage_gb,:stripe_price_id,:is_active,:sort_order)
-                        ON CONFLICT (plan_key) DO NOTHING
-                    """), {
-                        "plan_key":p[0],"name":p[1],"price_label":p[2],"description":p[3],
-                        "storage_gb":p[4],"stripe_price_id":p[5],"is_active":p[6],"sort_order":p[7]
-                    })
-                db.session.commit()
-                flash("Default creator plans created.")
-            except Exception as e:
-                db.session.rollback()
-                flash("Could not seed plans.")
-            return redirect("/owner/creator-plans")
+    def seed_defaults():
+        defaults = [
+            ("free","Free","$0/mo","Basic creator testing plan.",5,"",True,0),
+            ("starter","Starter","$19/mo","Good for small creators starting to sell clips.",100,"",True,10),
+            ("pro","Pro","$49/mo","Recommended plan for active boat videographers.",512,"",True,20),
+            ("studio","Studio","$149/mo","High-volume plan for studios and multi-location creators.",2048,"",True,30),
+        ]
+        for p in defaults:
+            db.session.execute(db.text("""
+                INSERT INTO creator_plan
+                (plan_key, name, price_label, description, storage_gb, stripe_price_id, is_active, sort_order)
+                VALUES (:plan_key,:name,:price_label,:description,:storage_gb,:stripe_price_id,:is_active,:sort_order)
+                ON CONFLICT (plan_key) DO NOTHING
+            """), {
+                "plan_key":p[0],"name":p[1],"price_label":p[2],"description":p[3],
+                "storage_gb":p[4],"stripe_price_id":p[5],"is_active":p[6],"sort_order":p[7]
+            })
 
+    # Make sure first visit has default plans.
+    try:
+        count = db.session.execute(db.text("SELECT COUNT(*) AS total FROM creator_plan")).mappings().first()
+        if int(count.get("total") or 0) == 0:
+            seed_defaults()
+            db.session.commit()
+    except Exception:
+        db.session.rollback()
+
+    if request.method == "POST":
         plan_key = (request.form.get("plan_key") or "").strip().lower().replace(" ","_")
         name = (request.form.get("name") or "").strip()
         price_label = (request.form.get("price_label") or "").strip()
@@ -428,12 +429,14 @@ def owner_creator_plans_v473():
                 "sort_order":sort_order,
             })
             db.session.commit()
-            flash("Creator plan saved.")
+            flash("Creator plan saved successfully.")
         except Exception as e:
             db.session.rollback()
             flash("Could not save creator plan.")
         return redirect("/owner/creator-plans")
 
+    edit_key = (request.args.get("edit") or "").strip()
+    edit_plan = None
     try:
         plans = db.session.execute(db.text("""
             SELECT *
@@ -443,4 +446,17 @@ def owner_creator_plans_v473():
     except Exception:
         db.session.rollback()
         plans = []
-    return render_template("owner/creator_plans.html", plans=plans)
+
+    if edit_key:
+        try:
+            edit_plan = db.session.execute(db.text("""
+                SELECT *
+                FROM creator_plan
+                WHERE plan_key=:plan_key
+                LIMIT 1
+            """), {"plan_key": edit_key}).mappings().first()
+        except Exception:
+            db.session.rollback()
+            edit_plan = None
+
+    return render_template("owner/creator_plans.html", plans=plans, edit_plan=edit_plan)

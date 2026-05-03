@@ -1745,3 +1745,195 @@ body.creator-dashboard-v449 main{
 .owner-plan-form-v473 button,.owner-plan-card-v473 button,.owner-plans-v473 button{padding:11px 14px;border:0;border-radius:10px;background:#2563eb;color:#fff;font-weight:800}
 .owner-plan-list-v473{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:16px}
 @media(max-width:800px){.owner-plan-form-v473 form,.owner-plan-card-v473,.owner-plan-list-v473{grid-template-columns:1fr}}
+
+/* v47.4 owner creator plans panel UI */
+.owner-shell-v474{
+  display:grid;
+  grid-template-columns:240px minmax(0,1fr);
+  min-height:100vh;
+  background:#f1f5f9;
+}
+.owner-sidebar-v474{
+  position:sticky;
+  top:0;
+  height:100vh;
+  background:#071b34;
+  padding:18px 14px;
+  color:#fff;
+  box-sizing:border-box;
+}
+.owner-logo-v474{
+  display:block;
+  padding-bottom:14px;
+  border-bottom:1px solid rgba(255,255,255,.15);
+  margin-bottom:14px;
+}
+.owner-logo-v474 img{
+  max-width:190px;
+  width:100%;
+}
+.owner-sidebar-v474 nav{
+  display:grid;
+  gap:8px;
+}
+.owner-sidebar-v474 a{
+  color:#fff!important;
+  text-decoration:none;
+  font-weight:800;
+  padding:10px 12px;
+  border-radius:10px;
+  background:rgba(255,255,255,.04);
+}
+.owner-sidebar-v474 a.active,
+.owner-sidebar-v474 a:hover{
+  background:rgba(37,99,235,.45);
+}
+.owner-sidebar-v474 a.danger{
+  background:rgba(220,38,38,.85);
+}
+.owner-main-v474{
+  padding:24px;
+  min-width:0;
+}
+.owner-plans-v474{
+  max-width:1200px;
+  margin:0 auto;
+}
+.owner-plans-v474 .muted,
+.owner-section-head-v474 p,
+.owner-edit-form-v474 small,
+.owner-plan-table-v474 small{
+  color:#64748b;
+}
+.owner-help-v474,
+.owner-edit-card-v474,
+.owner-list-card-v474,
+.owner-flash-v474{
+  background:#fff;
+  border:1px solid #e5e7eb;
+  border-radius:16px;
+  padding:16px;
+  margin:16px 0;
+  box-shadow:0 8px 24px rgba(15,23,42,.05);
+}
+.owner-flash-v474{
+  border-color:#86efac;
+  background:#f0fdf4;
+  color:#166534;
+  font-weight:800;
+}
+.owner-section-head-v474{
+  display:flex;
+  justify-content:space-between;
+  gap:12px;
+  align-items:flex-start;
+}
+.owner-section-head-v474 a,
+.owner-edit-form-v474 .actions a,
+.owner-plan-table-v474 .edit-btn{
+  display:inline-block;
+  background:#2563eb;
+  color:#fff!important;
+  padding:10px 14px;
+  border-radius:10px;
+  text-decoration:none;
+  font-weight:800;
+}
+.owner-edit-form-v474{
+  display:grid;
+  grid-template-columns:repeat(2,minmax(0,1fr));
+  gap:14px;
+}
+.owner-edit-form-v474 label{
+  display:grid;
+  gap:6px;
+  font-weight:800;
+}
+.owner-edit-form-v474 input,
+.owner-edit-form-v474 textarea{
+  width:100%;
+  padding:11px;
+  border:1px solid #cbd5e1;
+  border-radius:10px;
+  box-sizing:border-box;
+}
+.owner-edit-form-v474 .full{
+  grid-column:1 / -1;
+}
+.owner-edit-form-v474 .check{
+  display:flex;
+  align-items:center;
+  gap:8px;
+}
+.owner-edit-form-v474 .check input{
+  width:auto;
+}
+.owner-edit-form-v474 button{
+  border:0;
+  background:#16a34a;
+  color:#fff;
+  padding:11px 16px;
+  border-radius:10px;
+  font-weight:900;
+}
+.owner-edit-form-v474 .actions{
+  display:flex;
+  gap:10px;
+  align-items:center;
+}
+.owner-plan-table-v474{
+  display:grid;
+  grid-template-columns:1.4fr .9fr .7fr .7fr .8fr .6fr;
+  gap:0;
+  border:1px solid #e5e7eb;
+  border-radius:14px;
+  overflow:hidden;
+}
+.owner-plan-table-v474 > div{
+  padding:12px;
+  background:#fff;
+  border-bottom:1px solid #e5e7eb;
+}
+.owner-plan-table-v474 .head{
+  background:#f8fafc;
+  font-weight:900;
+  color:#334155;
+}
+.owner-plan-table-v474 .pill{
+  display:inline-block;
+  padding:4px 8px;
+  border-radius:999px;
+  font-size:12px;
+  font-weight:900;
+}
+.owner-plan-table-v474 .pill.ok{
+  background:#dcfce7;
+  color:#166534;
+}
+.owner-plan-table-v474 .pill.warn{
+  background:#fef3c7;
+  color:#92400e;
+}
+.owner-plan-table-v474 .pill.off{
+  background:#fee2e2;
+  color:#991b1b;
+}
+.owner-plan-table-v474 .full-row{
+  grid-column:1 / -1;
+}
+@media(max-width:900px){
+  .owner-shell-v474{
+    grid-template-columns:1fr;
+  }
+  .owner-sidebar-v474{
+    position:relative;
+    height:auto;
+  }
+  .owner-edit-form-v474,
+  .owner-plan-table-v474{
+    grid-template-columns:1fr;
+  }
+  .owner-plan-table-v474 .head{
+    display:none;
+  }
+}
