@@ -5,19 +5,35 @@
 <div class="owner-shell-v475">
   <aside class="owner-sidebar-v475">
     <a href="/owner/panel" class="owner-logo-v475"><img src="/static/img/logo-header.png" alt="BoatSpotMedia"></a>
-    <nav><a href="/owner/panel">Owner Dashboard</a><a href="/owner/creators">Creators</a><a href="/owner/buyers">Buyers</a><a href="/owner/creator-plans">Creator Plans</a><a href="/logout" class="danger">Log out</a></nav>
+    <nav><a href="/owner/panel">Owner Dashboard</a><a href="/owner/applications">Creator Applications</a><a href="/owner/creators">Creators</a><a href="/owner/buyers">Buyers</a><a href="/owner/creator-plans">Creator Plans</a><a href="/owner/db-debug">DB Debug</a><a href="/logout" class="danger">Log out</a></nav>
   </aside>
   <main class="owner-main-v475">
     <div class="owner-card-v475"><h1>{{ title }}</h1></div>
     <form method="POST" class="owner-edit-form-v474 owner-card-v475">
-      {% for field in ['name','full_name','first_name','last_name','email','phone','phone_number','brand','brand_name','company_name','instagram','instagram_handle','status'] %}
-        {% if row[field] is defined %}
-          <label>{{ field|replace('_',' ')|title }}
-            <input name="{{ field }}" value="{{ row[field] or '' }}">
-          </label>
-        {% endif %}
-      {% endfor %}
-      <div class="full actions"><button type="submit">Save</button><a href="/owner/{{ kind }}s">Cancel</a></div>
+      {% if kind == 'application' %}
+        <label>First Name <input name="first_name" value="{{ row.first_name or '' }}"></label>
+        <label>Last Name <input name="last_name" value="{{ row.last_name or '' }}"></label>
+        <label>Brand Name <input name="brand_name" value="{{ row.brand_name or '' }}"></label>
+        <label>Email <input name="email" value="{{ row.email or '' }}"></label>
+        <label>Instagram <input name="instagram" value="{{ row.instagram or '' }}"></label>
+        <label>Status <input name="status" value="{{ row.status or 'pending' }}"></label>
+      {% elif kind == 'creator' %}
+        <label>Public Name <input name="public_name" value="{{ row.public_name or '' }}"></label>
+        <label>Company Name <input name="company_name" value="{{ row.company_name or '' }}"></label>
+        <label>Email <input name="email" value="{{ row.email or '' }}"></label>
+        <label>Username <input name="username" value="{{ row.username or '' }}"></label>
+        <label>Instagram <input name="instagram" value="{{ row.instagram or '' }}"></label>
+        <label class="check"><input type="checkbox" name="approved" {% if row.approved %}checked{% endif %}> Approved / Active</label>
+      {% elif kind == 'buyer' %}
+        <label>Email <input name="email" value="{{ row.email or '' }}"></label>
+        <label>First Name <input name="first_name" value="{{ row.first_name or '' }}"></label>
+        <label>Last Name <input name="last_name" value="{{ row.last_name or '' }}"></label>
+        <label>Public Name <input name="public_name" value="{{ row.public_name or '' }}"></label>
+        <label>Display Name <input name="display_name" value="{{ row.display_name or '' }}"></label>
+        <label>Primary Location <input name="primary_location" value="{{ row.primary_location or '' }}"></label>
+        <label class="check"><input type="checkbox" name="is_active" {% if row.is_active %}checked{% endif %}> Active</label>
+      {% endif %}
+      <div class="full actions"><button type="submit">Save</button><a href="{% if kind == 'application' %}/owner/applications{% elif kind == 'creator' %}/owner/creators{% else %}/owner/buyers{% endif %}">Cancel</a></div>
     </form>
   </main>
 </div>

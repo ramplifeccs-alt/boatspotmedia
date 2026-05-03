@@ -1,8 +1,2 @@
-BoatSpotMedia v48.3 Owner Real Table Mapping Fix
-Base: v48.2.
-Fixes using Railway DB Debug:
-- Creator Applications now uses creator_application, not creator_profile.
-- Creators now uses creators.
-- Buyers now uses user WHERE role IN ('buyer','customer').
-- Display fields map exact real columns: public_name, company_name, email, instagram, approved, display_name, first_name/last_name, is_active.
-- Status update supports status, approved, or is_active columns.
+BoatSpotMedia v48.4 Owner Dashboard Fixed Real Schema
+Uses only confirmed DB Debug tables.

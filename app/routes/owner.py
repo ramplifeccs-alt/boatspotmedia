@@ -534,23 +534,6 @@ def login():
         return redirect(url_for("owner.applications"))
     return render_template("owner/login.html")
 
-@owner_bp.route("/panel")
-def owner_panel_v477():
-    metrics = _owner_dashboard_metrics_v477()
-    q = (request.args.get("q") or "").strip()
-    return render_template("owner/panel.html", metrics=metrics, q=q)
-
-
-
-
-
-
-@owner_bp.route("/applications")
-def owner_applications_v479():
-    table = _owner_application_table_v482()
-    rows, columns = _owner_dynamic_rows_v482(table, limit=300)
-    rows = _owner_to_display_rows_v482(rows)
-    return render_template("owner/applications.html", applications=rows, table_name=table, columns=columns)
 
 
 @owner_bp.route("/applications/<int:app_id>/approve", methods=["POST"])
@@ -810,6 +793,331 @@ def _owner_ensure_creator_plan_table_v473():
     except Exception:
         db.session.rollback()
 
+
+# ============================================================
+# v48.4 Owner Dashboard fixed to REAL BoatSpotMedia schema
+# ============================================================
+
+def _owner_scalar_v484(sql, params=None, default=0):
+    try:
+        row = db.session.execute(db.text(sql), params or {}).mappings().first()
+        if not row:
+            return default
+        return list(row.values())[0]
+    except Exception as e:
+        db.session.rollback()
+        try:
+            print("owner scalar v48.4 warning:", e, sql)
+        except Exception:
+            pass
+        return default
+
+def _owner_rows_v484(sql, params=None):
+    try:
+        return [dict(r) for r in db.session.execute(db.text(sql), params or {}).mappings().all()]
+    except Exception as e:
+        db.session.rollback()
+        try:
+            print("owner rows v48.4 warning:", e, sql)
+        except Exception:
+            pass
+        return []
+
+def _owner_exec_v484(sql, params=None):
+    try:
+        db.session.execute(db.text(sql), params or {})
+        db.session.commit()
+        return True
+    except Exception as e:
+        db.session.rollback()
+        try:
+            print("owner exec v48.4 warning:", e, sql)
+        except Exception:
+            pass
+        return False
+
+def _owner_dashboard_metrics_v477():
+    metrics = {}
+    metrics["applications_total"] = _owner_scalar_v484("SELECT COUNT(*) FROM creator_application")
+    metrics["applications_pending"] = _owner_scalar_v484("SELECT COUNT(*) FROM creator_application WHERE COALESCE(status,'pending')='pending'")
+    metrics["applications_approved"] = _owner_scalar_v484("SELECT COUNT(*) FROM creator_application WHERE COALESCE(status,'')='approved'")
+    metrics["applications_rejected"] = _owner_scalar_v484("SELECT COUNT(*) FROM creator_application WHERE COALESCE(status,'') IN ('rejected','denied')")
+
+    metrics["creators_total"] = _owner_scalar_v484("SELECT COUNT(*) FROM creators")
+    metrics["creators_active"] = _owner_scalar_v484("SELECT COUNT(*) FROM creators WHERE COALESCE(approved,false)=true")
+    metrics["subscriptions_past_due"] = _owner_scalar_v484("SELECT COUNT(*) FROM creator_subscription WHERE COALESCE(status,'active') NOT IN ('active','trialing')")
+
+    metrics["orders_total"] = _owner_scalar_v484("SELECT COUNT(*) FROM bsm_cart_order")
+    metrics["sales_total"] = _owner_scalar_v484("""
+        SELECT COALESCE(SUM(COALESCE(amount_total,0)),0)
+        FROM bsm_cart_order
+        WHERE COALESCE(status,'') IN ('paid','complete','completed')
+    """)
+    metrics["sales_today"] = _owner_scalar_v484("""
+        SELECT COALESCE(SUM(COALESCE(amount_total,0)),0)
+        FROM bsm_cart_order
+        WHERE COALESCE(status,'') IN ('paid','complete','completed')
+          AND DATE(created_at)=CURRENT_DATE
+    """)
+    metrics["pending_edits"] = _owner_scalar_v484("""
+        SELECT COUNT(*)
+        FROM bsm_cart_order_item
+        WHERE package IN ('edited','edit','bundle','combo','original_plus_edited','original_edited','original+edited','original_edit')
+          AND (edited_r2_key IS NULL OR edited_r2_key='')
+    """)
+    metrics["discount_approvals"] = _owner_scalar_v484("""
+        SELECT COUNT(*)
+        FROM bsm_cart_order_item
+        WHERE COALESCE(discount_status,'') IN ('pending','pending_review','awaiting_creator','needs_approval')
+    """)
+    metrics["original_storage_bytes"] = _owner_scalar_v484("""
+        SELECT COALESCE(SUM(COALESCE(file_size_bytes,0)),0)
+        FROM video
+        WHERE COALESCE(status,'active') NOT IN ('deleted','cancelled','canceled','removed')
+          AND COALESCE(r2_video_key,'') <> ''
+    """)
+    metrics["edited_storage_bytes"] = _owner_scalar_v484("""
+        SELECT COALESCE(SUM(COALESCE(edited_file_size_bytes,0)),0)
+        FROM bsm_cart_order_item
+        WHERE COALESCE(edited_r2_key,'') <> ''
+    """)
+    metrics["storage_total_bytes"] = int(metrics["original_storage_bytes"] or 0) + int(metrics["edited_storage_bytes"] or 0)
+
+    def gb(x):
+        try:
+            return round(float(x or 0) / 1024 / 1024 / 1024, 2)
+        except Exception:
+            return 0
+
+    metrics["original_storage_gb"] = gb(metrics["original_storage_bytes"])
+    metrics["edited_storage_gb"] = gb(metrics["edited_storage_bytes"])
+    metrics["storage_total_gb"] = gb(metrics["storage_total_bytes"])
+    metrics["creators_near_limit"] = _owner_scalar_v484("""
+        SELECT COUNT(*)
+        FROM creator_profile
+        WHERE COALESCE(storage_limit_gb,0) > 0
+          AND (COALESCE(storage_used_bytes,0)::numeric / 1024 / 1024 / 1024) >= (COALESCE(storage_limit_gb,0)::numeric * 0.85)
+    """)
+    return metrics
+
+def _owner_current_creator_applications_v484():
+    return _owner_rows_v484("""
+        SELECT id,
+               TRIM(COALESCE(first_name,'') || ' ' || COALESCE(last_name,'')) AS display_name,
+               COALESCE(brand_name,'') AS display_brand,
+               COALESCE(email,'') AS display_email,
+               '' AS display_phone,
+               COALESCE(instagram,'') AS display_social,
+               COALESCE(status,'pending') AS display_status,
+               submitted_at,
+               reviewed_at
+        FROM creator_application
+        ORDER BY id DESC
+        LIMIT 300
+    """)
+
+def _owner_current_creators_v484():
+    return _owner_rows_v484("""
+        SELECT id,
+               COALESCE(public_name, company_name, username, email, 'Creator #' || id::text) AS display_name,
+               COALESCE(company_name,'') AS display_brand,
+               COALESCE(email,'') AS display_email,
+               '' AS display_phone,
+               COALESCE(instagram,'') AS display_social,
+               CASE WHEN COALESCE(approved,false)=true THEN 'approved' ELSE 'suspended/pending' END AS display_status,
+               COALESCE(username,'') AS username,
+               created_at
+        FROM creators
+        ORDER BY id DESC
+        LIMIT 300
+    """)
+
+def _owner_current_buyers_v484():
+    return _owner_rows_v484("""
+        SELECT id,
+               COALESCE(display_name, public_name, TRIM(COALESCE(first_name,'') || ' ' || COALESCE(last_name,'')), email, 'Buyer #' || id::text) AS display_name,
+               COALESCE(primary_location,'') AS display_brand,
+               COALESCE(email,'') AS display_email,
+               '' AS display_phone,
+               '' AS display_social,
+               CASE WHEN COALESCE(is_active,true)=true THEN 'active' ELSE 'inactive' END AS display_status,
+               role,
+               created_at
+        FROM "user"
+        WHERE LOWER(COALESCE(role,''))='buyer'
+        ORDER BY id DESC
+        LIMIT 300
+    """)
+
+def _owner_get_application_v484(row_id):
+    rows = _owner_rows_v484("SELECT id, first_name, last_name, brand_name, email, instagram, status FROM creator_application WHERE id=:id LIMIT 1", {"id": row_id})
+    return rows[0] if rows else None
+
+def _owner_get_creator_v484(row_id):
+    rows = _owner_rows_v484("SELECT id, public_name, company_name, email, username, instagram, approved FROM creators WHERE id=:id LIMIT 1", {"id": row_id})
+    return rows[0] if rows else None
+
+def _owner_get_buyer_v484(row_id):
+    rows = _owner_rows_v484('SELECT id, email, first_name, last_name, public_name, display_name, primary_location, is_active FROM "user" WHERE id=:id AND LOWER(COALESCE(role,\'\'))=\'buyer\' LIMIT 1', {"id": row_id})
+    return rows[0] if rows else None
+
+@owner_bp.route("/panel")
+def owner_panel_v477():
+    metrics = _owner_dashboard_metrics_v477()
+    q = (request.args.get("q") or "").strip()
+    return render_template("owner/panel.html", metrics=metrics, q=q)
+
+@owner_bp.route("/applications")
+def owner_applications_v479():
+    rows = _owner_current_creator_applications_v484()
+    return render_template("owner/applications.html", applications=rows, table_name="creator_application", columns=["id","first_name","last_name","brand_name","email","instagram","status","submitted_at","reviewed_at"])
+
+@owner_bp.route("/creators", endpoint="owner_creators_v478")
+def owner_creators_v478():
+    rows = _owner_current_creators_v484()
+    return render_template("owner/manage_people.html", rows=rows, columns=["id","public_name","company_name","email","username","instagram","approved","created_at"], table_name="creators", kind="creator", title="Creators")
+
+@owner_bp.route("/buyers", endpoint="owner_buyers_v478")
+def owner_buyers_v478():
+    rows = _owner_current_buyers_v484()
+    return render_template("owner/manage_people.html", rows=rows, columns=["id","role","email","first_name","last_name","public_name","display_name","primary_location","is_active","created_at"], table_name="user", kind="buyer", title="Buyers")
+
+@owner_bp.route("/applications/<int:row_id>/approve", methods=["POST"])
+def owner_approve_application_v484(row_id):
+    ok = _owner_exec_v484("UPDATE creator_application SET status='approved', reviewed_at=CURRENT_TIMESTAMP WHERE id=:id", {"id": row_id})
+    flash("Application approved." if ok else "Could not approve application.")
+    return redirect("/owner/applications")
+
+@owner_bp.route("/application/<int:row_id>/status/<status>", methods=["POST"], endpoint="owner_application_status_v478")
+def owner_application_status_v478(row_id, status):
+    if status not in ["pending","approved","suspended","rejected"]:
+        status = "pending"
+    ok = _owner_exec_v484("UPDATE creator_application SET status=:status, reviewed_at=CURRENT_TIMESTAMP WHERE id=:id", {"id": row_id, "status": status})
+    flash("Application status updated." if ok else "Could not update application.")
+    return redirect("/owner/applications")
+
+@owner_bp.route("/application/<int:row_id>/delete", methods=["POST"], endpoint="owner_application_delete_v478")
+def owner_application_delete_v478(row_id):
+    ok = _owner_exec_v484("DELETE FROM creator_application WHERE id=:id", {"id": row_id})
+    flash("Application deleted." if ok else "Could not delete application.")
+    return redirect("/owner/applications")
+
+@owner_bp.route("/application/<int:row_id>/edit", methods=["GET","POST"], endpoint="owner_edit_application_v479")
+def owner_edit_application_v479(row_id):
+    row = _owner_get_application_v484(row_id)
+    if not row:
+        flash("Application not found.")
+        return redirect("/owner/applications")
+    if request.method == "POST":
+        ok = _owner_exec_v484("""
+            UPDATE creator_application
+            SET first_name=:first_name, last_name=:last_name, brand_name=:brand_name, email=:email, instagram=:instagram, status=:status
+            WHERE id=:id
+        """, {"id": row_id, "first_name": request.form.get("first_name") or "", "last_name": request.form.get("last_name") or "", "brand_name": request.form.get("brand_name") or "", "email": request.form.get("email") or "", "instagram": request.form.get("instagram") or "", "status": request.form.get("status") or "pending"})
+        flash("Application saved." if ok else "Could not save application.")
+        return redirect("/owner/applications")
+    return render_template("owner/edit_person.html", row=row, kind="application", title="Edit Application")
+
+@owner_bp.route("/creator/<int:row_id>/edit", methods=["GET","POST"], endpoint="owner_edit_creator_v484")
+def owner_edit_creator_v484(row_id):
+    row = _owner_get_creator_v484(row_id)
+    if not row:
+        flash("Creator not found.")
+        return redirect("/owner/creators")
+    if request.method == "POST":
+        ok = _owner_exec_v484("""
+            UPDATE creators
+            SET public_name=:public_name, company_name=:company_name, email=:email, username=:username, instagram=:instagram, approved=:approved
+            WHERE id=:id
+        """, {"id": row_id, "public_name": request.form.get("public_name") or "", "company_name": request.form.get("company_name") or "", "email": request.form.get("email") or "", "username": request.form.get("username") or "", "instagram": request.form.get("instagram") or "", "approved": True if request.form.get("approved") else False})
+        flash("Creator saved." if ok else "Could not save creator.")
+        return redirect("/owner/creators")
+    return render_template("owner/edit_person.html", row=row, kind="creator", title="Edit Creator")
+
+@owner_bp.route("/buyer/<int:row_id>/edit", methods=["GET","POST"], endpoint="owner_edit_buyer_v484")
+def owner_edit_buyer_v484(row_id):
+    row = _owner_get_buyer_v484(row_id)
+    if not row:
+        flash("Buyer not found.")
+        return redirect("/owner/buyers")
+    if request.method == "POST":
+        ok = _owner_exec_v484("""
+            UPDATE "user"
+            SET email=:email, first_name=:first_name, last_name=:last_name, public_name=:public_name, display_name=:display_name, primary_location=:primary_location, is_active=:is_active
+            WHERE id=:id
+        """, {"id": row_id, "email": request.form.get("email") or "", "first_name": request.form.get("first_name") or "", "last_name": request.form.get("last_name") or "", "public_name": request.form.get("public_name") or "", "display_name": request.form.get("display_name") or "", "primary_location": request.form.get("primary_location") or "", "is_active": True if request.form.get("is_active") else False})
+        flash("Buyer saved." if ok else "Could not save buyer.")
+        return redirect("/owner/buyers")
+    return render_template("owner/edit_person.html", row=row, kind="buyer", title="Edit Buyer")
+
+@owner_bp.route("/<kind>/<int:row_id>/status/<status>", methods=["POST"], endpoint="owner_set_status_v478")
+def owner_set_status_v478(kind, row_id, status):
+    if kind == "creator":
+        ok = _owner_exec_v484("UPDATE creators SET approved=:approved WHERE id=:id", {"approved": status in ["active","approved"], "id": row_id})
+        dest = "/owner/creators"
+    elif kind == "buyer":
+        ok = _owner_exec_v484('UPDATE "user" SET is_active=:is_active WHERE id=:id', {"is_active": status in ["active","approved"], "id": row_id})
+        dest = "/owner/buyers"
+    else:
+        ok = False
+        dest = "/owner/panel"
+    flash("Status updated." if ok else "Could not update status.")
+    return redirect(dest)
+
+@owner_bp.route("/<kind>/<int:row_id>/delete", methods=["POST"], endpoint="owner_delete_person_v478")
+def owner_delete_person_v478(kind, row_id):
+    if kind == "creator":
+        ok = _owner_exec_v484("DELETE FROM creators WHERE id=:id", {"id": row_id})
+        dest = "/owner/creators"
+    elif kind == "buyer":
+        ok = _owner_exec_v484('DELETE FROM "user" WHERE id=:id AND LOWER(COALESCE(role,\'\'))=\'buyer\'', {"id": row_id})
+        dest = "/owner/buyers"
+    else:
+        ok = False
+        dest = "/owner/panel"
+    flash("Deleted." if ok else "Could not delete. It may have linked orders/videos.")
+    return redirect(dest)
+
+@owner_bp.route("/<kind>/<int:row_id>/reset-password", methods=["POST"], endpoint="owner_reset_password_v478")
+def owner_reset_password_v478(kind, row_id):
+    new_password = (request.form.get("new_password") or "").strip()
+    if not new_password:
+        flash("Enter a new password.")
+        return redirect(request.referrer or "/owner/panel")
+    try:
+        from werkzeug.security import generate_password_hash
+        hashed = generate_password_hash(new_password)
+        if kind == "buyer":
+            ok = _owner_exec_v484('UPDATE "user" SET password_hash=:p WHERE id=:id', {"p": hashed, "id": row_id})
+            dest = "/owner/buyers"
+        elif kind == "creator":
+            ok = _owner_exec_v484("UPDATE creators SET password=:p WHERE id=:id", {"p": hashed, "id": row_id})
+            dest = "/owner/creators"
+        else:
+            ok = False
+            dest = "/owner/panel"
+        flash("Password reset successfully." if ok else "Could not reset password.")
+        return redirect(dest)
+    except Exception:
+        flash("Could not reset password.")
+        return redirect(request.referrer or "/owner/panel")
+
+@owner_bp.route("/db-debug", endpoint="owner_db_debug_v482")
+def owner_db_debug_v482():
+    try:
+        tables = []
+        rows = db.session.execute(db.text("SELECT table_name FROM information_schema.tables WHERE table_schema='public' ORDER BY table_name")).mappings().all()
+        for r in rows:
+            t = r.get("table_name")
+            if any(x in t.lower() for x in ["creator","buyer","user","order","video","plan","application"]):
+                cols = db.session.execute(db.text("SELECT column_name FROM information_schema.columns WHERE table_schema='public' AND table_name=:t ORDER BY ordinal_position"), {"t": t}).mappings().all()
+                tables.append({"name": t, "columns": [c.get("column_name") for c in cols]})
+        return render_template("owner/db_debug.html", tables=tables)
+    except Exception:
+        db.session.rollback()
+        return render_template("owner/db_debug.html", tables=[])
+
+
 @owner_bp.route("/creator-plans", methods=["GET", "POST"])
 def owner_creator_plans_v473():
     _owner_ensure_creator_plan_table_v473()
@@ -947,27 +1255,7 @@ def _owner_read_row_v478(table, row_id):
         db.session.rollback()
         return None
 
-@owner_bp.route("/creators", endpoint="owner_creators_v478")
-def owner_creators_v478():
-    table = _owner_table_for_v478("creator")
-    rows = []
-    if table:
-        try:
-            rows = db.session.execute(db.text(f"SELECT * FROM {table} ORDER BY id DESC LIMIT 200")).mappings().all()
-        except Exception:
-            db.session.rollback()
-    return render_template("owner/manage_people.html", rows=rows, kind="creator", title="Creators")
 
-@owner_bp.route("/buyers", endpoint="owner_buyers_v478")
-def owner_buyers_v478():
-    table = _owner_table_for_v478("buyer")
-    rows = []
-    if table:
-        try:
-            rows = db.session.execute(db.text(f"SELECT * FROM {table} ORDER BY id DESC LIMIT 200")).mappings().all()
-        except Exception:
-            db.session.rollback()
-    return render_template("owner/manage_people.html", rows=rows, kind="buyer", title="Buyers")
 
 @owner_bp.route("/<kind>/<int:row_id>/edit", methods=["GET","POST"], endpoint="owner_edit_person_v478")
 def owner_edit_person_v478(kind, row_id):
@@ -998,123 +1286,6 @@ def owner_edit_person_v478(kind, row_id):
         return redirect(f"/owner/{kind}s")
     return render_template("owner/edit_person.html", row=row, kind=kind, title=f"Edit {kind.title()}")
 
-@owner_bp.route("/<kind>/<int:row_id>/status/<status>", methods=["POST"], endpoint="owner_set_status_v478")
-def owner_set_status_v478(kind, row_id, status):
-    table = _owner_table_for_v478(kind)
-    if table and _owner_col_exists_v478(table, "status"):
-        try:
-            db.session.execute(db.text(f"UPDATE {table} SET status=:status WHERE id=:id"), {"status": status, "id": row_id})
-            db.session.commit()
-            flash(f"{kind.title()} status updated.")
-        except Exception:
-            db.session.rollback()
-            flash("Could not update status.")
-    return redirect(request.referrer or f"/owner/{kind}s")
-
-@owner_bp.route("/<kind>/<int:row_id>/delete", methods=["POST"], endpoint="owner_delete_person_v478")
-def owner_delete_person_v478(kind, row_id):
-    table = _owner_table_for_v478(kind)
-    if table:
-        try:
-            db.session.execute(db.text(f"DELETE FROM {table} WHERE id=:id"), {"id": row_id})
-            db.session.commit()
-            flash(f"{kind.title()} deleted.")
-        except Exception:
-            db.session.rollback()
-            flash(f"Could not delete {kind}. It may have linked orders/videos.")
-    return redirect(request.referrer or f"/owner/{kind}s")
-
-@owner_bp.route("/<kind>/<int:row_id>/reset-password", methods=["POST"], endpoint="owner_reset_password_v478")
-def owner_reset_password_v478(kind, row_id):
-    table = _owner_table_for_v478(kind)
-    new_password = (request.form.get("new_password") or "").strip()
-    if not new_password:
-        flash("Enter a new password.")
-        return redirect(request.referrer or f"/owner/{kind}s")
-    if not table:
-        return redirect("/owner/panel")
-
-    try:
-        from werkzeug.security import generate_password_hash
-        hashed = generate_password_hash(new_password)
-        if _owner_col_exists_v478(table, "password_hash"):
-            db.session.execute(db.text(f"UPDATE {table} SET password_hash=:p WHERE id=:id"), {"p": hashed, "id": row_id})
-        elif _owner_col_exists_v478(table, "password"):
-            db.session.execute(db.text(f"UPDATE {table} SET password=:p WHERE id=:id"), {"p": hashed, "id": row_id})
-        else:
-            flash("This table has no password column.")
-            return redirect(request.referrer or f"/owner/{kind}s")
-        db.session.commit()
-        flash("Password reset successfully.")
-    except Exception:
-        db.session.rollback()
-        flash("Could not reset password.")
-    return redirect(request.referrer or f"/owner/{kind}s")
 
 
 
-@owner_bp.route("/application/<int:row_id>/status/<status>", methods=["POST"], endpoint="owner_application_status_v478")
-def owner_application_status_v478(row_id, status):
-    table = _owner_table_for_v478("application")
-    if table and _owner_col_exists_v478(table, "status"):
-        try:
-            db.session.execute(db.text(f"UPDATE {table} SET status=:status WHERE id=:id"), {"status": status, "id": row_id})
-            db.session.commit()
-            flash("Application status updated.")
-        except Exception:
-            db.session.rollback()
-            flash("Could not update application.")
-    return redirect("/owner/applications")
-
-@owner_bp.route("/application/<int:row_id>/delete", methods=["POST"], endpoint="owner_application_delete_v478")
-def owner_application_delete_v478(row_id):
-    table = _owner_table_for_v478("application")
-    if table:
-        try:
-            db.session.execute(db.text(f"DELETE FROM {table} WHERE id=:id"), {"id": row_id})
-            db.session.commit()
-            flash("Application deleted.")
-        except Exception:
-            db.session.rollback()
-            flash("Could not delete application.")
-    return redirect("/owner/applications")
-
-@owner_bp.route("/application/<int:row_id>/edit", methods=["GET","POST"], endpoint="owner_edit_application_v479")
-def owner_edit_application_v479(row_id):
-    table = _owner_table_for_v478("application")
-    if not table:
-        flash("Application table not found.")
-        return redirect("/owner/applications")
-    row = _owner_read_row_v478(table, row_id)
-    if not row:
-        flash("Application not found.")
-        return redirect("/owner/applications")
-    if request.method == "POST":
-        cols = _owner_columns_v479(table)
-        fields = {}
-        for col in ["name","full_name","first_name","last_name","email","phone","phone_number","brand","brand_name","company_name","instagram","instagram_handle","social_handle","status"]:
-            if col in cols and col in request.form:
-                fields[col] = request.form.get(col)
-        if fields:
-            set_sql = ", ".join([f"{k}=:{k}" for k in fields])
-            fields["id"] = row_id
-            try:
-                db.session.execute(db.text(f"UPDATE {table} SET {set_sql} WHERE id=:id"), fields)
-                db.session.commit()
-                flash("Application saved.")
-            except Exception:
-                db.session.rollback()
-                flash("Could not save application.")
-        return redirect("/owner/applications")
-    return render_template("owner/edit_person.html", row=row, kind="application", title="Edit Application")
-
-
-
-@owner_bp.route("/db-debug", endpoint="owner_db_debug_v482")
-def owner_db_debug_v482():
-    tables = []
-    for t in _owner_all_tables_v482():
-        cols = _owner_table_columns_v482(t)
-        if any(x in t.lower() for x in ["creator","buyer","user","order","video","plan","application"]):
-            tables.append({"name": t, "columns": cols})
-    return render_template("owner/db_debug.html", tables=tables)
