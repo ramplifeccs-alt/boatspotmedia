@@ -1,8 +1,7 @@
-BoatSpotMedia v49.4 Restore Google Login Flow
-Base: v49.3.
+BoatSpotMedia v49.5 Restore Original Google Routes
+Base: v49.4 runtime files, but public.py and login templates restored from v49.2.
 Fixes:
-- Removes previous compatibility blocks that redirected Google to normal login.
-- Restores stable public.auth_google_register endpoint expected by templates.
-- Wrapper tries real existing Google OAuth endpoints first.
-- Keeps Google/Apple buttons; does not remove them.
-- Keeps creator register/apply and logout fixes from v49.3.
+- Removes the bad v49.4 Google wrapper that redirected to /google/login.
+- Restores original Google/Apple route logic from v49.2.
+- Keeps logout safe only if no existing logout was present.
+- Does not invent new login routes.
