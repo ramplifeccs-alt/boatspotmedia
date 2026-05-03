@@ -1734,3 +1734,14 @@ body.creator-dashboard-v449 main{
 .bsm-plan-grid-v472{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:14px}.bsm-plan-card-v472.active{border-color:#2563eb;box-shadow:0 0 0 3px rgba(37,99,235,.12)}
 .bsm-plan-card-v472 button{width:100%;padding:11px 12px;border-radius:10px;border:0;background:#2563eb;color:#fff;font-weight:800}.bsm-plan-card-v472 button:disabled{background:#94a3b8}
 .bsm-plan-card-v472 small{display:block;margin-top:8px;color:#b45309}@media(max-width:950px){.bsm-billing-current-v472,.bsm-plan-grid-v472{grid-template-columns:repeat(2,minmax(0,1fr))}}@media(max-width:560px){.bsm-billing-current-v472,.bsm-plan-grid-v472{grid-template-columns:1fr}}
+
+/* v47.3 owner editable creator plans */
+.owner-plans-v473{max-width:1200px;margin:30px auto;padding:18px}
+.owner-plan-form-v473,.owner-plan-card-v473,.owner-plans-v473 .empty{background:#fff;border:1px solid #e5e7eb;border-radius:16px;padding:16px;margin-bottom:16px;box-shadow:0 8px 24px rgba(15,23,42,.05)}
+.owner-plan-form-v473 form,.owner-plan-card-v473{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}
+.owner-plan-form-v473 label,.owner-plan-card-v473 label{display:grid;gap:5px;font-weight:700}
+.owner-plan-form-v473 input,.owner-plan-card-v473 input,.owner-plan-form-v473 textarea,.owner-plan-card-v473 textarea{width:100%;padding:10px;border:1px solid #cbd5e1;border-radius:10px}
+.owner-plan-form-v473 .check,.owner-plan-card-v473 .check{display:flex;align-items:center;gap:8px}
+.owner-plan-form-v473 button,.owner-plan-card-v473 button,.owner-plans-v473 button{padding:11px 14px;border:0;border-radius:10px;background:#2563eb;color:#fff;font-weight:800}
+.owner-plan-list-v473{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:16px}
+@media(max-width:800px){.owner-plan-form-v473 form,.owner-plan-card-v473,.owner-plan-list-v473{grid-template-columns:1fr}}

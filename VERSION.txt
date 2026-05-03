@@ -1,2 +1,7 @@
-BoatSpotMedia v47.2 Creator Stripe Subscriptions
-Adds /creator/billing, Stripe subscription checkout, creator_subscription table, webhook sync helper, billing sidebar links.
+BoatSpotMedia v47.3 Owner Editable Creator Plans
+Base: v47.2.
+Adds:
+- creator_plan table.
+- Owner page /owner/creator-plans.
+- Owner can edit plan name, price label, description, storage GB, Stripe Price ID, active status and sort order.
+- Creator Billing reads plans from DB instead of hardcoded code.

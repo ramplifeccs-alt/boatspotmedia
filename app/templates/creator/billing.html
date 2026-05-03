@@ -21,7 +21,7 @@
 <h2>Available plans</h2><div class="bsm-plan-grid-v472">
 {% for plan in plans %}
 <article class="bsm-plan-card-v472 {% if subscription.plan_key == plan.key %}active{% endif %}">
-<h3>{{ plan.name }}</h3><strong>{{ plan.price_label }}</strong><p><b>Storage:</b> {{ plan.storage_gb }} GB</p>
+<h3>{{ plan.name }}</h3><strong>{{ plan.price_label }}</strong><p>{{ plan.description }}</p><p><b>Storage:</b> {{ plan.storage_gb }} GB</p>
 {% if subscription.plan_key == plan.key %}<button disabled>Current Plan</button>
 {% elif plan.key == "free" %}<form method="POST" action="/creator/billing/checkout/free"><button type="submit">Switch to Free</button></form>
 {% elif plan.price_id %}<form method="POST" action="/creator/billing/checkout/{{ plan.key }}"><button type="submit">Choose {{ plan.name }}</button></form>

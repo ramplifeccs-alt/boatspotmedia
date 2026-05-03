@@ -334,3 +334,113 @@ def applications_raw():
     repair_creator_application_table()
     rows=db.session.execute(text("SELECT * FROM creator_application ORDER BY id DESC LIMIT 100")).mappings().all()
     return {"applications":[dict(r) for r in rows]}
+
+
+
+# v47.3 Owner editable creator subscription plans
+def _owner_ensure_creator_plan_table_v473():
+    try:
+        db.session.execute(db.text("""
+            CREATE TABLE IF NOT EXISTS creator_plan (
+                id SERIAL PRIMARY KEY,
+                plan_key TEXT UNIQUE NOT NULL,
+                name TEXT NOT NULL,
+                price_label TEXT NOT NULL DEFAULT '$0/mo',
+                description TEXT,
+                storage_gb INTEGER NOT NULL DEFAULT 5,
+                stripe_price_id TEXT,
+                is_active BOOLEAN DEFAULT TRUE,
+                sort_order INTEGER DEFAULT 0,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            )
+        """))
+        db.session.commit()
+    except Exception:
+        db.session.rollback()
+
+@owner_bp.route("/creator-plans", methods=["GET", "POST"])
+def owner_creator_plans_v473():
+    _owner_ensure_creator_plan_table_v473()
+
+    if request.method == "POST":
+        action = request.form.get("action") or "save"
+        if action == "seed":
+            defaults = [
+                ("free","Free","$0/mo","Basic creator testing plan.",5,"",True,0),
+                ("starter","Starter","$19/mo","Good for small creators starting to sell clips.",100,"",True,10),
+                ("pro","Pro","$49/mo","Recommended plan for active boat videographers.",512,"",True,20),
+                ("studio","Studio","$149/mo","High-volume plan for studios and multi-location creators.",2048,"",True,30),
+            ]
+            try:
+                for p in defaults:
+                    db.session.execute(db.text("""
+                        INSERT INTO creator_plan
+                        (plan_key, name, price_label, description, storage_gb, stripe_price_id, is_active, sort_order)
+                        VALUES (:plan_key,:name,:price_label,:description,:storage_gb,:stripe_price_id,:is_active,:sort_order)
+                        ON CONFLICT (plan_key) DO NOTHING
+                    """), {
+                        "plan_key":p[0],"name":p[1],"price_label":p[2],"description":p[3],
+                        "storage_gb":p[4],"stripe_price_id":p[5],"is_active":p[6],"sort_order":p[7]
+                    })
+                db.session.commit()
+                flash("Default creator plans created.")
+            except Exception as e:
+                db.session.rollback()
+                flash("Could not seed plans.")
+            return redirect("/owner/creator-plans")
+
+        plan_key = (request.form.get("plan_key") or "").strip().lower().replace(" ","_")
+        name = (request.form.get("name") or "").strip()
+        price_label = (request.form.get("price_label") or "").strip()
+        description = (request.form.get("description") or "").strip()
+        stripe_price_id = (request.form.get("stripe_price_id") or "").strip()
+        storage_gb = int(float(request.form.get("storage_gb") or 0))
+        sort_order = int(float(request.form.get("sort_order") or 0))
+        is_active = bool(request.form.get("is_active"))
+
+        if not plan_key or not name:
+            flash("Plan key and name are required.")
+            return redirect("/owner/creator-plans")
+
+        try:
+            db.session.execute(db.text("""
+                INSERT INTO creator_plan
+                (plan_key, name, price_label, description, storage_gb, stripe_price_id, is_active, sort_order, updated_at)
+                VALUES (:plan_key,:name,:price_label,:description,:storage_gb,:stripe_price_id,:is_active,:sort_order,CURRENT_TIMESTAMP)
+                ON CONFLICT (plan_key) DO UPDATE SET
+                    name=EXCLUDED.name,
+                    price_label=EXCLUDED.price_label,
+                    description=EXCLUDED.description,
+                    storage_gb=EXCLUDED.storage_gb,
+                    stripe_price_id=EXCLUDED.stripe_price_id,
+                    is_active=EXCLUDED.is_active,
+                    sort_order=EXCLUDED.sort_order,
+                    updated_at=CURRENT_TIMESTAMP
+            """), {
+                "plan_key":plan_key,
+                "name":name,
+                "price_label":price_label,
+                "description":description,
+                "storage_gb":storage_gb,
+                "stripe_price_id":stripe_price_id,
+                "is_active":is_active,
+                "sort_order":sort_order,
+            })
+            db.session.commit()
+            flash("Creator plan saved.")
+        except Exception as e:
+            db.session.rollback()
+            flash("Could not save creator plan.")
+        return redirect("/owner/creator-plans")
+
+    try:
+        plans = db.session.execute(db.text("""
+            SELECT *
+            FROM creator_plan
+            ORDER BY sort_order ASC, id ASC
+        """)).mappings().all()
+    except Exception:
+        db.session.rollback()
+        plans = []
+    return render_template("owner/creator_plans.html", plans=plans)

@@ -1,0 +1,58 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Owner - Creator Plans</title>
+  <link rel="stylesheet" href="/static/css/style.css">
+</head>
+<body>
+<div class="owner-plans-v473">
+  <h1>Creator Subscription Plans</h1>
+  <p>Edit the prices, descriptions, storage limits, and Stripe Price IDs shown to creators.</p>
+
+  <form method="POST" style="margin-bottom:18px;">
+    <input type="hidden" name="action" value="seed">
+    <button type="submit">Create Default Plans</button>
+  </form>
+
+  <section class="owner-plan-form-v473">
+    <h2>Add / Update Plan</h2>
+    <form method="POST">
+      <input type="hidden" name="action" value="save">
+      <label>Plan Key <input name="plan_key" placeholder="starter" required></label>
+      <label>Name <input name="name" placeholder="Starter" required></label>
+      <label>Price Label <input name="price_label" placeholder="$19/mo"></label>
+      <label>Storage GB <input name="storage_gb" type="number" step="1" placeholder="100" required></label>
+      <label>Stripe Price ID <input name="stripe_price_id" placeholder="price_..."></label>
+      <label>Sort Order <input name="sort_order" type="number" step="1" value="10"></label>
+      <label>Description <textarea name="description" rows="3" placeholder="Plan description shown to creators"></textarea></label>
+      <label class="check"><input type="checkbox" name="is_active" checked> Active</label>
+      <button type="submit">Save Plan</button>
+    </form>
+  </section>
+
+  <section>
+    <h2>Current Plans</h2>
+    <div class="owner-plan-list-v473">
+      {% for p in plans %}
+        <form method="POST" class="owner-plan-card-v473">
+          <input type="hidden" name="action" value="save">
+          <label>Plan Key <input name="plan_key" value="{{ p.plan_key }}" readonly></label>
+          <label>Name <input name="name" value="{{ p.name }}"></label>
+          <label>Price Label <input name="price_label" value="{{ p.price_label }}"></label>
+          <label>Storage GB <input name="storage_gb" type="number" value="{{ p.storage_gb }}"></label>
+          <label>Stripe Price ID <input name="stripe_price_id" value="{{ p.stripe_price_id or '' }}"></label>
+          <label>Sort Order <input name="sort_order" type="number" value="{{ p.sort_order or 0 }}"></label>
+          <label>Description <textarea name="description" rows="3">{{ p.description or '' }}</textarea></label>
+          <label class="check"><input type="checkbox" name="is_active" {% if p.is_active %}checked{% endif %}> Active</label>
+          <button type="submit">Save Changes</button>
+        </form>
+      {% else %}
+        <div class="empty">No plans yet. Click Create Default Plans.</div>
+      {% endfor %}
+    </div>
+  </section>
+</div>
+</body>
+</html>

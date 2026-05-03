@@ -2133,13 +2133,79 @@ def _recalculate_creator_storage(creator_id):
 
 # v47.2 Creator billing/subscriptions
 def _bsm_creator_plans_v472():
+    """
+    Creator plans are owner-editable from creator_plan table.
+    Fallback creates default plans if table is empty.
+    """
     import os
-    return [
-        {"key":"free","name":"Free","price_label":"$0/mo","storage_gb":int(os.environ.get("CREATOR_FREE_STORAGE_GB","5")),"price_id":""},
-        {"key":"starter","name":"Starter","price_label":os.environ.get("CREATOR_STARTER_PRICE_LABEL","$19/mo"),"storage_gb":int(os.environ.get("CREATOR_STARTER_STORAGE_GB","100")),"price_id":os.environ.get("STRIPE_PRICE_CREATOR_STARTER","")},
-        {"key":"pro","name":"Pro","price_label":os.environ.get("CREATOR_PRO_PRICE_LABEL","$49/mo"),"storage_gb":int(os.environ.get("CREATOR_PRO_STORAGE_GB","512")),"price_id":os.environ.get("STRIPE_PRICE_CREATOR_PRO","")},
-        {"key":"studio","name":"Studio","price_label":os.environ.get("CREATOR_STUDIO_PRICE_LABEL","$149/mo"),"storage_gb":int(os.environ.get("CREATOR_STUDIO_STORAGE_GB","2048")),"price_id":os.environ.get("STRIPE_PRICE_CREATOR_STUDIO","")},
+    defaults = [
+        {"key":"free","name":"Free","price_label":"$0/mo","storage_gb":int(os.environ.get("CREATOR_FREE_STORAGE_GB","5")),"price_id":"","description":"Basic creator testing plan.","sort_order":0,"is_active":True},
+        {"key":"starter","name":"Starter","price_label":os.environ.get("CREATOR_STARTER_PRICE_LABEL","$19/mo"),"storage_gb":int(os.environ.get("CREATOR_STARTER_STORAGE_GB","100")),"price_id":os.environ.get("STRIPE_PRICE_CREATOR_STARTER",""),"description":"Good for small creators starting to sell clips.","sort_order":10,"is_active":True},
+        {"key":"pro","name":"Pro","price_label":os.environ.get("CREATOR_PRO_PRICE_LABEL","$49/mo"),"storage_gb":int(os.environ.get("CREATOR_PRO_STORAGE_GB","512")),"price_id":os.environ.get("STRIPE_PRICE_CREATOR_PRO",""),"description":"Recommended plan for active boat videographers.","sort_order":20,"is_active":True},
+        {"key":"studio","name":"Studio","price_label":os.environ.get("CREATOR_STUDIO_PRICE_LABEL","$149/mo"),"storage_gb":int(os.environ.get("CREATOR_STUDIO_STORAGE_GB","2048")),"price_id":os.environ.get("STRIPE_PRICE_CREATOR_STUDIO",""),"description":"High-volume plan for studios and multi-location creators.","sort_order":30,"is_active":True},
     ]
+
+    try:
+        db.session.execute(db.text("""
+            CREATE TABLE IF NOT EXISTS creator_plan (
+                id SERIAL PRIMARY KEY,
+                plan_key TEXT UNIQUE NOT NULL,
+                name TEXT NOT NULL,
+                price_label TEXT NOT NULL DEFAULT '$0/mo',
+                description TEXT,
+                storage_gb INTEGER NOT NULL DEFAULT 5,
+                stripe_price_id TEXT,
+                is_active BOOLEAN DEFAULT TRUE,
+                sort_order INTEGER DEFAULT 0,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            )
+        """))
+        db.session.commit()
+    except Exception:
+        db.session.rollback()
+        return defaults
+
+    try:
+        count = db.session.execute(db.text("SELECT COUNT(*) AS total FROM creator_plan")).mappings().first()
+        if int(count.get("total") or 0) == 0:
+            for p in defaults:
+                db.session.execute(db.text("""
+                    INSERT INTO creator_plan
+                    (plan_key, name, price_label, description, storage_gb, stripe_price_id, is_active, sort_order)
+                    VALUES (:key, :name, :price_label, :description, :storage_gb, :price_id, :is_active, :sort_order)
+                    ON CONFLICT (plan_key) DO NOTHING
+                """), p)
+            db.session.commit()
+    except Exception:
+        db.session.rollback()
+        return defaults
+
+    try:
+        rows = db.session.execute(db.text("""
+            SELECT plan_key, name, price_label, description, storage_gb, stripe_price_id, is_active, sort_order
+            FROM creator_plan
+            WHERE is_active = TRUE OR plan_key='free'
+            ORDER BY sort_order ASC, id ASC
+        """)).mappings().all()
+        plans = []
+        for r in rows:
+            plans.append({
+                "key": r.get("plan_key"),
+                "name": r.get("name"),
+                "price_label": r.get("price_label"),
+                "storage_gb": int(r.get("storage_gb") or 5),
+                "price_id": r.get("stripe_price_id") or "",
+                "stripe_price_id": r.get("stripe_price_id") or "",
+                "description": r.get("description") or "",
+                "is_active": bool(r.get("is_active")),
+                "sort_order": int(r.get("sort_order") or 0),
+            })
+        return plans or defaults
+    except Exception:
+        db.session.rollback()
+        return defaults
+
 
 def _bsm_ensure_creator_subscription_table_v472():
     try:
