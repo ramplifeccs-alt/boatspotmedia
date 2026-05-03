@@ -1,8 +1,7 @@
-BoatSpotMedia v49.1J Clean Download Fix
+BoatSpotMedia v49.1K Download No public_url Column Fix
 Base: v49.1I.
-Only changes:
-- Clean /download-video/<id>?delivery=original route.
-- Supports both order_item.id and video.id.
-- Redirects to R2 using public_url, file_path, r2_video_key, or internal_filename.
-- Edited delivery uses edited_r2_key only if present.
-- Does not change My Orders query, templates, Google, Apple, login, upload, batches, creators, checkout, or DB.
+Fixes:
+- /download-video no longer queries video.public_url because that column does not exist.
+- Uses video.file_path first, then r2_video_key, then internal_filename.
+- Keeps My Orders query untouched.
+- Does not touch Google, Apple, login, upload, checkout, creator approval, batches, or DB.

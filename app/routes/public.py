@@ -867,13 +867,9 @@ def auth_google_register(account_type="buyer"):
 
 
 
-
-
-# v49.1J clean download route.
-# Supports old and new records without changing My Orders query.
-# /download-video/<id>?delivery=original may receive either order_item.id or video.id.
-@public_bp.route("/download-video/<int:download_id>")
-def public_download_video_v491j(download_id):
+# v49.1K safe download fallback. Does not use non-existing video.public_url column.
+@public_bp.route("/download-video/<int:item_id>")
+def public_download_video_v491i(item_id):
     delivery = (request.args.get("delivery") or "original").lower().strip()
     base = (
         os.environ.get("R2_PUBLIC_URL")
@@ -882,72 +878,66 @@ def public_download_video_v491j(download_id):
         or "https://pub-ac294ba2f7794c37848062239f41227d.r2.dev"
     ).strip().rstrip("/")
 
-    def clean_url(value):
-        if not value:
+    def make_url(key):
+        if not key:
             return None
-        value = str(value).strip()
-        if not value:
+        key = str(key).strip()
+        if not key:
             return None
-        if value.startswith("http://") or value.startswith("https://"):
-            return value
-        if value.startswith("/media/") or value.startswith("/static/"):
-            return value
-        return base + "/" + value.lstrip("/")
+        if key.startswith("http://") or key.startswith("https://"):
+            return key
+        if key.startswith("/media/") or key.startswith("/static/"):
+            return key
+        return base + "/" + key.lstrip("/")
 
     try:
-        # First try as order item id.
+        # First assume item_id is bsm_cart_order_item.id.
         row = db.session.execute(db.text("""
-            SELECT
-                i.id AS item_id,
-                i.video_id AS video_id,
-                i.edited_r2_key AS edited_r2_key,
-                v.public_url AS public_url,
-                v.file_path AS file_path,
-                v.r2_video_key AS r2_video_key,
-                v.internal_filename AS internal_filename
+            SELECT i.id AS item_id,
+                   i.video_id,
+                   i.edited_r2_key,
+                   v.file_path,
+                   v.r2_video_key,
+                   v.internal_filename
             FROM bsm_cart_order_item i
             LEFT JOIN video v ON v.id = i.video_id
-            WHERE i.id = :id
+            WHERE i.id=:item_id
             LIMIT 1
-        """), {"id": download_id}).mappings().first()
+        """), {"item_id": item_id}).mappings().first()
 
-        # If not found, try as video id.
+        # Older links may pass video.id directly.
         if not row:
             row = db.session.execute(db.text("""
-                SELECT
-                    NULL AS item_id,
-                    v.id AS video_id,
-                    NULL AS edited_r2_key,
-                    v.public_url AS public_url,
-                    v.file_path AS file_path,
-                    v.r2_video_key AS r2_video_key,
-                    v.internal_filename AS internal_filename
+                SELECT NULL AS item_id,
+                       v.id AS video_id,
+                       NULL AS edited_r2_key,
+                       v.file_path,
+                       v.r2_video_key,
+                       v.internal_filename
                 FROM video v
-                WHERE v.id = :id
+                WHERE v.id=:item_id
                 LIMIT 1
-            """), {"id": download_id}).mappings().first()
+            """), {"item_id": item_id}).mappings().first()
 
         if not row:
             return "Video not found", 404
 
-        # Edited delivery only if edited file exists.
         if delivery in ["edited", "edit"]:
-            edited_url = clean_url(row.get("edited_r2_key"))
-            if edited_url:
-                return redirect(edited_url)
+            url = make_url(row.get("edited_r2_key"))
+            if url:
+                return redirect(url)
 
-        # Original / instant download. Try every real storage field.
-        for key in ["public_url", "file_path", "r2_video_key", "internal_filename"]:
-            url = clean_url(row.get(key))
+        # Original / instant: file_path is the real public R2 key in this DB.
+        for key in ["file_path", "r2_video_key", "internal_filename"]:
+            url = make_url(row.get(key))
             if url:
                 return redirect(url)
 
         return "Video file not found", 404
-
     except Exception as e:
         db.session.rollback()
         try:
-            print("download-video v49.1J warning:", e)
+            print("download-video v49.1K warning:", e)
         except Exception:
             pass
         return "Download error", 500
