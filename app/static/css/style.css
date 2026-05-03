@@ -2103,3 +2103,7 @@ body.creator-dashboard-v449 main{
 .owner-plan-table-v474{
   grid-template-columns:1.3fr .8fr .7fr .8fr .7fr .8fr .6fr;
 }
+
+/* v48.2 owner dynamic tables + commission save */
+.owner-card-v475 summary{font-weight:900;cursor:pointer}
+.owner-table-v476 small{color:#64748b}

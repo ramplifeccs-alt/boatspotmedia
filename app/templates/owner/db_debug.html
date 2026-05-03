@@ -1,0 +1,31 @@
+<!doctype html>
+<html lang="en">
+<head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>DB Debug - Owner</title><link rel="stylesheet" href="/static/css/style.css"></head>
+<body class="owner-dashboard-v476">
+<div class="owner-shell-v475">
+  <aside class="owner-sidebar-v475">
+    <a href="/owner/panel" class="owner-logo-v475"><img src="/static/img/logo-header.png" alt="BoatSpotMedia"></a>
+    <nav>
+      <a href="/owner/panel">Owner Dashboard</a>
+      <a href="/owner/applications">Creator Applications</a>
+      <a href="/owner/creators">Creators</a>
+      <a href="/owner/buyers">Buyers</a>
+      <a href="/owner/creator-plans">Creator Plans</a>
+      <a href="/owner/db-debug" class="active">DB Debug</a>
+      <a href="/logout" class="danger">Log out</a>
+    </nav>
+  </aside>
+  <main class="owner-main-v475">
+    <div class="owner-card-v475">
+      <h1>DB Debug</h1>
+      <p>Use this to identify the real tables/columns Railway is using.</p>
+    </div>
+    {% for t in tables %}
+      <div class="owner-card-v475">
+        <h2>{{ t.name }}</h2>
+        <p>{{ t.columns|join(", ") }}</p>
+      </div>
+    {% endfor %}
+  </main>
+</div>
+</body></html>

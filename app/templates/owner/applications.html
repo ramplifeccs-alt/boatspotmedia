@@ -11,11 +11,15 @@
       <a href="/owner/creators">Creators</a>
       <a href="/owner/buyers">Buyers</a>
       <a href="/owner/creator-plans">Creator Plans</a>
+      <a href="/owner/db-debug">DB Debug</a>
       <a href="/logout" class="danger">Log out</a>
     </nav>
   </aside>
   <main class="owner-main-v475">
-    <div class="owner-card-v475"><h1>Creator Applications</h1><p>Approve, suspend, edit or delete creator applications.</p></div>
+    <div class="owner-card-v475">
+      <h1>Creator Applications</h1>
+      <p>Source table: <strong>{{ table_name or "not found" }}</strong>. This page now shows the current creator/application source.</p>
+    </div>
     {% with messages = get_flashed_messages() %}{% if messages %}<div class="owner-flash-v474">{% for msg in messages %}<div>{{ msg }}</div>{% endfor %}</div>{% endif %}{% endwith %}
     <div class="owner-content-v475 owner-table-wrap-v476">
       <table class="owner-table-v476">
@@ -38,7 +42,7 @@
             </td>
           </tr>
         {% else %}
-          <tr><td colspan="8">No applications found.</td></tr>
+          <tr><td colspan="8">No applications found. Open <a href="/owner/db-debug">DB Debug</a> to see available creator/application tables.</td></tr>
         {% endfor %}
         </tbody>
       </table>

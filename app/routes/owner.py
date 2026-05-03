@@ -352,6 +352,133 @@ def _owner_ensure_plan_commission_v481():
         db.session.rollback()
 
 
+
+# v48.2 owner dynamic table helpers
+def _owner_all_tables_v482():
+    try:
+        rows = db.session.execute(db.text("""
+            SELECT table_name
+            FROM information_schema.tables
+            WHERE table_schema='public'
+            ORDER BY table_name
+        """)).mappings().all()
+        return [r.get("table_name") for r in rows]
+    except Exception:
+        db.session.rollback()
+        return []
+
+def _owner_table_columns_v482(table):
+    try:
+        rows = db.session.execute(db.text("""
+            SELECT column_name
+            FROM information_schema.columns
+            WHERE table_schema='public' AND table_name=:t
+            ORDER BY ordinal_position
+        """), {"t": table}).mappings().all()
+        return [r.get("column_name") for r in rows]
+    except Exception:
+        db.session.rollback()
+        return []
+
+def _owner_pick_existing_table_v482(candidates, contains=None):
+    tables = set(_owner_all_tables_v482())
+    for c in candidates:
+        if c in tables:
+            return c
+    if contains:
+        for t in tables:
+            tl = t.lower()
+            if all(x in tl for x in contains):
+                return t
+    return None
+
+def _owner_dynamic_rows_v482(table, where="", params=None, limit=300):
+    if not table:
+        return [], []
+    cols = _owner_table_columns_v482(table)
+    try:
+        sql = f"SELECT * FROM {table} {where} ORDER BY id DESC LIMIT {int(limit)}" if "id" in cols else f"SELECT * FROM {table} {where} LIMIT {int(limit)}"
+        rows = db.session.execute(db.text(sql), params or {}).mappings().all()
+        return [dict(r) for r in rows], cols
+    except Exception as e:
+        db.session.rollback()
+        try: print("dynamic rows v48.2 warning:", e, table)
+        except Exception: pass
+        return [], cols
+
+def _owner_display_from_row_v482(row):
+    def first(keys):
+        for k in keys:
+            v = row.get(k)
+            if v not in [None, ""]:
+                return v
+        return ""
+    name = first(["name","full_name","display_name","brand","brand_name","company_name","username"])
+    if not name:
+        name = ((row.get("first_name") or "") + " " + (row.get("last_name") or "")).strip()
+    if not name:
+        name = "Record #" + str(row.get("id",""))
+    return {
+        "id": row.get("id",""),
+        "name": name,
+        "email": first(["email","user_email","buyer_email","display_email"]),
+        "phone": first(["phone","phone_number","mobile","display_phone"]),
+        "brand": first(["brand","brand_name","company_name","display_brand"]),
+        "social": first(["instagram","instagram_handle","social_handle","tiktok","youtube","display_social"]),
+        "status": first(["status","account_status","display_status"]) or "active",
+    }
+
+def _owner_to_display_rows_v482(rows):
+    out=[]
+    seen=set()
+    for row in rows or []:
+        d=dict(row)
+        disp=_owner_display_from_row_v482(d)
+        email=str(disp.get("email") or "").strip().lower()
+        if email and email in seen:
+            continue
+        if email:
+            seen.add(email)
+        d.update({
+            "display_name": disp["name"],
+            "display_email": disp["email"],
+            "display_phone": disp["phone"],
+            "display_brand": disp["brand"],
+            "display_social": disp["social"],
+            "display_status": disp["status"],
+            "_display": disp,
+        })
+        out.append(d)
+    return out
+
+def _owner_buyer_table_and_where_v482():
+    # Prefer real buyer-specific tables first, then users with role buyer.
+    table = _owner_pick_existing_table_v482(["buyer_user","buyer_users","buyers","buyer"])
+    if table:
+        return table, "", {}
+    users = _owner_pick_existing_table_v482(["users","user"])
+    if users:
+        cols = _owner_table_columns_v482(users)
+        if "role" in cols:
+            return users, "WHERE LOWER(COALESCE(role,'')) IN ('buyer','customer','')", {}
+        return users, "", {}
+    return None, "", {}
+
+def _owner_creator_table_v482():
+    return _owner_pick_existing_table_v482(["creator_profile","creator_profiles","creators","creator"], contains=["creator"])
+
+def _owner_application_table_v482():
+    # Some apps create old application rows; creator_profile is the current approved source.
+    return _owner_pick_existing_table_v482(["creator_application","creator_applications","applications"], contains=["application"])
+
+def _owner_ensure_plan_commission_v482():
+    try:
+        db.session.execute(db.text("ALTER TABLE creator_plan ADD COLUMN IF NOT EXISTS commission_percent NUMERIC DEFAULT 20"))
+        db.session.commit()
+    except Exception:
+        db.session.rollback()
+
+
 @owner_bp.route("/login", methods=["GET", "POST"])
 def login():
     if request.method == "POST":
@@ -367,21 +494,14 @@ def owner_panel_v477():
 
 
 
+
 @owner_bp.route("/applications")
 def owner_applications_v479():
-    table = _owner_table_for_v478("application")
-    rows = []
-    if table:
-        cols = _owner_columns_v479(table)
-        order = "created_at DESC, id DESC" if "created_at" in cols else "id DESC"
-        try:
-            raw = db.session.execute(db.text(f"SELECT * FROM {table} ORDER BY {order} LIMIT 300")).mappings().all()
-            rows = _owner_normalize_rows_v481(raw, "application")
-        except Exception as e:
-            db.session.rollback()
-            try: print("owner applications v48.1 warning:", e)
-            except Exception: pass
-    return render_template("owner/applications.html", applications=rows)
+    # Show current creators first if they exist, because old application table can contain duplicates.
+    table = _owner_creator_table_v482() or _owner_application_table_v482()
+    rows, columns = _owner_dynamic_rows_v482(table, limit=300)
+    rows = _owner_to_display_rows_v482(rows)
+    return render_template("owner/applications.html", applications=rows, table_name=table, columns=columns)
 
 
 @owner_bp.route("/applications/<int:app_id>/approve", methods=["POST"])
@@ -715,6 +835,18 @@ def owner_creator_plans_v473():
                 "sort_order":sort_order,
             })
             db.session.commit()
+            # commission_percent_v482 direct fix
+            try:
+                _owner_ensure_plan_commission_v482()
+                db.session.execute(db.text("UPDATE creator_plan SET commission_percent=:commission_percent WHERE plan_key=:plan_key"), {
+                    "commission_percent": commission_percent,
+                    "plan_key": plan_key,
+                })
+                db.session.commit()
+            except Exception as e:
+                db.session.rollback()
+                try: print("commission save v48.2 warning:", e)
+                except Exception: pass
             flash("Creator plan saved successfully.")
         except Exception as e:
             db.session.rollback()
@@ -926,3 +1058,14 @@ def owner_edit_application_v479(row_id):
                 flash("Could not save application.")
         return redirect("/owner/applications")
     return render_template("owner/edit_person.html", row=row, kind="application", title="Edit Application")
+
+
+
+@owner_bp.route("/db-debug", endpoint="owner_db_debug_v482")
+def owner_db_debug_v482():
+    tables = []
+    for t in _owner_all_tables_v482():
+        cols = _owner_table_columns_v482(t)
+        if any(x in t.lower() for x in ["creator","buyer","user","order","video","plan","application"]):
+            tables.append({"name": t, "columns": cols})
+    return render_template("owner/db_debug.html", tables=tables)

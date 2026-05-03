@@ -11,11 +11,15 @@
       <a href="/owner/creators" {% if kind=='creator' %}class="active"{% endif %}>Creators</a>
       <a href="/owner/buyers" {% if kind=='buyer' %}class="active"{% endif %}>Buyers</a>
       <a href="/owner/creator-plans">Creator Plans</a>
+      <a href="/owner/db-debug">DB Debug</a>
       <a href="/logout" class="danger">Log out</a>
     </nav>
   </aside>
   <main class="owner-main-v475">
-    <div class="owner-card-v475"><h1>{{ title }}</h1><p>Edit, suspend, delete, and reset passwords.</p></div>
+    <div class="owner-card-v475">
+      <h1>{{ title }}</h1>
+      <p>Source table: <strong>{{ table_name or "not found" }}</strong></p>
+    </div>
     {% with messages = get_flashed_messages() %}{% if messages %}<div class="owner-flash-v474">{% for msg in messages %}<div>{{ msg }}</div>{% endfor %}</div>{% endif %}{% endwith %}
     <div class="owner-content-v475 owner-table-wrap-v476">
       <table class="owner-table-v476">
@@ -24,7 +28,10 @@
         {% for r in rows %}
           <tr>
             <td>{{ r.id }}</td>
-            <td>{{ r.display_name }}</td>
+            <td>
+              <strong>{{ r.display_name }}</strong>
+              {% if r.display_brand %}<br><small>{{ r.display_brand }}</small>{% endif %}
+            </td>
             <td>{{ r.display_email }}</td>
             <td>{{ r.display_phone }}</td>
             <td>{{ r.display_social }}</td>
@@ -41,10 +48,17 @@
             </td>
           </tr>
         {% else %}
-          <tr><td colspan="7">No records found.</td></tr>
+          <tr><td colspan="7">No records found. Open <a href="/owner/db-debug">DB Debug</a> to verify the real table.</td></tr>
         {% endfor %}
         </tbody>
       </table>
     </div>
+
+    {% if rows and columns %}
+      <details class="owner-card-v475">
+        <summary>Show raw columns for debugging</summary>
+        <p>{{ columns|join(", ") }}</p>
+      </details>
+    {% endif %}
   </main>
 </div></body></html>

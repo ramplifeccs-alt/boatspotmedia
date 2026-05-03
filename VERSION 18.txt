@@ -1,0 +1,9 @@
+BoatSpotMedia v48.0 Owner Applications + Home Login Fix
+Base: v47.9.
+Fixes:
+- Creator Applications shows one latest row per email.
+- Creator list shows current/latest data, no duplicate emails.
+- Removes old Creator Passwords / Reset Password link from Owner Dashboard.
+- Adds Creators and Buyers to owner menu.
+- Home / generic /login links now go to /buyer/login.
+- Adds /login redirect to /buyer/login.

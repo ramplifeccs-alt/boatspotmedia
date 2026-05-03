@@ -1,10 +1,8 @@
-BoatSpotMedia v48.1 Owner Lists + Plan Commission Fix
-Base: v48.0.
+BoatSpotMedia v48.2 Owner Dynamic Tables + Commission Save Fix
+Base: v48.1.
 Fixes:
-- Creator Applications no longer depends on fragile SQL aliases; normalizes rows in Python.
-- Creators show real available fields instead of blank.
-- Buyers supports users table fallback and normalizes real fields.
-Adds:
-- creator_plan.commission_percent.
-- Owner can edit commission percent per creator plan.
-- Creator billing can display platform commission percentage.
+- Creator Applications uses current creator/application source and shows source table.
+- Creators and Buyers use dynamic SELECT * + Python fallback display.
+- Adds /owner/db-debug to inspect real Railway tables/columns.
+- Fixes creator_plan commission_percent saving with direct update after save.
+- Ensures commission field exists in creator_plan.
