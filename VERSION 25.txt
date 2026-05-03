@@ -1,0 +1,7 @@
+BoatSpotMedia v49.1G Restore Buyer Items + R2 Download Fix
+Base: v49.1E_FROM_49_1D_POPUP_INSTANT_FIX.
+Fixes:
+- Reverts away from v49.1F broken buyer item query by starting from v49.1E.
+- Adds safe /download-video/<item_id>?delivery=original route.
+- Route redirects to original R2 public file using video.file_path/r2_video_key/public_url.
+- Does NOT change buyer dashboard item queries, templates, Google, Apple, login, upload, batches, creators, checkout, or DB.

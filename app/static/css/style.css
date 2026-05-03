@@ -2240,3 +2240,13 @@ body.creator-dashboard-v449 main{
   .actions-wrap-v491b input{width:100%;max-width:100%;}
 }
 
+/* v49.1D creator profile id match */
+.repair-link-v491d{
+  display:inline-block;
+  padding:8px 10px;
+  border-radius:10px;
+  background:#fef3c7;
+  color:#92400e!important;
+  font-weight:900;
+  text-decoration:none;
+}

@@ -342,7 +342,7 @@ def _bsm_buyer_orders_for_user_v424(user_id, email):
 def _bsm_buyer_order_items_v422(order_id):
     try:
         return db.session.execute(db.text("""
-            SELECT i.*, v.location, v.filename, v.internal_filename, v.thumbnail_path, v.public_thumbnail_url, v.r2_thumbnail_key, v.file_path, v.r2_video_key, v.public_url, v.preview_url
+            SELECT i.*, v.location, v.filename, v.internal_filename, v.thumbnail_path, v.public_thumbnail_url, v.r2_thumbnail_key
             FROM bsm_cart_order_item i
             LEFT JOIN video v ON v.id=i.video_id
             WHERE i.cart_order_id=:oid
@@ -478,62 +478,6 @@ def _bsm_public_r2_url_v468(key):
 
 
 
-
-# v49.1F original/instant download URL helper.
-# For instant/original purchases, buyer dashboard should point directly to the original R2/public file,
-# not to a guessed internal route.
-def _bsm_original_download_url_v491f(row):
-    import os
-    base = (
-        os.environ.get("R2_PUBLIC_URL")
-        or os.environ.get("R2_PUBLIC_BASE_URL")
-        or os.environ.get("PUBLIC_R2_URL")
-        or ""
-    ).strip().rstrip("/")
-
-    keys = [
-        "public_url",
-        "download_url",
-        "file_url",
-        "original_url",
-        "video_url",
-        "r2_public_url",
-        "file_path",
-        "r2_video_key",
-        "r2_key",
-        "video_key",
-        "storage_key",
-        "original_file_path",
-        "original_path",
-        "internal_filename",
-    ]
-
-    for key in keys:
-        try:
-            val = row.get(key)
-        except Exception:
-            val = None
-        if not val:
-            continue
-
-        val = str(val).strip()
-        if not val:
-            continue
-
-        if val.startswith("http://") or val.startswith("https://"):
-            return val
-
-        # Some old records may store local media paths.
-        if val.startswith("/media/") or val.startswith("/static/"):
-            return val
-
-        # R2 object keys.
-        if base:
-            return base + "/" + val.lstrip("/")
-
-    return None
-
-
 def _bsm_make_delivery_v443(ix, delivery_type, order_created_at=None):
     """
     Build buyer delivery rows.
@@ -561,7 +505,7 @@ def _bsm_make_delivery_v443(ix, delivery_type, order_created_at=None):
     else:
         locked_by_discount = discount_status in ["pending_review", "pending", "awaiting_creator", "needs_approval"]
         delivery["download_locked"] = bool(locked_by_discount)
-        delivery["download_url"] = None if delivery["download_locked"] else (_bsm_original_download_url_v491f(delivery) or ("/download-video/" + str(delivery.get("item_id") or delivery.get("id") or delivery.get("video_id")) + "?delivery=original"))
+        delivery["download_url"] = None if delivery["download_locked"] else "/download-video/" + str(delivery.get("item_id") or delivery.get("id") or delivery.get("video_id")) + "?delivery=original"
         delivery["status_label"] = "Pending approval" if locked_by_discount else "Ready"
         delivery["package"] = "original"
         timer = _bsm_download_timer_v441(delivery, order_created_at) if "_bsm_download_timer_v441" in globals() else _bsm_download_timer_v442(delivery, order_created_at)
@@ -737,14 +681,14 @@ def buyer_dashboard_public_v422():
             ix["download_expired"] = timer["expired"]
             ix["download_expires_at"] = timer["expires_at"]
             ix["download_remaining_seconds"] = timer["remaining_seconds"]
-            ix["download_url"] = None if ix["download_locked"] or ix["download_expired"] else (_bsm_original_download_url_v491f(ix) or ("/download-video/" + str(ix.get("id") or ix.get("video_id"))))
+            ix["download_url"] = None if ix["download_locked"] or ix["download_expired"] else "/download-video/" + str(ix.get("id") or ix.get("video_id"))
             ix["thumbnail_url"] = _bsm_media_url_v427(ix, "thumb")
             ix["download_locked"] = _bsm_item_download_locked_v439(ix)
             timer = _bsm_download_timer_v441(ix, d.get("created_at"))
             ix["download_expired"] = timer["expired"]
             ix["download_expires_at"] = timer["expires_at"]
             ix["download_remaining_seconds"] = timer["remaining_seconds"]
-            ix["download_url"] = None if ix["download_locked"] or ix["download_expired"] else (_bsm_original_download_url_v491f(ix) or ("/download-video/" + str(ix.get("id") or ix.get("video_id"))))
+            ix["download_url"] = None if ix["download_locked"] or ix["download_expired"] else "/download-video/" + str(ix.get("id") or ix.get("video_id"))
             items.append(ix)
         if not items:
             d["order_items"] = []
@@ -919,3 +863,80 @@ def auth_google_register(account_type="buyer"):
     if account_type == "creator":
         return redirect("/creator/login")
     return redirect("/buyer/login")
+
+
+
+# v49.1I safe download fallback. Does not change My Orders query.
+@public_bp.route("/download-video/<int:item_id>")
+def public_download_video_v491i(item_id):
+    delivery = (request.args.get("delivery") or "original").lower().strip()
+    base = (
+        os.environ.get("R2_PUBLIC_URL")
+        or os.environ.get("R2_PUBLIC_BASE_URL")
+        or os.environ.get("PUBLIC_R2_URL")
+        or "https://pub-ac294ba2f7794c37848062239f41227d.r2.dev"
+    ).strip().rstrip("/")
+
+    def make_url(key):
+        if not key:
+            return None
+        key = str(key).strip()
+        if not key:
+            return None
+        if key.startswith("http://") or key.startswith("https://"):
+            return key
+        if key.startswith("/media/") or key.startswith("/static/"):
+            return key
+        return base + "/" + key.lstrip("/")
+
+    try:
+        row = db.session.execute(db.text("""
+            SELECT i.id AS item_id,
+                   i.video_id,
+                   i.edited_r2_key,
+                   v.file_path,
+                   v.r2_video_key,
+                   v.public_url,
+                   v.internal_filename
+            FROM bsm_cart_order_item i
+            LEFT JOIN video v ON v.id = i.video_id
+            WHERE i.id=:item_id
+            LIMIT 1
+        """), {"item_id": item_id}).mappings().first()
+
+        if not row:
+            row = db.session.execute(db.text("""
+                SELECT NULL AS item_id,
+                       v.id AS video_id,
+                       NULL AS edited_r2_key,
+                       v.file_path,
+                       v.r2_video_key,
+                       v.public_url,
+                       v.internal_filename
+                FROM video v
+                WHERE v.id=:item_id
+                LIMIT 1
+            """), {"item_id": item_id}).mappings().first()
+
+        if not row:
+            return "Video not found", 404
+
+        if delivery in ["edited", "edit"]:
+            url = make_url(row.get("edited_r2_key"))
+            if url:
+                return redirect(url)
+
+        for key in ["public_url", "file_path", "r2_video_key", "internal_filename"]:
+            url = make_url(row.get(key))
+            if url:
+                return redirect(url)
+
+        return "Video file not found", 404
+    except Exception as e:
+        db.session.rollback()
+        try:
+            print("download-video v49.1I warning:", e)
+        except Exception:
+            pass
+        return "Download error", 500
+

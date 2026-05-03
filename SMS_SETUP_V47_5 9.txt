@@ -1,0 +1,17 @@
+BoatSpotMedia v47.5 SMS setup
+
+Added:
+- Optional SMS helper at app/services/sms.py.
+- Buyer/creator templates receive phone field where matching templates exist.
+- Home page cleanup hides creator/services/charters login links where found.
+
+Twilio variables when ready:
+TWILIO_ACCOUNT_SID=...
+TWILIO_AUTH_TOKEN=...
+TWILIO_FROM_PHONE=+1...
+
+Next safe step:
+Connect SMS helper to:
+1. edited-video-ready notification for buyers
+2. creator approved/login-link notification
+after confirming the exact production DB table names and phone columns.
