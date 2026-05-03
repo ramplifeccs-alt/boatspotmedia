@@ -531,7 +531,7 @@ def _owner_set_status_any_v483(table, row_id, status):
 @owner_bp.route("/login", methods=["GET", "POST"])
 def login():
     if request.method == "POST":
-        return redirect(url_for("owner.applications"))
+        return redirect("/owner/applications")
     return render_template("owner/login.html")
 
 
@@ -541,7 +541,7 @@ def approve_application(app_id):
     repair_all_known_tables(); repair_creator_application_table()
     selected_plan = StoragePlan.query.get(request.form.get("plan_id")) if request.form.get("plan_id") else StoragePlan.query.first()
     row = db.session.execute(text("SELECT * FROM creator_application WHERE id=:id LIMIT 1"), {"id": app_id}).mappings().first()
-    if not row: return redirect(url_for("owner.applications"))
+    if not row: return redirect("/owner/applications")
     email = (row.get("email") or "").lower().strip()
     brand_name = row.get("brand_name") or row.get("instagram") or "Boat Creator"
     user = User.query.filter_by(email=email).first()
@@ -561,29 +561,29 @@ def approve_application(app_id):
     db.session.execute(text("UPDATE creator_application SET status='approved', reviewed_at=CURRENT_TIMESTAMP WHERE id=:id"), {"id": app_id})
     db.session.commit()
     send_email(email, "BoatSpotMedia Creator Approved", "Your creator application was approved. Login at /creator/login. Temporary password: TempCreator123!")
-    return redirect(url_for("owner.applications"))
+    return redirect("/owner/applications")
 
 @owner_bp.route("/applications/<int:app_id>/reject", methods=["POST"])
 def reject_application(app_id):
     repair_creator_application_table()
     db.session.execute(text("UPDATE creator_application SET status='rejected', reviewed_at=CURRENT_TIMESTAMP WHERE id=:id"), {"id": app_id})
     db.session.commit()
-    return redirect(url_for("owner.applications"))
+    return redirect("/owner/applications")
 
 @owner_bp.route("/plans/create", methods=["POST"])
 def create_plan():
     db.session.add(StoragePlan(name=request.form.get("name"), storage_limit_gb=int(request.form.get("storage_limit_gb") or 512), monthly_price=request.form.get("monthly_price") or 0, commission_rate=int(request.form.get("commission_rate") or 20), active=True))
-    db.session.commit(); return redirect(url_for("owner.applications"))
+    db.session.commit(); return redirect("/owner/applications")
 
 @owner_bp.route("/plans/<int:plan_id>/edit", methods=["POST"])
 def edit_plan(plan_id):
     p=StoragePlan.query.get_or_404(plan_id)
     p.name=request.form.get("name") or p.name; p.storage_limit_gb=int(request.form.get("storage_limit_gb") or p.storage_limit_gb); p.monthly_price=request.form.get("monthly_price") or p.monthly_price; p.commission_rate=int(request.form.get("commission_rate") or p.commission_rate)
-    db.session.commit(); return redirect(url_for("owner.applications"))
+    db.session.commit(); return redirect("/owner/applications")
 
 @owner_bp.route("/plans/<int:plan_id>/delete", methods=["POST"])
 def delete_plan(plan_id):
-    p=StoragePlan.query.get_or_404(plan_id); p.active=False; db.session.commit(); return redirect(url_for("owner.applications"))
+    p=StoragePlan.query.get_or_404(plan_id); p.active=False; db.session.commit(); return redirect("/owner/applications")
 
 @owner_bp.route("/creator/<int:creator_id>/override", methods=["POST"])
 def override_commission(creator_id):
@@ -594,7 +594,7 @@ def override_commission(creator_id):
     else:
         old=c.active_commission_rate(); c.commission_override_rate=rate; c.commission_override_until=expires; c.commission_override_reason=reason
     db.session.add(CommissionOverrideLog(creator_id=c.id, commission_type=typ, old_rate=old, new_rate=rate, days=days, reason=reason, expires_at=expires))
-    db.session.commit(); return redirect(url_for("owner.applications"))
+    db.session.commit(); return redirect("/owner/applications")
 
 @owner_bp.route("/creator/<int:creator_id>/override/reset", methods=["POST"])
 def reset_override(creator_id):
@@ -603,7 +603,7 @@ def reset_override(creator_id):
         c.product_commission_override_rate=None; c.product_commission_override_until=None; c.product_commission_override_reason=None
     else:
         c.commission_override_rate=None; c.commission_override_until=None; c.commission_override_reason=None
-    db.session.commit(); return redirect(url_for("owner.applications"))
+    db.session.commit(); return redirect("/owner/applications")
 
 @owner_bp.route("/creators/<int:creator_id>/edit", methods=["POST"])
 def edit_creator(creator_id):
@@ -611,7 +611,7 @@ def edit_creator(creator_id):
     if c.user:
         c.user.display_name=request.form.get("display_name") or c.user.display_name; c.user.email=request.form.get("email") or c.user.email
     c.storage_limit_gb=int(request.form.get("storage_limit_gb") or c.storage_limit_gb); c.commission_rate=int(request.form.get("commission_rate") or c.commission_rate); c.product_commission_rate=int(request.form.get("product_commission_rate") or c.product_commission_rate or 20)
-    db.session.commit(); return redirect(url_for("owner.applications"))
+    db.session.commit(); return redirect("/owner/applications")
 
 @owner_bp.route("/creators/<int:creator_id>/suspend", methods=["POST"])
 def suspend_creator(creator_id):
@@ -622,7 +622,7 @@ def suspend_creator(creator_id):
         if v.status != "deleted": v.status="suspended"
     for p in Product.query.filter_by(creator_id=c.id).all():
         p.active=False
-    db.session.commit(); return redirect(url_for("owner.applications"))
+    db.session.commit(); return redirect("/owner/applications")
 
 @owner_bp.route("/creators/<int:creator_id>/activate", methods=["POST"])
 def activate_creator(creator_id):
@@ -631,7 +631,7 @@ def activate_creator(creator_id):
     if c.user: c.user.is_active=True; c.user.role="creator"
     for v in Video.query.filter_by(creator_id=c.id, status="suspended").all():
         v.status="active"
-    db.session.commit(); return redirect(url_for("owner.applications"))
+    db.session.commit(); return redirect("/owner/applications")
 
 
 
@@ -664,7 +664,7 @@ def reset_creator_password_page(creator_id):
 
         if not c.user:
             flash("Creator user account not found.", "error")
-            return redirect(url_for("owner.applications"))
+            return redirect("/owner/applications")
 
         if hasattr(c.user, "password_hash"):
             c.user.password_hash = generate_password_hash(new_password)
@@ -683,7 +683,7 @@ def reset_creator_password_page(creator_id):
 
         db.session.commit()
         flash("Creator password updated successfully.", "success")
-        return redirect(url_for("owner.applications"))
+        return redirect("/owner/applications")
 
     return render_template("owner/reset_creator_password.html", creator=c)
 
@@ -696,11 +696,11 @@ def reset_creator_password(creator_id):
 
     if len(new_password) < 6:
         flash("Password must be at least 6 characters.", "error")
-        return redirect(url_for("owner.applications"))
+        return redirect("/owner/applications")
 
     if not c.user:
         flash("Creator user account not found.", "error")
-        return redirect(url_for("owner.applications"))
+        return redirect("/owner/applications")
 
     if hasattr(c.user, "password_hash"):
         c.user.password_hash = generate_password_hash(new_password)
@@ -718,7 +718,7 @@ def reset_creator_password(creator_id):
 
     db.session.commit()
     flash("Creator password updated successfully.", "success")
-    return redirect(url_for("owner.applications"))
+    return redirect("/owner/applications")
 
 
 @owner_bp.route("/creators/<int:creator_id>/delete", methods=["POST"])
@@ -756,7 +756,7 @@ def delete_creator(creator_id):
         db.session.rollback()
         print("Delete creator warning:", e)
 
-    return redirect(url_for("owner.applications"))
+    return redirect("/owner/applications")
 
 @owner_bp.route("/repair-db-now")
 def repair_db_now():
@@ -1479,6 +1479,11 @@ def owner_db_debug_v488():
         db.session.rollback()
         return render_template("owner/db_debug.html", tables=[])
 
+
+
+@owner_bp.route("/applications-endpoint-alias", endpoint="applications")
+def applications_endpoint_alias_v489():
+    return redirect("/owner/applications")
 
 @owner_bp.route("/creator-plans", methods=["GET", "POST"])
 def owner_creator_plans_v473():
