@@ -2213,6 +2213,173 @@ def _bsm_update_creator_profile_for_plan_v491l(creator_id, plan_key, storage_gb=
 
 
 # v47.2 Creator billing/subscriptions
+
+# v49.1O final Stripe subscription activation helpers
+def _bsm_creator_plan_lookup_v491o(plan_key):
+    plan_key = (plan_key or "free").strip().lower()
+    try:
+        row = db.session.execute(db.text("""
+            SELECT plan_key, storage_gb, commission_percent, stripe_price_id
+            FROM creator_plan
+            WHERE plan_key=:plan_key
+            LIMIT 1
+        """), {"plan_key": plan_key}).mappings().first()
+        if row:
+            return {
+                "key": plan_key,
+                "storage_gb": float(row.get("storage_gb") or 5),
+                "commission_percent": float(row.get("commission_percent") or 25),
+                "stripe_price_id": (row.get("stripe_price_id") or "").strip(),
+            }
+    except Exception:
+        db.session.rollback()
+    defaults = {
+        "free": {"storage_gb": 5, "commission_percent": 25},
+        "starter": {"storage_gb": 150, "commission_percent": 25},
+        "pro": {"storage_gb": 512, "commission_percent": 22},
+        "studio": {"storage_gb": 2048, "commission_percent": 17},
+    }
+    d = defaults.get(plan_key, defaults["free"])
+    return {"key": plan_key, "storage_gb": d["storage_gb"], "commission_percent": d["commission_percent"], "stripe_price_id": _bsm_env_price_for_plan_v491l(plan_key) if "_bsm_env_price_for_plan_v491l" in globals() else ""}
+
+def _bsm_apply_creator_subscription_v491o(creator_id, plan_key, status="active", stripe_customer_id=None, stripe_subscription_id=None, current_period_end=None, storage_limit_gb=None, commission_percent=None):
+    creator_id = int(creator_id or 0)
+    if creator_id <= 0:
+        return False
+
+    plan_key = (plan_key or "free").strip().lower()
+    plan = _bsm_creator_plan_lookup_v491o(plan_key)
+    storage_limit_gb = float(storage_limit_gb or plan.get("storage_gb") or 5)
+    commission_percent = float(commission_percent or plan.get("commission_percent") or 25)
+
+    try:
+        db.session.execute(db.text("""
+            CREATE TABLE IF NOT EXISTS creator_subscription (
+                id SERIAL PRIMARY KEY,
+                creator_id INTEGER UNIQUE,
+                plan_key TEXT,
+                status TEXT,
+                storage_limit_gb NUMERIC DEFAULT 5,
+                stripe_customer_id TEXT,
+                stripe_subscription_id TEXT,
+                current_period_end TIMESTAMP,
+                cancel_at_period_end BOOLEAN DEFAULT false,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            )
+        """))
+        db.session.execute(db.text("ALTER TABLE creator_subscription ADD COLUMN IF NOT EXISTS storage_limit_gb NUMERIC DEFAULT 5"))
+        db.session.execute(db.text("ALTER TABLE creator_subscription ADD COLUMN IF NOT EXISTS stripe_customer_id TEXT"))
+        db.session.execute(db.text("ALTER TABLE creator_subscription ADD COLUMN IF NOT EXISTS stripe_subscription_id TEXT"))
+        db.session.execute(db.text("ALTER TABLE creator_subscription ADD COLUMN IF NOT EXISTS current_period_end TIMESTAMP"))
+        db.session.execute(db.text("ALTER TABLE creator_subscription ADD COLUMN IF NOT EXISTS cancel_at_period_end BOOLEAN DEFAULT false"))
+        db.session.execute(db.text("ALTER TABLE creator_subscription ADD COLUMN IF NOT EXISTS updated_at TIMESTAMP"))
+
+        period_sql = None
+        if current_period_end:
+            try:
+                period_sql = int(current_period_end)
+            except Exception:
+                period_sql = None
+
+        db.session.execute(db.text("""
+            INSERT INTO creator_subscription
+                (creator_id, plan_key, status, storage_limit_gb, stripe_customer_id, stripe_subscription_id, current_period_end, updated_at)
+            VALUES
+                (:creator_id, :plan_key, :status, :storage_limit_gb, :stripe_customer_id, :stripe_subscription_id,
+                 CASE WHEN :period_epoch IS NULL THEN NULL ELSE to_timestamp(:period_epoch) END, CURRENT_TIMESTAMP)
+            ON CONFLICT (creator_id) DO UPDATE SET
+                plan_key=EXCLUDED.plan_key,
+                status=EXCLUDED.status,
+                storage_limit_gb=EXCLUDED.storage_limit_gb,
+                stripe_customer_id=COALESCE(EXCLUDED.stripe_customer_id, creator_subscription.stripe_customer_id),
+                stripe_subscription_id=COALESCE(EXCLUDED.stripe_subscription_id, creator_subscription.stripe_subscription_id),
+                current_period_end=COALESCE(EXCLUDED.current_period_end, creator_subscription.current_period_end),
+                updated_at=CURRENT_TIMESTAMP
+        """), {
+            "creator_id": creator_id,
+            "plan_key": plan_key,
+            "status": status or "active",
+            "storage_limit_gb": storage_limit_gb,
+            "stripe_customer_id": stripe_customer_id,
+            "stripe_subscription_id": stripe_subscription_id,
+            "period_epoch": period_sql,
+        })
+
+        db.session.execute(db.text("""
+            UPDATE creator_profile
+            SET storage_limit_gb=:storage_limit_gb,
+                commission_rate=:commission_percent
+            WHERE id=:creator_id
+        """), {
+            "creator_id": creator_id,
+            "storage_limit_gb": storage_limit_gb,
+            "commission_percent": commission_percent,
+        })
+        db.session.commit()
+        return True
+    except Exception as e:
+        db.session.rollback()
+        try:
+            print("creator subscription apply v49.1O warning:", e)
+        except Exception:
+            pass
+        return False
+
+def _bsm_creator_subscription_from_checkout_session_v491o(session_id):
+    try:
+        import stripe
+        stripe.api_key = os.environ.get("STRIPE_SECRET_KEY")
+        if not stripe.api_key or not session_id:
+            return False
+
+        checkout = stripe.checkout.Session.retrieve(session_id, expand=["subscription"])
+        md = getattr(checkout, "metadata", None) or {}
+        if hasattr(md, "to_dict"):
+            md = md.to_dict()
+
+        subscription = getattr(checkout, "subscription", None)
+        subscription_id = None
+        current_period_end = None
+        sub_metadata = {}
+        if subscription:
+            if isinstance(subscription, str):
+                subscription_id = subscription
+                subscription_obj = stripe.Subscription.retrieve(subscription)
+            else:
+                subscription_obj = subscription
+                subscription_id = getattr(subscription_obj, "id", None)
+            current_period_end = getattr(subscription_obj, "current_period_end", None)
+            sub_metadata = getattr(subscription_obj, "metadata", None) or {}
+            if hasattr(sub_metadata, "to_dict"):
+                sub_metadata = sub_metadata.to_dict()
+
+        final_md = {}
+        final_md.update(sub_metadata or {})
+        final_md.update(md or {})
+
+        if final_md.get("billing_type") != "creator_subscription":
+            return False
+
+        return _bsm_apply_creator_subscription_v491o(
+            creator_id=final_md.get("creator_id") or getattr(checkout, "client_reference_id", None),
+            plan_key=final_md.get("plan_key") or "free",
+            status="active",
+            stripe_customer_id=getattr(checkout, "customer", None),
+            stripe_subscription_id=subscription_id or getattr(checkout, "subscription", None),
+            current_period_end=current_period_end,
+            storage_limit_gb=final_md.get("storage_limit_gb"),
+            commission_percent=final_md.get("commission_percent"),
+        )
+    except Exception as e:
+        db.session.rollback()
+        try:
+            print("checkout session confirm v49.1O warning:", e)
+        except Exception:
+            pass
+        return False
+
+
 def _bsm_creator_plans_v472():
     """
     Creator plans are owner-editable from creator_plan table.
@@ -2382,6 +2549,11 @@ def _creator_clear_bad_session_v491():
 def creator_billing_v472():
     c=current_creator()
     if not c: return redirect("/creator/login")
+    if request.args.get("subscription") == "success" and request.args.get("session_id"):
+        if _bsm_creator_subscription_from_checkout_session_v491o(request.args.get("session_id")):
+            flash("Subscription activated.")
+        else:
+            flash("Payment received. If the plan does not update, replay the Stripe webhook event.")
     sub=_bsm_get_creator_subscription_v472(c.id)
     used=0
     try: used=_creator_used_storage_bytes(c.id)
@@ -2394,29 +2566,17 @@ def creator_billing_checkout_v472(plan_key):
     if not c:
         return redirect("/creator/login")
 
-    plan = next((p for p in _bsm_creator_plans_v472() if p["key"] == plan_key), None)
+    plan_key = (plan_key or "").strip().lower()
+    plan = next((p for p in _bsm_creator_plans_v472() if p["key"] == plan_key), None) or _bsm_creator_plan_lookup_v491o(plan_key)
     if not plan:
         flash("Invalid plan.")
         return redirect("/creator/billing")
 
-    # Free plan: no Stripe checkout. Use 5 GB and free commission.
+    plan_storage = float(plan.get("storage_gb") or 5)
+    plan_commission = float(plan.get("commission_percent") or 25)
+
     if plan_key == "free":
-        free_storage = plan.get("storage_gb") or 5
-        free_commission = plan.get("commission_percent") or 25
-        _bsm_get_creator_subscription_v472(c.id)
-        try:
-            db.session.execute(db.text("""
-                UPDATE creator_subscription
-                SET plan_key='free',
-                    status='active',
-                    storage_limit_gb=:gb,
-                    updated_at=CURRENT_TIMESTAMP
-                WHERE creator_id=:cid
-            """), {"cid": c.id, "gb": free_storage})
-            db.session.commit()
-        except Exception:
-            db.session.rollback()
-        _bsm_update_creator_profile_for_plan_v491l(c.id, "free", free_storage, free_commission)
+        _bsm_apply_creator_subscription_v491o(c.id, "free", "active", storage_limit_gb=5, commission_percent=25)
         flash("Free plan activated.")
         return redirect("/creator/billing")
 
@@ -2434,6 +2594,15 @@ def creator_billing_checkout_v472(plan_key):
 
         base = _bsm_public_base_url_v491l()
         sub = _bsm_get_creator_subscription_v472(c.id)
+        creator_email = _bsm_creator_email_v491m(c.id) if "_bsm_creator_email_v491m" in globals() else None
+
+        metadata = {
+            "billing_type": "creator_subscription",
+            "creator_id": str(c.id),
+            "plan_key": plan_key,
+            "storage_limit_gb": str(plan_storage),
+            "commission_percent": str(plan_commission),
+        }
 
         checkout = stripe.checkout.Session.create(
             mode="subscription",
@@ -2441,35 +2610,22 @@ def creator_billing_checkout_v472(plan_key):
             success_url=base + "/creator/billing?subscription=success&session_id={CHECKOUT_SESSION_ID}",
             cancel_url=base + "/creator/billing?subscription=cancelled",
             customer=sub.get("stripe_customer_id") or None,
-            customer_email=None if sub.get("stripe_customer_id") else (_bsm_creator_email_v491m(c.id) or getattr(c, "email", None)),
+            customer_email=None if sub.get("stripe_customer_id") else (creator_email or getattr(c, "email", None)),
             client_reference_id=str(c.id),
-            metadata={
-                "billing_type": "creator_subscription",
-                "creator_id": str(c.id),
-                "plan_key": plan_key,
-                "storage_limit_gb": str(plan.get("storage_gb") or 5),
-                "commission_percent": str(plan.get("commission_percent") or 25),
-            },
-            subscription_data={
-                "metadata": {
-                    "billing_type": "creator_subscription",
-                    "creator_id": str(c.id),
-                    "plan_key": plan_key,
-                    "storage_limit_gb": str(plan.get("storage_gb") or 5),
-                    "commission_percent": str(plan.get("commission_percent") or 25),
-                }
-            },
+            metadata=metadata,
+            subscription_data={"metadata": metadata},
             allow_promotion_codes=True,
         )
         return redirect(checkout.url, code=303)
     except Exception as e:
         db.session.rollback()
         try:
-            print("creator billing checkout warning v49.1L:", e)
+            print("creator billing checkout warning v49.1O:", e)
         except Exception:
             pass
         flash("Stripe checkout failed. Check Stripe keys and Price IDs.")
         return redirect("/creator/billing")
+
 
 
 @creator_bp.route("/billing/connect-stripe", methods=["POST"], endpoint="billing_connect_stripe_v491l")

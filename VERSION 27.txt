@@ -1,0 +1,9 @@
+BoatSpotMedia v49.1M Billing Buttons + Visible Errors Fix
+Base: v49.1L.
+Only Billing changes:
+- Creator plan checkout route accepts GET and POST.
+- Plan buttons are direct clickable links to Stripe Checkout route.
+- Billing page shows flash errors/messages.
+- Removed unreachable old duplicate checkout code block.
+- Uses creator email from user table for Stripe Checkout.
+Does not touch My Orders, downloads, upload, batches, Google, Apple, buyer login, creator login, or video purchase checkout.

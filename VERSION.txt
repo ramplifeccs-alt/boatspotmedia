@@ -1,9 +1,9 @@
-BoatSpotMedia v49.1N Webhook + Buyer Creator Name
-Base: v49.1M if available.
-Changes only:
-- Stripe webhook endpoint supports both /stripe/webhook and /webhooks/stripe.
-- Webhook robustly activates creator subscriptions on checkout.session.completed and customer.subscription.updated.
+BoatSpotMedia v49.1O Stripe Subscription Activation Final
+Base: v49.1N.
+Changes only Billing/Stripe:
+- Stripe Checkout sends metadata in BOTH checkout.session.metadata and subscription_data.metadata.
+- Return URL confirms session and activates plan even if webhook is delayed.
+- Webhook handles checkout.session.completed, customer.subscription.created/updated/deleted.
 - Updates creator_subscription and creator_profile.storage_limit_gb / commission_rate.
-- Adds creator name field to buyer order item query where possible.
-- Adds CSS for buyer creator name.
-Does not touch upload, downloads, My Orders structure, batches, Google, Apple, buyer login, creator login, or video purchase checkout.
+- Supports both /stripe/webhook and /webhooks/stripe.
+Does not touch upload, downloads, My Orders, batches, Google, Apple, buyer login, creator login, video purchase checkout, or R2.

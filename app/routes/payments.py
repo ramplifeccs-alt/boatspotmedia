@@ -863,6 +863,151 @@ def _bsm_handle_creator_subscription_event_v491n(event):
     return False
 
 
+
+# v49.1O robust creator subscription webhook handler.
+def _bsm_creator_plan_lookup_v491o_payments(plan_key):
+    plan_key = (plan_key or "free").strip().lower()
+    try:
+        row = db.session.execute(db.text("""
+            SELECT plan_key, storage_gb, commission_percent
+            FROM creator_plan
+            WHERE plan_key=:plan_key
+            LIMIT 1
+        """), {"plan_key": plan_key}).mappings().first()
+        if row:
+            return float(row.get("storage_gb") or 5), float(row.get("commission_percent") or 25)
+    except Exception:
+        db.session.rollback()
+    defaults = {
+        "free": (5,25),
+        "starter": (150,25),
+        "pro": (512,22),
+        "studio": (2048,17),
+    }
+    return defaults.get(plan_key, defaults["free"])
+
+def _bsm_apply_creator_subscription_v491o_payments(creator_id, plan_key, status="active", stripe_customer_id=None, stripe_subscription_id=None, current_period_end=None, storage_limit_gb=None, commission_percent=None):
+    creator_id = int(creator_id or 0)
+    if creator_id <= 0:
+        return False
+    plan_key = (plan_key or "free").strip().lower()
+    plan_gb, plan_commission = _bsm_creator_plan_lookup_v491o_payments(plan_key)
+    storage_limit_gb = float(storage_limit_gb or plan_gb or 5)
+    commission_percent = float(commission_percent or plan_commission or 25)
+    try:
+        db.session.execute(db.text("""
+            CREATE TABLE IF NOT EXISTS creator_subscription (
+                id SERIAL PRIMARY KEY,
+                creator_id INTEGER UNIQUE,
+                plan_key TEXT,
+                status TEXT,
+                storage_limit_gb NUMERIC DEFAULT 5,
+                stripe_customer_id TEXT,
+                stripe_subscription_id TEXT,
+                current_period_end TIMESTAMP,
+                cancel_at_period_end BOOLEAN DEFAULT false,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            )
+        """))
+        db.session.execute(db.text("ALTER TABLE creator_subscription ADD COLUMN IF NOT EXISTS storage_limit_gb NUMERIC DEFAULT 5"))
+        db.session.execute(db.text("ALTER TABLE creator_subscription ADD COLUMN IF NOT EXISTS stripe_customer_id TEXT"))
+        db.session.execute(db.text("ALTER TABLE creator_subscription ADD COLUMN IF NOT EXISTS stripe_subscription_id TEXT"))
+        db.session.execute(db.text("ALTER TABLE creator_subscription ADD COLUMN IF NOT EXISTS current_period_end TIMESTAMP"))
+        db.session.execute(db.text("ALTER TABLE creator_subscription ADD COLUMN IF NOT EXISTS updated_at TIMESTAMP"))
+
+        try:
+            period_epoch = int(current_period_end) if current_period_end else None
+        except Exception:
+            period_epoch = None
+
+        db.session.execute(db.text("""
+            INSERT INTO creator_subscription
+                (creator_id, plan_key, status, storage_limit_gb, stripe_customer_id, stripe_subscription_id, current_period_end, updated_at)
+            VALUES
+                (:creator_id, :plan_key, :status, :storage_limit_gb, :stripe_customer_id, :stripe_subscription_id,
+                 CASE WHEN :period_epoch IS NULL THEN NULL ELSE to_timestamp(:period_epoch) END, CURRENT_TIMESTAMP)
+            ON CONFLICT (creator_id) DO UPDATE SET
+                plan_key=EXCLUDED.plan_key,
+                status=EXCLUDED.status,
+                storage_limit_gb=EXCLUDED.storage_limit_gb,
+                stripe_customer_id=COALESCE(EXCLUDED.stripe_customer_id, creator_subscription.stripe_customer_id),
+                stripe_subscription_id=COALESCE(EXCLUDED.stripe_subscription_id, creator_subscription.stripe_subscription_id),
+                current_period_end=COALESCE(EXCLUDED.current_period_end, creator_subscription.current_period_end),
+                updated_at=CURRENT_TIMESTAMP
+        """), {
+            "creator_id": creator_id,
+            "plan_key": plan_key,
+            "status": status or "active",
+            "storage_limit_gb": storage_limit_gb,
+            "stripe_customer_id": stripe_customer_id,
+            "stripe_subscription_id": stripe_subscription_id,
+            "period_epoch": period_epoch,
+        })
+        db.session.execute(db.text("""
+            UPDATE creator_profile
+            SET storage_limit_gb=:storage_limit_gb,
+                commission_rate=:commission_percent
+            WHERE id=:creator_id
+        """), {"creator_id": creator_id, "storage_limit_gb": storage_limit_gb, "commission_percent": commission_percent})
+        db.session.commit()
+        return True
+    except Exception as e:
+        db.session.rollback()
+        try:
+            print("creator subscription webhook apply v49.1O warning:", e)
+        except Exception:
+            pass
+        return False
+
+def _bsm_handle_creator_subscription_event_v491o_payments(event):
+    typ = event.get("type")
+    obj = (event.get("data") or {}).get("object") or {}
+    md = obj.get("metadata") or {}
+
+    if typ == "checkout.session.completed" and obj.get("mode") == "subscription":
+        if md.get("billing_type") == "creator_subscription":
+            return _bsm_apply_creator_subscription_v491o_payments(
+                creator_id=md.get("creator_id") or obj.get("client_reference_id"),
+                plan_key=md.get("plan_key") or "free",
+                status="active",
+                stripe_customer_id=obj.get("customer"),
+                stripe_subscription_id=obj.get("subscription"),
+                current_period_end=None,
+                storage_limit_gb=md.get("storage_limit_gb"),
+                commission_percent=md.get("commission_percent"),
+            )
+
+    if typ in ("customer.subscription.created", "customer.subscription.updated"):
+        if md.get("billing_type") == "creator_subscription":
+            stripe_status = obj.get("status") or "active"
+            status = "active" if stripe_status in ("active", "trialing") else stripe_status
+            return _bsm_apply_creator_subscription_v491o_payments(
+                creator_id=md.get("creator_id"),
+                plan_key=md.get("plan_key") or "free",
+                status=status,
+                stripe_customer_id=obj.get("customer"),
+                stripe_subscription_id=obj.get("id"),
+                current_period_end=obj.get("current_period_end"),
+                storage_limit_gb=md.get("storage_limit_gb"),
+                commission_percent=md.get("commission_percent"),
+            )
+
+    if typ == "customer.subscription.deleted":
+        if md.get("creator_id"):
+            return _bsm_apply_creator_subscription_v491o_payments(
+                creator_id=md.get("creator_id"),
+                plan_key="free",
+                status="active",
+                stripe_customer_id=obj.get("customer"),
+                stripe_subscription_id=obj.get("id"),
+                current_period_end=obj.get("current_period_end"),
+                storage_limit_gb=5,
+                commission_percent=25,
+            )
+    return False
+
+
 @payments_bp.route("/stripe/webhook", methods=["POST"])
 @payments_bp.route("/webhooks/stripe", methods=["POST"])
 def stripe_webhook():
