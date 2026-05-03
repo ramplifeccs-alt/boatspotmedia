@@ -2098,3 +2098,8 @@ body.creator-dashboard-v449 main{
 
 /* v48.0 owner applications + home login fix */
 .owner-actions-v478 form{display:inline-flex}
+
+/* v48.1 owner lists + plan commission */
+.owner-plan-table-v474{
+  grid-template-columns:1.3fr .8fr .7fr .8fr .7fr .8fr .6fr;
+}

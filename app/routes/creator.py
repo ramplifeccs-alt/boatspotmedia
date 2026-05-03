@@ -2139,10 +2139,10 @@ def _bsm_creator_plans_v472():
     """
     import os
     defaults = [
-        {"key":"free","name":"Free","price_label":"$0/mo","storage_gb":int(os.environ.get("CREATOR_FREE_STORAGE_GB","5")),"price_id":"","description":"Basic creator testing plan.","sort_order":0,"is_active":True},
-        {"key":"starter","name":"Starter","price_label":os.environ.get("CREATOR_STARTER_PRICE_LABEL","$19/mo"),"storage_gb":int(os.environ.get("CREATOR_STARTER_STORAGE_GB","100")),"price_id":os.environ.get("STRIPE_PRICE_CREATOR_STARTER",""),"description":"Good for small creators starting to sell clips.","sort_order":10,"is_active":True},
-        {"key":"pro","name":"Pro","price_label":os.environ.get("CREATOR_PRO_PRICE_LABEL","$49/mo"),"storage_gb":int(os.environ.get("CREATOR_PRO_STORAGE_GB","512")),"price_id":os.environ.get("STRIPE_PRICE_CREATOR_PRO",""),"description":"Recommended plan for active boat videographers.","sort_order":20,"is_active":True},
-        {"key":"studio","name":"Studio","price_label":os.environ.get("CREATOR_STUDIO_PRICE_LABEL","$149/mo"),"storage_gb":int(os.environ.get("CREATOR_STUDIO_STORAGE_GB","2048")),"price_id":os.environ.get("STRIPE_PRICE_CREATOR_STUDIO",""),"description":"High-volume plan for studios and multi-location creators.","sort_order":30,"is_active":True},
+        {"key":"free","name":"Free","price_label":"$0/mo","storage_gb":int(os.environ.get("CREATOR_FREE_STORAGE_GB","5")),"price_id":"","description":"Basic creator testing plan.","sort_order":0,"is_active":True,"commission_percent":20},
+        {"key":"starter","name":"Starter","price_label":os.environ.get("CREATOR_STARTER_PRICE_LABEL","$19/mo"),"storage_gb":int(os.environ.get("CREATOR_STARTER_STORAGE_GB","100")),"price_id":os.environ.get("STRIPE_PRICE_CREATOR_STARTER",""),"description":"Good for small creators starting to sell clips.","sort_order":10,"is_active":True,"commission_percent":18},
+        {"key":"pro","name":"Pro","price_label":os.environ.get("CREATOR_PRO_PRICE_LABEL","$49/mo"),"storage_gb":int(os.environ.get("CREATOR_PRO_STORAGE_GB","512")),"price_id":os.environ.get("STRIPE_PRICE_CREATOR_PRO",""),"description":"Recommended plan for active boat videographers.","sort_order":20,"is_active":True,"commission_percent":15},
+        {"key":"studio","name":"Studio","price_label":os.environ.get("CREATOR_STUDIO_PRICE_LABEL","$149/mo"),"storage_gb":int(os.environ.get("CREATOR_STUDIO_STORAGE_GB","2048")),"price_id":os.environ.get("STRIPE_PRICE_CREATOR_STUDIO",""),"description":"High-volume plan for studios and multi-location creators.","sort_order":30,"is_active":True,"commission_percent":12},
     ]
 
     try:
@@ -2157,10 +2157,13 @@ def _bsm_creator_plans_v472():
                 stripe_price_id TEXT,
                 is_active BOOLEAN DEFAULT TRUE,
                 sort_order INTEGER DEFAULT 0,
+                commission_percent NUMERIC DEFAULT 20,
                 created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
                 updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
             )
         """))
+        db.session.commit()
+        db.session.execute(db.text("ALTER TABLE creator_plan ADD COLUMN IF NOT EXISTS commission_percent NUMERIC DEFAULT 20"))
         db.session.commit()
     except Exception:
         db.session.rollback()
@@ -2183,7 +2186,7 @@ def _bsm_creator_plans_v472():
 
     try:
         rows = db.session.execute(db.text("""
-            SELECT plan_key, name, price_label, description, storage_gb, stripe_price_id, is_active, sort_order
+            SELECT plan_key, name, price_label, description, storage_gb, stripe_price_id, is_active, sort_order, commission_percent
             FROM creator_plan
             WHERE is_active = TRUE OR plan_key='free'
             ORDER BY sort_order ASC, id ASC
@@ -2200,6 +2203,7 @@ def _bsm_creator_plans_v472():
                 "description": r.get("description") or "",
                 "is_active": bool(r.get("is_active")),
                 "sort_order": int(r.get("sort_order") or 0),
+                "commission_percent": float(r.get("commission_percent") or 0),
             })
         return plans or defaults
     except Exception:

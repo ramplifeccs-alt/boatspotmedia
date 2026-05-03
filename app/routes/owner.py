@@ -301,6 +301,57 @@ def _owner_storage_original_filter_v479(video_table):
     return ("WHERE " + " AND ".join(filters)) if filters else ""
 
 
+
+# v48.1 robust owner display helpers + plan commission
+def _owner_norm_value_v481(row, keys):
+    for k in keys:
+        try:
+            v = row.get(k)
+        except Exception:
+            v = None
+        if v not in [None, ""]:
+            return v
+    return ""
+
+def _owner_normalize_rows_v481(rows, kind=""):
+    out = []
+    seen = set()
+    for r in rows or []:
+        d = dict(r)
+        email = str(_owner_norm_value_v481(d, ["email", "display_email", "buyer_email", "user_email"]) or "").strip().lower()
+        # skip duplicate emails but don't skip blank emails
+        if email:
+            if email in seen:
+                continue
+            seen.add(email)
+        display_name = _owner_norm_value_v481(d, [
+            "display_name", "name", "full_name", "brand", "brand_name", "company_name", "username",
+            "first_name"
+        ])
+        if not display_name:
+            first = d.get("first_name") or ""
+            last = d.get("last_name") or ""
+            display_name = (first + " " + last).strip()
+        if not display_name:
+            display_name = f"{kind.title()} #{d.get('id','')}".strip()
+
+        d["display_name"] = display_name
+        d["display_email"] = _owner_norm_value_v481(d, ["display_email", "email", "buyer_email", "user_email"])
+        d["display_phone"] = _owner_norm_value_v481(d, ["display_phone", "phone", "phone_number", "mobile"])
+        d["display_social"] = _owner_norm_value_v481(d, ["display_social", "instagram", "instagram_handle", "social_handle", "tiktok", "youtube"])
+        d["display_brand"] = _owner_norm_value_v481(d, ["display_brand", "brand", "brand_name", "company_name"])
+        d["display_status"] = _owner_norm_value_v481(d, ["display_status", "status", "account_status"]) or "active"
+        out.append(d)
+    return out
+
+def _owner_ensure_plan_commission_v481():
+    try:
+        db.session.execute(db.text("ALTER TABLE creator_plan ADD COLUMN IF NOT EXISTS commission_percent NUMERIC DEFAULT 20"))
+        db.session.commit()
+    except Exception:
+        db.session.rollback()
+
+
 @owner_bp.route("/login", methods=["GET", "POST"])
 def login():
     if request.method == "POST":
@@ -315,66 +366,20 @@ def owner_panel_v477():
 
 
 
+
 @owner_bp.route("/applications")
 def owner_applications_v479():
-    """
-    Show creator applications cleanly:
-    - one row per email
-    - newest/highest id wins
-    - fallback display fields normalized
-    """
     table = _owner_table_for_v478("application")
     rows = []
     if table:
         cols = _owner_columns_v479(table)
-        name_expr = _owner_name_expr_v479(cols)
-        email_expr = _owner_email_expr_v479(cols)
-        phone_expr = _owner_phone_expr_v479(cols)
-        status_expr = _owner_status_expr_v479(cols)
-        social_expr = _owner_social_expr_v479(cols)
-        brand_expr = "COALESCE(brand,'')" if "brand" in cols else ("COALESCE(brand_name,'')" if "brand_name" in cols else ("COALESCE(company_name,'')" if "company_name" in cols else "''"))
-        email_col = "email" if "email" in cols else None
-        date_order = "created_at DESC," if "created_at" in cols else ""
+        order = "created_at DESC, id DESC" if "created_at" in cols else "id DESC"
         try:
-            if email_col:
-                rows = db.session.execute(db.text(f"""
-                    SELECT *
-                    FROM (
-                        SELECT id,
-                               {name_expr} AS display_name,
-                               {brand_expr} AS display_brand,
-                               {email_expr} AS display_email,
-                               {phone_expr} AS display_phone,
-                               {social_expr} AS display_social,
-                               {status_expr} AS display_status,
-                               ROW_NUMBER() OVER (
-                                   PARTITION BY LOWER(COALESCE({email_col}, ''))
-                                   ORDER BY {date_order} id DESC
-                               ) AS rn,
-                               *
-                        FROM {table}
-                    ) x
-                    WHERE rn = 1
-                    ORDER BY id DESC
-                    LIMIT 300
-                """)).mappings().all()
-            else:
-                rows = db.session.execute(db.text(f"""
-                    SELECT id,
-                           {name_expr} AS display_name,
-                           {brand_expr} AS display_brand,
-                           {email_expr} AS display_email,
-                           {phone_expr} AS display_phone,
-                           {social_expr} AS display_social,
-                           {status_expr} AS display_status,
-                           *
-                    FROM {table}
-                    ORDER BY id DESC
-                    LIMIT 300
-                """)).mappings().all()
+            raw = db.session.execute(db.text(f"SELECT * FROM {table} ORDER BY {order} LIMIT 300")).mappings().all()
+            rows = _owner_normalize_rows_v481(raw, "application")
         except Exception as e:
             db.session.rollback()
-            try: print("owner applications v48.0 warning:", e)
+            try: print("owner applications v48.1 warning:", e)
             except Exception: pass
     return render_template("owner/applications.html", applications=rows)
 
@@ -627,6 +632,7 @@ def _owner_ensure_creator_plan_table_v473():
                 stripe_price_id TEXT,
                 is_active BOOLEAN DEFAULT TRUE,
                 sort_order INTEGER DEFAULT 0,
+                commission_percent NUMERIC DEFAULT 20,
                 created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
                 updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
             )
@@ -638,23 +644,24 @@ def _owner_ensure_creator_plan_table_v473():
 @owner_bp.route("/creator-plans", methods=["GET", "POST"])
 def owner_creator_plans_v473():
     _owner_ensure_creator_plan_table_v473()
+    _owner_ensure_plan_commission_v481()
 
     def seed_defaults():
         defaults = [
-            ("free","Free","$0/mo","Basic creator testing plan.",5,"",True,0),
-            ("starter","Starter","$19/mo","Good for small creators starting to sell clips.",100,"",True,10),
-            ("pro","Pro","$49/mo","Recommended plan for active boat videographers.",512,"",True,20),
-            ("studio","Studio","$149/mo","High-volume plan for studios and multi-location creators.",2048,"",True,30),
+            ("free","Free","$0/mo","Basic creator testing plan.",5,"",True,0,20),
+            ("starter","Starter","$19/mo","Good for small creators starting to sell clips.",100,"",True,10,18),
+            ("pro","Pro","$49/mo","Recommended plan for active boat videographers.",512,"",True,20,15),
+            ("studio","Studio","$149/mo","High-volume plan for studios and multi-location creators.",2048,"",True,30,12),
         ]
         for p in defaults:
             db.session.execute(db.text("""
                 INSERT INTO creator_plan
-                (plan_key, name, price_label, description, storage_gb, stripe_price_id, is_active, sort_order)
-                VALUES (:plan_key,:name,:price_label,:description,:storage_gb,:stripe_price_id,:is_active,:sort_order)
+                (plan_key, name, price_label, description, storage_gb, stripe_price_id, is_active, sort_order, commission_percent)
+                VALUES (:plan_key,:name,:price_label,:description,:storage_gb,:stripe_price_id,:is_active,:sort_order,:commission_percent)
                 ON CONFLICT (plan_key) DO NOTHING
             """), {
                 "plan_key":p[0],"name":p[1],"price_label":p[2],"description":p[3],
-                "storage_gb":p[4],"stripe_price_id":p[5],"is_active":p[6],"sort_order":p[7]
+                "storage_gb":p[4],"stripe_price_id":p[5],"is_active":p[6],"sort_order":p[7], "commission_percent":p[8] if len(p)>8 else 20
             })
 
     # Make sure first visit has default plans.
@@ -674,6 +681,7 @@ def owner_creator_plans_v473():
         stripe_price_id = (request.form.get("stripe_price_id") or "").strip()
         storage_gb = int(float(request.form.get("storage_gb") or 0))
         sort_order = int(float(request.form.get("sort_order") or 0))
+        commission_percent = float(request.form.get("commission_percent") or 0)
         is_active = bool(request.form.get("is_active"))
 
         if not plan_key or not name:
@@ -691,6 +699,7 @@ def owner_creator_plans_v473():
                     description=EXCLUDED.description,
                     storage_gb=EXCLUDED.storage_gb,
                     stripe_price_id=EXCLUDED.stripe_price_id,
+                    commission_percent=EXCLUDED.commission_percent,
                     is_active=EXCLUDED.is_active,
                     sort_order=EXCLUDED.sort_order,
                     updated_at=CURRENT_TIMESTAMP
@@ -701,6 +710,7 @@ def owner_creator_plans_v473():
                 "description":description,
                 "storage_gb":storage_gb,
                 "stripe_price_id":stripe_price_id,
+                "commission_percent":commission_percent,
                 "is_active":is_active,
                 "sort_order":sort_order,
             })

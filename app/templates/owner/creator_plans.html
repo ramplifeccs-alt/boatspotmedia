@@ -44,6 +44,7 @@
         <h2>Quick explanation</h2>
         <p><strong>Stripe Price ID</strong> is the subscription price from Stripe, like <code>price_123...</code>. Create it in Stripe Products, then paste it here.</p>
         <p><strong>Sort Order</strong> controls display order. Smaller numbers appear first. Example: Free = 0, Starter = 10, Pro = 20.</p>
+        <p><strong>Commission Percent</strong> is the percentage BoatSpotMedia keeps from each sale under that creator plan.</p>
       </section>
 
       {% if edit_plan %}
@@ -84,6 +85,11 @@
               <input name="sort_order" type="number" step="1" value="{{ edit_plan.sort_order or 0 }}">
             </label>
 
+            <label>Commission Percent
+              <input name="commission_percent" type="number" step="0.01" value="{{ edit_plan.commission_percent or 0 }}">
+              <small>Example: 15 means BoatSpotMedia keeps 15% of each sale.</small>
+            </label>
+
             <label class="full">Description
               <textarea name="description" rows="4">{{ edit_plan.description or '' }}</textarea>
             </label>
@@ -112,6 +118,7 @@
             <div class="head">Plan</div>
             <div class="head">Price</div>
             <div class="head">Storage</div>
+            <div class="head">Commission</div>
             <div class="head">Status</div>
             <div class="head">Stripe</div>
             <div class="head">Action</div>
@@ -123,6 +130,7 @@
               </div>
               <div>{{ p.price_label }}</div>
               <div>{{ p.storage_gb }} GB</div>
+              <div>{{ p.commission_percent or 0 }}%</div>
               <div>{% if p.is_active %}<span class="pill ok">Active</span>{% else %}<span class="pill off">Inactive</span>{% endif %}</div>
               <div>{% if p.stripe_price_id %}<span class="pill ok">Configured</span>{% else %}<span class="pill warn">Missing</span>{% endif %}</div>
               <div><a class="edit-btn" href="/owner/creator-plans?edit={{ p.plan_key }}">Edit</a></div>
