@@ -23,7 +23,7 @@
     {% with messages = get_flashed_messages() %}{% if messages %}<div class="owner-flash-v474">{% for msg in messages %}<div>{{ msg }}</div>{% endfor %}</div>{% endif %}{% endwith %}
     <div class="owner-content-v475 owner-table-wrap-v476">
       <table class="owner-table-v476">
-        <thead><tr><th>ID</th><th>Name/Brand</th><th>Email</th><th>Phone</th><th>Social</th><th>Status</th><th>Actions</th></tr></thead>
+        <thead><tr><th>ID</th><th>Name</th><th>Email</th><th>Phone</th><th>Brand/Location</th><th>Social</th><th>Status</th><th>Actions</th></tr></thead>
         <tbody>
         {% for r in rows %}
           <tr>
@@ -34,6 +34,7 @@
             </td>
             <td>{{ r.display_email }}</td>
             <td>{{ r.display_phone }}</td>
+            <td>{{ r.display_brand }}</td>
             <td>{{ r.display_social }}</td>
             <td>{{ r.display_status }}</td>
             <td class="owner-actions-v478">
@@ -48,7 +49,7 @@
             </td>
           </tr>
         {% else %}
-          <tr><td colspan="7">No records found. Open <a href="/owner/db-debug">DB Debug</a> to verify the real table.</td></tr>
+          <tr><td colspan="8">No records found. Open <a href="/owner/db-debug">DB Debug</a> to verify the real table.</td></tr>
         {% endfor %}
         </tbody>
       </table>

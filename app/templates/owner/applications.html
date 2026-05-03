@@ -18,7 +18,7 @@
   <main class="owner-main-v475">
     <div class="owner-card-v475">
       <h1>Creator Applications</h1>
-      <p>Source table: <strong>{{ table_name or "not found" }}</strong>. This page now shows the current creator/application source.</p>
+      <p>Source table: <strong>{{ table_name or "not found" }}</strong>. This page uses the real creator_application table.</p>
     </div>
     {% with messages = get_flashed_messages() %}{% if messages %}<div class="owner-flash-v474">{% for msg in messages %}<div>{{ msg }}</div>{% endfor %}</div>{% endif %}{% endwith %}
     <div class="owner-content-v475 owner-table-wrap-v476">

@@ -1,0 +1,10 @@
+BoatSpotMedia v48.1 Owner Lists + Plan Commission Fix
+Base: v48.0.
+Fixes:
+- Creator Applications no longer depends on fragile SQL aliases; normalizes rows in Python.
+- Creators show real available fields instead of blank.
+- Buyers supports users table fallback and normalizes real fields.
+Adds:
+- creator_plan.commission_percent.
+- Owner can edit commission percent per creator plan.
+- Creator billing can display platform commission percentage.

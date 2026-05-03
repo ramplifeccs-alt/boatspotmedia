@@ -413,20 +413,34 @@ def _owner_display_from_row_v482(row):
             if v not in [None, ""]:
                 return v
         return ""
-    name = first(["name","full_name","display_name","brand","brand_name","company_name","username"])
+
+    name = first([
+        "display_name", "public_name", "name", "full_name", "brand", "brand_name",
+        "company_name", "username"
+    ])
     if not name:
         name = ((row.get("first_name") or "") + " " + (row.get("last_name") or "")).strip()
     if not name:
         name = "Record #" + str(row.get("id",""))
+
+    status = first(["display_status", "status", "account_status"])
+    if not status and "approved" in row:
+        status = "approved" if row.get("approved") else "pending"
+    if not status and "is_active" in row:
+        status = "active" if row.get("is_active") else "inactive"
+    if not status:
+        status = "active"
+
     return {
         "id": row.get("id",""),
         "name": name,
-        "email": first(["email","user_email","buyer_email","display_email"]),
-        "phone": first(["phone","phone_number","mobile","display_phone"]),
-        "brand": first(["brand","brand_name","company_name","display_brand"]),
-        "social": first(["instagram","instagram_handle","social_handle","tiktok","youtube","display_social"]),
-        "status": first(["status","account_status","display_status"]) or "active",
+        "email": first(["display_email", "email", "user_email", "buyer_email"]),
+        "phone": first(["display_phone", "phone", "phone_number", "mobile"]),
+        "brand": first(["display_brand", "company_name", "brand_name", "brand", "primary_location"]),
+        "social": first(["display_social", "instagram", "instagram_handle", "social_handle", "social_link", "social_link_2", "tiktok", "youtube", "facebook"]),
+        "status": status,
     }
+
 
 def _owner_to_display_rows_v482(rows):
     out=[]
@@ -452,24 +466,38 @@ def _owner_to_display_rows_v482(rows):
     return out
 
 def _owner_buyer_table_and_where_v482():
-    # Prefer real buyer-specific tables first, then users with role buyer.
+    # Real DB table from Railway DB Debug: "user" with role column.
+    if _owner_table_exists_v478("user"):
+        cols = _owner_table_columns_v482("user")
+        if "role" in cols:
+            return "user", "WHERE LOWER(COALESCE(role,'')) IN ('buyer','customer')", {}
+        return "user", "", {}
+    if _owner_table_exists_v478("users"):
+        cols = _owner_table_columns_v482("users")
+        if "role" in cols:
+            return "users", "WHERE LOWER(COALESCE(role,'')) IN ('buyer','customer')", {}
+        return "users", "", {}
     table = _owner_pick_existing_table_v482(["buyer_user","buyer_users","buyers","buyer"])
     if table:
         return table, "", {}
-    users = _owner_pick_existing_table_v482(["users","user"])
-    if users:
-        cols = _owner_table_columns_v482(users)
-        if "role" in cols:
-            return users, "WHERE LOWER(COALESCE(role,'')) IN ('buyer','customer','')", {}
-        return users, "", {}
     return None, "", {}
 
+
 def _owner_creator_table_v482():
-    return _owner_pick_existing_table_v482(["creator_profile","creator_profiles","creators","creator"], contains=["creator"])
+    # Real DB table from Railway DB Debug: "creators".
+    if _owner_table_exists_v478("creators"):
+        return "creators"
+    return _owner_pick_existing_table_v482(["creator","creator_profile","creator_profiles"], contains=["creator"])
+
 
 def _owner_application_table_v482():
-    # Some apps create old application rows; creator_profile is the current approved source.
-    return _owner_pick_existing_table_v482(["creator_application","creator_applications","applications"], contains=["application"])
+    # Real DB table from Railway DB Debug: "creator_application".
+    if _owner_table_exists_v478("creator_application"):
+        return "creator_application"
+    if _owner_table_exists_v478("creator_applications"):
+        return "creator_applications"
+    return _owner_pick_existing_table_v482(["applications"], contains=["application"])
+
 
 def _owner_ensure_plan_commission_v482():
     try:
@@ -477,6 +505,27 @@ def _owner_ensure_plan_commission_v482():
         db.session.commit()
     except Exception:
         db.session.rollback()
+
+
+
+def _owner_set_status_any_v483(table, row_id, status):
+    cols = _owner_table_columns_v482(table)
+    try:
+        if "status" in cols:
+            db.session.execute(db.text(f"UPDATE {table} SET status=:status WHERE id=:id"), {"status": status, "id": row_id})
+        elif "approved" in cols:
+            approved = status in ["active", "approved"]
+            db.session.execute(db.text(f"UPDATE {table} SET approved=:approved WHERE id=:id"), {"approved": approved, "id": row_id})
+        elif "is_active" in cols:
+            is_active = status in ["active", "approved"]
+            db.session.execute(db.text(f"UPDATE {table} SET is_active=:is_active WHERE id=:id"), {"is_active": is_active, "id": row_id})
+        else:
+            return False
+        db.session.commit()
+        return True
+    except Exception:
+        db.session.rollback()
+        return False
 
 
 @owner_bp.route("/login", methods=["GET", "POST"])
@@ -495,10 +544,10 @@ def owner_panel_v477():
 
 
 
+
 @owner_bp.route("/applications")
 def owner_applications_v479():
-    # Show current creators first if they exist, because old application table can contain duplicates.
-    table = _owner_creator_table_v482() or _owner_application_table_v482()
+    table = _owner_application_table_v482()
     rows, columns = _owner_dynamic_rows_v482(table, limit=300)
     rows = _owner_to_display_rows_v482(rows)
     return render_template("owner/applications.html", applications=rows, table_name=table, columns=columns)
@@ -883,11 +932,11 @@ def owner_creator_plans_v473():
 
 def _owner_table_for_v478(kind):
     if kind == "creator":
-        return _owner_pick_table_v478("creator_profile","creators","creator")
+        return _owner_creator_table_v482()
     if kind == "buyer":
-        return _owner_pick_table_v478("buyer_user","buyers","buyer","users","user")
+        return _owner_buyer_table_and_where_v482()[0]
     if kind == "application":
-        return _owner_pick_table_v478("creator_application","creator_applications")
+        return _owner_application_table_v482()
     return None
 
 
