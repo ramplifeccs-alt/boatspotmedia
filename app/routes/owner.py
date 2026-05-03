@@ -79,6 +79,89 @@ def _bsm_fix_order_item_creator_id_v460(order_id=None):
             pass
 
 
+
+def _owner_dashboard_metrics_v477():
+    def one(sql, params=None, default=0):
+        try:
+            row = db.session.execute(db.text(sql), params or {}).mappings().first()
+            if not row:
+                return default
+            return list(row.values())[0] if row else default
+        except Exception:
+            db.session.rollback()
+            return default
+
+    metrics = {}
+
+    # Creator applications
+    metrics["applications_total"] = one("SELECT COUNT(*) FROM creator_application")
+    metrics["applications_pending"] = one("SELECT COUNT(*) FROM creator_application WHERE COALESCE(status,'pending')='pending'")
+    metrics["applications_approved"] = one("SELECT COUNT(*) FROM creator_application WHERE COALESCE(status,'')='approved'")
+    metrics["applications_rejected"] = one("SELECT COUNT(*) FROM creator_application WHERE COALESCE(status,'')='rejected'")
+
+    # Creators / subscriptions
+    metrics["creators_total"] = one("SELECT COUNT(*) FROM creator_profile")
+    metrics["creators_active"] = one("SELECT COUNT(*) FROM creator_profile WHERE COALESCE(status,'active')='active'")
+    metrics["subscriptions_past_due"] = one("SELECT COUNT(*) FROM creator_subscription WHERE status IN ('past_due','unpaid','canceled','inactive')")
+
+    # Orders / sales
+    metrics["orders_total"] = one("SELECT COUNT(*) FROM bsm_cart_order")
+    metrics["sales_total"] = one("SELECT COALESCE(SUM(total_amount),0) FROM bsm_cart_order WHERE COALESCE(status,'') IN ('paid','complete','completed')")
+    metrics["sales_today"] = one("SELECT COALESCE(SUM(total_amount),0) FROM bsm_cart_order WHERE COALESCE(status,'') IN ('paid','complete','completed') AND created_at::date=CURRENT_DATE")
+    metrics["pending_edits"] = one("""
+        SELECT COUNT(*)
+        FROM bsm_cart_order_item
+        WHERE package IN ('edited','edit','bundle','combo','original_plus_edited','original_edited','original+edited','original_edit')
+          AND (edited_r2_key IS NULL OR edited_r2_key='')
+    """)
+    metrics["discount_approvals"] = one("""
+        SELECT COUNT(*)
+        FROM bsm_cart_order_item
+        WHERE discount_status IN ('pending_review','pending','awaiting_creator','needs_approval')
+    """)
+
+    # Storage
+    metrics["original_storage_bytes"] = one("SELECT COALESCE(SUM(COALESCE(file_size_bytes,size_bytes,0)),0) FROM video")
+    try:
+        db.session.execute(db.text("ALTER TABLE bsm_cart_order_item ADD COLUMN IF NOT EXISTS edited_file_size_bytes BIGINT DEFAULT 0"))
+        db.session.commit()
+    except Exception:
+        db.session.rollback()
+    metrics["edited_storage_bytes"] = one("SELECT COALESCE(SUM(COALESCE(edited_file_size_bytes,0)),0) FROM bsm_cart_order_item")
+    metrics["storage_total_bytes"] = int(metrics.get("original_storage_bytes") or 0) + int(metrics.get("edited_storage_bytes") or 0)
+
+    def gb(x):
+        try:
+            return round(float(x or 0)/1024/1024/1024, 2)
+        except Exception:
+            return 0
+
+    metrics["original_storage_gb"] = gb(metrics["original_storage_bytes"])
+    metrics["edited_storage_gb"] = gb(metrics["edited_storage_bytes"])
+    metrics["storage_total_gb"] = gb(metrics["storage_total_bytes"])
+
+    # Near limit: flexible columns, best effort
+    metrics["creators_near_limit"] = 0
+    try:
+        rows = db.session.execute(db.text("""
+            SELECT cp.id,
+                   COALESCE(cp.storage_used_bytes, cp.used_storage_bytes, cp.storage_bytes_used, cp.storage_used, 0) AS used,
+                   COALESCE(cp.storage_limit_bytes, cp.storage_quota_bytes, cp.max_storage_bytes, 0) AS lim
+            FROM creator_profile cp
+        """)).mappings().all()
+        near = 0
+        for r in rows:
+            lim = int(r.get("lim") or 0)
+            used = int(r.get("used") or 0)
+            if lim > 0 and used >= lim * 0.85:
+                near += 1
+        metrics["creators_near_limit"] = near
+    except Exception:
+        db.session.rollback()
+
+    return metrics
+
+
 @owner_bp.route("/login", methods=["GET", "POST"])
 def login():
     if request.method == "POST":
@@ -86,8 +169,10 @@ def login():
     return render_template("owner/login.html")
 
 @owner_bp.route("/panel")
-def panel():
-    return redirect(url_for("owner.applications"))
+def owner_panel_v477():
+    metrics = _owner_dashboard_metrics_v477()
+    q = (request.args.get("q") or "").strip()
+    return render_template("owner/panel.html", metrics=metrics, q=q)
 
 @owner_bp.route("/applications")
 def applications():

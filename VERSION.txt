@@ -1,7 +1,11 @@
-BoatSpotMedia v47.6 Owner Remove Old Inner Menu
-Base: v47.5.
-Fix:
-- Owner Dashboard no longer embeds old full dashboard/menu inside right block.
-- Creator Applications no longer embeds old full dashboard/menu inside right block.
-- Only the new left Owner menu remains.
-- Creator Applications shows clean table with phone column.
+BoatSpotMedia v47.7 Owner Dashboard Metrics Blocks
+Base: v47.6.
+Adds:
+- Owner dashboard metrics cards.
+- Applications counts.
+- Creator/subscription counts.
+- Orders/sales summary.
+- Pending edits and discount approvals.
+- Storage overview.
+- Quick actions.
+- Support search placeholder by order/email/filename.

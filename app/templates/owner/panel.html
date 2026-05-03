@@ -23,7 +23,7 @@
   <main class="owner-main-v475">
     <div class="owner-card-v475">
       <h1>Owner Dashboard</h1>
-      <p>Manage BoatSpotMedia operations from one clean panel.</p>
+      <p>High-level control center for BoatSpotMedia.</p>
     </div>
 
     {% with messages = get_flashed_messages() %}
@@ -34,25 +34,106 @@
       {% endif %}
     {% endwith %}
 
-    <div class="owner-grid-v475">
-      <a class="owner-tile-v475" href="/owner/applications">
-        <h2>Creator Applications</h2>
-        <p>Review new creators, approve applications, and prepare SMS login links.</p>
-      </a>
-      <a class="owner-tile-v475" href="/owner/creator-plans">
-        <h2>Creator Plans</h2>
-        <p>Edit subscription prices, descriptions, storage limits and Stripe Price IDs.</p>
-      </a>
-    </div>
+    <section class="owner-metrics-grid-v477">
+      <div class="owner-metric-card-v477">
+        <span>Applications</span>
+        <strong>{{ metrics.applications_pending }}</strong>
+        <small>Pending · {{ metrics.applications_approved }} approved · {{ metrics.applications_rejected }} rejected</small>
+        <a href="/owner/applications">Review applications</a>
+      </div>
 
-    <div class="owner-content-v475">
-      <h2>Support Tools</h2>
-      <div class="owner-button-row-v476">
-        <a href="/owner/creator-passwords">Creator Passwords / Reset Password</a>
-        <a href="/owner/applications">Applications</a>
+      <div class="owner-metric-card-v477">
+        <span>Creators</span>
+        <strong>{{ metrics.creators_total }}</strong>
+        <small>{{ metrics.creators_active }} active · {{ metrics.subscriptions_past_due }} billing issues</small>
+        <a href="/owner/creator-plans">Manage plans</a>
+      </div>
+
+      <div class="owner-metric-card-v477">
+        <span>Total Orders</span>
+        <strong>{{ metrics.orders_total }}</strong>
+        <small>Total sales: ${{ "%.2f"|format(metrics.sales_total or 0) }}</small>
+        <a href="/owner/panel#order-search">Search orders</a>
+      </div>
+
+      <div class="owner-metric-card-v477">
+        <span>Sales Today</span>
+        <strong>${{ "%.2f"|format(metrics.sales_today or 0) }}</strong>
+        <small>Paid/completed orders today</small>
+        <a href="/owner/panel#order-search">Open support</a>
+      </div>
+
+      <div class="owner-metric-card-v477 warning">
+        <span>Pending Edits</span>
+        <strong>{{ metrics.pending_edits }}</strong>
+        <small>Edited/bundle deliveries still waiting</small>
+        <a href="/owner/panel#quick-actions">Quick actions</a>
+      </div>
+
+      <div class="owner-metric-card-v477 warning">
+        <span>Discount Approvals</span>
+        <strong>{{ metrics.discount_approvals }}</strong>
+        <small>Waiting creator approval/rejection</small>
+        <a href="/owner/panel#quick-actions">Quick actions</a>
+      </div>
+
+      <div class="owner-metric-card-v477">
+        <span>Total Storage</span>
+        <strong>{{ metrics.storage_total_gb }} GB</strong>
+        <small>{{ metrics.original_storage_gb }} GB original · {{ metrics.edited_storage_gb }} GB edited</small>
+        <a href="/owner/panel#storage">View storage</a>
+      </div>
+
+      <div class="owner-metric-card-v477">
+        <span>Near Limit</span>
+        <strong>{{ metrics.creators_near_limit }}</strong>
+        <small>Creators at 85%+ storage</small>
         <a href="/owner/creator-plans">Plans</a>
       </div>
-    </div>
+    </section>
+
+    <section id="order-search" class="owner-card-v475">
+      <h2>Order / Buyer Search</h2>
+      <p>Search by order number or buyer email. This is the support entry point.</p>
+      <form class="owner-search-v477" method="GET" action="/owner/panel">
+        <input name="q" value="{{ q or '' }}" placeholder="Order #, buyer email, or filename">
+        <button type="submit">Search</button>
+      </form>
+      {% if q %}
+        <div class="owner-search-note-v477">
+          Search requested: <strong>{{ q }}</strong><br>
+          Next package can connect this box to global order results.
+        </div>
+      {% endif %}
+    </section>
+
+    <section id="storage" class="owner-card-v475">
+      <h2>Storage Overview</h2>
+      <div class="owner-storage-split-v477">
+        <div>
+          <span>Original Videos</span>
+          <strong>{{ metrics.original_storage_gb }} GB</strong>
+        </div>
+        <div>
+          <span>Edited Deliveries</span>
+          <strong>{{ metrics.edited_storage_gb }} GB</strong>
+        </div>
+        <div>
+          <span>Total</span>
+          <strong>{{ metrics.storage_total_gb }} GB</strong>
+        </div>
+      </div>
+    </section>
+
+    <section id="quick-actions" class="owner-card-v475">
+      <h2>Quick Actions</h2>
+      <div class="owner-button-row-v476">
+        <a href="/owner/applications">Creator Applications</a>
+        <a href="/owner/creator-plans">Creator Plans</a>
+        <a href="/owner/creator-passwords">Creator Passwords / Reset Password</a>
+        <a href="/owner/panel#order-search">Search Order</a>
+      </div>
+    </section>
   </main>
 </div>
 </body>
