@@ -31,6 +31,111 @@ def _normalize_paid_video_package_v491e(video, item):
         return "original"
 
 
+
+# v49.1Q Stripe Connect split payments for video sales
+def _bsm_connect_info_for_cart_v491q(items):
+    """
+    Returns Connect info for a cart when all items belong to one creator with Stripe connected.
+    If multiple creators are in one cart, returns disabled so old checkout still works.
+    """
+    try:
+        creator_ids = set()
+        for it in items or []:
+            vid = int(it.get("video_id") or it.get("id") or 0)
+            if not vid:
+                continue
+            row = db.session.execute(db.text("""
+                SELECT v.creator_id,
+                       cp.commission_rate,
+                       u.stripe_account_id
+                FROM video v
+                LEFT JOIN creator_profile cp ON cp.id = v.creator_id
+                LEFT JOIN "user" u ON u.id = cp.user_id
+                WHERE v.id=:vid
+                LIMIT 1
+            """), {"vid": vid}).mappings().first()
+            if row and row.get("creator_id"):
+                creator_ids.add(int(row.get("creator_id")))
+        if len(creator_ids) != 1:
+            return {"enabled": False, "reason": "multi_creator_or_missing"}
+
+        creator_id = list(creator_ids)[0]
+        row = db.session.execute(db.text("""
+            SELECT cp.id AS creator_id,
+                   COALESCE(cp.commission_rate, 25) AS commission_rate,
+                   u.stripe_account_id
+            FROM creator_profile cp
+            LEFT JOIN "user" u ON u.id = cp.user_id
+            WHERE cp.id=:creator_id
+            LIMIT 1
+        """), {"creator_id": creator_id}).mappings().first()
+
+        if not row:
+            return {"enabled": False, "reason": "creator_not_found", "creator_id": creator_id}
+
+        acct = (row.get("stripe_account_id") or "").strip()
+        if not acct:
+            return {"enabled": False, "reason": "creator_stripe_not_connected", "creator_id": creator_id}
+
+        commission_rate = float(row.get("commission_rate") or 25)
+        if commission_rate < 0:
+            commission_rate = 0
+        if commission_rate > 95:
+            commission_rate = 95
+
+        return {
+            "enabled": True,
+            "creator_id": creator_id,
+            "stripe_account_id": acct,
+            "commission_rate": commission_rate,
+        }
+    except Exception as e:
+        db.session.rollback()
+        try:
+            print("connect info v49.1Q warning:", e)
+        except Exception:
+            pass
+        return {"enabled": False, "reason": "error"}
+
+def _bsm_application_fee_cents_v491q(amount_total_cents, commission_rate):
+    try:
+        return int(round(int(amount_total_cents or 0) * (float(commission_rate or 0) / 100.0)))
+    except Exception:
+        return 0
+
+def _bsm_record_order_connect_fields_v491q(order_id, stripe_account_id=None, application_fee_amount=None, creator_id=None, commission_rate=None):
+    try:
+        db.session.execute(db.text("ALTER TABLE bsm_cart_order ADD COLUMN IF NOT EXISTS creator_id INTEGER"))
+        db.session.execute(db.text("ALTER TABLE bsm_cart_order ADD COLUMN IF NOT EXISTS creator_stripe_account_id TEXT"))
+        db.session.execute(db.text("ALTER TABLE bsm_cart_order ADD COLUMN IF NOT EXISTS platform_fee_amount NUMERIC DEFAULT 0"))
+        db.session.execute(db.text("ALTER TABLE bsm_cart_order ADD COLUMN IF NOT EXISTS creator_gross_amount NUMERIC DEFAULT 0"))
+        db.session.execute(db.text("ALTER TABLE bsm_cart_order ADD COLUMN IF NOT EXISTS commission_rate NUMERIC DEFAULT 0"))
+        if order_id:
+            platform_fee = float(application_fee_amount or 0) / 100.0
+            db.session.execute(db.text("""
+                UPDATE bsm_cart_order
+                SET creator_id=COALESCE(:creator_id, creator_id),
+                    creator_stripe_account_id=COALESCE(:acct, creator_stripe_account_id),
+                    platform_fee_amount=:platform_fee,
+                    creator_gross_amount=GREATEST(COALESCE(amount_total,0)-:platform_fee, 0),
+                    commission_rate=COALESCE(:commission_rate, commission_rate)
+                WHERE id=:order_id
+            """), {
+                "order_id": order_id,
+                "creator_id": creator_id,
+                "acct": stripe_account_id,
+                "platform_fee": platform_fee,
+                "commission_rate": commission_rate,
+            })
+            db.session.commit()
+    except Exception as e:
+        db.session.rollback()
+        try:
+            print("order connect fields v49.1Q warning:", e)
+        except Exception:
+            pass
+
+
 def stripe_ready():
     return bool(os.getenv("STRIPE_SECRET_KEY"))
 
@@ -63,8 +168,35 @@ def create_checkout_session(item_type, item_id, title, description, amount, meta
     })
 
     base = get_base_url()
+
+    # v49.1Q Stripe Connect split payment calculation
+    connect_info_v491q = _bsm_connect_info_for_cart_v491q(items if 'items' in locals() else [])
+    payment_intent_data_v491q = None
+    if connect_info_v491q.get("enabled"):
+        total_cents_v491q = 0
+        try:
+            for li in line_items:
+                price_data = li.get("price_data") or {}
+                total_cents_v491q += int(price_data.get("unit_amount") or 0) * int(li.get("quantity") or 1)
+        except Exception:
+            total_cents_v491q = int(round(float(total or amount_total or 0) * 100)) if ('total' in locals() or 'amount_total' in locals()) else 0
+        fee_cents_v491q = _bsm_application_fee_cents_v491q(total_cents_v491q, connect_info_v491q.get("commission_rate"))
+        if fee_cents_v491q > 0:
+            payment_intent_data_v491q = {
+                "application_fee_amount": fee_cents_v491q,
+                "transfer_data": {"destination": connect_info_v491q.get("stripe_account_id")},
+                "metadata": {
+                    "connect_split": "true",
+                    "creator_id": str(connect_info_v491q.get("creator_id")),
+                    "creator_stripe_account_id": str(connect_info_v491q.get("stripe_account_id")),
+                    "commission_rate": str(connect_info_v491q.get("commission_rate")),
+                    "platform_fee_cents": str(fee_cents_v491q),
+                },
+            }
+
     checkout = stripe.checkout.Session.create(
         mode="payment",
+            payment_intent_data=payment_intent_data_v491q,
         payment_method_types=["card"],
         line_items=[{
             "price_data": {
@@ -456,6 +588,25 @@ def _record_cart_order_from_webhook_v420(obj):
             except Exception:
                 pass
 
+        try:
+            pi = getattr(stripe_session, "payment_intent", None)
+            md = getattr(stripe_session, "metadata", {}) or {}
+            fee_cents = int((md.get("connect_platform_fee_cents") if hasattr(md, "get") else 0) or 0)
+            creator_id = int((md.get("connect_creator_id") if hasattr(md, "get") else 0) or 0) or None
+            acct = None
+            if pi:
+                try:
+                    import stripe
+                    stripe.api_key = os.environ.get("STRIPE_SECRET_KEY")
+                    pi_obj = stripe.PaymentIntent.retrieve(pi)
+                    pi_md = getattr(pi_obj, "metadata", {}) or {}
+                    acct = pi_md.get("creator_stripe_account_id") if hasattr(pi_md, "get") else None
+                    fee_cents = int((pi_md.get("platform_fee_cents") if hasattr(pi_md, "get") else fee_cents) or fee_cents or 0)
+                except Exception:
+                    pass
+            _bsm_record_order_connect_fields_v491q(order_id, acct, fee_cents, creator_id, None)
+        except Exception:
+            pass
         db.session.commit()
         return order_id
     except Exception as e:
@@ -1099,8 +1250,35 @@ def checkout_cart():
         })
     if not line_items:
         return "Cart has no purchasable items.", 400
+
+    # v49.1Q Stripe Connect split payment calculation
+    connect_info_v491q = _bsm_connect_info_for_cart_v491q(items if 'items' in locals() else [])
+    payment_intent_data_v491q = None
+    if connect_info_v491q.get("enabled"):
+        total_cents_v491q = 0
+        try:
+            for li in line_items:
+                price_data = li.get("price_data") or {}
+                total_cents_v491q += int(price_data.get("unit_amount") or 0) * int(li.get("quantity") or 1)
+        except Exception:
+            total_cents_v491q = int(round(float(total or amount_total or 0) * 100)) if ('total' in locals() or 'amount_total' in locals()) else 0
+        fee_cents_v491q = _bsm_application_fee_cents_v491q(total_cents_v491q, connect_info_v491q.get("commission_rate"))
+        if fee_cents_v491q > 0:
+            payment_intent_data_v491q = {
+                "application_fee_amount": fee_cents_v491q,
+                "transfer_data": {"destination": connect_info_v491q.get("stripe_account_id")},
+                "metadata": {
+                    "connect_split": "true",
+                    "creator_id": str(connect_info_v491q.get("creator_id")),
+                    "creator_stripe_account_id": str(connect_info_v491q.get("stripe_account_id")),
+                    "commission_rate": str(connect_info_v491q.get("commission_rate")),
+                    "platform_fee_cents": str(fee_cents_v491q),
+                },
+            }
+
     session = stripe.checkout.Session.create(
         mode="payment",
+            payment_intent_data=payment_intent_data_v491q,
         payment_method_types=["card"],
         line_items=line_items,
         metadata={"cart_checkout":"1", "cart_id": cart_id, "pending_discount_review": "False", "buyer_user_id": str(flask_session.get("user_id", "")), "buyer_login_email": str(flask_session.get("user_email", ""))},

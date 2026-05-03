@@ -1,7 +1,11 @@
-BoatSpotMedia v49.1P Restore My Orders + Creator Name
-Base: v49.1O, with buyer/public My Orders restored from v49.1M.
-Fixes:
-- Restores My Orders button/items to working version, removing "No video items found" regression.
-- Keeps v49.1O subscription activation code.
-- Adds creator name safely via template helper, without changing fragile My Orders SQL.
-Does not touch upload, downloads route logic, batches, Stripe subscription code, Google, Apple, buyer login, creator login, or video purchase checkout.
+BoatSpotMedia v49.1Q Stripe Connect Split Payments
+Base: v49.1P.
+Changes only video purchase checkout/payment:
+- Detects single creator in cart.
+- If creator has user.stripe_account_id, Stripe Checkout payment uses destination charge:
+  payment_intent_data.application_fee_amount = BoatSpotMedia commission
+  payment_intent_data.transfer_data.destination = creator Stripe Express account.
+- Commission uses creator_profile.commission_rate, default 25%.
+- Adds optional order columns for creator/platform fee tracking.
+- If cart has multiple creators or creator has no Stripe account, old checkout path still works.
+Does not touch subscriptions, My Orders, downloads, upload, batches, Google, Apple, buyer login, creator login, or R2.
