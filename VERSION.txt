@@ -1,11 +1,9 @@
-BoatSpotMedia v47.7 Owner Dashboard Metrics Blocks
-Base: v47.6.
+BoatSpotMedia v47.8 Owner Real Metrics + Creator/Buyer Management
+Base: v47.7.
+Fixes:
+- Owner Dashboard metrics now auto-detects real table/column names.
+- Orders, sales today, pending edits, discount approvals and storage use schema fallback.
 Adds:
-- Owner dashboard metrics cards.
-- Applications counts.
-- Creator/subscription counts.
-- Orders/sales summary.
-- Pending edits and discount approvals.
-- Storage overview.
-- Quick actions.
-- Support search placeholder by order/email/filename.
+- Owner Creators management: edit, suspend/reactivate, delete, reset password.
+- Owner Buyers management: edit, suspend/reactivate, delete, reset password.
+- Application suspend/delete aliases.

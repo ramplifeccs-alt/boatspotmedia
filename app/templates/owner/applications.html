@@ -66,6 +66,8 @@
                     </form>
                   {% else %}
                     Reviewed
+                    <form method="POST" action="/owner/application/{{ app.id }}/status/suspended" style="display:inline;"><button type="submit">Suspend</button></form>
+                    <form method="POST" action="/owner/application/{{ app.id }}/delete" style="display:inline;" onsubmit="return confirm('Delete this application?');"><button class="danger" type="submit">Delete Application</button></form>
                   {% endif %}
                 </td>
               </tr>

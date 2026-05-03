@@ -1,0 +1,24 @@
+<!doctype html>
+<html lang="en">
+<head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>{{ title }} - Owner</title><link rel="stylesheet" href="/static/css/style.css"></head>
+<body class="owner-dashboard-v476">
+<div class="owner-shell-v475">
+  <aside class="owner-sidebar-v475">
+    <a href="/owner/panel" class="owner-logo-v475"><img src="/static/img/logo-header.png" alt="BoatSpotMedia"></a>
+    <nav><a href="/owner/panel">Owner Dashboard</a><a href="/owner/creators">Creators</a><a href="/owner/buyers">Buyers</a><a href="/owner/creator-plans">Creator Plans</a><a href="/logout" class="danger">Log out</a></nav>
+  </aside>
+  <main class="owner-main-v475">
+    <div class="owner-card-v475"><h1>{{ title }}</h1></div>
+    <form method="POST" class="owner-edit-form-v474 owner-card-v475">
+      {% for field in ['name','full_name','first_name','last_name','email','phone','phone_number','brand','brand_name','company_name','instagram','instagram_handle','status'] %}
+        {% if row[field] is defined %}
+          <label>{{ field|replace('_',' ')|title }}
+            <input name="{{ field }}" value="{{ row[field] or '' }}">
+          </label>
+        {% endif %}
+      {% endfor %}
+      <div class="full actions"><button type="submit">Save</button><a href="/owner/{{ kind }}s">Cancel</a></div>
+    </form>
+  </main>
+</div>
+</body></html>

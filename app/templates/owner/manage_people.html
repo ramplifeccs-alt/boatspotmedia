@@ -1,0 +1,50 @@
+<!doctype html>
+<html lang="en">
+<head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>{{ title }} - Owner</title><link rel="stylesheet" href="/static/css/style.css"></head>
+<body class="owner-dashboard-v476">
+<div class="owner-shell-v475">
+  <aside class="owner-sidebar-v475">
+    <a href="/owner/panel" class="owner-logo-v475"><img src="/static/img/logo-header.png" alt="BoatSpotMedia"></a>
+    <nav>
+      <a href="/owner/panel">Owner Dashboard</a>
+      <a href="/owner/applications">Creator Applications</a>
+      <a href="/owner/creators" {% if kind=='creator' %}class="active"{% endif %}>Creators</a>
+      <a href="/owner/buyers" {% if kind=='buyer' %}class="active"{% endif %}>Buyers</a>
+      <a href="/owner/creator-plans">Creator Plans</a>
+      <a href="/logout" class="danger">Log out</a>
+    </nav>
+  </aside>
+  <main class="owner-main-v475">
+    <div class="owner-card-v475"><h1>{{ title }}</h1><p>Edit, suspend, delete, and reset passwords.</p></div>
+    {% with messages = get_flashed_messages() %}{% if messages %}<div class="owner-flash-v474">{% for msg in messages %}<div>{{ msg }}</div>{% endfor %}</div>{% endif %}{% endwith %}
+    <div class="owner-content-v475 owner-table-wrap-v476">
+      <table class="owner-table-v476">
+        <thead><tr><th>ID</th><th>Name</th><th>Email</th><th>Phone</th><th>Status</th><th>Actions</th></tr></thead>
+        <tbody>
+        {% for r in rows %}
+          <tr>
+            <td>{{ r.id }}</td>
+            <td>{{ r.name or r.full_name or ((r.first_name or '') ~ ' ' ~ (r.last_name or '')) or r.brand or r.company_name }}</td>
+            <td>{{ r.email }}</td>
+            <td>{{ r.phone or r.phone_number or '' }}</td>
+            <td>{{ r.status or 'active' }}</td>
+            <td class="owner-actions-v478">
+              <a href="/owner/{{ kind }}/{{ r.id }}/edit">Edit</a>
+              <form method="POST" action="/owner/{{ kind }}/{{ r.id }}/status/suspended"><button type="submit">Suspend</button></form>
+              <form method="POST" action="/owner/{{ kind }}/{{ r.id }}/status/active"><button type="submit">Reactivate</button></form>
+              <form method="POST" action="/owner/{{ kind }}/{{ r.id }}/delete" onsubmit="return confirm('Delete this {{ kind }}?');"><button class="danger" type="submit">Delete</button></form>
+              <form method="POST" action="/owner/{{ kind }}/{{ r.id }}/reset-password">
+                <input name="new_password" placeholder="New password">
+                <button type="submit">Reset Password</button>
+              </form>
+            </td>
+          </tr>
+        {% else %}
+          <tr><td colspan="6">No records found.</td></tr>
+        {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </main>
+</div>
+</body></html>

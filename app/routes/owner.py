@@ -80,85 +80,158 @@ def _bsm_fix_order_item_creator_id_v460(order_id=None):
 
 
 
-def _owner_dashboard_metrics_v477():
-    def one(sql, params=None, default=0):
-        try:
-            row = db.session.execute(db.text(sql), params or {}).mappings().first()
-            if not row:
-                return default
-            return list(row.values())[0] if row else default
-        except Exception:
-            db.session.rollback()
-            return default
 
-    metrics = {}
-
-    # Creator applications
-    metrics["applications_total"] = one("SELECT COUNT(*) FROM creator_application")
-    metrics["applications_pending"] = one("SELECT COUNT(*) FROM creator_application WHERE COALESCE(status,'pending')='pending'")
-    metrics["applications_approved"] = one("SELECT COUNT(*) FROM creator_application WHERE COALESCE(status,'')='approved'")
-    metrics["applications_rejected"] = one("SELECT COUNT(*) FROM creator_application WHERE COALESCE(status,'')='rejected'")
-
-    # Creators / subscriptions
-    metrics["creators_total"] = one("SELECT COUNT(*) FROM creator_profile")
-    metrics["creators_active"] = one("SELECT COUNT(*) FROM creator_profile WHERE COALESCE(status,'active')='active'")
-    metrics["subscriptions_past_due"] = one("SELECT COUNT(*) FROM creator_subscription WHERE status IN ('past_due','unpaid','canceled','inactive')")
-
-    # Orders / sales
-    metrics["orders_total"] = one("SELECT COUNT(*) FROM bsm_cart_order")
-    metrics["sales_total"] = one("SELECT COALESCE(SUM(total_amount),0) FROM bsm_cart_order WHERE COALESCE(status,'') IN ('paid','complete','completed')")
-    metrics["sales_today"] = one("SELECT COALESCE(SUM(total_amount),0) FROM bsm_cart_order WHERE COALESCE(status,'') IN ('paid','complete','completed') AND created_at::date=CURRENT_DATE")
-    metrics["pending_edits"] = one("""
-        SELECT COUNT(*)
-        FROM bsm_cart_order_item
-        WHERE package IN ('edited','edit','bundle','combo','original_plus_edited','original_edited','original+edited','original_edit')
-          AND (edited_r2_key IS NULL OR edited_r2_key='')
-    """)
-    metrics["discount_approvals"] = one("""
-        SELECT COUNT(*)
-        FROM bsm_cart_order_item
-        WHERE discount_status IN ('pending_review','pending','awaiting_creator','needs_approval')
-    """)
-
-    # Storage
-    metrics["original_storage_bytes"] = one("SELECT COALESCE(SUM(COALESCE(file_size_bytes,size_bytes,0)),0) FROM video")
+def _owner_table_exists_v478(table_name):
     try:
-        db.session.execute(db.text("ALTER TABLE bsm_cart_order_item ADD COLUMN IF NOT EXISTS edited_file_size_bytes BIGINT DEFAULT 0"))
-        db.session.commit()
+        row = db.session.execute(db.text("""
+            SELECT EXISTS (
+                SELECT 1 FROM information_schema.tables
+                WHERE table_schema='public' AND table_name=:table_name
+            ) AS exists
+        """), {"table_name": table_name}).mappings().first()
+        return bool(row and row.get("exists"))
     except Exception:
         db.session.rollback()
-    metrics["edited_storage_bytes"] = one("SELECT COALESCE(SUM(COALESCE(edited_file_size_bytes,0)),0) FROM bsm_cart_order_item")
-    metrics["storage_total_bytes"] = int(metrics.get("original_storage_bytes") or 0) + int(metrics.get("edited_storage_bytes") or 0)
+        return False
+
+def _owner_col_exists_v478(table_name, col_name):
+    try:
+        row = db.session.execute(db.text("""
+            SELECT EXISTS (
+                SELECT 1 FROM information_schema.columns
+                WHERE table_schema='public' AND table_name=:table_name AND column_name=:col_name
+            ) AS exists
+        """), {"table_name": table_name, "col_name": col_name}).mappings().first()
+        return bool(row and row.get("exists"))
+    except Exception:
+        db.session.rollback()
+        return False
+
+def _owner_scalar_v478(sql, params=None, default=0):
+    try:
+        row = db.session.execute(db.text(sql), params or {}).mappings().first()
+        if not row:
+            return default
+        return list(row.values())[0]
+    except Exception as e:
+        db.session.rollback()
+        try: print("owner metric SQL warning v47.8:", e, sql)
+        except Exception: pass
+        return default
+
+def _owner_pick_table_v478(*names):
+    for n in names:
+        if _owner_table_exists_v478(n):
+            return n
+    return None
+
+def _owner_dashboard_metrics_v477():
+    metrics = {}
+
+    apps_table = _owner_pick_table_v478("creator_application", "creator_applications")
+    creators_table = _owner_pick_table_v478("creator_profile", "creators", "creator")
+    buyers_table = _owner_pick_table_v478("buyer_user", "buyers", "buyer")
+    orders_table = _owner_pick_table_v478("orders", "bsm_cart_order", "cart_order")
+    items_table = _owner_pick_table_v478("order_items", "bsm_cart_order_item", "cart_order_item")
+    video_table = _owner_pick_table_v478("video", "videos")
+
+    # Applications
+    metrics["applications_total"] = _owner_scalar_v478(f"SELECT COUNT(*) FROM {apps_table}") if apps_table else 0
+    metrics["applications_pending"] = _owner_scalar_v478(f"SELECT COUNT(*) FROM {apps_table} WHERE COALESCE(status,'pending')='pending'") if apps_table and _owner_col_exists_v478(apps_table,"status") else 0
+    metrics["applications_approved"] = _owner_scalar_v478(f"SELECT COUNT(*) FROM {apps_table} WHERE COALESCE(status,'')='approved'") if apps_table and _owner_col_exists_v478(apps_table,"status") else 0
+    metrics["applications_rejected"] = _owner_scalar_v478(f"SELECT COUNT(*) FROM {apps_table} WHERE COALESCE(status,'')='rejected'") if apps_table and _owner_col_exists_v478(apps_table,"status") else 0
+
+    # Creators
+    metrics["creators_total"] = _owner_scalar_v478(f"SELECT COUNT(*) FROM {creators_table}") if creators_table else 0
+    if creators_table and _owner_col_exists_v478(creators_table, "status"):
+        metrics["creators_active"] = _owner_scalar_v478(f"SELECT COUNT(*) FROM {creators_table} WHERE COALESCE(status,'active')='active'")
+    else:
+        metrics["creators_active"] = metrics["creators_total"]
+
+    if _owner_table_exists_v478("creator_subscription"):
+        metrics["subscriptions_past_due"] = _owner_scalar_v478("SELECT COUNT(*) FROM creator_subscription WHERE status IN ('past_due','unpaid','canceled','inactive')")
+    else:
+        metrics["subscriptions_past_due"] = 0
+
+    # Orders and sales
+    metrics["orders_total"] = _owner_scalar_v478(f"SELECT COUNT(*) FROM {orders_table}") if orders_table else 0
+    total_col = "total_amount" if orders_table and _owner_col_exists_v478(orders_table,"total_amount") else ("total" if orders_table and _owner_col_exists_v478(orders_table,"total") else None)
+    status_col = "status" if orders_table and _owner_col_exists_v478(orders_table,"status") else None
+    date_col = "created_at" if orders_table and _owner_col_exists_v478(orders_table,"created_at") else ("created" if orders_table and _owner_col_exists_v478(orders_table,"created") else None)
+    if orders_table and total_col:
+        paid_filter = f"WHERE COALESCE({status_col},'paid') IN ('paid','complete','completed')" if status_col else ""
+        metrics["sales_total"] = _owner_scalar_v478(f"SELECT COALESCE(SUM(COALESCE({total_col},0)),0) FROM {orders_table} {paid_filter}")
+        if date_col:
+            today_filter = f"{paid_filter} AND DATE({date_col})=CURRENT_DATE" if paid_filter else f"WHERE DATE({date_col})=CURRENT_DATE"
+            metrics["sales_today"] = _owner_scalar_v478(f"SELECT COALESCE(SUM(COALESCE({total_col},0)),0) FROM {orders_table} {today_filter}")
+        else:
+            metrics["sales_today"] = 0
+    else:
+        metrics["sales_total"] = 0
+        metrics["sales_today"] = 0
+
+    # Pending edits / discounts
+    if items_table:
+        package_col = "package" if _owner_col_exists_v478(items_table,"package") else ("purchase_type" if _owner_col_exists_v478(items_table,"purchase_type") else None)
+        edited_key_col = "edited_r2_key" if _owner_col_exists_v478(items_table,"edited_r2_key") else None
+        if package_col and edited_key_col:
+            metrics["pending_edits"] = _owner_scalar_v478(f"""
+                SELECT COUNT(*) FROM {items_table}
+                WHERE {package_col} IN ('edited','edit','bundle','combo','original_plus_edited','original_edited','original+edited','original_edit')
+                  AND ({edited_key_col} IS NULL OR {edited_key_col}='')
+            """)
+        elif edited_key_col:
+            metrics["pending_edits"] = _owner_scalar_v478(f"SELECT COUNT(*) FROM {items_table} WHERE {edited_key_col} IS NULL")
+        else:
+            metrics["pending_edits"] = 0
+
+        if _owner_col_exists_v478(items_table,"discount_status"):
+            metrics["discount_approvals"] = _owner_scalar_v478(f"""
+                SELECT COUNT(*) FROM {items_table}
+                WHERE discount_status IN ('pending','pending_review','awaiting_creator','needs_approval')
+            """)
+        else:
+            metrics["discount_approvals"] = 0
+    else:
+        metrics["pending_edits"] = 0
+        metrics["discount_approvals"] = 0
+
+    # Storage
+    metrics["original_storage_bytes"] = 0
+    if video_table:
+        if _owner_col_exists_v478(video_table,"size_bytes"):
+            metrics["original_storage_bytes"] = _owner_scalar_v478(f"SELECT COALESCE(SUM(COALESCE(size_bytes,0)),0) FROM {video_table}")
+        elif _owner_col_exists_v478(video_table,"file_size_bytes"):
+            metrics["original_storage_bytes"] = _owner_scalar_v478(f"SELECT COALESCE(SUM(COALESCE(file_size_bytes,0)),0) FROM {video_table}")
+
+    metrics["edited_storage_bytes"] = 0
+    if items_table and _owner_col_exists_v478(items_table,"edited_file_size_bytes"):
+        metrics["edited_storage_bytes"] = _owner_scalar_v478(f"SELECT COALESCE(SUM(COALESCE(edited_file_size_bytes,0)),0) FROM {items_table}")
+
+    metrics["storage_total_bytes"] = int(metrics["original_storage_bytes"] or 0) + int(metrics["edited_storage_bytes"] or 0)
 
     def gb(x):
-        try:
-            return round(float(x or 0)/1024/1024/1024, 2)
-        except Exception:
-            return 0
-
+        try: return round(float(x or 0)/1024/1024/1024,2)
+        except Exception: return 0
     metrics["original_storage_gb"] = gb(metrics["original_storage_bytes"])
     metrics["edited_storage_gb"] = gb(metrics["edited_storage_bytes"])
     metrics["storage_total_gb"] = gb(metrics["storage_total_bytes"])
 
-    # Near limit: flexible columns, best effort
     metrics["creators_near_limit"] = 0
-    try:
-        rows = db.session.execute(db.text("""
-            SELECT cp.id,
-                   COALESCE(cp.storage_used_bytes, cp.used_storage_bytes, cp.storage_bytes_used, cp.storage_used, 0) AS used,
-                   COALESCE(cp.storage_limit_bytes, cp.storage_quota_bytes, cp.max_storage_bytes, 0) AS lim
-            FROM creator_profile cp
-        """)).mappings().all()
-        near = 0
-        for r in rows:
-            lim = int(r.get("lim") or 0)
-            used = int(r.get("used") or 0)
-            if lim > 0 and used >= lim * 0.85:
-                near += 1
-        metrics["creators_near_limit"] = near
-    except Exception:
-        db.session.rollback()
-
+    if creators_table:
+        try:
+            cols = []
+            for c in ["storage_used_bytes","used_storage_bytes","storage_bytes_used","storage_used"]:
+                if _owner_col_exists_v478(creators_table,c): cols.append(c)
+            lims = []
+            for c in ["storage_limit_bytes","storage_quota_bytes","max_storage_bytes"]:
+                if _owner_col_exists_v478(creators_table,c): lims.append(c)
+            if cols and lims:
+                used_expr = "COALESCE(" + ",".join(cols) + ",0)"
+                lim_expr = "COALESCE(" + ",".join(lims) + ",0)"
+                metrics["creators_near_limit"] = _owner_scalar_v478(f"SELECT COUNT(*) FROM {creators_table} WHERE {lim_expr}>0 AND {used_expr} >= ({lim_expr} * 0.85)")
+        except Exception:
+            db.session.rollback()
     return metrics
 
 
@@ -545,3 +618,153 @@ def owner_creator_plans_v473():
             edit_plan = None
 
     return render_template("owner/creator_plans.html", plans=plans, edit_plan=edit_plan)
+
+
+
+def _owner_table_for_v478(kind):
+    if kind == "creator":
+        return _owner_pick_table_v478("creator_profile","creators","creator")
+    if kind == "buyer":
+        return _owner_pick_table_v478("buyer_user","buyers","buyer")
+    if kind == "application":
+        return _owner_pick_table_v478("creator_application","creator_applications")
+    return None
+
+def _owner_read_row_v478(table, row_id):
+    try:
+        return db.session.execute(db.text(f"SELECT * FROM {table} WHERE id=:id LIMIT 1"), {"id": row_id}).mappings().first()
+    except Exception:
+        db.session.rollback()
+        return None
+
+@owner_bp.route("/creators", endpoint="owner_creators_v478")
+def owner_creators_v478():
+    table = _owner_table_for_v478("creator")
+    rows = []
+    if table:
+        try:
+            rows = db.session.execute(db.text(f"SELECT * FROM {table} ORDER BY id DESC LIMIT 200")).mappings().all()
+        except Exception:
+            db.session.rollback()
+    return render_template("owner/manage_people.html", rows=rows, kind="creator", title="Creators")
+
+@owner_bp.route("/buyers", endpoint="owner_buyers_v478")
+def owner_buyers_v478():
+    table = _owner_table_for_v478("buyer")
+    rows = []
+    if table:
+        try:
+            rows = db.session.execute(db.text(f"SELECT * FROM {table} ORDER BY id DESC LIMIT 200")).mappings().all()
+        except Exception:
+            db.session.rollback()
+    return render_template("owner/manage_people.html", rows=rows, kind="buyer", title="Buyers")
+
+@owner_bp.route("/<kind>/<int:row_id>/edit", methods=["GET","POST"], endpoint="owner_edit_person_v478")
+def owner_edit_person_v478(kind, row_id):
+    table = _owner_table_for_v478(kind)
+    if not table:
+        flash("Table not found.")
+        return redirect("/owner/panel")
+    row = _owner_read_row_v478(table, row_id)
+    if not row:
+        flash("Record not found.")
+        return redirect("/owner/panel")
+
+    if request.method == "POST":
+        fields = {}
+        for col in ["name","full_name","first_name","last_name","email","phone","phone_number","brand","brand_name","company_name","instagram","instagram_handle","status"]:
+            if _owner_col_exists_v478(table, col) and col in request.form:
+                fields[col] = request.form.get(col)
+        if fields:
+            set_sql = ", ".join([f"{k}=:{k}" for k in fields.keys()])
+            fields["id"] = row_id
+            try:
+                db.session.execute(db.text(f"UPDATE {table} SET {set_sql} WHERE id=:id"), fields)
+                db.session.commit()
+                flash(f"{kind.title()} saved successfully.")
+            except Exception as e:
+                db.session.rollback()
+                flash(f"Could not save {kind}.")
+        return redirect(f"/owner/{kind}s")
+    return render_template("owner/edit_person.html", row=row, kind=kind, title=f"Edit {kind.title()}")
+
+@owner_bp.route("/<kind>/<int:row_id>/status/<status>", methods=["POST"], endpoint="owner_set_status_v478")
+def owner_set_status_v478(kind, row_id, status):
+    table = _owner_table_for_v478(kind)
+    if table and _owner_col_exists_v478(table, "status"):
+        try:
+            db.session.execute(db.text(f"UPDATE {table} SET status=:status WHERE id=:id"), {"status": status, "id": row_id})
+            db.session.commit()
+            flash(f"{kind.title()} status updated.")
+        except Exception:
+            db.session.rollback()
+            flash("Could not update status.")
+    return redirect(request.referrer or f"/owner/{kind}s")
+
+@owner_bp.route("/<kind>/<int:row_id>/delete", methods=["POST"], endpoint="owner_delete_person_v478")
+def owner_delete_person_v478(kind, row_id):
+    table = _owner_table_for_v478(kind)
+    if table:
+        try:
+            db.session.execute(db.text(f"DELETE FROM {table} WHERE id=:id"), {"id": row_id})
+            db.session.commit()
+            flash(f"{kind.title()} deleted.")
+        except Exception:
+            db.session.rollback()
+            flash(f"Could not delete {kind}. It may have linked orders/videos.")
+    return redirect(request.referrer or f"/owner/{kind}s")
+
+@owner_bp.route("/<kind>/<int:row_id>/reset-password", methods=["POST"], endpoint="owner_reset_password_v478")
+def owner_reset_password_v478(kind, row_id):
+    table = _owner_table_for_v478(kind)
+    new_password = (request.form.get("new_password") or "").strip()
+    if not new_password:
+        flash("Enter a new password.")
+        return redirect(request.referrer or f"/owner/{kind}s")
+    if not table:
+        return redirect("/owner/panel")
+
+    try:
+        from werkzeug.security import generate_password_hash
+        hashed = generate_password_hash(new_password)
+        if _owner_col_exists_v478(table, "password_hash"):
+            db.session.execute(db.text(f"UPDATE {table} SET password_hash=:p WHERE id=:id"), {"p": hashed, "id": row_id})
+        elif _owner_col_exists_v478(table, "password"):
+            db.session.execute(db.text(f"UPDATE {table} SET password=:p WHERE id=:id"), {"p": hashed, "id": row_id})
+        else:
+            flash("This table has no password column.")
+            return redirect(request.referrer or f"/owner/{kind}s")
+        db.session.commit()
+        flash("Password reset successfully.")
+    except Exception:
+        db.session.rollback()
+        flash("Could not reset password.")
+    return redirect(request.referrer or f"/owner/{kind}s")
+
+
+
+@owner_bp.route("/application/<int:row_id>/status/<status>", methods=["POST"], endpoint="owner_application_status_v478")
+def owner_application_status_v478(row_id, status):
+    table = _owner_table_for_v478("application")
+    if table and _owner_col_exists_v478(table, "status"):
+        try:
+            db.session.execute(db.text(f"UPDATE {table} SET status=:status WHERE id=:id"), {"status": status, "id": row_id})
+            db.session.commit()
+            flash("Application status updated.")
+        except Exception:
+            db.session.rollback()
+            flash("Could not update application.")
+    return redirect("/owner/applications")
+
+@owner_bp.route("/application/<int:row_id>/delete", methods=["POST"], endpoint="owner_application_delete_v478")
+def owner_application_delete_v478(row_id):
+    table = _owner_table_for_v478("application")
+    if table:
+        try:
+            db.session.execute(db.text(f"DELETE FROM {table} WHERE id=:id"), {"id": row_id})
+            db.session.commit()
+            flash("Application deleted.")
+        except Exception:
+            db.session.rollback()
+            flash("Could not delete application.")
+    return redirect("/owner/applications")
