@@ -3921,13 +3921,81 @@ def upload_r2_complete():
     })
 
 
+
+# v50.5 clean creator batches list helper
+def _bsm_creator_batches_list_v505(creator_id):
+    rows = []
+    try:
+        from app.models import VideoBatch
+        batches = VideoBatch.query.filter(
+            VideoBatch.creator_id == creator_id,
+            db.or_(VideoBatch.status == None, ~VideoBatch.status.in_(["deleted", "cancelled", "canceled"]))
+        ).order_by(VideoBatch.id.desc()).all()
+
+        for b in batches:
+            stats = db.session.execute(db.text("""
+                SELECT
+                    COUNT(*) AS video_count,
+                    COALESCE(SUM(COALESCE(file_size_bytes,0)),0) AS total_bytes,
+                    MIN(recorded_date) AS first_date,
+                    MAX(recorded_date) AS last_date
+                FROM video
+                WHERE batch_id=:bid
+                  AND creator_id=:cid
+                  AND COALESCE(status,'active') NOT IN ('deleted','cancelled','canceled')
+            """), {"bid": b.id, "cid": creator_id}).mappings().first()
+
+            video_count = int((stats or {}).get("video_count") or getattr(b, "file_count", 0) or 0)
+            total_bytes = int((stats or {}).get("total_bytes") or getattr(b, "total_size_bytes", 0) or 0)
+            size_gb = round(total_bytes / 1024 / 1024 / 1024, 2)
+
+            date_label = ""
+            first_date = (stats or {}).get("first_date")
+            last_date = (stats or {}).get("last_date")
+            if first_date and last_date and str(first_date) != str(last_date):
+                date_label = "{} – {}".format(first_date, last_date)
+            elif first_date:
+                date_label = str(first_date)
+            else:
+                created_at = getattr(b, "created_at", None)
+                if created_at:
+                    try:
+                        date_label = created_at.strftime("%m/%d/%Y")
+                    except Exception:
+                        date_label = str(created_at)[:10]
+            if not date_label:
+                date_label = "Batch #{}".format(b.id)
+
+            location = getattr(b, "location", "") or ""
+            name = getattr(b, "batch_name", None) or getattr(b, "name", None) or ""
+            status = getattr(b, "status", "") or "active"
+
+            rows.append({
+                "id": b.id,
+                "title": name or date_label,
+                "date_label": date_label,
+                "location": location,
+                "status": status,
+                "video_count": video_count,
+                "total_bytes": total_bytes,
+                "size_gb": size_gb,
+                "created_at": getattr(b, "created_at", None),
+            })
+    except Exception as e:
+        db.session.rollback()
+        try:
+            print("batches list v50.5 warning:", e)
+        except Exception:
+            pass
+    return rows
+
+
 @creator_bp.route("/batches")
 def batches():
     creator = current_creator()
     if not creator:
         return redirect("/creator/login")
-    from app.models import VideoBatch
-    batches = VideoBatch.query.filter(VideoBatch.creator_id == creator.id, db.or_(VideoBatch.status == None, ~VideoBatch.status.in_(["deleted", "cancelled", "canceled"]))).order_by(VideoBatch.id.desc()).all()
+    batches = _bsm_creator_batches_list_v505(creator.id)
     return render_template("creator/batches.html", batches=batches)
 
 

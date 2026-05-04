@@ -1,73 +1,70 @@
 <!doctype html>
-<html lang="en">
+<html>
 <head>
-  <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width,initial-scale=1">
-  <title>Batches - BoatSpotMedia</title>
+  <title>Creator Batches</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
   <link rel="stylesheet" href="/static/css/style.css">
 </head>
-<body class="creator-dashboard-v453">
-<div class="bsm-creator-page-shell-v453">
-  
-<aside class="bsm-creator-sidebar-v453">
-  <a href="/creator/dashboard" class="bsm-creator-logo-v453">
-    <img src="/static/img/logo-header.png" alt="BoatSpotMedia">
-  </a>
-  <div class="bsm-creator-handle-v453">@BoatSpotMedia.com</div>
-  <nav class="bsm-creator-nav-v453">
-    <a href="/creator/dashboard">Dashboard</a>
-    <a href="/creator/upload">Uploads</a>
-    <a href="/creator/batches" class="active">Batches</a>
-    <a href="/creator/analytics">Analytics</a>
-<a href="/creator/orders">Orders</a>
-    <a href="/creator/dashboard#products">Products</a>
-    <a href="/creator/pricing">Pricing</a>
-      <a href="/creator/billing">Billing</a>
-    <a href="/creator/dashboard#settings">Settings</a>
-    <a href="/logout" class="logout">Log out</a>
-  </nav>
-</aside>
-
-  <main class="bsm-creator-main-v453">
-    <div class="bsm-creator-module-wrap-v453">
-<div class="content">
-    <h1>Your Batches</h1>
-
-{% if not stripe_account_id %}
-<div class="creator-stripe-required-v491x">
-  <div class="creator-stripe-required-title-v491x">Action required: Connect Stripe to receive payouts</div>
-  <div class="creator-stripe-required-text-v491x">
-    To receive payments from your video sales, you must connect your Stripe account. 
-    This is required before uploading videos or setting prices for sale.
+<body>
+<div class="creator-batches-page-v505">
+  <div class="creator-batches-header-v505">
+    <div>
+      <h1>Batches</h1>
+      <p>Manage your uploaded video batches in a clean list view.</p>
+    </div>
+    <div class="creator-batches-header-actions-v505">
+      <a href="/creator/dashboard">Dashboard</a>
+      <a class="primary" href="/creator/upload">Upload New Batch</a>
+    </div>
   </div>
-  <form method="POST" action="/creator/billing/connect-stripe">
-    <button type="submit">Connect Stripe to Receive Payouts</button>
-  </form>
-</div>
-{% endif %}
 
-    <div class="grid">
+  {% with messages = get_flashed_messages() %}
+    {% if messages %}
+      <div class="creator-batches-flash-v505">
+        {% for msg in messages %}<div>{{ msg }}</div>{% endfor %}
+      </div>
+    {% endif %}
+  {% endwith %}
+
+  <div class="batches-list-v505">
     {% for b in batches %}
-      {% if b.status != 'deleted' %}
-      <div class="card">
-        <h3>{{ b.batch_name or ('Batch #' ~ b.id) }}</h3>
-        <p>{{ b.location or '' }}</p>
-        <p>{{ b.file_count or 0 }} videos · {{ ((b.total_size_bytes or 0) / 1024 / 1024 / 1024)|round(2) }} GB</p>
-        <a class="btn" href="/creator/batches/{{ b.id }}">Open Batch</a>
-        <form method="post" action="/creator/batches/{{ b.id }}/delete" onsubmit="return confirm('Delete this batch and hide all videos inside it?');">
-          <button class="btn danger">Delete Batch<div style="font-size:12px;color:#92400e;margin-top:6px;">If this batch contains purchased/active videos, those videos will be kept and only safe videos will be removed.</div></button>
+    <div class="batch-row-v505">
+      <div class="batch-icon-v505">📁</div>
+
+      <div class="batch-main-v505">
+        <div class="batch-title-v505">
+          {{ b.title if b.title is defined else (b.batch_name if b.batch_name is defined else ('Batch #' ~ b.id)) }}
+        </div>
+
+        <div class="batch-meta-v505">
+          <span>{{ b.date_label if b.date_label is defined else (b.created_at.strftime('%m/%d/%Y') if b.created_at is defined and b.created_at else 'No date') }}</span>
+          {% if b.location is defined and b.location %}
+            <span>{{ b.location }}</span>
+          {% endif %}
+          <span>{{ b.video_count if b.video_count is defined else (b.file_count if b.file_count is defined else 0) }} videos</span>
+          <span>{{ "%.2f"|format(b.size_gb if b.size_gb is defined else ((b.total_size_bytes if b.total_size_bytes is defined and b.total_size_bytes else 0) / 1024 / 1024 / 1024)) }} GB</span>
+          {% if b.status is defined and b.status %}
+            <span class="batch-status-v505">{{ b.status }}</span>
+          {% endif %}
+        </div>
+      </div>
+
+      <div class="batch-actions-v505">
+        <a href="/creator/batches/{{ b.id }}">View</a>
+        <a href="/creator/upload?batch={{ b.id }}">Upload More</a>
+        <form method="POST" action="/creator/batches/{{ b.id }}/delete" onsubmit="return confirm('Delete this batch and its videos? This cannot be undone.');">
+          <button type="submit">Delete</button>
         </form>
       </div>
-      {% endif %}
+    </div>
     {% else %}
-      <div class="card"><p>No batches yet.</p><a class="btn" href="/creator/upload">Upload your first batch</a></div>
+    <div class="empty-batches-v505">
+      <h2>No batches yet</h2>
+      <p>Upload your first batch to start selling videos.</p>
+      <a href="/creator/upload">Upload New Batch</a>
+    </div>
     {% endfor %}
-    </div>
   </div>
-</div>
-<script src="/static/js/mobile.js"></script>
-    </div>
-  </main>
 </div>
 </body>
 </html>
