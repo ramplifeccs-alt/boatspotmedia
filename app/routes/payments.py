@@ -103,12 +103,12 @@ def _bsm_enforce_single_creator_connected_v491t(items):
 
     if len(creator_ids) > 1:
         names = ", ".join([creator_names.get(cid, "Creator #" + str(cid)) for cid in sorted(creator_ids)])
-        flash("Your cart has videos from multiple creators: " + names + ". Please purchase videos from one creator at a time so payouts and commissions are separated correctly.")
+        flash("Your cart includes videos from different sellers: " + names + ". Please check out one seller at a time.")
         return redirect("/cart")
 
     if len(creator_ids) == 1 and missing_stripe:
         cid = list(creator_ids)[0]
-        flash((creator_names.get(cid) or "This creator") + " has not connected Stripe payouts yet. This video cannot be purchased until the creator connects Stripe.")
+        flash("This video is temporarily unavailable for checkout. Please try again later or contact support.")
         return redirect("/cart")
 
     return None
@@ -310,7 +310,7 @@ def create_checkout_session(item_type, item_id, title, description, amount, meta
     if not _multi_creator_cart_v491s:
         _connect_check_v491s = _bsm_connect_info_for_cart_v491q(items if 'items' in locals() else []) if '_bsm_connect_info_for_cart_v491q' in globals() else {"enabled": False}
         if _creator_summary_v491s.get("creator_ids") and not _connect_check_v491s.get("enabled"):
-            flash("This creator has not connected Stripe payouts yet. The video cannot be purchased until the creator connects Stripe.")
+            flash("This video is temporarily unavailable for checkout. Please try again later or contact support.")
             return redirect("/cart")
 
     # v49.1Q Stripe Connect split payment calculation

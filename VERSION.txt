@@ -1,7 +1,7 @@
-BoatSpotMedia v49.1V Cart Guard Uses Current Cart Only
-Base: v49.1U.
-Fix:
-- Multi-creator guard no longer reads stale pending cart snapshots.
-- It checks only the live/current cart items, so removing a second creator video clears the block.
-- Still blocks true multi-creator carts and creators without Stripe Connect.
-Does not touch upload, downloads, My Orders, subscriptions, Stripe Connect onboarding, Google, Apple, buyer login, creator login, or R2.
+BoatSpotMedia v49.1W Buyer Friendly Cart Messages
+Base: v49.1V.
+Only change:
+- Buyer-facing cart checkout messages no longer mention payouts, commissions, or Stripe Connect.
+- Multi-seller cart message says to check out one seller at a time.
+- Unavailable creator checkout says video is temporarily unavailable.
+No logic changes.
