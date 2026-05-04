@@ -1,5 +1,7 @@
-BoatSpotMedia v49.1U Fix Flash Import Cart Block
-Base: v49.1T.
-Only change:
-- Imports flash/redirect in payments.py so multi-creator cart block shows message instead of crashing.
+BoatSpotMedia v49.1V Cart Guard Uses Current Cart Only
+Base: v49.1U.
+Fix:
+- Multi-creator guard no longer reads stale pending cart snapshots.
+- It checks only the live/current cart items, so removing a second creator video clears the block.
+- Still blocks true multi-creator carts and creators without Stripe Connect.
 Does not touch upload, downloads, My Orders, subscriptions, Stripe Connect onboarding, Google, Apple, buyer login, creator login, or R2.

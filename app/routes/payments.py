@@ -36,46 +36,38 @@ def _normalize_paid_video_package_v491e(video, item):
 
 # v49.1S multi-creator cart guard.
 
-# v49.1T final enforcement: one creator per cart and creator must have Stripe connected.
+
+# v49.1V final enforcement: use current visible cart only, not stale pending snapshots.
 def _bsm_cart_items_for_guard_v491t():
     """
-    Best-effort loader for current pending cart items.
-    Uses existing pending cart snapshot when available, otherwise session cart.
+    Load only the current cart stored in session.
+    Do NOT use old bsm_pending_cart snapshots here, because they can contain removed items
+    and falsely trigger multi-creator block after the buyer removes a video.
     """
-    try:
-        cart_id = None
+    for key in ["cart", "bsm_cart", "cart_items", "bsm_cart_items"]:
         try:
-            cart_id = flask_session.get("bsm_cart_id") or flask_session.get("cart_id")
+            val = flask_session.get(key)
+            if isinstance(val, list):
+                return val
+            if isinstance(val, dict):
+                return list(val.values())
         except Exception:
-            cart_id = None
-
-        if cart_id and "_load_pending_cart_snapshot" in globals():
-            loaded = _load_pending_cart_snapshot(str(cart_id))
-            if loaded:
-                return loaded
-
-        # Common session cart variants.
-        for key in ["cart", "bsm_cart", "cart_items", "bsm_cart_items"]:
-            try:
-                val = flask_session.get(key)
-                if isinstance(val, list):
-                    return val
-                if isinstance(val, dict):
-                    return list(val.values())
-            except Exception:
-                pass
-    except Exception:
-        pass
+            pass
     return []
 
 def _bsm_item_video_id_v491t(item):
     try:
-        return int(item.get("video_id") or item.get("id") or item.get("video") or 0)
+        if not isinstance(item, dict):
+            return 0
+        # Prefer explicit video_id. Some carts use id as cart line id, so only use id as fallback.
+        return int(item.get("video_id") or item.get("videoId") or item.get("video") or item.get("id") or 0)
     except Exception:
         return 0
 
-def _bsm_enforce_single_creator_connected_v491t(items=None):
-    items = items if items is not None else _bsm_cart_items_for_guard_v491t()
+def _bsm_enforce_single_creator_connected_v491t(items):
+    # If checkout route passes live items, use them. Otherwise load current session cart.
+    items = items if items else _bsm_cart_items_for_guard_v491t()
+
     creator_ids = set()
     creator_names = {}
     missing_stripe = []
@@ -104,10 +96,9 @@ def _bsm_enforce_single_creator_connected_v491t(items=None):
     except Exception as e:
         db.session.rollback()
         try:
-            print("cart guard v49.1T warning:", e)
+            print("cart guard v49.1V warning:", e)
         except Exception:
             pass
-        # do not block on DB error
         return None
 
     if len(creator_ids) > 1:
@@ -127,6 +118,7 @@ def _bsm_abort_checkout_if_needed_v491t(items=None):
     if resp is not None:
         return resp
     return None
+
 
 
 def _bsm_cart_creator_summary_v491s(items):
