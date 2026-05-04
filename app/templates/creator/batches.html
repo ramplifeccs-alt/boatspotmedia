@@ -48,7 +48,14 @@
         {% endif %}
       {% endwith %}
 
-      <div class="batches-list-v505">
+      
+<div style="margin-bottom:15px;">
+  <form method="POST" action="/creator/clean-incomplete-batches" onsubmit="return confirm('Delete incomplete batches?');">
+    <button class="btn danger">Delete Incomplete Batches</button>
+  </form>
+</div>
+
+<div class="batches-list-v505">
         {% for b in batches %}
         <div class="batch-row-v505">
           <div class="batch-icon-v505">📁</div>
