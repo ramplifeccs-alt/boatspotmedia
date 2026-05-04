@@ -1,4 +1,4 @@
-from flask import session as flask_session, render_template, request, redirect
+from flask import session as flask_session, render_template, request, redirect, flash
 import json
 from flask import Blueprint
 from flask import request, redirect, url_for, jsonify, render_template

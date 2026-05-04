@@ -1,0 +1,5 @@
+app/templates/creator/upload.html
+app/templates/creator/batches.html
+app/templates/creator/pricing.html
+app/templates/creator/orders.html
+app/static/css/style.css

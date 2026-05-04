@@ -1,8 +1,5 @@
-BoatSpotMedia v49.1T Enforce Cart Creator + Stripe Block
-Base: v49.1S.
-Fixes:
-- Enforces checkout block inside actual Stripe payment checkout routes.
-- Blocks checkout when cart contains videos from more than one creator.
-- Blocks checkout when the single creator has no Stripe Connect account.
-- Adds robust cart item loader fallback from pending cart/session.
+BoatSpotMedia v49.1U Fix Flash Import Cart Block
+Base: v49.1T.
+Only change:
+- Imports flash/redirect in payments.py so multi-creator cart block shows message instead of crashing.
 Does not touch upload, downloads, My Orders, subscriptions, Stripe Connect onboarding, Google, Apple, buyer login, creator login, or R2.

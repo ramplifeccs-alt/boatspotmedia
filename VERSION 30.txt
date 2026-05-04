@@ -1,0 +1,11 @@
+BoatSpotMedia v49.1S Multi-Creator Cart + Creator Fee Notice
+Base: v49.1R.
+Changes:
+- Blocks checkout if cart contains videos from multiple creators.
+- Blocks checkout if the single creator has not connected Stripe payouts.
+- Shows a clear message to the buyer/cart instead of silently using old payout flow.
+- Adds Creator Billing notice:
+  * test 1-2 sample videos on free 5GB before paying
+  * Stripe processing fees are separate
+  * BoatSpotMedia commission is plan/platform commission
+No changes to upload, downloads, My Orders, subscriptions, Stripe Connect onboarding, Google, Apple, buyer login, creator login, or R2.

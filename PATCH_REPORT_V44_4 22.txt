@@ -1,0 +1,7 @@
+app/routes/public.py
+app/routes/buyer.py
+app/templates/public/generic_register.html
+app/templates/public/buyer_terms.html
+app/templates/public/terms.html
+app/templates/public/privacy.html
+app/templates/public/home.html
