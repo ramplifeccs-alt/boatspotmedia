@@ -5370,7 +5370,131 @@ def creator_settings_v509():
 
 
 
-# v50.10 Delete incomplete batches button fix
+
+# v50.11 R2 cleanup helper for incomplete batch deletion
+def _bsm_delete_r2_key_v5011(key):
+    if not key:
+        return False
+    key = str(key).strip()
+    if not key:
+        return False
+    # If a full public URL was stored, convert it back to object key.
+    if key.startswith("http://") or key.startswith("https://"):
+        try:
+            from urllib.parse import urlparse, unquote
+            parsed = urlparse(key)
+            key = unquote((parsed.path or "").lstrip("/"))
+        except Exception:
+            return False
+    if not key or key.startswith("data:"):
+        return False
+
+    try:
+        from app.services import r2
+        for fn_name in ["delete_object", "delete_file", "delete_key", "delete"]:
+            fn = getattr(r2, fn_name, None)
+            if callable(fn):
+                try:
+                    fn(key)
+                    return True
+                except TypeError:
+                    try:
+                        fn(object_key=key)
+                        return True
+                    except Exception:
+                        pass
+                except Exception:
+                    pass
+    except Exception:
+        pass
+
+    # Direct boto3 fallback for Cloudflare R2.
+    try:
+        import boto3, os
+        endpoint = os.environ.get("R2_ENDPOINT_URL") or os.environ.get("CLOUDFLARE_R2_ENDPOINT") or os.environ.get("R2_ENDPOINT")
+        bucket = os.environ.get("R2_BUCKET_NAME") or os.environ.get("R2_BUCKET") or os.environ.get("CLOUDFLARE_R2_BUCKET")
+        access_key = os.environ.get("R2_ACCESS_KEY_ID") or os.environ.get("AWS_ACCESS_KEY_ID")
+        secret_key = os.environ.get("R2_SECRET_ACCESS_KEY") or os.environ.get("AWS_SECRET_ACCESS_KEY")
+        if endpoint and bucket and access_key and secret_key:
+            client = boto3.client(
+                "s3",
+                endpoint_url=endpoint,
+                aws_access_key_id=access_key,
+                aws_secret_access_key=secret_key,
+                region_name=os.environ.get("R2_REGION") or "auto",
+            )
+            client.delete_object(Bucket=bucket, Key=key)
+            return True
+    except Exception as e:
+        try:
+            print("r2 delete key v50.11 warning:", key, e)
+        except Exception:
+            pass
+    return False
+
+def _bsm_delete_video_r2_objects_v5011(video):
+    deleted = 0
+    # cover known columns used across versions
+    candidate_attrs = [
+        "r2_video_key", "file_path", "internal_filename",
+        "r2_thumbnail_key", "thumbnail_path", "public_thumbnail_url",
+        "preview_key", "r2_preview_key", "watermarked_preview_key",
+        "edited_r2_key", "edited_file_path"
+    ]
+    seen = set()
+    for attr in candidate_attrs:
+        try:
+            key = getattr(video, attr, None)
+        except Exception:
+            key = None
+        if not key or str(key) in seen:
+            continue
+        seen.add(str(key))
+        if _bsm_delete_r2_key_v5011(key):
+            deleted += 1
+    return deleted
+
+def _bsm_delete_batch_r2_prefix_v5011(creator_id, batch_id):
+    # Fallback: delete all objects under creators/<creator_id>/batches/<batch_id>/
+    prefix = "creators/{}/batches/{}/".format(creator_id, batch_id)
+    deleted = 0
+    try:
+        import boto3, os
+        endpoint = os.environ.get("R2_ENDPOINT_URL") or os.environ.get("CLOUDFLARE_R2_ENDPOINT") or os.environ.get("R2_ENDPOINT")
+        bucket = os.environ.get("R2_BUCKET_NAME") or os.environ.get("R2_BUCKET") or os.environ.get("CLOUDFLARE_R2_BUCKET")
+        access_key = os.environ.get("R2_ACCESS_KEY_ID") or os.environ.get("AWS_ACCESS_KEY_ID")
+        secret_key = os.environ.get("R2_SECRET_ACCESS_KEY") or os.environ.get("AWS_SECRET_ACCESS_KEY")
+        if not (endpoint and bucket and access_key and secret_key):
+            return 0
+        client = boto3.client(
+            "s3",
+            endpoint_url=endpoint,
+            aws_access_key_id=access_key,
+            aws_secret_access_key=secret_key,
+            region_name=os.environ.get("R2_REGION") or "auto",
+        )
+        token = None
+        while True:
+            kwargs = {"Bucket": bucket, "Prefix": prefix, "MaxKeys": 1000}
+            if token:
+                kwargs["ContinuationToken"] = token
+            resp = client.list_objects_v2(**kwargs)
+            objs = [{"Key": o["Key"]} for o in resp.get("Contents", []) if o.get("Key")]
+            if objs:
+                client.delete_objects(Bucket=bucket, Delete={"Objects": objs, "Quiet": True})
+                deleted += len(objs)
+            if not resp.get("IsTruncated"):
+                break
+            token = resp.get("NextContinuationToken")
+    except Exception as e:
+        try:
+            print("r2 delete batch prefix v50.11 warning:", prefix, e)
+        except Exception:
+            pass
+    return deleted
+
+
+# v50.11 Delete incomplete batches + R2 cleanup
 @creator_bp.route("/clean-incomplete-batches", methods=["POST"])
 @creator_bp.route("/batches/clean-incomplete", methods=["POST"])
 def creator_clean_incomplete_batches_v5010():
@@ -5379,33 +5503,40 @@ def creator_clean_incomplete_batches_v5010():
         return redirect("/creator/login")
 
     deleted_count = 0
+    deleted_r2_objects = 0
     try:
         from app.models import Video, VideoBatch
 
-        # Incomplete means:
-        # - status uploading/processing/pending/failed/error/cancelled/canceled
-        # - OR no active videos inside the batch.
         batches = VideoBatch.query.filter(VideoBatch.creator_id == creator.id).all()
 
         for b in batches:
             status = (getattr(b, "status", "") or "").lower().strip()
+
             active_video_count = Video.query.filter(
                 Video.creator_id == creator.id,
                 Video.batch_id == b.id,
                 db.or_(Video.status == None, ~Video.status.in_(["deleted", "cancelled", "canceled"]))
             ).count()
 
-            is_incomplete_status = status in ["uploading", "processing", "pending", "failed", "error", "cancelled", "canceled", "incomplete", "draft"]
+            is_incomplete_status = status in [
+                "uploading", "processing", "pending", "failed", "error",
+                "cancelled", "canceled", "incomplete", "draft"
+            ]
             is_empty = active_video_count == 0
 
             if is_incomplete_status or is_empty:
-                # Soft-delete videos first if any are attached.
                 videos = Video.query.filter_by(creator_id=creator.id, batch_id=b.id).all()
+
+                # Delete every known object key from R2 before hiding the rows.
                 for v in videos:
+                    deleted_r2_objects += _bsm_delete_video_r2_objects_v5011(v)
                     try:
                         v.status = "deleted"
                     except Exception:
                         pass
+
+                # Extra safety: delete the full R2 folder prefix for this batch.
+                deleted_r2_objects += _bsm_delete_batch_r2_prefix_v5011(creator.id, b.id)
 
                 try:
                     b.status = "deleted"
@@ -5421,7 +5552,16 @@ def creator_clean_incomplete_batches_v5010():
         except Exception:
             pass
 
-        flash(f"Deleted {deleted_count} incomplete batch{'es' if deleted_count != 1 else ''}.")
+        flash(f"Deleted {deleted_count} incomplete batch{'es' if deleted_count != 1 else ''} and removed {deleted_r2_objects} storage object{'s' if deleted_r2_objects != 1 else ''}.")
+        return redirect("/creator/batches")
+
+    except Exception as e:
+        db.session.rollback()
+        try:
+            print("clean incomplete batches r2 v50.11 warning:", e)
+        except Exception:
+            pass
+        flash("Could not delete incomplete batches from storage. Please try again.")
         return redirect("/creator/batches")
 
     except Exception as e:
