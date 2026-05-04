@@ -1818,6 +1818,55 @@ def _bsm_owner_period_sql_v500(period,col="o.created_at"):
     if p=="30d": return f" AND {col} >= NOW() - INTERVAL '30 days' "
     return ""
 
+
+# v50.3 Owner Smart Insights
+def _bsm_owner_smart_insights_v503(data):
+    insights = []
+    gross = float(data.get("gross_sales") or 0)
+    platform = float(data.get("platform_fees") or 0)
+    payouts = float(data.get("creator_estimated_payouts") or 0)
+    orders = int(data.get("orders_count") or 0)
+    items = int(data.get("items_sold") or 0)
+    views = int(data.get("views") or 0)
+    clicks = int(data.get("clicks") or 0)
+    creators = data.get("creator_rows") or []
+
+    if creators:
+        top = creators[0]
+        name = top.get("creator_name") or "Creator"
+        top_sales = float(top.get("gross_sales") or 0)
+        share = (top_sales / gross * 100.0) if gross else 0
+        insights.append("🏆 Top creator: {} generated ${:.0f} ({:.1f}% of platform sales).".format(name, top_sales, share))
+
+    if gross > 0:
+        fee_share = platform / gross * 100.0 if gross else 0
+        insights.append("💼 BoatSpotMedia fee share is {:.1f}% for this period.".format(fee_share))
+
+    if orders > 0:
+        avg_order = gross / orders
+        insights.append("📌 Average order value is ${:.2f}. Use this to evaluate pricing changes.".format(avg_order))
+
+    if views >= 100:
+        conversion = (items / views * 100.0) if views else 0
+        ctr = (clicks / views * 100.0) if views else 0
+        if conversion < 2:
+            insights.append("⚠️ Platform conversion is low ({:.1f}%). Review previews, trust signals, and pricing.".format(conversion))
+        elif conversion >= 5:
+            insights.append("🔥 Platform conversion is strong ({:.1f}%). Consider promoting top creators harder.".format(conversion))
+        if ctr < 5:
+            insights.append("⚠️ Low platform click rate ({:.1f}%). Homepage thumbnails and video cards may need improvement.".format(ctr))
+
+    if creators and gross > 0:
+        top5 = sum(float(c.get("gross_sales") or 0) for c in creators[:5])
+        top5_share = top5 / gross * 100.0 if gross else 0
+        insights.append("📊 Top 5 creators represent {:.1f}% of sales. Focus support and onboarding around top performers.".format(top5_share))
+
+    if not insights:
+        insights.append("No insights yet. Once sales, views, and clicks are recorded, recommendations will appear here.")
+
+    return insights
+
+
 def _bsm_owner_analytics_data_v500(period="30d"):
     where_date=_bsm_owner_period_sql_v500(period,"o.created_at")
     data={"period":period or "30d","gross_sales":0.0,"platform_fees":0.0,"creator_estimated_payouts":0.0,"orders_count":0,"items_sold":0,"subscriptions_active":0,"creator_rows":[],"daily_sales":[],"recent_orders":[],"views":0,"clicks":0,"conversion_rate":0.0}
@@ -1886,6 +1935,7 @@ def _bsm_owner_analytics_data_v500(period="30d"):
         """)).mappings().all()]
     except Exception as e:
         db.session.rollback(); print("owner analytics v50 warning:", e)
+    data["insights"] = _bsm_owner_smart_insights_v503(data)
     return data
 
 @owner_bp.route("/analytics")

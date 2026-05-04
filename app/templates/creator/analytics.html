@@ -31,6 +31,17 @@
     <div><label>Avg Order</label><strong>${{ "%.2f"|format(analytics.avg_order) }}</strong></div>
   </div>
 
+  <div class="analytics-smart-insights-v503">
+    <h2>Smart Insights</h2>
+    <ul>
+      {% for insight in analytics.insights %}
+      <li>{{ insight }}</li>
+      {% else %}
+      <li>No insights yet.</li>
+      {% endfor %}
+    </ul>
+  </div>
+
   <div class="analytics-insights-v501">
     <div>
       <span>Best Seller</span>

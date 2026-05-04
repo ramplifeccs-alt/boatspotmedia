@@ -1,0 +1,7 @@
+BoatSpotMedia v50.1 Analytics PRO Charts
+Base: v50.0.
+Adds visual charts only:
+- Creator Analytics charts: Sales Over Time, Revenue Split, Top Videos.
+- Owner Analytics charts: Sales Over Time, Revenue Split, Top Creators.
+- Adds insight cards and back buttons.
+Does not touch checkout, uploads, downloads, My Orders, split payments, subscriptions, logins, or R2.

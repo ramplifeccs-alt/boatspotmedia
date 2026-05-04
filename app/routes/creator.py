@@ -4972,6 +4972,52 @@ def _bsm_period_sql_v500(period, col="o.created_at"):
     if p=="30d": return f" AND {col} >= NOW() - INTERVAL '30 days' "
     return ""
 
+
+# v50.3 Creator Smart Insights
+def _bsm_creator_smart_insights_v503(data):
+    insights = []
+    views = int(data.get("views") or 0)
+    clicks = int(data.get("clicks") or 0)
+    sales = int(data.get("items_sold") or 0)
+    gross = float(data.get("gross_sales") or 0)
+    top_videos = data.get("top_videos") or []
+
+    if top_videos:
+        best = top_videos[0]
+        title = best.get("title") or best.get("filename") or "Video"
+        amount = float(best.get("gross_sales") or 0)
+        sold = int(best.get("sold_count") or 0)
+        insights.append("🔥 Best performer: {} generated ${:.0f} from {} sale{}.".format(title, amount, sold, "" if sold == 1 else "s"))
+
+    if views > 0:
+        conversion = (sales / views * 100.0) if views else 0
+        if views >= 50 and conversion >= 8:
+            insights.append("💰 Strong conversion rate ({:.1f}%). Consider testing a slightly higher price on your best videos.".format(conversion))
+        elif views >= 50 and conversion < 3:
+            insights.append("⚠️ Low conversion ({:.1f}%). Review pricing, thumbnail quality, or video preview clarity.".format(conversion))
+        elif views < 50:
+            insights.append("👀 Keep promoting your videos. You need more views before conversion data becomes reliable.")
+
+    if views >= 100:
+        ctr = (clicks / views * 100.0) if views else 0
+        if ctr < 5:
+            insights.append("⚠️ Low click rate ({:.1f}%). Improve thumbnails, titles, or the first preview frame.".format(ctr))
+        elif ctr >= 15:
+            insights.append("🔥 High buyer interest ({:.1f}% click rate). These videos are attracting attention.".format(ctr))
+
+    if views >= 50 and sales == 0:
+        insights.append("🚨 You have views but no purchases yet. Try clearer previews, better metadata, or a lower starter price.")
+
+    if gross > 0 and sales > 0:
+        avg = gross / sales
+        insights.append("📌 Average revenue per sold video is ${:.2f}. Use this number when comparing pricing options.".format(avg))
+
+    if not insights:
+        insights.append("No insights yet. Upload videos, share your listings, and check back after views/clicks/sales are recorded.")
+
+    return insights
+
+
 def _bsm_creator_analytics_data_v500(creator_id, period="30d"):
     where_date=_bsm_period_sql_v500(period,"o.created_at")
     data={"period":period or "30d","gross_sales":0.0,"platform_fees":0.0,"creator_estimated_payout":0.0,"orders_count":0,"items_sold":0,"avg_order":0.0,"top_videos":[],"recent_orders":[],"daily_sales":[],"views":0,"clicks":0,"conversion_rate":0.0}
@@ -5043,6 +5089,7 @@ def _bsm_creator_analytics_data_v500(creator_id, period="30d"):
     except Exception as e:
         db.session.rollback()
         print("creator analytics v50 warning:", e)
+    data["insights"] = _bsm_creator_smart_insights_v503(data)
     return data
 
 @creator_bp.route("/analytics")

@@ -1,0 +1,5 @@
+app/templates/buyer/dashboard.html
+app/routes/creator.py
+app/templates/creator/pending_edits.html
+app/templates/creator/dashboard.html
+app/__init__.py
