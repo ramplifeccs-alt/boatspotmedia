@@ -10,6 +10,10 @@
   <meta name="theme-color" content="#071b34">
 </head>
 <body>
+{% with messages = get_flashed_messages() %}
+{% if messages %}<div class="cart-flash-v491t">{% for msg in messages %}<div>{{ msg }}</div>{% endfor %}</div>{% endif %}
+{% endwith %}
+
 <div class="container" style="max-width:1000px;margin:30px auto;padding:20px;">
   <div style="display:flex;justify-content:space-between;align-items:center;gap:12px;margin-bottom:18px;">
     <a href="/" style="display:inline-flex;align-items:center;text-decoration:none;"><img src="/static/img/logo-header.png" alt="BoatSpotMedia" style="height:52px;max-width:260px;object-fit:contain;"></a><div style="background:#eff6ff;border:1px solid #bfdbfe;color:#1e3a8a;padding:10px;border-radius:10px;margin:10px 0;"></div><h1 style="margin:0;">Your Cart</h1>

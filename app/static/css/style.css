@@ -2350,3 +2350,15 @@ body.creator-dashboard-v449 main{
   border-radius:14px;
   font-weight:800;
 }
+
+/* v49.1T cart enforce flash */
+.cart-flash-v491t{
+  max-width:980px;
+  margin:14px auto;
+  padding:12px 14px;
+  border:1px solid #fecaca;
+  background:#fef2f2;
+  color:#991b1b;
+  border-radius:14px;
+  font-weight:900;
+}

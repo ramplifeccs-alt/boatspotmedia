@@ -35,6 +35,100 @@ def _normalize_paid_video_package_v491e(video, item):
 # v49.1Q Stripe Connect split payments for video sales
 
 # v49.1S multi-creator cart guard.
+
+# v49.1T final enforcement: one creator per cart and creator must have Stripe connected.
+def _bsm_cart_items_for_guard_v491t():
+    """
+    Best-effort loader for current pending cart items.
+    Uses existing pending cart snapshot when available, otherwise session cart.
+    """
+    try:
+        cart_id = None
+        try:
+            cart_id = flask_session.get("bsm_cart_id") or flask_session.get("cart_id")
+        except Exception:
+            cart_id = None
+
+        if cart_id and "_load_pending_cart_snapshot" in globals():
+            loaded = _load_pending_cart_snapshot(str(cart_id))
+            if loaded:
+                return loaded
+
+        # Common session cart variants.
+        for key in ["cart", "bsm_cart", "cart_items", "bsm_cart_items"]:
+            try:
+                val = flask_session.get(key)
+                if isinstance(val, list):
+                    return val
+                if isinstance(val, dict):
+                    return list(val.values())
+            except Exception:
+                pass
+    except Exception:
+        pass
+    return []
+
+def _bsm_item_video_id_v491t(item):
+    try:
+        return int(item.get("video_id") or item.get("id") or item.get("video") or 0)
+    except Exception:
+        return 0
+
+def _bsm_enforce_single_creator_connected_v491t(items=None):
+    items = items if items is not None else _bsm_cart_items_for_guard_v491t()
+    creator_ids = set()
+    creator_names = {}
+    missing_stripe = []
+
+    try:
+        for item in items or []:
+            vid = _bsm_item_video_id_v491t(item)
+            if not vid:
+                continue
+            row = db.session.execute(db.text("""
+                SELECT v.creator_id,
+                       COALESCE(u.display_name, u.public_name, u.primary_location, u.email, 'Creator') AS creator_name,
+                       COALESCE(u.stripe_account_id,'') AS stripe_account_id
+                FROM video v
+                LEFT JOIN creator_profile cp ON cp.id = v.creator_id
+                LEFT JOIN "user" u ON u.id = cp.user_id
+                WHERE v.id=:vid
+                LIMIT 1
+            """), {"vid": vid}).mappings().first()
+            if row and row.get("creator_id"):
+                cid = int(row.get("creator_id"))
+                creator_ids.add(cid)
+                creator_names[cid] = row.get("creator_name") or ("Creator #" + str(cid))
+                if not (row.get("stripe_account_id") or "").strip():
+                    missing_stripe.append(cid)
+    except Exception as e:
+        db.session.rollback()
+        try:
+            print("cart guard v49.1T warning:", e)
+        except Exception:
+            pass
+        # do not block on DB error
+        return None
+
+    if len(creator_ids) > 1:
+        names = ", ".join([creator_names.get(cid, "Creator #" + str(cid)) for cid in sorted(creator_ids)])
+        flash("Your cart has videos from multiple creators: " + names + ". Please purchase videos from one creator at a time so payouts and commissions are separated correctly.")
+        return redirect("/cart")
+
+    if len(creator_ids) == 1 and missing_stripe:
+        cid = list(creator_ids)[0]
+        flash((creator_names.get(cid) or "This creator") + " has not connected Stripe payouts yet. This video cannot be purchased until the creator connects Stripe.")
+        return redirect("/cart")
+
+    return None
+
+def _bsm_abort_checkout_if_needed_v491t(items=None):
+    resp = _bsm_enforce_single_creator_connected_v491t(items)
+    if resp is not None:
+        return resp
+    return None
+
+
 def _bsm_cart_creator_summary_v491s(items):
     """
     Returns creator IDs present in the current cart.
@@ -1278,6 +1372,11 @@ def stripe_webhook():
 
 @payments_bp.route("/cart/checkout")
 def checkout_cart():
+    # enforce checkout guard v49.1T
+    _guard_resp_v491t = _bsm_abort_checkout_if_needed_v491t(items if 'items' in locals() else None)
+    if _guard_resp_v491t is not None:
+        return _guard_resp_v491t
+
     # Checkout login guard v42.9
     if not flask_session.get("user_id") or flask_session.get("user_role") != "buyer":
         flask_session["after_login_redirect"] = "/cart"
