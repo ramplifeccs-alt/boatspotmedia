@@ -1,0 +1,3 @@
+BoatSpotMedia v50.0 Earnings + Analytics Dashboards
+Base: v49.1Z.
+Adds creator /creator/analytics and owner /owner/analytics. Does not touch checkout, uploads, downloads, My Orders, split payments, subscriptions, logins, or R2.

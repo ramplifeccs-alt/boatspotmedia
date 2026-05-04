@@ -34,26 +34,26 @@
       {% if option.description %}
         <p style="margin-top:-8px;color:#555;font-size:14px;">{{ option.description }}</p>
       {% endif %}
-      <a class="btn {% if not loop.first %}secondary{% endif %} bsm-buy-track" data-video-id="{{ video.id }}" href="/cart/add/video/{{ video.id }}?package={{ option.package }}{% if option.id %}&price_id={{ option.id }}{% endif %}">Add {{ option.title }} to Cart</a>
+      <a class="btn {% if not loop.first %}secondary{% endif %} bsm-buy-track" data-video-id="{{ video.id }}" data-track-click-video-id="{{ video.id if video is defined else v.id if v is defined else item.video_id if item is defined else '' }}" href="/cart/add/video/{{ video.id }}?package={{ option.package }}{% if option.id %}&price_id={{ option.id }}{% endif %}">Add {{ option.title }} to Cart</a>
     </div>
   {% endfor %}
 {% else %}
   {% if video.original_price and video.original_price|float > 0 %}
     <div class="purchase-option" style="margin:16px 0;">
       <p><b>Original 4K download:</b> ${{ video.original_price }}</p>
-      <a class="btn bsm-buy-track" data-video-id="{{ video.id }}" href="/cart/add/video/{{ video.id }}?package=original">Add Original to Cart</a>
+      <a class="btn bsm-buy-track" data-video-id="{{ video.id }}" data-track-click-video-id="{{ video.id if video is defined else v.id if v is defined else item.video_id if item is defined else '' }}" href="/cart/add/video/{{ video.id }}?package=original">Add Original to Cart</a>
     </div>
   {% endif %}
   {% if video.edited_price and video.edited_price|float > 0 %}
     <div class="purchase-option" style="margin:16px 0;">
       <p><b>Edited video:</b> ${{ video.edited_price }}</p>
-      <a class="btn secondary bsm-buy-track" data-video-id="{{ video.id }}" href="/cart/add/video/{{ video.id }}?package=edited">Add Edited to Cart</a>
+      <a class="btn secondary bsm-buy-track" data-video-id="{{ video.id }}" data-track-click-video-id="{{ video.id if video is defined else v.id if v is defined else item.video_id if item is defined else '' }}" href="/cart/add/video/{{ video.id }}?package=edited">Add Edited to Cart</a>
     </div>
   {% endif %}
   {% if video.bundle_price and video.bundle_price|float > 0 %}
     <div class="purchase-option" style="margin:16px 0;">
       <p><b>Original + edited combo:</b> ${{ video.bundle_price }}</p>
-      <a class="btn secondary bsm-buy-track" data-video-id="{{ video.id }}" href="/cart/add/video/{{ video.id }}?package=bundle">Add Combo to Cart</a>
+      <a class="btn secondary bsm-buy-track" data-video-id="{{ video.id }}" data-track-click-video-id="{{ video.id if video is defined else v.id if v is defined else item.video_id if item is defined else '' }}" href="/cart/add/video/{{ video.id }}?package=bundle">Add Combo to Cart</a>
     </div>
   {% endif %}
   {% if (not video.original_price or video.original_price|float <= 0) and (not video.edited_price or video.edited_price|float <= 0) and (not video.bundle_price or video.bundle_price|float <= 0) %}
@@ -63,6 +63,7 @@
 </div>
 </div>
 </div><script src="/static/js/mobile.js"></script>
+<script src="/static/js/tracking.js"></script>
 </body></html>
 
 

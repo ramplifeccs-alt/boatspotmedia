@@ -1820,7 +1820,7 @@ def _bsm_owner_period_sql_v500(period,col="o.created_at"):
 
 def _bsm_owner_analytics_data_v500(period="30d"):
     where_date=_bsm_owner_period_sql_v500(period,"o.created_at")
-    data={"period":period or "30d","gross_sales":0.0,"platform_fees":0.0,"creator_estimated_payouts":0.0,"orders_count":0,"items_sold":0,"subscriptions_active":0,"creator_rows":[],"daily_sales":[],"recent_orders":[]}
+    data={"period":period or "30d","gross_sales":0.0,"platform_fees":0.0,"creator_estimated_payouts":0.0,"orders_count":0,"items_sold":0,"subscriptions_active":0,"creator_rows":[],"daily_sales":[],"recent_orders":[],"views":0,"clicks":0,"conversion_rate":0.0}
     try:
         row=db.session.execute(db.text(f"""
             SELECT COALESCE(SUM(COALESCE(i.unit_price,0)*COALESCE(i.quantity,1)),0) gross_sales,
@@ -1838,6 +1838,22 @@ def _bsm_owner_analytics_data_v500(period="30d"):
             """)).mappings().first()
             data["platform_fees"]=float((fee or {}).get("platform_fees") or 0); data["creator_estimated_payouts"]=float((fee or {}).get("creator_payouts") or 0)
         except Exception: db.session.rollback()
+        
+        try:
+            trow=db.session.execute(db.text(f"""
+                SELECT
+                  COUNT(*) FILTER (WHERE event_type='view') AS views,
+                  COUNT(*) FILTER (WHERE event_type IN ('click','purchase_click')) AS clicks
+                FROM analytics_event
+                WHERE 1=1
+                {where_date.replace('o.created_at','created_at')}
+            """)).mappings().first()
+            data["views"]=int((trow or {}).get("views") or 0)
+            data["clicks"]=int((trow or {}).get("clicks") or 0)
+            data["conversion_rate"]=round((data["items_sold"]/data["views"]*100),2) if data["views"] else 0.0
+        except Exception:
+            db.session.rollback()
+
         if data["creator_estimated_payouts"]<=0 and data["gross_sales"]>0:
             data["platform_fees"]=round(data["gross_sales"]*.25,2); data["creator_estimated_payouts"]=round(data["gross_sales"]-data["platform_fees"],2)
         try:

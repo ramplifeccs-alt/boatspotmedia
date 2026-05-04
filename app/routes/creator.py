@@ -4974,7 +4974,7 @@ def _bsm_period_sql_v500(period, col="o.created_at"):
 
 def _bsm_creator_analytics_data_v500(creator_id, period="30d"):
     where_date=_bsm_period_sql_v500(period,"o.created_at")
-    data={"period":period or "30d","gross_sales":0.0,"platform_fees":0.0,"creator_estimated_payout":0.0,"orders_count":0,"items_sold":0,"avg_order":0.0,"top_videos":[],"recent_orders":[],"daily_sales":[]}
+    data={"period":period or "30d","gross_sales":0.0,"platform_fees":0.0,"creator_estimated_payout":0.0,"orders_count":0,"items_sold":0,"avg_order":0.0,"top_videos":[],"recent_orders":[],"daily_sales":[],"views":0,"clicks":0,"conversion_rate":0.0}
     try:
         row=db.session.execute(db.text(f"""
             SELECT COALESCE(SUM(COALESCE(i.unit_price,0)*COALESCE(i.quantity,1)),0) gross_sales,
@@ -5004,6 +5004,22 @@ def _bsm_creator_analytics_data_v500(creator_id, period="30d"):
             commission=float((cr or {}).get("commission_rate") or 25)
             data["platform_fees"]=round(data["gross_sales"]*commission/100,2); data["creator_estimated_payout"]=round(data["gross_sales"]-data["platform_fees"],2)
         if data["orders_count"]: data["avg_order"]=round(data["gross_sales"]/data["orders_count"],2)
+
+        try:
+            trow=db.session.execute(db.text(f"""
+                SELECT
+                  COUNT(*) FILTER (WHERE event_type='view') AS views,
+                  COUNT(*) FILTER (WHERE event_type IN ('click','purchase_click')) AS clicks
+                FROM analytics_event
+                WHERE creator_id=:cid
+                {where_date.replace('o.created_at','created_at')}
+            """),{"cid":creator_id}).mappings().first()
+            data["views"]=int((trow or {}).get("views") or 0)
+            data["clicks"]=int((trow or {}).get("clicks") or 0)
+            data["conversion_rate"]=round((data["items_sold"]/data["views"]*100),2) if data["views"] else 0.0
+        except Exception:
+            db.session.rollback()
+
         data["top_videos"]=[dict(r) for r in db.session.execute(db.text(f"""
             SELECT COALESCE(v.location,'Boat video') title, COALESCE(v.filename,v.internal_filename,'Video') filename,
                    COUNT(*) sold_count, COALESCE(SUM(COALESCE(i.unit_price,0)*COALESCE(i.quantity,1)),0) gross_sales

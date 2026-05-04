@@ -945,3 +945,91 @@ def public_download_video_v491i(item_id):
             pass
         return "Download error", 500
 
+
+
+
+# v50.2 tracking: views/clicks/conversion events
+def _bsm_ensure_analytics_events_v502():
+    try:
+        db.session.execute(db.text("""
+            CREATE TABLE IF NOT EXISTS analytics_event (
+                id SERIAL PRIMARY KEY,
+                event_type TEXT NOT NULL,
+                video_id INTEGER,
+                creator_id INTEGER,
+                buyer_user_id INTEGER,
+                session_id TEXT,
+                path TEXT,
+                user_agent TEXT,
+                ip_hash TEXT,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            )
+        """))
+        db.session.execute(db.text("CREATE INDEX IF NOT EXISTS idx_analytics_event_video_type ON analytics_event(video_id, event_type)"))
+        db.session.execute(db.text("CREATE INDEX IF NOT EXISTS idx_analytics_event_creator_type ON analytics_event(creator_id, event_type)"))
+        db.session.commit()
+    except Exception:
+        db.session.rollback()
+
+def _bsm_tracking_session_id_v502():
+    try:
+        sid=session.get("bsm_tracking_sid")
+        if not sid:
+            import uuid
+            sid=uuid.uuid4().hex
+            session["bsm_tracking_sid"]=sid
+        return sid
+    except Exception:
+        return ""
+
+@public_bp.route("/track", methods=["POST"])
+def public_track_event_v502():
+    _bsm_ensure_analytics_events_v502()
+    data=request.get_json(silent=True) or request.form or {}
+    event_type=(data.get("event_type") or data.get("type") or "").strip().lower()
+    if event_type not in ["view","click","purchase_click"]:
+        return jsonify({"ok":False,"error":"invalid event"}),400
+    try:
+        video_id=int(data.get("video_id") or 0) or None
+    except Exception:
+        video_id=None
+    creator_id=None
+    if video_id:
+        try:
+            row=db.session.execute(db.text("SELECT creator_id FROM video WHERE id=:id LIMIT 1"),{"id":video_id}).mappings().first()
+            creator_id=row.get("creator_id") if row else None
+        except Exception:
+            db.session.rollback()
+    try:
+        buyer_user_id=session.get("buyer_user_id") or session.get("user_id")
+    except Exception:
+        buyer_user_id=None
+    try:
+        import hashlib
+        ip=(request.headers.get("CF-Connecting-IP") or request.headers.get("X-Forwarded-For") or request.remote_addr or "").split(",")[0].strip()
+        ip_hash=hashlib.sha256(ip.encode("utf-8")).hexdigest()[:24] if ip else ""
+    except Exception:
+        ip_hash=""
+    try:
+        db.session.execute(db.text("""
+            INSERT INTO analytics_event
+            (event_type, video_id, creator_id, buyer_user_id, session_id, path, user_agent, ip_hash)
+            VALUES (:event_type,:video_id,:creator_id,:buyer_user_id,:session_id,:path,:user_agent,:ip_hash)
+        """),{
+            "event_type":event_type,
+            "video_id":video_id,
+            "creator_id":creator_id,
+            "buyer_user_id":buyer_user_id,
+            "session_id":_bsm_tracking_session_id_v502(),
+            "path":data.get("path") or request.referrer or "",
+            "user_agent":(request.headers.get("User-Agent") or "")[:250],
+            "ip_hash":ip_hash
+        })
+        db.session.commit()
+        return jsonify({"ok":True})
+    except Exception as e:
+        db.session.rollback()
+        try: print("track event v50.2 warning:", e)
+        except Exception: pass
+        return jsonify({"ok":False}),500
+
