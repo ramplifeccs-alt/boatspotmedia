@@ -1,0 +1,8 @@
+app/routes/creator.py
+app/routes/owner.py
+app/templates/owner/creator_plans.html
+app/templates/owner/login.html
+app/templates/owner/panel.html
+app/templates/owner/applications.html
+app/templates/creator/billing.html
+app/static/css/style.css

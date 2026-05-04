@@ -3479,19 +3479,44 @@ def delete_product_variant(variant_id):
 BATCH_LIMIT_BYTES = 128 * 1024 * 1024 * 1024  # 128 GB per batch
 
 
+
+def _bsm_creator_effective_storage_limit_gb_v491z(creator_id):
+    """
+    Storage limit source of truth for creator pages/uploads.
+    The subscription payment updates creator_profile.storage_limit_gb and/or creator_subscription.storage_limit_gb.
+    """
+    try:
+        row = db.session.execute(db.text("""
+            SELECT COALESCE(
+                NULLIF(cp.storage_limit_gb, 0),
+                NULLIF(cs.storage_limit_gb, 0),
+                5
+            ) AS storage_limit_gb
+            FROM creator_profile cp
+            LEFT JOIN creator_subscription cs ON cs.creator_id = cp.id
+            WHERE cp.id=:creator_id
+            LIMIT 1
+        """), {"creator_id": creator_id}).mappings().first()
+        if row and row.get("storage_limit_gb") is not None:
+            return float(row.get("storage_limit_gb") or 5)
+    except Exception as e:
+        try:
+            db.session.rollback()
+            print("effective storage limit v49.1Z warning:", e)
+        except Exception:
+            pass
+    return 5.0
+
+
 def _creator_storage_limit_bytes(creator):
     try:
-        plan = getattr(creator, "plan", None) or getattr(creator, "storage_plan", None)
-        if plan and getattr(plan, "storage_limit_gb", None):
-            return int(plan.storage_limit_gb) * 1024 * 1024 * 1024
+        cid = getattr(creator, "id", None)
+        if cid:
+            return int(_bsm_creator_effective_storage_limit_gb_v491z(cid) * 1024 * 1024 * 1024)
     except Exception:
         pass
-    try:
-        if getattr(creator, "storage_limit_gb", None):
-            return int(creator.storage_limit_gb) * 1024 * 1024 * 1024
-    except Exception:
-        pass
-    return 128 * 1024 * 1024 * 1024
+    return 5 * 1024 * 1024 * 1024
+
 
 
 def _creator_used_storage_bytes(creator_id):
@@ -3559,60 +3584,38 @@ def upload():
 
 
 
+
 def _creator_plan_limits(creator):
-    """Return safe storage/batch limits for creator panel and uploads.
-    Defaults: 500 GB storage, 128 GB per batch.
-    Reads multiple legacy/new field names so Owner panel changes still show in Creator panel.
-    """
-    def first_number(*values, default=0):
-        for v in values:
-            try:
-                if v is not None and str(v).strip() != "":
-                    return float(v)
-            except Exception:
-                pass
-        return float(default)
+    """Return current storage limit and max batch limit for creator upload panel."""
+    storage_limit = 5.0
+    batch_limit = 128.0
+    try:
+        cid = getattr(creator, "id", None)
+        if cid:
+            storage_limit = _bsm_creator_effective_storage_limit_gb_v491z(cid)
+    except Exception:
+        storage_limit = 5.0
 
-    # Try direct creator columns first
-    storage_limit = first_number(
-        getattr(creator, "storage_limit_gb", None),
-        getattr(creator, "plan_storage_limit_gb", None),
-        getattr(creator, "storage_gb", None),
-        getattr(creator, "plan_storage_gb", None),
-        default=500
-    )
-    batch_limit = first_number(
-        getattr(creator, "max_batch_gb", None),
-        getattr(creator, "max_batch_size_gb", None),
-        getattr(creator, "batch_limit_gb", None),
-        getattr(creator, "plan_batch_limit_gb", None),
-        default=128
-    )
+    # Batch stays fixed at 128GB per batch unless creator/plan has a smaller/larger explicit value.
+    try:
+        for val in [
+            getattr(creator, "max_batch_gb", None),
+            getattr(creator, "max_batch_size_gb", None),
+            getattr(creator, "batch_limit_gb", None),
+            getattr(creator, "plan_batch_limit_gb", None),
+        ]:
+            if val is not None and str(val).strip() != "":
+                batch_limit = float(val)
+                break
+    except Exception:
+        batch_limit = 128.0
 
-    # Try related plan object if present
-    plan = getattr(creator, "plan", None)
-    if plan:
-        storage_limit = first_number(
-            getattr(plan, "storage_limit_gb", None),
-            getattr(plan, "plan_storage_limit_gb", None),
-            getattr(plan, "storage_gb", None),
-            getattr(plan, "included_storage_gb", None),
-            storage_limit,
-            default=500
-        )
-        batch_limit = first_number(
-            getattr(plan, "max_batch_gb", None),
-            getattr(plan, "max_batch_size_gb", None),
-            getattr(plan, "batch_limit_gb", None),
-            batch_limit,
-            default=128
-        )
-
-    if storage_limit <= 0:
-        storage_limit = 500
-    if batch_limit <= 0:
-        batch_limit = 128
+    if not storage_limit or storage_limit <= 0:
+        storage_limit = 5.0
+    if not batch_limit or batch_limit <= 0:
+        batch_limit = 128.0
     return storage_limit, batch_limit
+
 
 
 def _creator_storage_used_gb(creator_id):

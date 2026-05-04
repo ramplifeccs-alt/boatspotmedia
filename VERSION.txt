@@ -1,10 +1,7 @@
-BoatSpotMedia v49.1Y Fix Creator Stripe Notice Render Errors
-Base: v49.1X.
-Fixes:
-- Removes malformed stripe_account_id insertion inside round().
-- Removes render_template stripe_account_id args that referenced undefined c.
-- Adds safe creator_bp.context_processor to provide stripe_account_id to creator templates.
-Keeps:
-- Creator Stripe payout required notice.
-- Upload/pricing block until Stripe is connected.
-Does not touch cart, split payments, My Orders, downloads, upload storage logic, subscriptions, Google, Apple, buyer login, creator login, or R2.
+BoatSpotMedia v49.1Z Upload Storage Limit Sync Fix
+Base: v49.1Y.
+Fix:
+- Upload page now uses the effective storage limit from creator_profile.storage_limit_gb first.
+- Falls back to creator_subscription.storage_limit_gb, then 5GB.
+- Upload storage checks now match the paid plan after Billing updates the subscription.
+Does not touch Stripe checkout, webhook activation, cart checkout, split payments, downloads, My Orders, upload file logic, batches, Google, Apple, buyer login, creator login, or R2.
