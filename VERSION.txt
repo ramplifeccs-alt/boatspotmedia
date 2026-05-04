@@ -1,9 +1,10 @@
-BoatSpotMedia v49.1X Creator Stripe Required Notice
-Base: v49.1W.
-Changes:
-- Adds prominent creator warning: Connect Stripe to receive payouts.
-- Adds button: Connect Stripe to Receive Payouts.
-- Blocks creator upload if Stripe is not connected.
-- Blocks creator pricing save/update if Stripe is not connected.
-- Adds notice to dashboard, billing, upload, pricing, orders, and batches where templates exist.
-Does not touch cart checkout logic, split payments, My Orders, downloads, upload storage logic, subscriptions, Google, Apple, buyer login, creator login, or R2.
+BoatSpotMedia v49.1Y Fix Creator Stripe Notice Render Errors
+Base: v49.1X.
+Fixes:
+- Removes malformed stripe_account_id insertion inside round().
+- Removes render_template stripe_account_id args that referenced undefined c.
+- Adds safe creator_bp.context_processor to provide stripe_account_id to creator templates.
+Keeps:
+- Creator Stripe payout required notice.
+- Upload/pricing block until Stripe is connected.
+Does not touch cart, split payments, My Orders, downloads, upload storage logic, subscriptions, Google, Apple, buyer login, creator login, or R2.
