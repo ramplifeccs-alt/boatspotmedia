@@ -5099,3 +5099,60 @@ def creator_analytics_v500():
     period=request.args.get("period") or "30d"
     return render_template("creator/analytics.html", analytics=_bsm_creator_analytics_data_v500(c.id, period))
 
+
+
+
+# v50.4 Video-level insights
+def _bsm_creator_video_insights_v504(creator_id):
+    rows = []
+    try:
+        rows = db.session.execute(db.text("""
+            SELECT v.id,
+                   COALESCE(v.location,'Video') AS title,
+                   COALESCE(v.filename,v.internal_filename,'') AS filename,
+                   COUNT(CASE WHEN ae.event_type='view' THEN 1 END) AS views,
+                   COUNT(CASE WHEN ae.event_type='click' THEN 1 END) AS clicks,
+                   COUNT(DISTINCT o.id) AS orders,
+                   COALESCE(SUM(COALESCE(i.unit_price,0)*COALESCE(i.quantity,1)),0) AS revenue
+            FROM video v
+            LEFT JOIN analytics_event ae ON ae.video_id = v.id
+            LEFT JOIN bsm_cart_order_item i ON i.video_id = v.id
+            LEFT JOIN bsm_cart_order o ON o.id = i.cart_order_id
+            WHERE v.creator_id = :cid
+            GROUP BY v.id, v.location, v.filename, v.internal_filename
+            ORDER BY revenue DESC
+            LIMIT 20
+        """), {"cid": creator_id}).mappings().all()
+    except Exception:
+        db.session.rollback()
+
+    result = []
+    for r in rows:
+        views = int(r.get("views") or 0)
+        clicks = int(r.get("clicks") or 0)
+        orders = int(r.get("orders") or 0)
+
+        conversion = (orders / views * 100) if views else 0
+        ctr = (clicks / views * 100) if views else 0
+
+        insight = ""
+        if views > 50 and conversion < 2:
+            insight = "Low conversion"
+        elif conversion > 8:
+            insight = "High performer"
+        elif ctr < 5 and views > 50:
+            insight = "Low click rate"
+        elif ctr > 15:
+            insight = "High interest"
+
+        result.append({
+            "title": r.get("title"),
+            "views": views,
+            "clicks": clicks,
+            "orders": orders,
+            "revenue": float(r.get("revenue") or 0),
+            "conversion": round(conversion,2),
+            "ctr": round(ctr,2),
+            "insight": insight
+        })
+    return result
