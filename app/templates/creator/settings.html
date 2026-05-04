@@ -1,6 +1,121 @@
 <!doctype html>
-<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Creator Settings</title><link rel="stylesheet" href="/static/css/style.css"></head>
-<body><div class="creator-settings-v488"><h1>Creator Settings</h1>
-{% with messages = get_flashed_messages() %}{% if messages %}<div class="owner-flash-v474">{% for msg in messages %}<div>{{ msg }}</div>{% endfor %}</div>{% endif %}{% endwith %}
-<form method="POST" class="owner-edit-form-v474 owner-card-v475">
-<label>Email <input name="email" value="{{ creator.email or '' }}"></label><label>First Name <input name="first_name" value="{{ creator.first_name or '' }}"></label><label>Last Name <input name="last_name" value="{{ creator.last_name or '' }}"></label><label>Display / Public Name <input name="display_name" value="{{ creator.display_name or creator.public_name or '' }}"></label><label>Brand / Location <input name="primary_location" value="{{ creator.primary_location or '' }}"></label><label>Phone <input name="phone" value="{{ creator.phone or '' }}"></label><label>Instagram <input name="instagram" value="{{ creator.instagram or '' }}"></label><div class="full actions"><button type="submit">Save Settings</button><a href="/creator/dashboard">Back to Dashboard</a></div></form></div></body></html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Creator Settings - BoatSpotMedia</title>
+  <link rel="stylesheet" href="/static/css/style.css">
+</head>
+<body class="creator-dashboard-v459">
+<div class="bsm-creator-page-shell-v459">
+
+  <aside class="bsm-creator-sidebar-v459">
+    <a href="/creator/dashboard" class="bsm-creator-logo-v459">
+      <img src="/static/img/logo-header.png" alt="BoatSpotMedia">
+    </a>
+    <div class="bsm-creator-handle-v459">@BoatSpotMedia.com</div>
+    <nav class="bsm-creator-nav-v459">
+      <a href="/creator/dashboard">Dashboard</a>
+      <a href="/creator/upload">Uploads</a>
+      <a href="/creator/batches">Batches</a>
+      <a href="/creator/analytics">Analytics</a>
+      <a href="/creator/orders">Orders</a>
+      <a href="/creator/dashboard#products">Products</a>
+      <a href="/creator/pricing">Pricing</a>
+      <a href="/creator/billing">Billing</a>
+      <a href="/creator/settings" class="active">Settings</a>
+      <a href="/logout" class="logout">Log out</a>
+    </nav>
+  </aside>
+
+  <main class="bsm-creator-main-v459">
+    <div class="creator-settings-page-v509">
+      <div class="creator-settings-header-v509">
+        <h1>Settings</h1>
+        <p>Update your creator profile, public name, phone number, location, and social links.</p>
+      </div>
+
+      {% with messages = get_flashed_messages() %}
+        {% if messages %}
+          <div class="creator-settings-flash-v509">
+            {% for msg in messages %}<div>{{ msg }}</div>{% endfor %}
+          </div>
+        {% endif %}
+      {% endwith %}
+
+      <form method="POST" class="creator-settings-card-v509">
+        <h2>Public Creator Profile</h2>
+
+        <div class="creator-settings-grid-v509">
+          <label>
+            Public Name / Seller Name
+            <input name="public_name" value="{{ settings.public_name or settings.display_name or settings.creator_brand_name or '' }}" placeholder="Example: RampLifeCCS">
+          </label>
+
+          <label>
+            Display Name
+            <input name="display_name" value="{{ settings.display_name or settings.public_name or '' }}" placeholder="Your display name">
+          </label>
+
+          <label>
+            Brand Name
+            <input name="brand_name" value="{{ settings.creator_brand_name or settings.public_name or settings.display_name or '' }}" placeholder="BoatSpotMedia / RampLifeCCS">
+          </label>
+
+          <label>
+            Phone
+            <input name="phone" value="{{ settings.creator_phone or settings.user_phone or '' }}" placeholder="+1 555 555 5555">
+          </label>
+
+          <label>
+            Main Location
+            <input name="location" value="{{ settings.creator_location or settings.primary_location or '' }}" placeholder="Boca Raton Inlet">
+          </label>
+
+          <label>
+            Main Social Handle
+            <input name="social_handle" value="{{ settings.social_handle or '' }}" placeholder="@yourhandle">
+          </label>
+        </div>
+
+        <label class="full-v509">
+          Short Bio / About
+          <textarea name="bio" rows="4" placeholder="Tell buyers what you film and where.">{{ settings.creator_bio or '' }}</textarea>
+        </label>
+
+        <h2>Social Links</h2>
+        <div class="creator-settings-grid-v509">
+          <label>
+            Instagram
+            <input name="instagram" value="{{ settings.instagram or '' }}" placeholder="https://instagram.com/yourhandle">
+          </label>
+          <label>
+            YouTube
+            <input name="youtube" value="{{ settings.youtube or '' }}" placeholder="https://youtube.com/@yourhandle">
+          </label>
+          <label>
+            TikTok
+            <input name="tiktok" value="{{ settings.tiktok or '' }}" placeholder="https://tiktok.com/@yourhandle">
+          </label>
+          <label>
+            Facebook
+            <input name="facebook" value="{{ settings.facebook or '' }}" placeholder="https://facebook.com/yourpage">
+          </label>
+        </div>
+
+        <div class="creator-settings-readonly-v509">
+          <strong>Account Email:</strong> {{ settings.email or 'Not available' }}
+          <span>This email is used for login and account notifications.</span>
+        </div>
+
+        <div class="creator-settings-actions-v509">
+          <button type="submit">Save Settings</button>
+          <a href="/creator/dashboard">Cancel</a>
+        </div>
+      </form>
+    </div>
+  </main>
+
+</div>
+</body>
+</html>

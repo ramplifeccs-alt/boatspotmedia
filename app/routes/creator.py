@@ -5224,3 +5224,146 @@ def _bsm_creator_video_insights_v504(creator_id):
             "insight": insight
         })
     return result
+
+
+
+# v50.9 Creator Settings - edit profile/account info
+def _bsm_creator_settings_data_v509(creator_id):
+    data = {}
+    try:
+        row = db.session.execute(db.text("""
+            SELECT
+                cp.id AS creator_id,
+                cp.user_id,
+                cp.location AS creator_location,
+                cp.bio AS creator_bio,
+                cp.brand_name AS creator_brand_name,
+                cp.phone AS creator_phone,
+                u.email,
+                u.display_name,
+                u.public_name,
+                u.primary_location,
+                u.phone AS user_phone,
+                u.social_handle,
+                u.instagram,
+                u.youtube,
+                u.tiktok,
+                u.facebook
+            FROM creator_profile cp
+            LEFT JOIN "user" u ON u.id = cp.user_id
+            WHERE cp.id=:cid
+            LIMIT 1
+        """), {"cid": creator_id}).mappings().first()
+        if row:
+            data = dict(row)
+    except Exception as e:
+        db.session.rollback()
+        try:
+            print("creator settings data v50.9 warning:", e)
+        except Exception:
+            pass
+    return data
+
+def _bsm_ensure_creator_settings_columns_v509():
+    try:
+        db.session.execute(db.text('ALTER TABLE creator_profile ADD COLUMN IF NOT EXISTS brand_name TEXT'))
+        db.session.execute(db.text('ALTER TABLE creator_profile ADD COLUMN IF NOT EXISTS location TEXT'))
+        db.session.execute(db.text('ALTER TABLE creator_profile ADD COLUMN IF NOT EXISTS bio TEXT'))
+        db.session.execute(db.text('ALTER TABLE creator_profile ADD COLUMN IF NOT EXISTS phone TEXT'))
+        db.session.execute(db.text('ALTER TABLE "user" ADD COLUMN IF NOT EXISTS display_name TEXT'))
+        db.session.execute(db.text('ALTER TABLE "user" ADD COLUMN IF NOT EXISTS public_name TEXT'))
+        db.session.execute(db.text('ALTER TABLE "user" ADD COLUMN IF NOT EXISTS primary_location TEXT'))
+        db.session.execute(db.text('ALTER TABLE "user" ADD COLUMN IF NOT EXISTS phone TEXT'))
+        db.session.execute(db.text('ALTER TABLE "user" ADD COLUMN IF NOT EXISTS social_handle TEXT'))
+        db.session.execute(db.text('ALTER TABLE "user" ADD COLUMN IF NOT EXISTS instagram TEXT'))
+        db.session.execute(db.text('ALTER TABLE "user" ADD COLUMN IF NOT EXISTS youtube TEXT'))
+        db.session.execute(db.text('ALTER TABLE "user" ADD COLUMN IF NOT EXISTS tiktok TEXT'))
+        db.session.execute(db.text('ALTER TABLE "user" ADD COLUMN IF NOT EXISTS facebook TEXT'))
+        db.session.commit()
+    except Exception as e:
+        db.session.rollback()
+        try:
+            print("creator settings columns v50.9 warning:", e)
+        except Exception:
+            pass
+
+@creator_bp.route("/settings", methods=["GET", "POST"])
+def creator_settings_v509():
+    c = current_creator()
+    if not c:
+        return redirect("/creator/login")
+
+    _bsm_ensure_creator_settings_columns_v509()
+
+    if request.method == "POST":
+        public_name = (request.form.get("public_name") or "").strip()
+        display_name = (request.form.get("display_name") or public_name).strip()
+        brand_name = (request.form.get("brand_name") or public_name or display_name).strip()
+        phone = (request.form.get("phone") or "").strip()
+        location = (request.form.get("location") or "").strip()
+        bio = (request.form.get("bio") or "").strip()
+        social_handle = (request.form.get("social_handle") or "").strip()
+        instagram = (request.form.get("instagram") or "").strip()
+        youtube = (request.form.get("youtube") or "").strip()
+        tiktok = (request.form.get("tiktok") or "").strip()
+        facebook = (request.form.get("facebook") or "").strip()
+
+        try:
+            row = db.session.execute(db.text("SELECT user_id FROM creator_profile WHERE id=:cid LIMIT 1"), {"cid": c.id}).mappings().first()
+            user_id = row.get("user_id") if row else None
+
+            db.session.execute(db.text("""
+                UPDATE creator_profile
+                SET brand_name=:brand_name,
+                    location=:location,
+                    bio=:bio,
+                    phone=:phone
+                WHERE id=:cid
+            """), {
+                "cid": c.id,
+                "brand_name": brand_name,
+                "location": location,
+                "bio": bio,
+                "phone": phone,
+            })
+
+            if user_id:
+                db.session.execute(db.text("""
+                    UPDATE "user"
+                    SET display_name=:display_name,
+                        public_name=:public_name,
+                        primary_location=:primary_location,
+                        phone=:phone,
+                        social_handle=:social_handle,
+                        instagram=:instagram,
+                        youtube=:youtube,
+                        tiktok=:tiktok,
+                        facebook=:facebook
+                    WHERE id=:uid
+                """), {
+                    "uid": user_id,
+                    "display_name": display_name,
+                    "public_name": public_name,
+                    "primary_location": location,
+                    "phone": phone,
+                    "social_handle": social_handle,
+                    "instagram": instagram,
+                    "youtube": youtube,
+                    "tiktok": tiktok,
+                    "facebook": facebook,
+                })
+
+            db.session.commit()
+            flash("Settings saved successfully.")
+            return redirect("/creator/settings")
+        except Exception as e:
+            db.session.rollback()
+            flash("Could not save settings. Please try again.")
+            try:
+                print("creator settings save v50.9 warning:", e)
+            except Exception:
+                pass
+
+    settings = _bsm_creator_settings_data_v509(c.id)
+    return render_template("creator/settings.html", settings=settings)
+
