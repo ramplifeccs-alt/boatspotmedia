@@ -1,8 +1,6 @@
-BoatSpotMedia v50.5 Creator Batches List UI
-Base: v50.4 if available.
-Changes only creator batches UI:
-- /creator/batches now uses a clean list layout.
-- Shows batch title/date, location, videos count, GB size, status.
-- Actions: View, Upload More, Delete.
-- Adds empty state.
-Does not touch analytics logic, tracking, payments, checkout, split payments, subscriptions, uploads, downloads, My Orders, logins, or R2.
+BoatSpotMedia v50.6 Batches Inside Creator Layout
+Base: v50.5.
+Fix:
+- /creator/batches now stays inside the creator dashboard shell with the left menu.
+- Keeps the clean list UI from v50.5.
+Does not touch route logic, analytics, tracking, payments, checkout, uploads, downloads, My Orders, Stripe, subscriptions, logins, or R2.

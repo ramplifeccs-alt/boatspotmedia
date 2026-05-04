@@ -2536,3 +2536,18 @@ body.creator-dashboard-v449 main{
   .batch-row-v505{grid-template-columns:38px 1fr;}
   .batch-actions-v505{grid-column:1 / -1;justify-content:flex-start;padding-left:50px;}
 }
+
+/* v50.6 batches inside creator layout */
+.creator-batches-page-v505.inside-layout-v506{
+  max-width:1200px;
+  margin:0 auto;
+  padding:20px;
+}
+.creator-batches-page-v505.inside-layout-v506 .batches-list-v505{
+  width:100%;
+}
+@media(max-width:760px){
+  .creator-batches-page-v505.inside-layout-v506{
+    padding:14px;
+  }
+}
