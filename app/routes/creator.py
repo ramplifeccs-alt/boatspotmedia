@@ -4961,3 +4961,78 @@ def creator_delete_edited_mistake_v467(item_id):
     except Exception:
         pass
     return redirect(request.referrer or "/creator/orders")
+
+
+
+# v50.0 Creator Earnings + Analytics
+def _bsm_period_sql_v500(period, col="o.created_at"):
+    p=(period or "30d").lower()
+    if p=="today": return f" AND {col} >= CURRENT_DATE "
+    if p=="7d": return f" AND {col} >= NOW() - INTERVAL '7 days' "
+    if p=="30d": return f" AND {col} >= NOW() - INTERVAL '30 days' "
+    return ""
+
+def _bsm_creator_analytics_data_v500(creator_id, period="30d"):
+    where_date=_bsm_period_sql_v500(period,"o.created_at")
+    data={"period":period or "30d","gross_sales":0.0,"platform_fees":0.0,"creator_estimated_payout":0.0,"orders_count":0,"items_sold":0,"avg_order":0.0,"top_videos":[],"recent_orders":[],"daily_sales":[]}
+    try:
+        row=db.session.execute(db.text(f"""
+            SELECT COALESCE(SUM(COALESCE(i.unit_price,0)*COALESCE(i.quantity,1)),0) gross_sales,
+                   COUNT(DISTINCT o.id) orders_count,
+                   COALESCE(SUM(COALESCE(i.quantity,1)),0) items_sold
+            FROM bsm_cart_order_item i
+            JOIN bsm_cart_order o ON o.id=i.cart_order_id
+            LEFT JOIN video v ON v.id=i.video_id
+            WHERE (i.creator_id=:cid OR v.creator_id=:cid)
+              AND COALESCE(o.status,'') IN ('paid','complete','completed','succeeded')
+              {where_date}
+        """),{"cid":creator_id}).mappings().first()
+        if row:
+            data["gross_sales"]=float(row.get("gross_sales") or 0); data["orders_count"]=int(row.get("orders_count") or 0); data["items_sold"]=int(row.get("items_sold") or 0)
+        try:
+            fee=db.session.execute(db.text(f"""
+                SELECT COALESCE(SUM(COALESCE(o.platform_fee_amount,0)),0) platform_fees,
+                       COALESCE(SUM(COALESCE(o.creator_gross_amount,0)),0) creator_gross
+                FROM bsm_cart_order o
+                WHERE o.creator_id=:cid AND COALESCE(o.status,'') IN ('paid','complete','completed','succeeded') {where_date}
+            """),{"cid":creator_id}).mappings().first()
+            data["platform_fees"]=float((fee or {}).get("platform_fees") or 0)
+            data["creator_estimated_payout"]=float((fee or {}).get("creator_gross") or 0)
+        except Exception: db.session.rollback()
+        if data["creator_estimated_payout"]<=0:
+            cr=db.session.execute(db.text("SELECT COALESCE(commission_rate,25) commission_rate FROM creator_profile WHERE id=:id LIMIT 1"),{"id":creator_id}).mappings().first()
+            commission=float((cr or {}).get("commission_rate") or 25)
+            data["platform_fees"]=round(data["gross_sales"]*commission/100,2); data["creator_estimated_payout"]=round(data["gross_sales"]-data["platform_fees"],2)
+        if data["orders_count"]: data["avg_order"]=round(data["gross_sales"]/data["orders_count"],2)
+        data["top_videos"]=[dict(r) for r in db.session.execute(db.text(f"""
+            SELECT COALESCE(v.location,'Boat video') title, COALESCE(v.filename,v.internal_filename,'Video') filename,
+                   COUNT(*) sold_count, COALESCE(SUM(COALESCE(i.unit_price,0)*COALESCE(i.quantity,1)),0) gross_sales
+            FROM bsm_cart_order_item i JOIN bsm_cart_order o ON o.id=i.cart_order_id LEFT JOIN video v ON v.id=i.video_id
+            WHERE (i.creator_id=:cid OR v.creator_id=:cid) AND COALESCE(o.status,'') IN ('paid','complete','completed','succeeded') {where_date}
+            GROUP BY v.id,v.location,v.filename,v.internal_filename ORDER BY gross_sales DESC,sold_count DESC LIMIT 10
+        """),{"cid":creator_id}).mappings().all()]
+        data["recent_orders"]=[dict(r) for r in db.session.execute(db.text(f"""
+            SELECT o.id,o.created_at,COALESCE(o.buyer_email,'') buyer_email,
+                   COALESCE(SUM(COALESCE(i.unit_price,0)*COALESCE(i.quantity,1)),0) gross_total, COUNT(i.id) item_count
+            FROM bsm_cart_order o JOIN bsm_cart_order_item i ON i.cart_order_id=o.id LEFT JOIN video v ON v.id=i.video_id
+            WHERE (i.creator_id=:cid OR v.creator_id=:cid) AND COALESCE(o.status,'') IN ('paid','complete','completed','succeeded') {where_date}
+            GROUP BY o.id,o.created_at,o.buyer_email ORDER BY o.created_at DESC LIMIT 12
+        """),{"cid":creator_id}).mappings().all()]
+        data["daily_sales"]=[dict(r) for r in db.session.execute(db.text(f"""
+            SELECT DATE(o.created_at) day, COALESCE(SUM(COALESCE(i.unit_price,0)*COALESCE(i.quantity,1)),0) gross_sales, COUNT(DISTINCT o.id) orders_count
+            FROM bsm_cart_order o JOIN bsm_cart_order_item i ON i.cart_order_id=o.id LEFT JOIN video v ON v.id=i.video_id
+            WHERE (i.creator_id=:cid OR v.creator_id=:cid) AND COALESCE(o.status,'') IN ('paid','complete','completed','succeeded') {where_date}
+            GROUP BY DATE(o.created_at) ORDER BY day DESC LIMIT 30
+        """),{"cid":creator_id}).mappings().all()]
+    except Exception as e:
+        db.session.rollback()
+        print("creator analytics v50 warning:", e)
+    return data
+
+@creator_bp.route("/analytics")
+def creator_analytics_v500():
+    c=current_creator()
+    if not c: return redirect("/creator/login")
+    period=request.args.get("period") or "30d"
+    return render_template("creator/analytics.html", analytics=_bsm_creator_analytics_data_v500(c.id, period))
+

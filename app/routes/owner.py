@@ -1807,3 +1807,73 @@ def owner_edit_person_v478(kind, row_id):
 
 
 
+
+
+
+# v50.0 Owner Earnings + Analytics
+def _bsm_owner_period_sql_v500(period,col="o.created_at"):
+    p=(period or "30d").lower()
+    if p=="today": return f" AND {col} >= CURRENT_DATE "
+    if p=="7d": return f" AND {col} >= NOW() - INTERVAL '7 days' "
+    if p=="30d": return f" AND {col} >= NOW() - INTERVAL '30 days' "
+    return ""
+
+def _bsm_owner_analytics_data_v500(period="30d"):
+    where_date=_bsm_owner_period_sql_v500(period,"o.created_at")
+    data={"period":period or "30d","gross_sales":0.0,"platform_fees":0.0,"creator_estimated_payouts":0.0,"orders_count":0,"items_sold":0,"subscriptions_active":0,"creator_rows":[],"daily_sales":[],"recent_orders":[]}
+    try:
+        row=db.session.execute(db.text(f"""
+            SELECT COALESCE(SUM(COALESCE(i.unit_price,0)*COALESCE(i.quantity,1)),0) gross_sales,
+                   COUNT(DISTINCT o.id) orders_count, COALESCE(SUM(COALESCE(i.quantity,1)),0) items_sold
+            FROM bsm_cart_order_item i JOIN bsm_cart_order o ON o.id=i.cart_order_id
+            WHERE COALESCE(o.status,'') IN ('paid','complete','completed','succeeded') {where_date}
+        """)).mappings().first()
+        if row:
+            data["gross_sales"]=float(row.get("gross_sales") or 0); data["orders_count"]=int(row.get("orders_count") or 0); data["items_sold"]=int(row.get("items_sold") or 0)
+        try:
+            fee=db.session.execute(db.text(f"""
+                SELECT COALESCE(SUM(COALESCE(platform_fee_amount,0)),0) platform_fees,
+                       COALESCE(SUM(COALESCE(creator_gross_amount,0)),0) creator_payouts
+                FROM bsm_cart_order o WHERE COALESCE(o.status,'') IN ('paid','complete','completed','succeeded') {where_date}
+            """)).mappings().first()
+            data["platform_fees"]=float((fee or {}).get("platform_fees") or 0); data["creator_estimated_payouts"]=float((fee or {}).get("creator_payouts") or 0)
+        except Exception: db.session.rollback()
+        if data["creator_estimated_payouts"]<=0 and data["gross_sales"]>0:
+            data["platform_fees"]=round(data["gross_sales"]*.25,2); data["creator_estimated_payouts"]=round(data["gross_sales"]-data["platform_fees"],2)
+        try:
+            s=db.session.execute(db.text("SELECT COUNT(*) c FROM creator_subscription WHERE COALESCE(status,'')='active' AND COALESCE(plan_key,'free') <> 'free'")).mappings().first()
+            data["subscriptions_active"]=int((s or {}).get("c") or 0)
+        except Exception: db.session.rollback()
+        data["creator_rows"]=[dict(r) for r in db.session.execute(db.text(f"""
+            SELECT cp.id creator_id, COALESCE(u.display_name,u.public_name,u.primary_location,u.email,'Creator') creator_name,
+                   COALESCE(SUM(COALESCE(i.unit_price,0)*COALESCE(i.quantity,1)),0) gross_sales,
+                   COUNT(DISTINCT o.id) orders_count, COALESCE(SUM(COALESCE(i.quantity,1)),0) items_sold,
+                   COALESCE(MAX(cp.commission_rate),25) commission_rate
+            FROM creator_profile cp LEFT JOIN "user" u ON u.id=cp.user_id LEFT JOIN video v ON v.creator_id=cp.id
+            LEFT JOIN bsm_cart_order_item i ON i.video_id=v.id OR i.creator_id=cp.id
+            LEFT JOIN bsm_cart_order o ON o.id=i.cart_order_id AND COALESCE(o.status,'') IN ('paid','complete','completed','succeeded') {where_date}
+            GROUP BY cp.id,u.display_name,u.public_name,u.primary_location,u.email
+            HAVING COALESCE(SUM(COALESCE(i.unit_price,0)*COALESCE(i.quantity,1)),0)>0
+            ORDER BY gross_sales DESC LIMIT 20
+        """)).mappings().all()]
+        data["daily_sales"]=[dict(r) for r in db.session.execute(db.text(f"""
+            SELECT DATE(o.created_at) day, COALESCE(SUM(COALESCE(i.unit_price,0)*COALESCE(i.quantity,1)),0) gross_sales, COUNT(DISTINCT o.id) orders_count
+            FROM bsm_cart_order o JOIN bsm_cart_order_item i ON i.cart_order_id=o.id
+            WHERE COALESCE(o.status,'') IN ('paid','complete','completed','succeeded') {where_date}
+            GROUP BY DATE(o.created_at) ORDER BY day DESC LIMIT 30
+        """)).mappings().all()]
+        data["recent_orders"]=[dict(r) for r in db.session.execute(db.text(f"""
+            SELECT o.id,o.created_at,COALESCE(o.buyer_email,'') buyer_email,COALESCE(o.amount_total,0) amount_total,
+                   COALESCE(o.platform_fee_amount,0) platform_fee_amount,COALESCE(o.creator_gross_amount,0) creator_gross_amount
+            FROM bsm_cart_order o WHERE COALESCE(o.status,'') IN ('paid','complete','completed','succeeded') {where_date}
+            ORDER BY o.created_at DESC LIMIT 15
+        """)).mappings().all()]
+    except Exception as e:
+        db.session.rollback(); print("owner analytics v50 warning:", e)
+    return data
+
+@owner_bp.route("/analytics")
+def owner_analytics_v500():
+    period=request.args.get("period") or "30d"
+    return render_template("owner/analytics.html", analytics=_bsm_owner_analytics_data_v500(period))
+

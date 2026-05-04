@@ -1,7 +1,3 @@
-BoatSpotMedia v49.1Z Upload Storage Limit Sync Fix
-Base: v49.1Y.
-Fix:
-- Upload page now uses the effective storage limit from creator_profile.storage_limit_gb first.
-- Falls back to creator_subscription.storage_limit_gb, then 5GB.
-- Upload storage checks now match the paid plan after Billing updates the subscription.
-Does not touch Stripe checkout, webhook activation, cart checkout, split payments, downloads, My Orders, upload file logic, batches, Google, Apple, buyer login, creator login, or R2.
+BoatSpotMedia v50.0 Earnings + Analytics Dashboards
+Base: v49.1Z.
+Adds creator /creator/analytics and owner /owner/analytics. Does not touch checkout, uploads, downloads, My Orders, split payments, subscriptions, logins, or R2.
