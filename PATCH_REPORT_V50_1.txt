@@ -1,0 +1,3 @@
+app/templates/creator/analytics.html
+app/templates/owner/analytics.html
+app/static/css/style.css

@@ -1,0 +1,4 @@
+app/__init__.py
+app/templates/creator/upload_edited.html
+app/templates/creator/products.html
+app/templates/creator/product_variants.html

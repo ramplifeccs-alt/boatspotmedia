@@ -1,8 +1,123 @@
-<!doctype html><html><head><title>Owner Analytics</title><link rel="stylesheet" href="/static/css/style.css"></head><body><div class="analytics-page-v500 owner">
-<h1>Owner Earnings & Analytics</h1>
-<div class="period-tabs-v500"><a href="/owner/analytics?period=today" class="{{ 'active' if analytics.period=='today' else '' }}">Today</a><a href="/owner/analytics?period=7d" class="{{ 'active' if analytics.period=='7d' else '' }}">7 Days</a><a href="/owner/analytics?period=30d" class="{{ 'active' if analytics.period=='30d' else '' }}">30 Days</a><a href="/owner/analytics?period=all" class="{{ 'active' if analytics.period=='all' else '' }}">All</a></div>
-<div class="kpi-grid-v500"><div><label>Total Sales</label><strong>${{ "%.2f"|format(analytics.gross_sales) }}</strong></div><div><label>BoatSpotMedia Fees</label><strong>${{ "%.2f"|format(analytics.platform_fees) }}</strong></div><div><label>Creator Payouts</label><strong>${{ "%.2f"|format(analytics.creator_estimated_payouts) }}</strong></div><div><label>Orders</label><strong>{{ analytics.orders_count }}</strong></div><div><label>Videos Sold</label><strong>{{ analytics.items_sold }}</strong></div><div><label>Active Paid Subs</label><strong>{{ analytics.subscriptions_active }}</strong></div></div>
-<div class="analytics-card-v500"><h2>Creators by Sales</h2><table><tr><th>Creator</th><th>Gross</th><th>Orders</th><th>Items</th><th>Commission</th></tr>{% for r in analytics.creator_rows %}<tr><td>{{ r.creator_name }}</td><td>${{ "%.2f"|format(r.gross_sales) }}</td><td>{{ r.orders_count }}</td><td>{{ r.items_sold }}</td><td>{{ r.commission_rate }}%</td></tr>{% else %}<tr><td colspan="5">No creator sales yet.</td></tr>{% endfor %}</table></div>
-<div class="analytics-card-v500"><h2>Daily Sales</h2><table><tr><th>Date</th><th>Sales</th><th>Orders</th></tr>{% for r in analytics.daily_sales %}<tr><td>{{ r.day }}</td><td>${{ "%.2f"|format(r.gross_sales) }}</td><td>{{ r.orders_count }}</td></tr>{% else %}<tr><td colspan="3">No sales yet.</td></tr>{% endfor %}</table></div>
-<div class="analytics-card-v500"><h2>Recent Orders</h2><table><tr><th>Order</th><th>Date</th><th>Buyer</th><th>Total</th><th>Fee</th><th>Creator</th></tr>{% for r in analytics.recent_orders %}<tr><td>#{{ r.id }}</td><td>{{ r.created_at }}</td><td>{{ r.buyer_email }}</td><td>${{ "%.2f"|format(r.amount_total) }}</td><td>${{ "%.2f"|format(r.platform_fee_amount) }}</td><td>${{ "%.2f"|format(r.creator_gross_amount) }}</td></tr>{% else %}<tr><td colspan="6">No orders yet.</td></tr>{% endfor %}</table></div>
-</div></body></html>
+<!doctype html>
+<html>
+<head>
+  <title>Owner Analytics</title>
+  <link rel="stylesheet" href="/static/css/style.css">
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+</head>
+<body>
+<div class="analytics-page-v500 analytics-pro-v501 owner">
+  <div class="analytics-header-v501">
+    <div>
+      <h1>Owner Earnings & Analytics</h1>
+      <p>Monitor platform revenue, creator payouts, top creators, and daily sales trends.</p>
+    </div>
+    <a class="analytics-back-v501" href="/owner/panel">Back to Owner Dashboard</a>
+  </div>
+
+  <div class="period-tabs-v500">
+    <a href="/owner/analytics?period=today" class="{{ 'active' if analytics.period=='today' else '' }}">Today</a>
+    <a href="/owner/analytics?period=7d" class="{{ 'active' if analytics.period=='7d' else '' }}">7 Days</a>
+    <a href="/owner/analytics?period=30d" class="{{ 'active' if analytics.period=='30d' else '' }}">30 Days</a>
+    <a href="/owner/analytics?period=all" class="{{ 'active' if analytics.period=='all' else '' }}">All</a>
+  </div>
+
+  <div class="kpi-grid-v500">
+    <div><label>Total Sales</label><strong>${{ "%.2f"|format(analytics.gross_sales) }}</strong></div>
+    <div><label>BoatSpotMedia Fees</label><strong>${{ "%.2f"|format(analytics.platform_fees) }}</strong></div>
+    <div><label>Creator Payouts</label><strong>${{ "%.2f"|format(analytics.creator_estimated_payouts) }}</strong></div>
+    <div><label>Orders</label><strong>{{ analytics.orders_count }}</strong></div>
+    <div><label>Videos Sold</label><strong>{{ analytics.items_sold }}</strong></div>
+    <div><label>Active Paid Subs</label><strong>{{ analytics.subscriptions_active }}</strong></div>
+  </div>
+
+  <div class="analytics-insights-v501">
+    <div>
+      <span>Top Creator</span>
+      <strong>{% if analytics.creator_rows %}{{ analytics.creator_rows[0].creator_name }}{% else %}No sales yet{% endif %}</strong>
+    </div>
+    <div>
+      <span>Platform Fee Share</span>
+      <strong>{{ "%.1f"|format((analytics.platform_fees / analytics.gross_sales * 100) if analytics.gross_sales else 0) }}%</strong>
+    </div>
+    <div>
+      <span>Average Order</span>
+      <strong>${{ "%.2f"|format((analytics.gross_sales / analytics.orders_count) if analytics.orders_count else 0) }}</strong>
+    </div>
+  </div>
+
+  <div class="analytics-chart-grid-v501">
+    <div class="analytics-chart-card-v501">
+      <h2>Sales Over Time</h2>
+      <canvas id="ownerSalesChart"></canvas>
+    </div>
+    <div class="analytics-chart-card-v501">
+      <h2>Revenue Split</h2>
+      <canvas id="ownerSplitChart"></canvas>
+    </div>
+    <div class="analytics-chart-card-v501 wide">
+      <h2>Top Creators</h2>
+      <canvas id="ownerTopCreatorsChart"></canvas>
+    </div>
+  </div>
+
+  <div class="analytics-card-v500">
+    <h2>Creators by Sales</h2>
+    <table>
+      <tr><th>Creator</th><th>Gross</th><th>Orders</th><th>Items</th><th>Commission</th></tr>
+      {% for r in analytics.creator_rows %}
+      <tr><td>{{ r.creator_name }}</td><td>${{ "%.2f"|format(r.gross_sales) }}</td><td>{{ r.orders_count }}</td><td>{{ r.items_sold }}</td><td>{{ r.commission_rate }}%</td></tr>
+      {% else %}<tr><td colspan="5">No creator sales yet.</td></tr>{% endfor %}
+    </table>
+  </div>
+
+  <div class="analytics-card-v500">
+    <h2>Daily Sales</h2>
+    <table>
+      <tr><th>Date</th><th>Sales</th><th>Orders</th></tr>
+      {% for r in analytics.daily_sales %}
+      <tr><td>{{ r.day }}</td><td>${{ "%.2f"|format(r.gross_sales) }}</td><td>{{ r.orders_count }}</td></tr>
+      {% else %}<tr><td colspan="3">No sales yet.</td></tr>{% endfor %}
+    </table>
+  </div>
+
+  <div class="analytics-card-v500">
+    <h2>Recent Orders</h2>
+    <table>
+      <tr><th>Order</th><th>Date</th><th>Buyer</th><th>Total</th><th>Fee</th><th>Creator</th></tr>
+      {% for r in analytics.recent_orders %}
+      <tr><td>#{{ r.id }}</td><td>{{ r.created_at }}</td><td>{{ r.buyer_email }}</td><td>${{ "%.2f"|format(r.amount_total) }}</td><td>${{ "%.2f"|format(r.platform_fee_amount) }}</td><td>${{ "%.2f"|format(r.creator_gross_amount) }}</td></tr>
+      {% else %}<tr><td colspan="6">No orders yet.</td></tr>{% endfor %}
+    </table>
+  </div>
+</div>
+
+<script>
+const ownerDailyLabels = {{ analytics.daily_sales|reverse|map(attribute='day')|list|tojson }};
+const ownerDailySales = {{ analytics.daily_sales|reverse|map(attribute='gross_sales')|list|tojson }};
+const ownerCreatorLabels = {{ analytics.creator_rows|map(attribute='creator_name')|list|tojson }};
+const ownerCreatorSales = {{ analytics.creator_rows|map(attribute='gross_sales')|list|tojson }};
+
+new Chart(document.getElementById('ownerSalesChart'), {
+  type: 'line',
+  data: { labels: ownerDailyLabels, datasets: [{ label: 'Total Sales', data: ownerDailySales, tension: .35, fill: true }] },
+  options: { responsive: true, plugins: { legend: { display: false } }, scales: { y: { beginAtZero: true } } }
+});
+
+new Chart(document.getElementById('ownerSplitChart'), {
+  type: 'doughnut',
+  data: {
+    labels: ['BoatSpotMedia Fees', 'Creator Payouts'],
+    datasets: [{ data: [{{ analytics.platform_fees or 0 }}, {{ analytics.creator_estimated_payouts or 0 }}] }]
+  },
+  options: { responsive: true }
+});
+
+new Chart(document.getElementById('ownerTopCreatorsChart'), {
+  type: 'bar',
+  data: { labels: ownerCreatorLabels, datasets: [{ label: 'Gross Sales', data: ownerCreatorSales }] },
+  options: { responsive: true, plugins: { legend: { display: false } }, scales: { y: { beginAtZero: true } } }
+});
+</script>
+</body>
+</html>
