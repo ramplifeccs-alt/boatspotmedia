@@ -1,6 +1,6 @@
-BoatSpotMedia v50.6 Batches Inside Creator Layout
-Base: v50.5.
+BoatSpotMedia v50.7 Analytics Inside Creator Layout
+Base: v50.6.
 Fix:
-- /creator/batches now stays inside the creator dashboard shell with the left menu.
-- Keeps the clean list UI from v50.5.
-Does not touch route logic, analytics, tracking, payments, checkout, uploads, downloads, My Orders, Stripe, subscriptions, logins, or R2.
+- /creator/analytics now stays inside the creator dashboard shell with the left menu.
+- Keeps all analytics charts, smart insights, tracking metrics, and video insights.
+Does not touch analytics backend, tracking, payments, checkout, uploads, downloads, My Orders, Stripe, subscriptions, logins, or R2.

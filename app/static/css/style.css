@@ -2551,3 +2551,18 @@ body.creator-dashboard-v449 main{
     padding:14px;
   }
 }
+
+/* v50.7 analytics inside creator layout */
+.creator-analytics-layout-v507{
+  max-width:1200px;
+  margin:0 auto;
+  padding:20px;
+}
+.creator-analytics-layout-v507 .analytics-page-v500{
+  padding:0;
+}
+@media(max-width:760px){
+  .creator-analytics-layout-v507{
+    padding:14px;
+  }
+}
