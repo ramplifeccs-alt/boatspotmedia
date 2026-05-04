@@ -2676,3 +2676,19 @@ body.creator-dashboard-v449 main{
     padding:14px;
   }
 }
+
+/* v50.10 clean incomplete batches button */
+.clean-incomplete-wrap-v5010,
+.creator-batches-page-v505 form[action="/creator/clean-incomplete-batches"]{
+  margin:0 0 14px;
+}
+.clean-incomplete-wrap-v5010 button,
+.creator-batches-page-v505 form[action="/creator/clean-incomplete-batches"] button{
+  background:#dc2626;
+  color:#fff;
+  border:0;
+  border-radius:12px;
+  padding:10px 14px;
+  font-weight:950;
+  cursor:pointer;
+}

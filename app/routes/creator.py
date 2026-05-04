@@ -5367,3 +5367,69 @@ def creator_settings_v509():
     settings = _bsm_creator_settings_data_v509(c.id)
     return render_template("creator/settings.html", settings=settings)
 
+
+
+
+# v50.10 Delete incomplete batches button fix
+@creator_bp.route("/clean-incomplete-batches", methods=["POST"])
+@creator_bp.route("/batches/clean-incomplete", methods=["POST"])
+def creator_clean_incomplete_batches_v5010():
+    creator = current_creator()
+    if not creator:
+        return redirect("/creator/login")
+
+    deleted_count = 0
+    try:
+        from app.models import Video, VideoBatch
+
+        # Incomplete means:
+        # - status uploading/processing/pending/failed/error/cancelled/canceled
+        # - OR no active videos inside the batch.
+        batches = VideoBatch.query.filter(VideoBatch.creator_id == creator.id).all()
+
+        for b in batches:
+            status = (getattr(b, "status", "") or "").lower().strip()
+            active_video_count = Video.query.filter(
+                Video.creator_id == creator.id,
+                Video.batch_id == b.id,
+                db.or_(Video.status == None, ~Video.status.in_(["deleted", "cancelled", "canceled"]))
+            ).count()
+
+            is_incomplete_status = status in ["uploading", "processing", "pending", "failed", "error", "cancelled", "canceled", "incomplete", "draft"]
+            is_empty = active_video_count == 0
+
+            if is_incomplete_status or is_empty:
+                # Soft-delete videos first if any are attached.
+                videos = Video.query.filter_by(creator_id=creator.id, batch_id=b.id).all()
+                for v in videos:
+                    try:
+                        v.status = "deleted"
+                    except Exception:
+                        pass
+
+                try:
+                    b.status = "deleted"
+                except Exception:
+                    pass
+
+                deleted_count += 1
+
+        db.session.commit()
+
+        try:
+            _recalculate_creator_storage(creator.id)
+        except Exception:
+            pass
+
+        flash(f"Deleted {deleted_count} incomplete batch{'es' if deleted_count != 1 else ''}.")
+        return redirect("/creator/batches")
+
+    except Exception as e:
+        db.session.rollback()
+        try:
+            print("clean incomplete batches v50.10 warning:", e)
+        except Exception:
+            pass
+        flash("Could not delete incomplete batches. Please try again.")
+        return redirect("/creator/batches")
+
