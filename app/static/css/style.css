@@ -2328,3 +2328,25 @@ body.creator-dashboard-v449 main{
   margin:12px 0;
   font-weight:800;
 }
+
+/* v49.1S multi creator cart and fee notice */
+.bsm-billing-warning-v491s{
+  margin:18px 0;
+  padding:16px;
+  border:1px solid #fed7aa;
+  background:#fff7ed;
+  border-radius:16px;
+  color:#7c2d12;
+}
+.bsm-billing-warning-v491s h2{margin-top:0;color:#9a3412;}
+.bsm-billing-warning-v491s p{margin:8px 0;line-height:1.45;}
+.cart-flash-v491s{
+  max-width:980px;
+  margin:14px auto;
+  padding:12px 14px;
+  border:1px solid #fecaca;
+  background:#fef2f2;
+  color:#991b1b;
+  border-radius:14px;
+  font-weight:800;
+}

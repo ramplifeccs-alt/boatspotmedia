@@ -33,6 +33,46 @@ def _normalize_paid_video_package_v491e(video, item):
 
 
 # v49.1Q Stripe Connect split payments for video sales
+
+# v49.1S multi-creator cart guard.
+def _bsm_cart_creator_summary_v491s(items):
+    """
+    Returns creator IDs present in the current cart.
+    For Stripe Connect destination charges, one Checkout Session should contain one creator only.
+    """
+    creator_ids = set()
+    creator_names = {}
+    try:
+        for it in items or []:
+            vid = int(it.get("video_id") or it.get("id") or 0)
+            if not vid:
+                continue
+            row = db.session.execute(db.text("""
+                SELECT v.creator_id,
+                       COALESCE(u.display_name, u.public_name, u.primary_location, u.email, 'Creator') AS creator_name
+                FROM video v
+                LEFT JOIN creator_profile cp ON cp.id = v.creator_id
+                LEFT JOIN "user" u ON u.id = cp.user_id
+                WHERE v.id=:vid
+                LIMIT 1
+            """), {"vid": vid}).mappings().first()
+            if row and row.get("creator_id"):
+                cid = int(row.get("creator_id"))
+                creator_ids.add(cid)
+                creator_names[cid] = row.get("creator_name") or ("Creator #" + str(cid))
+    except Exception as e:
+        db.session.rollback()
+        try:
+            print("cart creator summary v49.1S warning:", e)
+        except Exception:
+            pass
+    return {"creator_ids": sorted(list(creator_ids)), "creator_names": creator_names}
+
+def _bsm_cart_has_multiple_creators_v491s(items):
+    summary = _bsm_cart_creator_summary_v491s(items)
+    return len(summary.get("creator_ids") or []) > 1, summary
+
+
 def _bsm_connect_info_for_cart_v491q(items):
     """
     Returns Connect info for a cart when all items belong to one creator with Stripe connected.
@@ -168,6 +208,24 @@ def create_checkout_session(item_type, item_id, title, description, amount, meta
     })
 
     base = get_base_url()
+
+
+    # v49.1S: Do not allow a single cart checkout with videos from multiple creators.
+    # Stripe Connect destination charges route funds to one connected account per Checkout Session.
+    _multi_creator_cart_v491s, _creator_summary_v491s = _bsm_cart_has_multiple_creators_v491s(items if 'items' in locals() else [])
+    if _multi_creator_cart_v491s:
+        names = ", ".join([_creator_summary_v491s.get("creator_names", {}).get(cid, "Creator #" + str(cid)) for cid in _creator_summary_v491s.get("creator_ids", [])])
+        flash("Your cart has videos from multiple creators: " + names + ". Please purchase one creator at a time so payouts and commissions are separated correctly.")
+        return redirect("/cart")
+
+
+    # v49.1S: If this is a one-creator cart but that creator has no Stripe connected, block checkout.
+    # This protects creator payouts and avoids manual settlement.
+    if not _multi_creator_cart_v491s:
+        _connect_check_v491s = _bsm_connect_info_for_cart_v491q(items if 'items' in locals() else []) if '_bsm_connect_info_for_cart_v491q' in globals() else {"enabled": False}
+        if _creator_summary_v491s.get("creator_ids") and not _connect_check_v491s.get("enabled"):
+            flash("This creator has not connected Stripe payouts yet. The video cannot be purchased until the creator connects Stripe.")
+            return redirect("/cart")
 
     # v49.1Q Stripe Connect split payment calculation
     connect_info_v491q = _bsm_connect_info_for_cart_v491q(items if 'items' in locals() else [])
