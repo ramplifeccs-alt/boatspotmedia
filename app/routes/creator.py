@@ -2171,6 +2171,22 @@ def _bsm_get_creator_user_id_v491l(creator_id):
         db.session.rollback()
         return None
 
+
+# v49.1X creator Stripe payout requirement helpers
+def _bsm_creator_has_stripe_connected_v491x(creator_id):
+    try:
+        acct = _bsm_creator_stripe_account_id_v491l(creator_id) if "_bsm_creator_stripe_account_id_v491l" in globals() else ""
+        return bool((acct or "").strip())
+    except Exception:
+        return False
+
+def _bsm_creator_require_stripe_v491x(creator_id, action_label="continue"):
+    if _bsm_creator_has_stripe_connected_v491x(creator_id):
+        return None
+    flash("Action required: Connect Stripe to receive payouts from your video sales before you " + action_label + ".")
+    return redirect("/creator/billing")
+
+
 def _bsm_creator_stripe_account_id_v491l(creator_id):
     user_id = _bsm_get_creator_user_id_v491l(creator_id)
     if not user_id:
@@ -3220,7 +3236,7 @@ def creator_orders_page_v462():
     creator_id = creator.id if creator else None
     page = request.args.get("page", 1)
     q = request.args.get("q", "")
-    return render_template("creator/orders.html", **_bsm_creator_orders_data_v461(creator_id, page, q))
+    return render_template("creator/orders.html", **_bsm_creator_orders_data_v461(creator_id, page, q, stripe_account_id=_bsm_creator_stripe_account_id_v491l(c.id) if "_bsm_creator_stripe_account_id_v491l" in globals() and c else ""))
 
 
 @creator_bp.route("/orders")
@@ -3283,6 +3299,14 @@ def delete_product(product_id):
 
 @creator_bp.route("/pricing", methods=["GET", "POST"])
 def pricing():
+    # require Stripe Connect before creator action v49.1X
+    c = current_creator()
+    if not c:
+        return redirect("/creator/login")
+    _stripe_required_resp_v491x = _bsm_creator_require_stripe_v491x(c.id, "set prices")
+    if _stripe_required_resp_v491x is not None:
+        return _stripe_required_resp_v491x
+
     creator = current_creator()
 
     if request.method == "POST":
@@ -3321,6 +3345,14 @@ def pricing():
 
 @creator_bp.route("/pricing/<int:preset_id>/delete", methods=["POST"])
 def delete_pricing(preset_id):
+    # require Stripe Connect before creator action v49.1X
+    c = current_creator()
+    if not c:
+        return redirect("/creator/login")
+    _stripe_required_resp_v491x = _bsm_creator_require_stripe_v491x(c.id, "set prices")
+    if _stripe_required_resp_v491x is not None:
+        return _stripe_required_resp_v491x
+
     creator = current_creator()
     p = VideoPricingPreset.query.filter_by(id=preset_id, creator_id=creator.id).first_or_404()
     p.active = False
@@ -3473,6 +3505,14 @@ def _creator_used_storage_bytes(creator_id):
 
 @creator_bp.route("/upload", methods=["GET"])
 def upload():
+    # require Stripe Connect before creator action v49.1X
+    c = current_creator()
+    if not c:
+        return redirect("/creator/login")
+    _stripe_required_resp_v491x = _bsm_creator_require_stripe_v491x(c.id, "upload videos")
+    if _stripe_required_resp_v491x is not None:
+        return _stripe_required_resp_v491x
+
     # v472 subscription upload guard
     try:
         c=current_creator()
@@ -3493,7 +3533,7 @@ def upload():
     return render_template("creator/upload.html",
         used_bytes=used,
         limit_bytes=limit,
-        used_gb=round(used / 1024 / 1024 / 1024, 2),
+        used_gb=round(used / 1024 / 1024 / 1024, 2, stripe_account_id=_bsm_creator_stripe_account_id_v491l(c.id) if "_bsm_creator_stripe_account_id_v491l" in globals() and c else ""),
         storage_limit_gb=storage_limit_gb,
         max_batch_gb=max_batch_gb,
         storage_used_gb=storage_used_gb,
@@ -3655,6 +3695,14 @@ def _ensure_video_upload_columns():
 
 @creator_bp.route("/upload/r2/prepare", methods=["POST"])
 def upload_r2_prepare():
+    # require Stripe Connect before creator action v49.1X
+    c = current_creator()
+    if not c:
+        return redirect("/creator/login")
+    _stripe_required_resp_v491x = _bsm_creator_require_stripe_v491x(c.id, "upload videos")
+    if _stripe_required_resp_v491x is not None:
+        return _stripe_required_resp_v491x
+
     _ensure_video_upload_columns()
     creator = current_creator()
     storage_limit_gb, max_batch_gb = _creator_plan_limits(creator)
@@ -3768,6 +3816,14 @@ def upload_r2_prepare():
 
 @creator_bp.route("/upload/r2/complete", methods=["POST"])
 def upload_r2_complete():
+    # require Stripe Connect before creator action v49.1X
+    c = current_creator()
+    if not c:
+        return redirect("/creator/login")
+    _stripe_required_resp_v491x = _bsm_creator_require_stripe_v491x(c.id, "upload videos")
+    if _stripe_required_resp_v491x is not None:
+        return _stripe_required_resp_v491x
+
     _ensure_video_upload_columns()
     creator = current_creator()
     if not creator:
@@ -3855,7 +3911,7 @@ def batches():
         return redirect("/creator/login")
     from app.models import VideoBatch
     batches = VideoBatch.query.filter(VideoBatch.creator_id == creator.id, db.or_(VideoBatch.status == None, ~VideoBatch.status.in_(["deleted", "cancelled", "canceled"]))).order_by(VideoBatch.id.desc()).all()
-    return render_template("creator/batches.html", batches=batches)
+    return render_template("creator/batches.html", batches=batches, stripe_account_id=_bsm_creator_stripe_account_id_v491l(c.id) if "_bsm_creator_stripe_account_id_v491l" in globals() and c else "")
 
 
 @creator_bp.route("/batches/<int:batch_id>")
@@ -3964,6 +4020,14 @@ def apply_with_apple_under_construction():
 
 @creator_bp.route("/upload/batch/<int:batch_id>/cancel", methods=["POST"])
 def cancel_upload_batch(batch_id):
+    # require Stripe Connect before creator action v49.1X
+    c = current_creator()
+    if not c:
+        return redirect("/creator/login")
+    _stripe_required_resp_v491x = _bsm_creator_require_stripe_v491x(c.id, "upload videos")
+    if _stripe_required_resp_v491x is not None:
+        return _stripe_required_resp_v491x
+
     creator = current_creator()
     if not creator:
         return jsonify({"ok": False, "error": "Please log in again."}), 401
@@ -4464,7 +4528,7 @@ def creator_reject_discount_v447(item_id):
 
 @creator_bp.route("/creator/pricing")
 def creator_pricing_page_v452():
-    return render_template("creator/pricing.html")
+    return render_template("creator/pricing.html", stripe_account_id=_bsm_creator_stripe_account_id_v491l(c.id) if "_bsm_creator_stripe_account_id_v491l" in globals() and c else "")
 
 
 
@@ -4480,7 +4544,7 @@ def creator_pending_edits_v463():
     data["edited_orders"] = data["orders"]
     data["total"] = len(data["orders"])
     data["pending_only"] = True
-    return render_template("creator/orders.html", **data)
+    return render_template("creator/orders.html", **data, stripe_account_id=_bsm_creator_stripe_account_id_v491l(c.id) if "_bsm_creator_stripe_account_id_v491l" in globals() and c else "")
 
 
 @creator_bp.route("/order-item/<int:item_id>/upload-edited-v463", methods=["POST"], endpoint="upload_edited_v463")
@@ -4799,7 +4863,7 @@ def creator_edited_ready_delete_v466():
     data["edited_orders"] = data["orders"]
     data["total"] = len(data["orders"])
     data["delete_ready_only"] = True
-    return render_template("creator/orders.html", **data)
+    return render_template("creator/orders.html", **data, stripe_account_id=_bsm_creator_stripe_account_id_v491l(c.id) if "_bsm_creator_stripe_account_id_v491l" in globals() and c else "")
 
 
 

@@ -59,6 +59,20 @@
   <div class="content">
     <h1>Upload Video Batch</h1>
 
+{% if not stripe_account_id %}
+<div class="creator-stripe-required-v491x">
+  <div class="creator-stripe-required-title-v491x">Action required: Connect Stripe to receive payouts</div>
+  <div class="creator-stripe-required-text-v491x">
+    To receive payments from your video sales, you must connect your Stripe account. 
+    This is required before uploading videos or setting prices for sale.
+  </div>
+  <form method="POST" action="/creator/billing/connect-stripe">
+    <button type="submit">Connect Stripe to Receive Payouts</button>
+  </form>
+</div>
+{% endif %}
+
+
 <div class="notice" style="margin:14px 0;padding:12px;border:1px solid #facc15;background:#fef9c3;border-radius:10px;color:#713f12;">
   <strong>Important:</strong> Keep this page open while your batch is uploading.<br>
   Do not close this window, refresh, or navigate away until the upload is complete.<br>

@@ -30,6 +30,20 @@
   <main class="bsm-creator-main-v451">
     <div class="container" style="max-width:1200px;margin:0 auto;padding:20px;">
       <h1>Creator Dashboard</h1>
+
+{% if not stripe_account_id %}
+<div class="creator-stripe-required-v491x">
+  <div class="creator-stripe-required-title-v491x">Action required: Connect Stripe to receive payouts</div>
+  <div class="creator-stripe-required-text-v491x">
+    To receive payments from your video sales, you must connect your Stripe account. 
+    This is required before uploading videos or setting prices for sale.
+  </div>
+  <form method="POST" action="/creator/billing/connect-stripe">
+    <button type="submit">Connect Stripe to Receive Payouts</button>
+  </form>
+</div>
+{% endif %}
+
       <p style="color:#64748b;">Manage your uploads, batches, pricing, orders, and sales from one place.</p>
 
       <section class="bsm-dashboard-grid-v451">

@@ -1,7 +1,9 @@
-BoatSpotMedia v49.1W Buyer Friendly Cart Messages
-Base: v49.1V.
-Only change:
-- Buyer-facing cart checkout messages no longer mention payouts, commissions, or Stripe Connect.
-- Multi-seller cart message says to check out one seller at a time.
-- Unavailable creator checkout says video is temporarily unavailable.
-No logic changes.
+BoatSpotMedia v49.1X Creator Stripe Required Notice
+Base: v49.1W.
+Changes:
+- Adds prominent creator warning: Connect Stripe to receive payouts.
+- Adds button: Connect Stripe to Receive Payouts.
+- Blocks creator upload if Stripe is not connected.
+- Blocks creator pricing save/update if Stripe is not connected.
+- Adds notice to dashboard, billing, upload, pricing, orders, and batches where templates exist.
+Does not touch cart checkout logic, split payments, My Orders, downloads, upload storage logic, subscriptions, Google, Apple, buyer login, creator login, or R2.

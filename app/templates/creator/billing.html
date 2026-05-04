@@ -11,6 +11,20 @@
 <main class="bsm-creator-main-v459"><div class="bsm-billing-wrap-v472">
 <h1>Creator Billing</h1>
 
+{% if not stripe_account_id %}
+<div class="creator-stripe-required-v491x">
+  <div class="creator-stripe-required-title-v491x">Action required: Connect Stripe to receive payouts</div>
+  <div class="creator-stripe-required-text-v491x">
+    To receive payments from your video sales, you must connect your Stripe account. 
+    This is required before uploading videos or setting prices for sale.
+  </div>
+  <form method="POST" action="/creator/billing/connect-stripe">
+    <button type="submit">Connect Stripe to Receive Payouts</button>
+  </form>
+</div>
+{% endif %}
+
+
 {% with messages = get_flashed_messages() %}
   {% if messages %}
     <div class="bsm-billing-flashes-v491m">
@@ -30,7 +44,7 @@
 
 <section class="bsm-billing-connect-v491l">
   <h2>Payouts</h2>
-  <p>Connect Stripe to receive your part of video sales. Stripe will handle your payout information and verification.</p>
+  <p>Connect Stripe to receive payouts from your video sales. This is required before your videos can be sold and paid out automatically.</p>
   {% if stripe_account_id %}
     <div class="connect-status ok">Stripe account connected: {{ stripe_account_id }}</div>
     <form method="POST" action="/creator/billing/stripe-dashboard">

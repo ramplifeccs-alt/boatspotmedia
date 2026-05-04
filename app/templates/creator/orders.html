@@ -31,6 +31,20 @@
       <div class="bsm-orders-header-v459">
         <div>
           <h1>{% if pending_only %}Pending Edited Videos{% elif delete_ready_only %}Edited Videos Ready to Delete{% else %}Orders / Sales{% endif %}</h1>
+
+{% if not stripe_account_id %}
+<div class="creator-stripe-required-v491x">
+  <div class="creator-stripe-required-title-v491x">Action required: Connect Stripe to receive payouts</div>
+  <div class="creator-stripe-required-text-v491x">
+    To receive payments from your video sales, you must connect your Stripe account. 
+    This is required before uploading videos or setting prices for sale.
+  </div>
+  <form method="POST" action="/creator/billing/connect-stripe">
+    <button type="submit">Connect Stripe to Receive Payouts</button>
+  </form>
+</div>
+{% endif %}
+
           <p>Search and manage buyer orders, edited video deliveries, and discount approvals. Delete button appears after 72 hours.</p>
           <small style="color:#94a3b8;">Creator ID: {{ creator_id_debug }}</small>
         </div>

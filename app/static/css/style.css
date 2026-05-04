@@ -2362,3 +2362,33 @@ body.creator-dashboard-v449 main{
   border-radius:14px;
   font-weight:900;
 }
+
+/* v49.1X creator stripe required notice */
+.creator-stripe-required-v491x{
+  margin:14px 0 18px;
+  padding:16px;
+  border:1px solid #facc15;
+  background:#fef9c3;
+  color:#713f12;
+  border-radius:16px;
+  box-shadow:0 6px 18px rgba(0,0,0,.06);
+}
+.creator-stripe-required-title-v491x{
+  font-size:18px;
+  font-weight:900;
+  margin-bottom:6px;
+}
+.creator-stripe-required-text-v491x{
+  font-size:14px;
+  line-height:1.45;
+  margin-bottom:12px;
+}
+.creator-stripe-required-v491x button{
+  background:#635bff;
+  color:#fff;
+  border:0;
+  border-radius:10px;
+  padding:11px 14px;
+  font-weight:900;
+  cursor:pointer;
+}
