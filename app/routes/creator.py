@@ -9,7 +9,7 @@ from app.services.r2 import upload as r2_upload
 creator_bp = Blueprint("creator", __name__)
 
 
-# v50.4F safe creator logged-user context - uses creator_application.instagram
+# v50.4G robust creator logged-user context - uses creator_application.instagram
 @creator_bp.context_processor
 def _bsm_creator_logged_user_context_v504d():
     data = {
@@ -17,103 +17,127 @@ def _bsm_creator_logged_user_context_v504d():
         "creator_logged_email": "",
         "creator_logged_handle": "",
     }
+
+    def _clean(v):
+        try:
+            v = (v or "").strip()
+            return v if v and v.upper() != "NULL" else ""
+        except Exception:
+            return ""
+
+    def _pick(row):
+        if not row:
+            return False
+        d = dict(row)
+        handle = _clean(d.get("instagram"))
+        brand = _clean(d.get("brand_name"))
+        first = _clean(d.get("first_name"))
+        last = _clean(d.get("last_name"))
+        email = _clean(d.get("email"))
+        name = handle or brand or (first + " " + last).strip() or email or "Creator"
+        data["creator_logged_handle"] = handle or name
+        data["creator_logged_name"] = name
+        data["creator_logged_email"] = email
+        return True
+
     try:
         c = current_creator()
-        if c:
-            row = None
+        if not c:
+            return data
 
-            # Correct source in this build:
-            # creator_application.instagram
-            # Match by creator email first, then by name as fallback.
+        cid = getattr(c, "id", None)
+        direct_email = _clean(getattr(c, "email", ""))
+
+        # 1) Best case: current id matches creator_application.id
+        if cid:
             try:
                 row = db.session.execute(db.text("""
-                    SELECT
-                        ca.id,
-                        COALESCE(
-                            NULLIF(ca.instagram,''),
-                            NULLIF(ca.brand_name,''),
-                            NULLIF(ca.first_name || ' ' || ca.last_name,' '),
-                            NULLIF(ca.email,''),
-                            'Creator'
-                        ) AS display_name,
-                        COALESCE(NULLIF(ca.instagram,''), '') AS handle,
-                        COALESCE(ca.email,'') AS email
-                    FROM creator_application ca
-                    WHERE LOWER(COALESCE(ca.email,'')) = LOWER(COALESCE(:email,''))
-                      AND COALESCE(ca.status,'') = 'approved'
-                    ORDER BY ca.id DESC
+                    SELECT instagram, brand_name, first_name, last_name, email
+                    FROM creator_application
+                    WHERE id=:cid
+                    ORDER BY id DESC
                     LIMIT 1
-                """), {
-                    "email": getattr(c, "email", "") or ""
-                }).mappings().first()
+                """), {"cid": cid}).mappings().first()
+                if _pick(row):
+                    return data
             except Exception:
                 db.session.rollback()
 
-            # Fallback: sometimes current_creator has first/last/brand but not email.
-            if not row:
-                try:
-                    row = db.session.execute(db.text("""
-                        SELECT
-                            ca.id,
-                            COALESCE(
-                                NULLIF(ca.instagram,''),
-                                NULLIF(ca.brand_name,''),
-                                NULLIF(ca.first_name || ' ' || ca.last_name,' '),
-                                NULLIF(ca.email,''),
-                                'Creator'
-                            ) AS display_name,
-                            COALESCE(NULLIF(ca.instagram,''), '') AS handle,
-                            COALESCE(ca.email,'') AS email
-                        FROM creator_application ca
-                        WHERE COALESCE(ca.status,'') = 'approved'
-                          AND (
-                            LOWER(COALESCE(ca.email,'')) = LOWER(COALESCE(:email,''))
-                            OR LOWER(COALESCE(ca.brand_name,'')) = LOWER(COALESCE(:brand_name,''))
-                            OR LOWER(COALESCE(ca.instagram,'')) = LOWER(COALESCE(:instagram,''))
-                          )
-                        ORDER BY ca.id DESC
-                        LIMIT 1
-                    """), {
-                        "email": getattr(c, "email", "") or "",
-                        "brand_name": getattr(c, "brand_name", "") or getattr(c, "public_name", "") or "",
-                        "instagram": getattr(c, "instagram", "") or getattr(c, "social_handle", "") or "",
-                    }).mappings().first()
-                except Exception:
-                    db.session.rollback()
+        # 2) current_creator may be creator_profile.id. Resolve user.email and match application.email
+        if cid:
+            try:
+                row = db.session.execute(db.text("""
+                    SELECT ca.instagram, ca.brand_name, ca.first_name, ca.last_name, ca.email
+                    FROM creator_profile cp
+                    LEFT JOIN "user" u ON u.id = cp.user_id
+                    JOIN creator_application ca ON LOWER(COALESCE(ca.email,'')) = LOWER(COALESCE(u.email,''))
+                    WHERE cp.id=:cid
+                    ORDER BY ca.id DESC
+                    LIMIT 1
+                """), {"cid": cid}).mappings().first()
+                if _pick(row):
+                    return data
+            except Exception:
+                db.session.rollback()
 
-            # Last fallback: creators table if creator_application was not matched.
-            if not row:
-                try:
-                    row = db.session.execute(db.text("""
-                        SELECT
-                            id,
-                            COALESCE(
-                                NULLIF(instagram,''),
-                                NULLIF(brand_name,''),
-                                NULLIF(first_name || ' ' || last_name,' '),
-                                NULLIF(email,''),
-                                'Creator'
-                            ) AS display_name,
-                            COALESCE(NULLIF(instagram,''), '') AS handle,
-                            COALESCE(email,'') AS email
-                        FROM creators
-                        WHERE id=:cid
-                        LIMIT 1
-                    """), {"cid": getattr(c, "id", None)}).mappings().first()
-                except Exception:
-                    db.session.rollback()
+        # 3) current_creator may be creators.id. Resolve creators.email and match application.email
+        if cid:
+            try:
+                row = db.session.execute(db.text("""
+                    SELECT ca.instagram, ca.brand_name, ca.first_name, ca.last_name, ca.email
+                    FROM creators cr
+                    JOIN creator_application ca ON LOWER(COALESCE(ca.email,'')) = LOWER(COALESCE(cr.email,''))
+                    WHERE cr.id=:cid
+                    ORDER BY ca.id DESC
+                    LIMIT 1
+                """), {"cid": cid}).mappings().first()
+                if _pick(row):
+                    return data
+            except Exception:
+                db.session.rollback()
 
-            if row:
-                data["creator_logged_name"] = row.get("display_name") or "Creator"
-                data["creator_logged_email"] = row.get("email") or ""
-                data["creator_logged_handle"] = row.get("handle") or row.get("display_name") or ""
-            else:
-                data["creator_logged_name"] = "Creator"
+        # 4) direct email fallback from current_creator object if available
+        if direct_email:
+            try:
+                row = db.session.execute(db.text("""
+                    SELECT instagram, brand_name, first_name, last_name, email
+                    FROM creator_application
+                    WHERE LOWER(COALESCE(email,'')) = LOWER(:email)
+                    ORDER BY id DESC
+                    LIMIT 1
+                """), {"email": direct_email}).mappings().first()
+                if _pick(row):
+                    return data
+            except Exception:
+                db.session.rollback()
+
+        # 5) fallback to creators table by id
+        if cid:
+            try:
+                row = db.session.execute(db.text("""
+                    SELECT instagram, brand_name, first_name, last_name, email
+                    FROM creators
+                    WHERE id=:cid
+                    LIMIT 1
+                """), {"cid": cid}).mappings().first()
+                if _pick(row):
+                    return data
+            except Exception:
+                db.session.rollback()
+
+        # 6) last fallback to object attrs
+        obj_handle = _clean(getattr(c, "instagram", "")) or _clean(getattr(c, "social_handle", ""))
+        obj_name = obj_handle or _clean(getattr(c, "brand_name", "")) or _clean(getattr(c, "public_name", "")) or direct_email or "Creator"
+        data["creator_logged_handle"] = obj_handle or obj_name
+        data["creator_logged_name"] = obj_name
+        data["creator_logged_email"] = direct_email
+
     except Exception:
         try:
             db.session.rollback()
         except Exception:
             pass
+
     return data
 
 

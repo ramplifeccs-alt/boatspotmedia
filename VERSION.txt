@@ -1,7 +1,12 @@
-BoatSpotMedia v50.4F Creator Application Instagram In Menu
-Base: v50.4E.
+BoatSpotMedia v50.4G Robust Creator Application Instagram Menu
+Base: v50.4F.
 Fix:
-- Left menu "Logged in as" now reads creator_application.instagram.
-- Falls back to creator_application.brand_name, first_name + last_name, email, then creators.instagram.
-- Keeps menu/sidebar visual from v50.4E.
+- Left menu "Logged in as" now robustly resolves creator_application.instagram.
+- Tries:
+  1 creator_application.id = current creator id
+  2 creator_profile.id -> user.email -> creator_application.email
+  3 creators.id -> creators.email -> creator_application.email
+  4 current_creator.email -> creator_application.email
+  5 creators.instagram fallback
+  6 object attributes fallback
 Does not touch R2, uploads, batches logic, analytics backend, payments, checkout, Stripe, downloads, My Orders, subscriptions, or logins.
