@@ -3028,3 +3028,105 @@ padding:18px!important;
 margin:20px auto!important;
 }
 }
+
+
+/* v50.4Q fix actual public buyer register/login UI */
+.bsm-register-clean-v504q{
+  max-width:980px;
+  margin:28px auto;
+  padding:0 18px 40px;
+}
+.bsm-register-clean-v504q h1{
+  color:#0f172a;
+  margin:0 0 18px;
+  font-size:32px;
+  font-weight:950;
+}
+.bsm-register-grid-v504q{
+  display:grid;
+  grid-template-columns:minmax(0,1fr) minmax(0,1fr);
+  gap:18px;
+  align-items:start;
+}
+.bsm-register-card-v504q{
+  background:#fff;
+  border:1px solid #e5e7eb;
+  border-radius:18px;
+  padding:22px;
+  box-shadow:0 8px 26px rgba(15,23,42,.06);
+  overflow:hidden;
+}
+.bsm-register-card-v504q h2{
+  margin:0 0 12px;
+  color:#1e293b;
+  font-size:22px;
+  font-weight:950;
+}
+.bsm-register-card-v504q p{
+  color:#64748b;
+  font-weight:700;
+  line-height:1.45;
+}
+.bsm-register-card-v504q .buyer-auth-form-v504o{
+  gap:13px;
+}
+.bsm-register-card-v504q .buyer-auth-form-v504o label{
+  width:100%;
+  max-width:100%;
+}
+.bsm-register-card-v504q .buyer-auth-form-v504o input:not([type="checkbox"]){
+  width:100%;
+  max-width:100%;
+  box-sizing:border-box;
+  min-height:42px;
+}
+.bsm-register-card-v504q .buyer-checkbox-v504o{
+  width:100%;
+  max-width:100%;
+  box-sizing:border-box;
+  display:flex!important;
+  flex-direction:row!important;
+  align-items:flex-start!important;
+  gap:10px!important;
+  padding:11px 12px!important;
+  margin:2px 0 0!important;
+}
+.bsm-register-card-v504q .buyer-checkbox-v504o input{
+  flex:0 0 auto!important;
+  width:18px!important;
+  height:18px!important;
+  margin:2px 0 0!important;
+}
+.bsm-register-card-v504q .buyer-checkbox-v504o span{
+  flex:1 1 auto!important;
+  min-width:0!important;
+  display:block!important;
+  white-space:normal!important;
+  overflow:visible!important;
+  line-height:1.35!important;
+  font-size:14px!important;
+}
+.bsm-auth-secondary-btn-v504q{
+  display:inline-block;
+  background:#334155;
+  color:#fff!important;
+  padding:10px 14px;
+  border-radius:10px;
+  text-decoration:none;
+  font-weight:900;
+}
+.bsm-oauth-clean-v504q{
+  margin-top:18px;
+}
+.bsm-oauth-clean-v504q h2{
+  font-size:20px;
+}
+@media(max-width:820px){
+  .bsm-register-grid-v504q{
+    grid-template-columns:1fr;
+  }
+  .bsm-register-clean-v504q{
+    margin:20px auto;
+    padding:0 14px 32px;
+  }
+}

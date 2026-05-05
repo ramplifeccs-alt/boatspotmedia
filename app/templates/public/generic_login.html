@@ -1,49 +1,62 @@
 <!doctype html>
-<html>
+<html lang="en">
 <head>
-  <meta name="viewport" content="width=device-width, initial-scale=1"><meta charset="utf-8"><title>BoatSpotMedia</title><link rel="stylesheet" href="/static/css/style.css">  <link rel="icon" type="image/png" href="/static/img/favicon.png">
-  <link rel="apple-touch-icon" href="/static/img/apple-touch-icon.png">
-  <meta name="theme-color" content="#071b34">
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>{{ title or "Login" }} - BoatSpotMedia</title>
+  <link rel="stylesheet" href="/static/css/style.css">
+  <link rel="icon" type="image/png" href="/static/img/favicon.png">
 </head>
-<body>
-<header><div><a href="/" style="color:inherit;text-decoration:none;"><b>BoatSpotMedia</b></a></div><nav><a href="/">Home</a>{% if session.get("user_id") %}
-  <a class="nav-user" href="{{ session_dashboard_url() }}" style="text-decoration:none;">{{ session_display_name() }}</a>
-  {% if session.get("user_role") == "buyer" %}
-    <a href="/buyer/dashboard">Dashboard</a>
-  {% elif session.get("user_role") == "creator" %}
-    
-  {% elif session.get("user_role") in ["services", "service"] %}
-    
-  {% elif session.get("user_role") in ["charter", "charters"] %}
-    
-  {% endif %}
-  <a href="/logout">Logout</a>
-{% else %}
-  <a href="/buyer/login">Login</a>
-{% endif %}<a class="creator-apply-link-v487" href="/apply-creator">Apply to Sell Videos</a></nav></header>
-<div class="container">
-  <h1>{{title}}</h1>
-  <p>{{subtitle}}</p>{% if error %}<div class="error" style="background:#fee2e2;border:1px solid #fca5a5;color:#991b1b;padding:10px;border-radius:8px;margin:10px 0;">{{error}}</div>{% endif %}
-  <div class="grid">
-    <form class="card" method="post">
+<body class="buyer-auth-body-v504o">
+<header class="bsm-simple-header">
+  <a href="/"><img src="/static/img/logo-header.png" alt="BoatSpotMedia" class="bsm-logo-img"></a>
+</header>
+
+<main class="bsm-register-clean-v504q">
+  <h1>{{ title or "Login" }}</h1>
+
+  <div class="bsm-register-grid-v504q">
+    <section class="bsm-register-card-v504q">
       <h2>Login</h2>
-      <label>Email</label><input type="email" name="email">
-      <label>Password</label><input type="password" name="password">
-      <button class="btn">Login</button>
-    </form>
-    <div class="card">
-      <h2>New account?</h2>
-      <p>Register first if you do not have an account yet.</p>
-      <a class="btn" href="{{register_url}}">Register</a>
-    </div>
+      <p>{{ subtitle or "Access your account." }}</p>
+
+      {% if error %}
+        <div class="buyer-auth-error-v504o">{{ error }}</div>
+      {% endif %}
+
+      <form method="post" class="buyer-auth-form-v504o">
+        <label>
+          Email
+          <input type="email" name="email" required autocomplete="email">
+        </label>
+
+        <label>
+          Password
+          <input type="password" name="password" required autocomplete="current-password">
+        </label>
+
+        <button type="submit">Login</button>
+      </form>
+
+      <div class="buyer-auth-links-v504o">
+        <a href="/buyer/forgot-password">Forgot password?</a>
+      </div>
+    </section>
+
+    <section class="bsm-register-card-v504q">
+      <h2>New here?</h2>
+      <p>Create an account to save your orders and receive updates.</p>
+      <a class="bsm-auth-secondary-btn-v504q" href="{{ register_url or '/buyer/register' }}">Register</a>
+    </section>
   </div>
-  <div class="card">
-    <h2>Continue with Google or Apple</h2>
-    <a class="btn secondary" href="/auth/google/{{role}}">Continue with Google</a>
-    <a class="btn secondary" href="/auth/apple/{{role}}">Continue with Apple</a>
-    <p><small>These require OAuth credentials in Railway environment variables before real login is active.</small></p>
-  </div>
-</div>
+
+  <section class="bsm-register-card-v504q bsm-oauth-clean-v504q">
+    <h2>Google Login</h2>
+    <a class="buyer-google-btn-v504o" href="/auth/google/buyer">Continue with Google</a>
+  </section>
+</main>
+
 <script src="/static/js/mobile.js"></script>
 <script src="/static/js/tracking.js"></script>
-</body></html>
+</body>
+</html>

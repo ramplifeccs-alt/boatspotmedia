@@ -1,0 +1,11 @@
+BoatSpotMedia v50.4O Buyer Auth Upgrade
+Base: v50.4N.
+Adds:
+- Buyer login/register UI with tabs.
+- Buyer registration stores phone_number and sms_notifications_enabled in user table.
+- Forgot password flow with secure token and 1-hour expiry.
+- Password reset email via SendGrid.
+- SMS-ready buyer fields for edited video notifications.
+- Apple login hidden/removed from buyer UI.
+- Google login remains visible at /auth/google/buyer.
+Does not touch R2, uploads, batches logic, analytics, billing, Stripe, checkout, downloads, My Orders, or payouts.
