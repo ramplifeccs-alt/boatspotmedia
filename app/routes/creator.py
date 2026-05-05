@@ -2722,7 +2722,6 @@ def _bsm_update_creator_subscription_cancel_state_v504i(creator_id, stripe_subsc
                 status=COALESCE(:status, status),
                 updated_at=CURRENT_TIMESTAMP
             WHERE creator_id=:creator_id
-              AND (:stripe_subscription_id IS NULL OR stripe_subscription_id=:stripe_subscription_id OR stripe_subscription_id IS NULL)
         """), {
             "creator_id": creator_id,
             "stripe_subscription_id": stripe_subscription_id,
@@ -2826,6 +2825,251 @@ def creator_billing_resume_subscription_v504i():
             pass
         flash("Could not resume the subscription. Please try again.")
         return redirect("/creator/billing")
+
+
+
+# v50.4J Stripe subscription webhook sync + auto downgrade
+def _bsm_free_plan_defaults_v504j():
+    return {
+        "plan_key": "free",
+        "status": "active",
+        "storage_limit_gb": int(os.environ.get("CREATOR_FREE_STORAGE_GB", "5")),
+        "commission_percent": float(os.environ.get("CREATOR_FREE_COMMISSION_PERCENT", "25")),
+    }
+
+def _bsm_find_creator_id_by_stripe_subscription_v504j(subscription_id=None, customer_id=None, metadata=None):
+    metadata = metadata or {}
+    creator_id = metadata.get("creator_id") or metadata.get("bsm_creator_id")
+    if creator_id:
+        try:
+            return int(creator_id)
+        except Exception:
+            pass
+
+    try:
+        if subscription_id:
+            row = db.session.execute(db.text("""
+                SELECT creator_id
+                FROM creator_subscription
+                WHERE stripe_subscription_id=:sid
+                ORDER BY updated_at DESC NULLS LAST, id DESC
+                LIMIT 1
+            """), {"sid": subscription_id}).mappings().first()
+            if row and row.get("creator_id"):
+                return int(row.get("creator_id"))
+    except Exception:
+        db.session.rollback()
+
+    try:
+        if customer_id:
+            row = db.session.execute(db.text("""
+                SELECT creator_id
+                FROM creator_subscription
+                WHERE stripe_customer_id=:customer_id
+                ORDER BY updated_at DESC NULLS LAST, id DESC
+                LIMIT 1
+            """), {"customer_id": customer_id}).mappings().first()
+            if row and row.get("creator_id"):
+                return int(row.get("creator_id"))
+    except Exception:
+        db.session.rollback()
+
+    return None
+
+def _bsm_sync_subscription_from_stripe_object_v504j(sub_obj):
+    try:
+        if hasattr(sub_obj, "to_dict"):
+            sub_obj = sub_obj.to_dict()
+        if not isinstance(sub_obj, dict):
+            return False
+
+        subscription_id = sub_obj.get("id")
+        customer_id = sub_obj.get("customer")
+        status = sub_obj.get("status") or "active"
+        cancel_at_period_end = bool(sub_obj.get("cancel_at_period_end"))
+        current_period_end = sub_obj.get("current_period_end")
+        metadata = sub_obj.get("metadata") or {}
+
+        creator_id = _bsm_find_creator_id_by_stripe_subscription_v504j(
+            subscription_id=subscription_id,
+            customer_id=customer_id,
+            metadata=metadata,
+        )
+        if not creator_id:
+            print("v50.4J webhook: creator_id not found for subscription", subscription_id, customer_id)
+            return False
+
+        _bsm_ensure_creator_subscription_cancel_columns_v504i()
+
+        db.session.execute(db.text("""
+            UPDATE creator_subscription
+            SET cancel_at_period_end=:cancel_at_period_end,
+                current_period_end=COALESCE(
+                    CASE WHEN :period_epoch IS NULL THEN NULL ELSE to_timestamp(:period_epoch) END,
+                    current_period_end
+                ),
+                status=:status,
+                stripe_customer_id=COALESCE(:customer_id, stripe_customer_id),
+                stripe_subscription_id=COALESCE(:subscription_id, stripe_subscription_id),
+                updated_at=CURRENT_TIMESTAMP
+            WHERE creator_id=:creator_id
+        """), {
+            "creator_id": creator_id,
+            "cancel_at_period_end": cancel_at_period_end,
+            "period_epoch": int(current_period_end) if current_period_end else None,
+            "status": status,
+            "customer_id": customer_id,
+            "subscription_id": subscription_id,
+        })
+        db.session.commit()
+        return True
+    except Exception as e:
+        db.session.rollback()
+        try:
+            print("v50.4J sync subscription object warning:", e)
+        except Exception:
+            pass
+        return False
+
+def _bsm_auto_downgrade_creator_to_free_v504j(creator_id, stripe_subscription_id=None, stripe_customer_id=None):
+    try:
+        free = _bsm_free_plan_defaults_v504j()
+        _bsm_ensure_creator_subscription_table_v472()
+
+        db.session.execute(db.text("""
+            UPDATE creator_subscription
+            SET plan_key='free',
+                status='active',
+                storage_limit_gb=:storage_limit_gb,
+                cancel_at_period_end=FALSE,
+                current_period_end=NULL,
+                stripe_subscription_id=COALESCE(:stripe_subscription_id, stripe_subscription_id),
+                stripe_customer_id=COALESCE(:stripe_customer_id, stripe_customer_id),
+                updated_at=CURRENT_TIMESTAMP
+            WHERE creator_id=:creator_id
+        """), {
+            "creator_id": creator_id,
+            "storage_limit_gb": free["storage_limit_gb"],
+            "stripe_subscription_id": stripe_subscription_id,
+            "stripe_customer_id": stripe_customer_id,
+        })
+
+        try:
+            db.session.execute(db.text("""
+                UPDATE creator_profile
+                SET storage_limit_gb=:storage_limit_gb,
+                    commission_rate=:commission_percent
+                WHERE id=:creator_id
+            """), {
+                "creator_id": creator_id,
+                "storage_limit_gb": free["storage_limit_gb"],
+                "commission_percent": free["commission_percent"],
+            })
+        except Exception:
+            db.session.rollback()
+            _bsm_ensure_creator_subscription_table_v472()
+            db.session.execute(db.text("""
+                UPDATE creator_subscription
+                SET plan_key='free',
+                    status='active',
+                    storage_limit_gb=:storage_limit_gb,
+                    cancel_at_period_end=FALSE,
+                    current_period_end=NULL,
+                    updated_at=CURRENT_TIMESTAMP
+                WHERE creator_id=:creator_id
+            """), {
+                "creator_id": creator_id,
+                "storage_limit_gb": free["storage_limit_gb"],
+            })
+
+        db.session.commit()
+        return True
+    except Exception as e:
+        db.session.rollback()
+        try:
+            print("v50.4J auto downgrade warning:", e)
+        except Exception:
+            pass
+        return False
+
+def _bsm_handle_subscription_deleted_v504j(sub_obj):
+    try:
+        if hasattr(sub_obj, "to_dict"):
+            sub_obj = sub_obj.to_dict()
+        if not isinstance(sub_obj, dict):
+            return False
+
+        subscription_id = sub_obj.get("id")
+        customer_id = sub_obj.get("customer")
+        metadata = sub_obj.get("metadata") or {}
+        creator_id = _bsm_find_creator_id_by_stripe_subscription_v504j(
+            subscription_id=subscription_id,
+            customer_id=customer_id,
+            metadata=metadata,
+        )
+        if not creator_id:
+            print("v50.4J deleted webhook: creator_id not found", subscription_id, customer_id)
+            return False
+
+        return _bsm_auto_downgrade_creator_to_free_v504j(
+            creator_id=creator_id,
+            stripe_subscription_id=subscription_id,
+            stripe_customer_id=customer_id,
+        )
+    except Exception as e:
+        db.session.rollback()
+        try:
+            print("v50.4J subscription deleted handler warning:", e)
+        except Exception:
+            pass
+        return False
+
+@creator_bp.route("/stripe/webhook", methods=["POST"])
+@creator_bp.route("/billing/stripe-webhook", methods=["POST"])
+def creator_stripe_subscription_webhook_v504j():
+    payload = request.get_data()
+    sig_header = request.headers.get("Stripe-Signature", "")
+
+    try:
+        import stripe
+        stripe.api_key = os.environ.get("STRIPE_SECRET_KEY")
+
+        secret = (
+            os.environ.get("STRIPE_WEBHOOK_SECRET")
+            or os.environ.get("STRIPE_CREATOR_WEBHOOK_SECRET")
+            or os.environ.get("STRIPE_SUBSCRIPTION_WEBHOOK_SECRET")
+        )
+
+        if secret and sig_header:
+            event = stripe.Webhook.construct_event(payload, sig_header, secret)
+        else:
+            event = request.get_json(force=True, silent=False)
+    except Exception as e:
+        try:
+            print("v50.4J webhook signature/json warning:", e)
+        except Exception:
+            pass
+        return jsonify({"ok": False, "error": "invalid webhook"}), 400
+
+    event_type = event.get("type")
+    obj = (event.get("data") or {}).get("object") or {}
+
+    ok = True
+    if event_type == "customer.subscription.updated":
+        ok = _bsm_sync_subscription_from_stripe_object_v504j(obj)
+    elif event_type == "customer.subscription.deleted":
+        ok = _bsm_handle_subscription_deleted_v504j(obj)
+    elif event_type == "checkout.session.completed":
+        # Keep existing activation flow, but allow this endpoint to sync if Stripe sends checkout events here.
+        try:
+            sid = obj.get("id") if isinstance(obj, dict) else getattr(obj, "id", None)
+            ok = _bsm_creator_subscription_from_checkout_session_v491o(sid) if sid else True
+        except Exception:
+            ok = False
+    else:
+        ok = True
+
+    return jsonify({"ok": bool(ok), "type": event_type})
 
 
 @creator_bp.route("/billing/checkout/<plan_key>", methods=["GET", "POST"], endpoint="billing_checkout_v472")

@@ -1,9 +1,13 @@
-BoatSpotMedia v50.4I Creator Cancel/Resume Subscription
-Base: v50.4H.
+BoatSpotMedia v50.4J Webhook + Auto Downgrade
+Base: v50.4I.
 Adds:
-- Cancel Subscription button on creator Billing.
-- Resume Subscription button when cancellation is scheduled.
-- Stripe Subscription.modify(cancel_at_period_end=True/False).
-- Saves cancel_at_period_end/current_period_end/status in creator_subscription.
-- Keeps access active until Stripe current_period_end.
-Does not touch R2, uploads, batches logic, analytics backend, payments checkout flow, Stripe Connect payouts, downloads, My Orders, or logins.
+- Stripe webhook endpoint:
+  POST /creator/stripe/webhook
+  POST /creator/billing/stripe-webhook
+- Handles customer.subscription.updated:
+  syncs cancel_at_period_end, current_period_end, status, customer/subscription IDs.
+- Handles customer.subscription.deleted:
+  auto downgrades creator to Free plan, 5GB storage, cancel_at_period_end false.
+- Fixes DB update WHERE so cancel_at_period_end always saves by creator_id.
+- Keeps paid plan access until Stripe sends deleted event at end of period.
+Does not touch R2, uploads, batches logic, analytics backend, purchase checkout, Stripe Connect payouts, downloads, My Orders, or logins.

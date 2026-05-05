@@ -2783,3 +2783,14 @@ body.creator-dashboard-v449 main{
   background:#16a34a;
   color:#fff;
 }
+
+/* v50.4J webhook auto downgrade */
+.auto-downgrade-note-v504j{
+  margin-top:12px;
+  padding:11px 12px;
+  background:#eff6ff;
+  border:1px solid #bfdbfe;
+  color:#1e3a8a;
+  border-radius:12px;
+  font-weight:750;
+}
