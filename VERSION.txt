@@ -1,8 +1,7 @@
-BoatSpotMedia v50.4C Analytics Visual Left Menu Only
-Base: v50.4B.
-Changes:
-- Visual-only update to /creator/analytics.
-- Keeps creator left menu layout and analytics on the right.
-- Keeps all existing analytics charts, smart insights, tracking metrics, and video insights.
-- Does NOT modify creator.py or analytics backend.
-Does not touch uploads, R2 cleanup, batches logic, tracking backend, payments, checkout, Stripe, downloads, My Orders, subscriptions, or logins.
+BoatSpotMedia v50.4D Creator Dashboard Logged User
+Base: v50.4C.
+Adds:
+- Logged in creator card on /creator/dashboard.
+- Shows creator public/brand/display name and email when available.
+- Uses a safe creator template context processor.
+Does not touch R2, uploads, batches logic, analytics backend, payments, checkout, Stripe, downloads, My Orders, subscriptions, or logins.

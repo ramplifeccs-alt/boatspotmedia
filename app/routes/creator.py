@@ -9,6 +9,44 @@ from app.services.r2 import upload as r2_upload
 creator_bp = Blueprint("creator", __name__)
 
 
+# v50.4D safe creator logged-user context
+@creator_bp.context_processor
+def _bsm_creator_logged_user_context_v504d():
+    data = {
+        "creator_logged_name": "",
+        "creator_logged_email": "",
+        "creator_logged_handle": "",
+    }
+    try:
+        c = current_creator()
+        if c:
+            row = db.session.execute(db.text("""
+                SELECT
+                    cp.id AS creator_id,
+                    cp.user_id,
+                    COALESCE(cp.brand_name, u.public_name, u.display_name, u.email, 'Creator') AS display_name,
+                    COALESCE(u.email, '') AS email,
+                    COALESCE(u.social_handle, u.instagram, '') AS handle
+                FROM creator_profile cp
+                LEFT JOIN "user" u ON u.id = cp.user_id
+                WHERE cp.id=:cid
+                LIMIT 1
+            """), {"cid": c.id}).mappings().first()
+            if row:
+                data["creator_logged_name"] = row.get("display_name") or "Creator"
+                data["creator_logged_email"] = row.get("email") or ""
+                data["creator_logged_handle"] = row.get("handle") or ""
+            else:
+                data["creator_logged_name"] = "Creator"
+    except Exception:
+        try:
+            db.session.rollback()
+        except Exception:
+            pass
+    return data
+
+
+
 # v49.1Y safe creator template context for Stripe payout notice
 @creator_bp.context_processor
 def _bsm_creator_stripe_template_context_v491y():

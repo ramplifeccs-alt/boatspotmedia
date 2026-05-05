@@ -30,6 +30,20 @@
 
   <main class="bsm-creator-main-v451">
     <div class="container" style="max-width:1200px;margin:0 auto;padding:20px;">
+
+<div class="creator-logged-user-v504d">
+  <div class="creator-logged-avatar-v504d">
+    {{ (creator_logged_name or 'C')[:1]|upper }}
+  </div>
+  <div>
+    <div class="creator-logged-label-v504d">Logged in as</div>
+    <div class="creator-logged-name-v504d">{{ creator_logged_name or 'Creator' }}</div>
+    {% if creator_logged_email %}
+      <div class="creator-logged-email-v504d">{{ creator_logged_email }}</div>
+    {% endif %}
+  </div>
+</div>
+
       <h1>Creator Dashboard</h1>
 
 {% if not stripe_account_id %}
