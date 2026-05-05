@@ -1,0 +1,9 @@
+app/routes/owner.py
+app/templates/owner/applications.html
+app/templates/owner/manage_people.html
+app/templates/owner/edit_person.html
+app/routes/creator.py
+app/templates/creator/settings.html
+app/routes/public.py
+app/templates/public/apply_creator.html
+app/static/css/style.css

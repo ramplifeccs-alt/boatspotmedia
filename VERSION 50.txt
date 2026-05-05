@@ -1,0 +1,7 @@
+BoatSpotMedia v50.4D Creator Dashboard Logged User
+Base: v50.4C.
+Adds:
+- Logged in creator card on /creator/dashboard.
+- Shows creator public/brand/display name and email when available.
+- Uses a safe creator template context processor.
+Does not touch R2, uploads, batches logic, analytics backend, payments, checkout, Stripe, downloads, My Orders, subscriptions, or logins.

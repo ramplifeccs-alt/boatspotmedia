@@ -34,7 +34,7 @@
         <div class="creator-sidebar-user-label-v504e">Logged in as</div>
         <div class="creator-sidebar-user-name-v504e">
           {% if creator_logged_handle %}
-            {{ creator_logged_handle if creator_logged_handle.startswith('@') else '@' ~ creator_logged_handle }}
+            {{ creator_logged_handle }}
           {% else %}
             {{ creator_logged_name or 'Creator' }}
           {% endif %}
