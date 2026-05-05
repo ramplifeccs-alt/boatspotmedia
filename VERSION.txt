@@ -1,7 +1,7 @@
-BoatSpotMedia v50.4D Creator Dashboard Logged User
-Base: v50.4C.
-Adds:
-- Logged in creator card on /creator/dashboard.
-- Shows creator public/brand/display name and email when available.
-- Uses a safe creator template context processor.
+BoatSpotMedia v50.4E Creator Instagram In Menu
+Base: v50.4D.
+Changes:
+- Shows logged-in creator Instagram/social handle in the left menu, right above Log out.
+- Prefers Instagram, then social_handle, then TikTok, then creator name.
+- Removes the large dashboard logged-user card.
 Does not touch R2, uploads, batches logic, analytics backend, payments, checkout, Stripe, downloads, My Orders, subscriptions, or logins.

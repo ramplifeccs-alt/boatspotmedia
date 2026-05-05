@@ -24,9 +24,9 @@ def _bsm_creator_logged_user_context_v504d():
                 SELECT
                     cp.id AS creator_id,
                     cp.user_id,
-                    COALESCE(cp.brand_name, u.public_name, u.display_name, u.email, 'Creator') AS display_name,
+                    COALESCE(NULLIF(cp.brand_name,''), NULLIF(u.public_name,''), NULLIF(u.display_name,''), NULLIF(u.instagram,''), NULLIF(u.social_handle,''), NULLIF(u.email,''), 'Creator') AS display_name,
                     COALESCE(u.email, '') AS email,
-                    COALESCE(u.social_handle, u.instagram, '') AS handle
+                    COALESCE(NULLIF(u.instagram, ''), NULLIF(u.social_handle, ''), NULLIF(u.tiktok, ''), '') AS handle
                 FROM creator_profile cp
                 LEFT JOIN "user" u ON u.id = cp.user_id
                 WHERE cp.id=:cid

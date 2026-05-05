@@ -25,6 +25,17 @@
       <a href="/creator/pricing">Pricing</a>
       <a href="/creator/billing">Billing</a>
       <a href="/creator/dashboard#settings">Settings</a>
+      <div class="creator-sidebar-user-v504e">
+        <div class="creator-sidebar-user-label-v504e">Logged in as</div>
+        <div class="creator-sidebar-user-name-v504e">
+          {% if creator_logged_handle %}
+            {{ creator_logged_handle if creator_logged_handle.startswith('@') else '@' ~ creator_logged_handle }}
+          {% else %}
+            {{ creator_logged_name or 'Creator' }}
+          {% endif %}
+        </div>
+      </div>
+
       <a href="/logout" class="logout">Log out</a>
     </nav>
   </aside>

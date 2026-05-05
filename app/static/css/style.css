@@ -2713,3 +2713,28 @@ body.creator-dashboard-v449 main{
   font-weight:700;
   margin-top:2px;
 }
+
+/* v50.4E creator instagram in menu */
+.creator-sidebar-user-v504e{
+  margin:10px 0 8px;
+  padding:10px 11px;
+  border-radius:12px;
+  background:rgba(255,255,255,.08);
+  border:1px solid rgba(255,255,255,.14);
+  color:#fff;
+}
+.creator-sidebar-user-label-v504e{
+  font-size:11px;
+  text-transform:uppercase;
+  letter-spacing:.04em;
+  opacity:.72;
+  font-weight:900;
+  margin-bottom:3px;
+}
+.creator-sidebar-user-name-v504e{
+  font-size:14px;
+  font-weight:950;
+  overflow:hidden;
+  text-overflow:ellipsis;
+  white-space:nowrap;
+}
