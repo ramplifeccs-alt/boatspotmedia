@@ -1,13 +1,11 @@
-BoatSpotMedia v50.4J Webhook + Auto Downgrade
-Base: v50.4I.
+BoatSpotMedia v50.4K Auto Trim Free Storage
+Base: v50.4J.
 Adds:
-- Stripe webhook endpoint:
-  POST /creator/stripe/webhook
-  POST /creator/billing/stripe-webhook
-- Handles customer.subscription.updated:
-  syncs cancel_at_period_end, current_period_end, status, customer/subscription IDs.
-- Handles customer.subscription.deleted:
-  auto downgrades creator to Free plan, 5GB storage, cancel_at_period_end false.
-- Fixes DB update WHERE so cancel_at_period_end always saves by creator_id.
-- Keeps paid plan access until Stripe sends deleted event at end of period.
-Does not touch R2, uploads, batches logic, analytics backend, purchase checkout, Stripe Connect payouts, downloads, My Orders, or logins.
+- When Stripe sends customer.subscription.deleted:
+  1. creator is downgraded to Free / 5GB
+  2. system trims storage to the Free limit
+  3. keeps newest videos first
+  4. deletes oldest unsold videos first
+  5. protects purchased/order-linked videos
+  6. schedules R2 deletion for removed video files/thumbnails/previews
+Does not touch normal uploads, batches logic, analytics backend, purchase checkout, Stripe Connect payouts, downloads, My Orders, or logins.

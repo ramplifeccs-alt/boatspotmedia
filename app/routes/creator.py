@@ -1186,6 +1186,16 @@ def _soft_delete_batch_db_only(batch_id):
             db.session.delete(batch)
 
         db.session.commit()
+
+        # v50.4K: after paid subscription is fully ended, keep only latest Free plan storage.
+        try:
+            _bsm_trim_creator_storage_to_limit_v504k(creator_id, limit_gb=free["storage_limit_gb"])
+        except Exception as trim_e:
+            try:
+                print("v50.4K auto trim after downgrade warning:", trim_e)
+            except Exception:
+                pass
+
         return True
     except Exception as e:
         db.session.rollback()
@@ -2826,6 +2836,185 @@ def creator_billing_resume_subscription_v504i():
         flash("Could not resume the subscription. Please try again.")
         return redirect("/creator/billing")
 
+
+
+
+# v50.4K auto-trim storage to Free plan limit after subscription ends
+def _bsm_video_is_order_protected_v504k(video_id):
+    if not video_id:
+        return True
+    protected_tables = [
+        ("bsm_cart_order_item", "video_id"),
+        ("order_item", "video_id"),
+        ("order_items", "video_id"),
+        ("sales", "video_id"),
+    ]
+    for table, col in protected_tables:
+        try:
+            row = db.session.execute(db.text(f"""
+                SELECT 1
+                FROM {table}
+                WHERE {col}=:video_id
+                LIMIT 1
+            """), {"video_id": video_id}).mappings().first()
+            if row:
+                return True
+        except Exception:
+            db.session.rollback()
+    return False
+
+def _bsm_video_size_bytes_v504k(video):
+    for attr in ["file_size_bytes", "size_bytes", "filesize", "file_size"]:
+        try:
+            val = getattr(video, attr, None)
+            if val:
+                return int(val)
+        except Exception:
+            pass
+    return 0
+
+def _bsm_video_r2_keys_v504k(video):
+    keys = set()
+    attrs = [
+        "r2_video_key", "r2_thumbnail_key", "r2_key", "thumbnail_key",
+        "video_key", "thumb_key", "file_path", "thumbnail_path",
+        "storage_key", "storage_path", "object_key",
+        "preview_key", "preview_path", "r2_preview_key",
+        "public_thumbnail_url", "public_url"
+    ]
+    for attr in attrs:
+        try:
+            val = getattr(video, attr, None)
+        except Exception:
+            val = None
+        if not val:
+            continue
+        val = str(val).strip()
+        if not val:
+            continue
+        if val.startswith("http://") or val.startswith("https://"):
+            try:
+                from urllib.parse import urlparse, unquote
+                parsed = urlparse(val)
+                val = unquote((parsed.path or "").lstrip("/"))
+                idx = val.find("creators/")
+                if idx >= 0:
+                    val = val[idx:]
+            except Exception:
+                continue
+        if "/" in val and not val.startswith("data:"):
+            keys.add(val)
+
+    try:
+        for val in vars(video).values():
+            if isinstance(val, str) and "/" in val and not val.startswith("http"):
+                low = val.lower()
+                if any(x in low for x in ("thumb","preview","upload","creator","batch",".mp4",".mov",".m4v",".jpg",".jpeg",".png")):
+                    keys.add(val)
+    except Exception:
+        pass
+
+    return list(keys)
+
+def _bsm_delete_video_r2_and_soft_delete_v504k(video):
+    deleted_candidates = 0
+    try:
+        keys = _bsm_video_r2_keys_v504k(video)
+        payload = {"keys": keys, "prefixes": []}
+        batch_id = getattr(video, "batch_id", None)
+        if "_schedule_batch_r2_delete" in globals():
+            _schedule_batch_r2_delete(payload, batch_id=batch_id)
+        else:
+            try:
+                from app.services.r2 import delete_r2_candidates
+                delete_r2_candidates(keys=keys, prefixes=[])
+            except Exception:
+                pass
+        deleted_candidates = len(keys)
+    except Exception as e:
+        try:
+            print("v50.4K video r2 delete schedule warning:", e)
+        except Exception:
+            pass
+
+    try:
+        video.status = "deleted"
+    except Exception:
+        pass
+
+    return deleted_candidates
+
+def _bsm_trim_creator_storage_to_limit_v504k(creator_id, limit_gb=5):
+    """
+    Keep the newest unsold videos until storage is <= limit.
+    Delete oldest unsold videos first. Purchased/order-protected videos are never deleted.
+    """
+    result = {"deleted_videos": 0, "protected_videos": 0, "deleted_r2_candidates": 0, "before_bytes": 0, "after_bytes": 0, "limit_bytes": int(float(limit_gb) * 1024 * 1024 * 1024)}
+    try:
+        from app.models import Video
+
+        limit_bytes = result["limit_bytes"]
+
+        videos = Video.query.filter(
+            Video.creator_id == creator_id,
+            db.or_(Video.status == None, ~Video.status.in_(["deleted", "cancelled", "canceled"]))
+        ).all()
+
+        # Newest first for keeping. Oldest first for deleting.
+        def _created(v):
+            return (
+                getattr(v, "created_at", None)
+                or getattr(v, "uploaded_at", None)
+                or getattr(v, "recorded_at", None)
+                or getattr(v, "id", 0)
+            )
+
+        total = sum(_bsm_video_size_bytes_v504k(v) for v in videos)
+        result["before_bytes"] = int(total)
+
+        if total <= limit_bytes:
+            result["after_bytes"] = int(total)
+            return result
+
+        # Delete oldest unsold videos first.
+        candidates = sorted(videos, key=lambda v: (_created(v), getattr(v, "id", 0) or 0))
+
+        for v in candidates:
+            if total <= limit_bytes:
+                break
+
+            vid = getattr(v, "id", None)
+            size = _bsm_video_size_bytes_v504k(v)
+
+            if _bsm_video_is_order_protected_v504k(vid):
+                result["protected_videos"] += 1
+                continue
+
+            result["deleted_r2_candidates"] += _bsm_delete_video_r2_and_soft_delete_v504k(v)
+            result["deleted_videos"] += 1
+            total = max(0, total - size)
+
+        db.session.commit()
+
+        try:
+            _recalculate_creator_storage(creator_id)
+        except Exception:
+            pass
+
+        result["after_bytes"] = int(total)
+        try:
+            print("v50.4K auto trim result:", result)
+        except Exception:
+            pass
+        return result
+
+    except Exception as e:
+        db.session.rollback()
+        try:
+            print("v50.4K auto trim warning:", e)
+        except Exception:
+            pass
+        return result
 
 
 # v50.4J Stripe subscription webhook sync + auto downgrade
