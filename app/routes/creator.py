@@ -3990,6 +3990,54 @@ def _bsm_creator_batches_list_v505(creator_id):
     return rows
 
 
+
+# v50.13 Delete incomplete batches using restored v50.4 working R2 cleanup
+@creator_bp.route("/clean-incomplete-batches", methods=["POST"])
+@creator_bp.route("/batches/clean-incomplete", methods=["POST"])
+def creator_clean_incomplete_batches_v5010():
+    creator = current_creator()
+    if not creator:
+        return redirect("/creator/login")
+
+    cleaned = 0
+    scheduled_objects = 0
+    try:
+        from app.models import VideoBatch
+
+        batches = VideoBatch.query.filter(
+            VideoBatch.creator_id == creator.id,
+            db.or_(VideoBatch.status == None, ~VideoBatch.status.in_(["deleted"]))
+        ).order_by(VideoBatch.id.desc()).all()
+
+        for batch in batches:
+            if _bsm_batch_is_incomplete_v388(batch):
+                payload = _collect_batch_r2_delete_payload(batch.id)
+                scheduled_objects += len(payload.get("keys") or []) + len(payload.get("prefixes") or [])
+
+                # Same working flow from v50.4: schedule R2 deletion before hiding DB rows.
+                _schedule_batch_r2_delete(payload, batch_id=batch.id)
+
+                if _soft_delete_batch_db_only(batch.id):
+                    cleaned += 1
+
+        try:
+            _recalculate_creator_storage(creator.id)
+        except Exception:
+            pass
+
+        flash(f"Deleted {cleaned} incomplete batch{'es' if cleaned != 1 else ''}. R2 cleanup scheduled for {scheduled_objects} object/prefix candidate{'s' if scheduled_objects != 1 else ''}.")
+        return redirect("/creator/batches")
+
+    except Exception as e:
+        db.session.rollback()
+        try:
+            print("v50.13 restored incomplete batch cleanup warning:", e)
+        except Exception:
+            pass
+        flash("Could not delete incomplete batches. Please try again.")
+        return redirect("/creator/batches")
+
+
 @creator_bp.route("/batches")
 def batches():
     creator = current_creator()
@@ -5371,6 +5419,147 @@ def creator_settings_v509():
 
 
 
+
+# v50.12 strong R2 cleanup for incomplete batch deletion
+def _bsm_r2_key_from_value_v5012(value):
+    if not value:
+        return None
+    key = str(value).strip()
+    if not key or key.startswith("data:"):
+        return None
+    if key.startswith("http://") or key.startswith("https://"):
+        try:
+            from urllib.parse import urlparse, unquote
+            parsed = urlparse(key)
+            key = unquote((parsed.path or "").lstrip("/"))
+            # If public URL path includes bucket-like prefix, keep the creators/... part when present.
+            idx = key.find("creators/")
+            if idx >= 0:
+                key = key[idx:]
+        except Exception:
+            return None
+    idx = key.find("creators/")
+    if idx >= 0:
+        key = key[idx:]
+    return key or None
+
+def _bsm_r2_delete_candidates_v5012(keys=None, prefixes=None):
+    keys = [k for k in {_bsm_r2_key_from_value_v5012(k) for k in (keys or [])} if k]
+    prefixes = [p for p in {str(p).strip() for p in (prefixes or []) if p} if p]
+    deleted = 0
+
+    try:
+        from app.services import r2
+        if hasattr(r2, "delete_r2_candidates"):
+            deleted = int(r2.delete_r2_candidates(keys=keys, prefixes=prefixes) or 0)
+            print("R2 cleanup v50.12 via service candidates:", {"keys": keys, "prefixes": prefixes, "deleted": deleted})
+            return deleted
+    except Exception as e:
+        try: print("R2 cleanup v50.12 service candidates warning:", e)
+        except Exception: pass
+
+    try:
+        from app.services import r2
+        for k in keys:
+            for fn_name in ["delete_r2_object", "delete_object", "delete_file", "delete_key", "delete"]:
+                fn = getattr(r2, fn_name, None)
+                if callable(fn):
+                    try:
+                        fn(k)
+                        deleted += 1
+                        break
+                    except Exception:
+                        pass
+        for p in prefixes:
+            fn = getattr(r2, "delete_r2_prefix", None)
+            if callable(fn):
+                try:
+                    deleted += int(fn(p) or 0)
+                except Exception as e:
+                    try: print("R2 prefix delete service warning v50.12:", p, e)
+                    except Exception: pass
+    except Exception as e:
+        try: print("R2 cleanup v50.12 service warning:", e)
+        except Exception: pass
+
+    # Direct fallback using same env style as app.services.r2
+    try:
+        import os, boto3
+        account_id = os.environ.get("R2_ACCOUNT_ID")
+        access_key = os.environ.get("R2_ACCESS_KEY_ID")
+        secret_key = os.environ.get("R2_SECRET_ACCESS_KEY")
+        bucket = os.environ.get("R2_BUCKET_NAME") or os.environ.get("R2_BUCKET") or os.environ.get("CLOUDFLARE_R2_BUCKET")
+        if account_id and access_key and secret_key and bucket:
+            client = boto3.client(
+                "s3",
+                endpoint_url=f"https://{account_id}.r2.cloudflarestorage.com",
+                aws_access_key_id=access_key,
+                aws_secret_access_key=secret_key,
+                region_name="auto",
+            )
+            for k in keys:
+                try:
+                    client.delete_object(Bucket=bucket, Key=k)
+                    deleted += 1
+                except Exception as e:
+                    try: print("R2 direct key delete warning v50.12:", k, e)
+                    except Exception: pass
+            for p in prefixes:
+                token = None
+                while True:
+                    kwargs = {"Bucket": bucket, "Prefix": p, "MaxKeys": 1000}
+                    if token:
+                        kwargs["ContinuationToken"] = token
+                    resp = client.list_objects_v2(**kwargs)
+                    objs = [{"Key": o["Key"]} for o in resp.get("Contents", []) if o.get("Key")]
+                    print("R2 prefix scan v50.12:", p, "found", len(objs))
+                    if objs:
+                        client.delete_objects(Bucket=bucket, Delete={"Objects": objs, "Quiet": True})
+                        deleted += len(objs)
+                    if not resp.get("IsTruncated"):
+                        break
+                    token = resp.get("NextContinuationToken")
+    except Exception as e:
+        try: print("R2 direct cleanup warning v50.12:", e)
+        except Exception: pass
+
+    print("R2 cleanup v50.12 final:", {"keys": keys, "prefixes": prefixes, "deleted": deleted})
+    return deleted
+
+def _bsm_collect_batch_r2_keys_v5012(creator_id, batch_id):
+    keys = []
+    try:
+        rows = db.session.execute(db.text("""
+            SELECT *
+            FROM video
+            WHERE creator_id=:creator_id AND batch_id=:batch_id
+        """), {"creator_id": creator_id, "batch_id": batch_id}).mappings().all()
+        for row in rows:
+            for col, val in dict(row).items():
+                if val and (
+                    "key" in col.lower()
+                    or "path" in col.lower()
+                    or "url" in col.lower()
+                    or "filename" in col.lower()
+                ):
+                    k = _bsm_r2_key_from_value_v5012(val)
+                    if k and ("creators/" in k or f"batches/{batch_id}" in k):
+                        keys.append(k)
+    except Exception as e:
+        db.session.rollback()
+        try: print("collect batch r2 keys v50.12 warning:", e)
+        except Exception: pass
+    return list(dict.fromkeys(keys))
+
+def _bsm_delete_incomplete_batch_r2_v5012(creator_id, batch_id):
+    keys = _bsm_collect_batch_r2_keys_v5012(creator_id, batch_id)
+    prefixes = [
+        f"creators/{creator_id}/batches/{batch_id}/",
+        f"creators/{creator_id}/batches/{batch_id}",
+    ]
+    return _bsm_r2_delete_candidates_v5012(keys=keys, prefixes=prefixes)
+
+
 # v50.11 R2 cleanup helper for incomplete batch deletion
 def _bsm_delete_r2_key_v5011(key):
     if not key:
@@ -5494,7 +5683,7 @@ def _bsm_delete_batch_r2_prefix_v5011(creator_id, batch_id):
     return deleted
 
 
-# v50.11 Delete incomplete batches + R2 cleanup
+
 @creator_bp.route("/clean-incomplete-batches", methods=["POST"])
 @creator_bp.route("/batches/clean-incomplete", methods=["POST"])
 def creator_clean_incomplete_batches_v5010():
@@ -5511,7 +5700,6 @@ def creator_clean_incomplete_batches_v5010():
 
         for b in batches:
             status = (getattr(b, "status", "") or "").lower().strip()
-
             active_video_count = Video.query.filter(
                 Video.creator_id == creator.id,
                 Video.batch_id == b.id,
@@ -5525,18 +5713,15 @@ def creator_clean_incomplete_batches_v5010():
             is_empty = active_video_count == 0
 
             if is_incomplete_status or is_empty:
-                videos = Video.query.filter_by(creator_id=creator.id, batch_id=b.id).all()
+                # IMPORTANT: delete R2 prefix before changing DB rows.
+                deleted_r2_objects += _bsm_delete_incomplete_batch_r2_v5012(creator.id, b.id)
 
-                # Delete every known object key from R2 before hiding the rows.
+                videos = Video.query.filter_by(creator_id=creator.id, batch_id=b.id).all()
                 for v in videos:
-                    deleted_r2_objects += _bsm_delete_video_r2_objects_v5011(v)
                     try:
                         v.status = "deleted"
                     except Exception:
                         pass
-
-                # Extra safety: delete the full R2 folder prefix for this batch.
-                deleted_r2_objects += _bsm_delete_batch_r2_prefix_v5011(creator.id, b.id)
 
                 try:
                     b.status = "deleted"
@@ -5552,7 +5737,16 @@ def creator_clean_incomplete_batches_v5010():
         except Exception:
             pass
 
-        flash(f"Deleted {deleted_count} incomplete batch{'es' if deleted_count != 1 else ''} and removed {deleted_r2_objects} storage object{'s' if deleted_r2_objects != 1 else ''}.")
+        flash(f"Deleted {deleted_count} incomplete batch{'es' if deleted_count != 1 else ''}. R2 cleanup attempted: {deleted_r2_objects} object{'s' if deleted_r2_objects != 1 else ''} removed.")
+        return redirect("/creator/batches")
+
+    except Exception as e:
+        db.session.rollback()
+        try:
+            print("clean incomplete batches force r2 v50.12 warning:", e)
+        except Exception:
+            pass
+        flash("Could not delete incomplete batches from storage. Please try again.")
         return redirect("/creator/batches")
 
     except Exception as e:

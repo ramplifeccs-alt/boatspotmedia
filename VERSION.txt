@@ -1,8 +1,11 @@
-BoatSpotMedia v50.11 Delete Incomplete Batches R2 Cleanup
-Base: v50.10.
+BoatSpotMedia v50.13 Restore Working Incomplete Batch Delete from v50.4
+Base: v50.12.
 Fix:
-- Delete Incomplete Batches now removes the actual R2 objects too.
-- Deletes known keys from video rows: r2_video_key, file_path, thumbnails, previews, edited keys.
-- Also deletes the full R2 prefix creators/<creator_id>/batches/<batch_id>/ as a safety cleanup.
-- Soft-deletes DB rows only after attempting storage cleanup.
-Does not touch payments, checkout, uploads, downloads, analytics, Stripe, subscriptions, My Orders, logins, or normal completed batches.
+- Restores the v50.4 R2 cleanup flow that previously worked.
+- Delete Incomplete Batches uses:
+  * _bsm_batch_is_incomplete_v388 safety check
+  * _collect_batch_r2_delete_payload
+  * _schedule_batch_r2_delete async R2 cleanup
+  * _soft_delete_batch_db_only
+- Keeps newer UI/layout/settings/analytics changes.
+Does not touch payments, checkout, normal uploads, downloads, analytics logic, Stripe, subscriptions, My Orders, logins, or completed batches.
