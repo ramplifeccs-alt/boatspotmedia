@@ -3991,8 +3991,8 @@ def _bsm_creator_batches_list_v505(creator_id):
 
 
 
-# v50.13 Delete incomplete batches using restored v50.4 working R2 cleanup
-@creator_bp.route("/clean-incomplete-batches", methods=["POST"])
+
+
 @creator_bp.route("/batches/clean-incomplete", methods=["POST"])
 def creator_clean_incomplete_batches_v5010():
     creator = current_creator()
@@ -4032,6 +4032,54 @@ def creator_clean_incomplete_batches_v5010():
         db.session.rollback()
         try:
             print("v50.13 restored incomplete batch cleanup warning:", e)
+        except Exception:
+            pass
+        flash("Could not delete incomplete batches. Please try again.")
+        return redirect("/creator/batches")
+
+
+
+# v50.14 Single working Delete Incomplete Batches route
+@creator_bp.route("/clean-incomplete-batches", methods=["POST"])
+@creator_bp.route("/batches/clean-incomplete", methods=["POST"])
+def creator_clean_incomplete_batches_v5014():
+    creator = current_creator()
+    if not creator:
+        return redirect("/creator/login")
+
+    cleaned = 0
+    scheduled_objects = 0
+    try:
+        from app.models import VideoBatch
+
+        batches = VideoBatch.query.filter(
+            VideoBatch.creator_id == creator.id,
+            db.or_(VideoBatch.status == None, ~VideoBatch.status.in_(["deleted"]))
+        ).order_by(VideoBatch.id.desc()).all()
+
+        for batch in batches:
+            if _bsm_batch_is_incomplete_v388(batch):
+                payload = _collect_batch_r2_delete_payload(batch.id)
+                scheduled_objects += len(payload.get("keys") or []) + len(payload.get("prefixes") or [])
+
+                # This is the working v50.4 flow: schedule R2 cleanup before hiding DB rows.
+                _schedule_batch_r2_delete(payload, batch_id=batch.id)
+
+                if _soft_delete_batch_db_only(batch.id):
+                    cleaned += 1
+
+        try:
+            _recalculate_creator_storage(creator.id)
+        except Exception:
+            pass
+
+        flash(f"Deleted {cleaned} incomplete batch{'es' if cleaned != 1 else ''}. R2 cleanup scheduled.")
+        return redirect("/creator/batches")
+
+    except Exception as e:
+        db.session.rollback()
+        try:
+            print("v50.14 delete incomplete batches warning:", e)
         except Exception:
             pass
         flash("Could not delete incomplete batches. Please try again.")
@@ -5684,7 +5732,7 @@ def _bsm_delete_batch_r2_prefix_v5011(creator_id, batch_id):
 
 
 
-@creator_bp.route("/clean-incomplete-batches", methods=["POST"])
+
 @creator_bp.route("/batches/clean-incomplete", methods=["POST"])
 def creator_clean_incomplete_batches_v5010():
     creator = current_creator()

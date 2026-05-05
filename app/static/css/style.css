@@ -2692,3 +2692,17 @@ body.creator-dashboard-v449 main{
   font-weight:950;
   cursor:pointer;
 }
+
+/* v50.14 clean incomplete batches button */
+.creator-batches-page-v505 form[action="/creator/clean-incomplete-batches"]{
+  margin:0 0 14px;
+}
+.creator-batches-page-v505 form[action="/creator/clean-incomplete-batches"] button{
+  background:#dc2626;
+  color:#fff;
+  border:0;
+  border-radius:12px;
+  padding:10px 14px;
+  font-weight:950;
+  cursor:pointer;
+}
