@@ -2646,3 +2646,26 @@ body.creator-dashboard-v449 main{
     padding-left:50px;
   }
 }
+
+/* v50.4C analytics visual left menu only */
+.creator-analytics-page-v504c{
+  max-width:1200px;
+  margin:0 auto;
+  padding:20px;
+  font-family:system-ui,-apple-system,Segoe UI,sans-serif;
+}
+.creator-analytics-page-v504c .analytics-page-v500{
+  max-width:100%;
+  padding:0;
+}
+.creator-analytics-page-v504c .analytics-header-v501{
+  margin-top:0;
+}
+.creator-analytics-page-v504c .analytics-back-v501{
+  display:none;
+}
+@media(max-width:760px){
+  .creator-analytics-page-v504c{
+    padding:14px;
+  }
+}

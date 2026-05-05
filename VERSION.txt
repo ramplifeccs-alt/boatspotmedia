@@ -1,8 +1,8 @@
-BoatSpotMedia v50.4B Batches Visual Only Keep Original CB
-Base: v50.4 VIDEO_INSIGHTS.
+BoatSpotMedia v50.4C Analytics Visual Left Menu Only
+Base: v50.4B.
 Changes:
-- Visual-only update to /creator/batches list.
-- Keeps creator left menu layout.
-- Keeps original v50.4 Delete incomplete batch CB button by loading /static/js/mobile.js.
-- Does NOT modify creator.py or any R2/delete logic.
-Does not touch uploads, R2 cleanup, analytics, tracking, payments, checkout, Stripe, downloads, My Orders, subscriptions, or logins.
+- Visual-only update to /creator/analytics.
+- Keeps creator left menu layout and analytics on the right.
+- Keeps all existing analytics charts, smart insights, tracking metrics, and video insights.
+- Does NOT modify creator.py or analytics backend.
+Does not touch uploads, R2 cleanup, batches logic, tracking backend, payments, checkout, Stripe, downloads, My Orders, subscriptions, or logins.

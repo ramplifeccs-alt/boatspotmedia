@@ -1,11 +1,37 @@
 <!doctype html>
-<html>
+<html lang="en">
 <head>
-  <title>Creator Analytics</title>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Analytics - BoatSpotMedia</title>
   <link rel="stylesheet" href="/static/css/style.css">
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 </head>
-<body>
+<body class="creator-dashboard-v453">
+<div class="bsm-creator-page-shell-v453">
+
+  <aside class="bsm-creator-sidebar-v453">
+    <a href="/creator/dashboard" class="bsm-creator-logo-v453">
+      <img src="/static/img/logo-header.png" alt="BoatSpotMedia">
+    </a>
+    <div class="bsm-creator-handle-v453">@BoatSpotMedia.com</div>
+    <nav class="bsm-creator-nav-v453">
+      <a href="/creator/dashboard">Dashboard</a>
+      <a href="/creator/upload">Uploads</a>
+      <a href="/creator/batches">Batches</a>
+      <a href="/creator/analytics" class="active">Analytics</a>
+      <a href="/creator/orders">Orders</a>
+      <a href="/creator/dashboard#products">Products</a>
+      <a href="/creator/pricing">Pricing</a>
+      <a href="/creator/billing">Billing</a>
+      <a href="/creator/dashboard#settings">Settings</a>
+      <a href="/logout" class="logout">Log out</a>
+    </nav>
+  </aside>
+
+  <main class="bsm-creator-main-v453">
+    <div class="bsm-creator-module-wrap-v453">
+      <div class="creator-analytics-page-v504c">
 <div class="analytics-page-v500 analytics-pro-v501">
   <div class="analytics-header-v501">
     <div>
@@ -102,7 +128,11 @@
     </table>
   </div>
 </div>
+      </div>
+    </div>
+  </main>
 
+</div>
 <script>
 const creatorDailyLabels = {{ analytics.daily_sales|reverse|map(attribute='day')|list|tojson }};
 const creatorDailySales = {{ analytics.daily_sales|reverse|map(attribute='gross_sales')|list|tojson }};
