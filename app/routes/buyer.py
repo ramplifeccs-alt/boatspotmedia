@@ -1,5 +1,6 @@
 import os
-from flask import Blueprint, render_template, request, redirect, session
+import secrets
+from flask import Blueprint, render_template, request, redirect, session, flash
 from werkzeug.security import generate_password_hash, check_password_hash
 from app import db
 from app.models import User
@@ -330,25 +331,98 @@ def _bsm_fix_order_item_creator_id_v460(order_id=None):
             pass
 
 
+
+
+# v50.4O Buyer auth upgrade helpers
+def _bsm_public_base_url_v504o():
+    return (os.environ.get("PUBLIC_BASE_URL") or os.environ.get("BASE_URL") or "https://boatspotmedia.com").rstrip("/")
+
+def _bsm_normalize_phone_v504o(phone):
+    phone = (phone or "").strip()
+    if not phone:
+        return ""
+    cleaned = "".join(ch for ch in phone if ch.isdigit() or ch == "+")
+    if cleaned and not cleaned.startswith("+"):
+        if len(cleaned) == 10:
+            cleaned = "+1" + cleaned
+        elif len(cleaned) == 11 and cleaned.startswith("1"):
+            cleaned = "+" + cleaned
+    return cleaned
+
+def _bsm_ensure_buyer_auth_columns_v504o():
+    try:
+        db.session.execute(db.text('ALTER TABLE "user" ADD COLUMN IF NOT EXISTS phone_number TEXT'))
+        db.session.execute(db.text('ALTER TABLE "user" ADD COLUMN IF NOT EXISTS sms_notifications_enabled BOOLEAN DEFAULT TRUE'))
+        db.session.execute(db.text('ALTER TABLE "user" ADD COLUMN IF NOT EXISTS password_reset_token TEXT'))
+        db.session.execute(db.text('ALTER TABLE "user" ADD COLUMN IF NOT EXISTS password_reset_expires_at TIMESTAMP'))
+        db.session.execute(db.text('ALTER TABLE "user" ADD COLUMN IF NOT EXISTS google_id TEXT'))
+        db.session.commit()
+    except Exception as e:
+        db.session.rollback()
+        try:
+            print("buyer auth columns v50.4O warning:", e)
+        except Exception:
+            pass
+
+def _bsm_send_password_reset_email_v504o(to_email, reset_url):
+    try:
+        import requests
+        api_key = os.environ.get("SENDGRID_API_KEY")
+        from_email = os.environ.get("SENDGRID_FROM_EMAIL") or os.environ.get("FROM_EMAIL") or os.environ.get("MAIL_FROM")
+        if not api_key or not from_email:
+            print("SendGrid missing for buyer password reset v50.4O")
+            return False
+        payload = {
+            "personalizations": [{"to": [{"email": to_email}]}],
+            "from": {"email": from_email},
+            "subject": "Reset your BoatSpotMedia password",
+            "content": [{"type": "text/html", "value": f"""
+                <h2>Reset your BoatSpotMedia password</h2>
+                <p>Click the button below to reset your password. This link expires in 1 hour.</p>
+                <p><a href="{reset_url}" style="background:#2563eb;color:#fff;padding:12px 16px;border-radius:8px;text-decoration:none;font-weight:700;">Reset Password</a></p>
+                <p>If the button does not work, copy and paste this link:</p>
+                <p>{reset_url}</p>
+            """}],
+        }
+        r = requests.post(
+            "https://api.sendgrid.com/v3/mail/send",
+            headers={"Authorization": "Bearer " + api_key, "Content-Type": "application/json"},
+            json=payload,
+            timeout=12,
+        )
+        return r.status_code in (200, 202)
+    except Exception as e:
+        try:
+            print("send buyer reset email v50.4O warning:", e)
+        except Exception:
+            pass
+        return False
+
+
 @buyer_bp.route("/buyer/register", methods=["GET", "POST"])
 def buyer_register():
+    _bsm_ensure_buyer_auth_columns_v504o()
     if request.method == "POST":
-        display_name = (request.form.get("display_name") or request.form.get("full_name") or request.form.get("name") or "").strip()
+        first_name = (request.form.get("first_name") or "").strip()
+        last_name = (request.form.get("last_name") or "").strip()
+        display_name = (request.form.get("display_name") or request.form.get("full_name") or (first_name + " " + last_name).strip() or request.form.get("name") or "").strip()
         email = (request.form.get("email") or "").strip().lower()
+        phone = _bsm_normalize_phone_v504o(request.form.get("phone_number") or request.form.get("phone") or "")
+        sms_enabled = bool(request.form.get("sms_notifications_enabled"))
         password = request.form.get("password") or ""
+        confirm_password = request.form.get("confirm_password") or ""
 
         if not email or not password:
-            return render_template("public/generic_register.html", role="buyer", error="Email and password are required.")
-
+            return render_template("buyer/register.html", error="Email and password are required.")
         if len(password) < 6:
-            return render_template("public/generic_register.html", role="buyer", error="Password must be at least 6 characters.")
+            return render_template("buyer/register.html", error="Password must be at least 6 characters.")
+        if confirm_password and password != confirm_password:
+            return render_template("buyer/register.html", error="Passwords do not match.")
 
         user = _find_user_by_email(email)
         if user:
-            # If this buyer already exists, refresh password and log in.
-            # If email belongs to another role, do not take over that account.
             if getattr(user, "role", None) != "buyer":
-                return render_template("public/generic_register.html", role="buyer", error="This email already exists under another account type. Please use login or another email.")
+                return render_template("buyer/register.html", error="This email already exists under another account type. Please use login or another email.")
             user.password_hash = generate_password_hash(password)
             user.display_name = display_name or user.display_name or email
             user.is_active = True
@@ -361,35 +435,128 @@ def buyer_register():
                 is_active=True,
             )
             db.session.add(user)
+            try:
+                db.session.flush()
+            except Exception:
+                pass
 
         try:
             db.session.commit()
+            db.session.execute(db.text("""
+                UPDATE "user"
+                SET phone_number=:phone,
+                    sms_notifications_enabled=:sms_enabled
+                WHERE lower(email)=lower(:email)
+            """), {"phone": phone, "sms_enabled": sms_enabled, "email": email})
+            db.session.commit()
+            user = _find_user_by_email(email)
             _set_login_session(user)
             return redirect("/buyer/dashboard")
         except Exception as e:
             db.session.rollback()
-            return render_template("public/generic_register.html", role="buyer", error="Could not create account. Please try again.")
+            try:
+                print("buyer register v50.4O warning:", e)
+            except Exception:
+                pass
+            return render_template("buyer/register.html", error="Could not create account. Please try again.")
 
-    return render_template("public/generic_register.html", role="buyer")
+    return render_template("buyer/register.html")
 
 
 @buyer_bp.route("/buyer/login", methods=["GET", "POST"])
 def buyer_login():
+    _bsm_ensure_buyer_auth_columns_v504o()
     if request.method == "POST":
         email = (request.form.get("email") or "").strip().lower()
         password = request.form.get("password") or ""
 
         user = _find_user_by_email(email)
         if not user or getattr(user, "role", None) != "buyer" or not _password_ok(getattr(user, "password_hash", None), password):
-            return render_template("public/generic_login.html", title="Buyer Login", subtitle="Access your orders and downloads.", register_url="/buyer/register", role="buyer", error="Invalid email or password.")
+            return render_template("buyer/login.html", error="Invalid email or password.")
 
         if not getattr(user, "is_active", True):
-            return render_template("public/generic_login.html", title="Buyer Login", subtitle="Access your orders and downloads.", register_url="/buyer/register", role="buyer", error="Account is not active.")
+            return render_template("buyer/login.html", error="Account is not active.")
 
         _set_login_session(user)
         return redirect("/buyer/dashboard")
 
-    return render_template("public/generic_login.html", title="Buyer Login", subtitle="Access your orders and downloads.", register_url="/buyer/register", role="buyer")
+    return render_template("buyer/login.html")
+
+
+
+
+@buyer_bp.route("/buyer/forgot-password", methods=["GET", "POST"])
+def buyer_forgot_password_v504o():
+    _bsm_ensure_buyer_auth_columns_v504o()
+    if request.method == "POST":
+        email = (request.form.get("email") or "").strip().lower()
+        user = _find_user_by_email(email)
+        if user and getattr(user, "role", None) == "buyer":
+            token = secrets.token_urlsafe(32)
+            try:
+                db.session.execute(db.text("""
+                    UPDATE "user"
+                    SET password_reset_token=:token,
+                        password_reset_expires_at=NOW() + INTERVAL '1 hour'
+                    WHERE id=:uid
+                """), {"token": token, "uid": user.id})
+                db.session.commit()
+                reset_url = _bsm_public_base_url_v504o() + "/buyer/reset-password/" + token
+                _bsm_send_password_reset_email_v504o(user.email, reset_url)
+            except Exception as e:
+                db.session.rollback()
+                try:
+                    print("buyer forgot password v50.4O warning:", e)
+                except Exception:
+                    pass
+        return render_template("buyer/forgot_password.html", sent=True)
+
+    return render_template("buyer/forgot_password.html")
+
+
+@buyer_bp.route("/buyer/reset-password/<token>", methods=["GET", "POST"])
+def buyer_reset_password_v504o(token):
+    _bsm_ensure_buyer_auth_columns_v504o()
+    token = (token or "").strip()
+    try:
+        row = db.session.execute(db.text("""
+            SELECT id, email
+            FROM "user"
+            WHERE password_reset_token=:token
+              AND password_reset_expires_at IS NOT NULL
+              AND password_reset_expires_at > NOW()
+              AND role='buyer'
+            LIMIT 1
+        """), {"token": token}).mappings().first()
+    except Exception:
+        db.session.rollback()
+        row = None
+
+    if not row:
+        return render_template("buyer/reset_password.html", invalid=True)
+
+    if request.method == "POST":
+        password = request.form.get("password") or ""
+        confirm_password = request.form.get("confirm_password") or ""
+        if len(password) < 6:
+            return render_template("buyer/reset_password.html", error="Password must be at least 6 characters.")
+        if password != confirm_password:
+            return render_template("buyer/reset_password.html", error="Passwords do not match.")
+        try:
+            db.session.execute(db.text("""
+                UPDATE "user"
+                SET password_hash=:password_hash,
+                    password_reset_token=NULL,
+                    password_reset_expires_at=NULL
+                WHERE id=:uid
+            """), {"password_hash": generate_password_hash(password), "uid": row.get("id")})
+            db.session.commit()
+            return render_template("buyer/reset_password.html", success=True)
+        except Exception:
+            db.session.rollback()
+            return render_template("buyer/reset_password.html", error="Could not reset password. Please try again.")
+
+    return render_template("buyer/reset_password.html")
 
 
 @buyer_bp.route("/buyer/dashboard")

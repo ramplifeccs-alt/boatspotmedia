@@ -2953,3 +2953,28 @@ body.creator-dashboard-v449 main{
     padding-left:50px;
   }
 }
+
+/* v50.4O buyer auth upgrade */
+.buyer-auth-body-v504o{background:#f1f5f9;min-height:100vh;}
+.buyer-auth-card-v504o{max-width:560px;margin:36px auto;padding:24px;background:#fff;border:1px solid #e5e7eb;border-radius:18px;box-shadow:0 10px 30px rgba(15,23,42,.08);}
+.buyer-auth-card-v504o h1{margin:10px 0 6px;color:#0f172a;}
+.buyer-auth-card-v504o p{color:#64748b;font-weight:700;}
+.buyer-auth-tabs-v504o{display:flex;gap:8px;background:#f8fafc;border:1px solid #e2e8f0;padding:7px;border-radius:14px;}
+.buyer-auth-tabs-v504o a{flex:1;text-align:center;text-decoration:none;color:#475569;font-weight:950;padding:10px;border-radius:10px;}
+.buyer-auth-tabs-v504o a.active{background:#2563eb;color:#fff;}
+.buyer-auth-form-v504o{display:flex;flex-direction:column;gap:12px;margin-top:14px;}
+.buyer-auth-form-v504o label{display:flex;flex-direction:column;gap:6px;color:#334155;font-weight:900;font-size:13px;}
+.buyer-auth-form-v504o input{border:1px solid #cbd5e1;border-radius:12px;padding:11px 12px;font-size:15px;}
+.buyer-auth-form-v504o button,.buyer-google-btn-v504o{border:0;border-radius:12px;padding:12px 14px;background:#2563eb;color:#fff!important;font-weight:950;text-align:center;text-decoration:none;cursor:pointer;display:block;}
+.buyer-auth-grid-v504o{display:grid;grid-template-columns:1fr 1fr;gap:10px;}
+.buyer-checkbox-v504o{flex-direction:row!important;align-items:flex-start;gap:10px!important;background:#f8fafc;border:1px solid #e2e8f0;border-radius:12px;padding:10px;}
+.buyer-checkbox-v504o input{width:auto;margin-top:2px;}
+.buyer-auth-error-v504o{background:#fee2e2;border:1px solid #fecaca;color:#991b1b;border-radius:12px;padding:10px 12px;font-weight:900;margin:10px 0;}
+.buyer-auth-success-v504o{background:#dcfce7;border:1px solid #86efac;color:#166534;border-radius:12px;padding:10px 12px;font-weight:900;margin:10px 0;}
+.buyer-auth-links-v504o{margin:12px 0;text-align:right;}
+.buyer-auth-links-v504o a{color:#2563eb;font-weight:900;text-decoration:none;}
+.buyer-auth-divider-v504o{display:flex;align-items:center;gap:10px;margin:16px 0;color:#94a3b8;font-weight:900;}
+.buyer-auth-divider-v504o:before,.buyer-auth-divider-v504o:after{content:"";height:1px;background:#e2e8f0;flex:1;}
+.buyer-auth-small-v504o{font-size:12px;text-align:center;}
+a[href*="apple"], button[onclick*="apple"], .apple-login, .apple-auth, .btn-apple{display:none!important;}
+@media(max-width:640px){.buyer-auth-card-v504o{margin:18px 12px;padding:18px}.buyer-auth-grid-v504o{grid-template-columns:1fr}}

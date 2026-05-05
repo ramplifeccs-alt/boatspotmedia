@@ -1,0 +1,8 @@
+BoatSpotMedia v50.4M Billing Plan UX Warning
+Base: v50.4L.
+Changes:
+- Moves "Before Choosing a Paid Plan" from Settings to the Plan tab.
+- Places it directly before Available Plans.
+- Keeps Settings focused on billing rules.
+- Visual-only Billing UI change.
+Does not touch R2, uploads, batches logic, analytics backend, webhooks, Stripe, checkout, Stripe Connect payouts, downloads, My Orders, or logins.
