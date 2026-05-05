@@ -1,0 +1,8 @@
+BoatSpotMedia v50.4L Billing Tabs UI
+Base: v50.4K.
+Changes:
+- Visual-only Billing UI tabs on /creator/billing.
+- Tabs: Plan, Payments, Payouts, Settings.
+- Keeps existing forms/actions for plan checkout, cancel/resume subscription, Stripe Connect payouts.
+- Keeps webhook/auto-downgrade/storage trim logic untouched.
+Does not touch R2, uploads, batches logic, analytics backend, purchase checkout, Stripe Connect payouts, downloads, My Orders, or logins.

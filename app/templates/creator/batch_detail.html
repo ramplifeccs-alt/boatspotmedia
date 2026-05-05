@@ -1,55 +1,105 @@
 <!doctype html>
-<html>
+<html lang="en">
 <head>
-  <meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>BoatSpotMedia</title>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>{{ batch.batch_name or ('Batch #' ~ batch.id) }} - BoatSpotMedia</title>
   <link rel="stylesheet" href="/static/css/style.css">
   <link rel="icon" type="image/png" href="/static/img/favicon.png">
-  <link rel="apple-touch-icon" href="/static/img/apple-touch-icon.png">
-  <meta name="theme-color" content="#071b34">
 </head>
-<body><div class="creator-topbar" style="display:flex;justify-content:space-between;align-items:center;gap:12px;padding:12px 18px;background:#0b1220;color:#fff;margin:-1px -1px 16px -1px;">
-  <div><a href="{{ url_for('public.home') }}" style="color:white;text-decoration:none;font-weight:800;"><img src="/static/img/logo-header.png" alt="BoatSpotMedia" class="bsm-logo-img"></a></div>
-  <div style="display:flex;align-items:center;gap:12px;font-size:14px;">
-    <a href="{{ url_for('public.home') }}" style="color:white;text-decoration:none;">Home</a>
-    <a href="/shop" style="color:white;text-decoration:none;">Products</a>
-    <a href="/creator/dashboard" style="color:white;text-decoration:none;" class="nav-user">{% if creator and creator.user %}{{ creator_display_name(creator) if creator is defined else 'Creator' }}{% elif session.get('display_name') %}{{ session.get('display_name') }}{% elif session.get('user_email') %}{{ session.get('user_email') }}{% endif %}</a>
-    <a href="/logout" style="color:white;text-decoration:none;">Logout</a>
-  </div>
-</div>
-<div class="sidebar-layout">
-  <div class="sidebar">
-    <h2>Creator</h2>
-    <a href="/creator/dashboard">Dashboard</a>
-    <a href="/creator/upload">Upload</a>
-    <a href="/creator/batches">Batches</a>
-    <a href="/creator/analytics">Analytics</a>
-<a href="/creator/orders">Orders</a>
-    <a href="/logout">Logout</a>
-  </div>
-  <div class="content">
-    <h1>{{ batch.batch_name or ('Batch #' ~ batch.id) }}</h1>
-    <p>{{ batch.location or '' }}</p>
-    <div class="grid">
-      {% for v in videos %}
-        {% if v.status != 'deleted' %}
-        <div class="card">
-          <h3>{{ v.internal_filename }}</h3>
-          <p>Size: {{ ((v.file_size_bytes or 0) / 1024 / 1024)|round(2) }} MB</p>
-          <p>Original: ${{ v.original_price }} · Edited: ${{ v.edited_price }} · Bundle: ${{ v.bundle_price }}</p>
-          <a class="btn" href="/checkout/video/{{ v.id }}">Test Buy Original</a>
-          <form method="post" action="/creator/videos/{{ v.id }}/delete" onsubmit="return confirm('Delete this video?');">
-            <button class="btn danger">Delete Video</button>
-          </form>
+<body class="creator-dashboard-v453">
+<div class="bsm-creator-page-shell-v453">
+
+  <aside class="bsm-creator-sidebar-v453">
+    <a href="/creator/dashboard" class="bsm-creator-logo-v453">
+      <img src="/static/img/logo-header.png" alt="BoatSpotMedia">
+    </a>
+    <div class="bsm-creator-handle-v453">@BoatSpotMedia.com</div>
+    <nav class="bsm-creator-nav-v453">
+      <a href="/creator/dashboard">Dashboard</a>
+      <a href="/creator/upload">Uploads</a>
+      <a href="/creator/batches" class="active">Batches</a>
+      <a href="/creator/analytics">Analytics</a>
+      <a href="/creator/orders">Orders</a>
+      <a href="/creator/dashboard#products">Products</a>
+      <a href="/creator/pricing">Pricing</a>
+      <a href="/creator/billing">Billing</a>
+      <a href="/creator/dashboard#settings">Settings</a>
+      <div class="creator-sidebar-user-v504e">
+        <div class="creator-sidebar-user-label-v504e">Logged in as</div>
+        <div class="creator-sidebar-user-name-v504e">
+          {% if creator_logged_handle %}
+            {{ creator_logged_handle }}
+          {% else %}
+            {{ creator_logged_name or 'Creator' }}
+          {% endif %}
         </div>
-        {% endif %}
-      {% endfor %}
+      </div>
+      <a href="/logout" class="logout">Log out</a>
+    </nav>
+  </aside>
+
+  <main class="bsm-creator-main-v453">
+    <div class="bsm-creator-module-wrap-v453">
+      <div class="creator-batch-detail-page-v504n">
+        <div class="batch-detail-header-v504n">
+          <div>
+            <a class="back-to-batches-v504n" href="/creator/batches">← Back to Batches</a>
+            <h1>{{ batch.batch_name or ('Batch #' ~ batch.id) }}</h1>
+            {% if batch.location %}
+              <p>{{ batch.location }}</p>
+            {% else %}
+              <p>Manage videos inside this batch.</p>
+            {% endif %}
+          </div>
+          <a class="upload-more-v504n" href="/creator/upload?batch={{ batch.id }}">Upload More</a>
+        </div>
+
+        {% with messages = get_flashed_messages() %}
+          {% if messages %}
+            <div class="creator-batches-flash-v504a">
+              {% for msg in messages %}<div>{{ msg }}</div>{% endfor %}
+            </div>
+          {% endif %}
+        {% endwith %}
+
+        <div class="batch-videos-list-v504n">
+          {% for v in videos %}
+            {% if v.status != 'deleted' %}
+            <div class="batch-video-row-v504n">
+              <div class="video-file-icon-v504n">🎬</div>
+
+              <div class="video-file-info-v504n">
+                <div class="video-file-name-v504n">{{ v.internal_filename }}</div>
+                <div class="video-file-meta-v504n">
+                  <span>{{ ((v.file_size_bytes or 0) / 1024 / 1024)|round(2) }} MB</span>
+                  <span>Original: ${{ v.original_price }}</span>
+                  <span>Edited: ${{ v.edited_price }}</span>
+                  <span>Bundle: ${{ v.bundle_price }}</span>
+                </div>
+              </div>
+
+              <div class="video-file-actions-v504n">
+                <form method="post" action="/creator/videos/{{ v.id }}/delete" onsubmit="return confirm('Delete this video?');">
+                  <button type="submit">Delete Video</button>
+                </form>
+              </div>
+            </div>
+            {% endif %}
+          {% else %}
+            <div class="empty-batches-v504b">
+              <h2>No videos in this batch</h2>
+              <p>Upload videos to this batch to start selling.</p>
+              <a href="/creator/upload?batch={{ batch.id }}">Upload More</a>
+            </div>
+          {% endfor %}
+        </div>
+      </div>
     </div>
-  </div>
+    <script src="/static/js/mobile.js"></script>
+  </main>
 </div>
-<script src="/static/js/mobile.js"></script>
-</body>
-</html>
+
 <script>
 function regenerateThumbnail(videoId){
   fetch("/creator/videos/"+videoId+"/regenerate-thumbnail",{method:"POST"})
@@ -58,3 +108,5 @@ function regenerateThumbnail(videoId){
     .catch(()=>alert("Could not regenerate thumbnail."));
 }
 </script>
+</body>
+</html>

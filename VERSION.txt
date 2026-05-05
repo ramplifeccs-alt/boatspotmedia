@@ -1,8 +1,8 @@
-BoatSpotMedia v50.4M Billing Plan UX Warning
-Base: v50.4L.
+BoatSpotMedia v50.4N Batch Detail UI Remove Test Buy
+Base: v50.4M.
 Changes:
-- Moves "Before Choosing a Paid Plan" from Settings to the Plan tab.
-- Places it directly before Available Plans.
-- Keeps Settings focused on billing rules.
-- Visual-only Billing UI change.
-Does not touch R2, uploads, batches logic, analytics backend, webhooks, Stripe, checkout, Stripe Connect payouts, downloads, My Orders, or logins.
+- Visual-only update to creator batch detail page.
+- Open Batch now uses the newer creator left menu layout.
+- Removes "Test Buy Original" button from videos.
+- Keeps Delete Video action.
+Does not touch batch routes/logic, R2, uploads, delete incomplete batches, analytics, billing, Stripe, checkout, downloads, My Orders, or payouts.

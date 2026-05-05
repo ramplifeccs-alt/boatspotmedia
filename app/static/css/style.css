@@ -2833,3 +2833,123 @@ body.creator-dashboard-v449 main{
   font-weight:750;
   line-height:1.45;
 }
+
+/* v50.4N batch detail UI remove test buy */
+.creator-batch-detail-page-v504n{
+  max-width:1100px;
+  margin:0 auto;
+  padding:20px;
+  font-family:system-ui,-apple-system,Segoe UI,sans-serif;
+}
+.batch-detail-header-v504n{
+  display:flex;
+  justify-content:space-between;
+  align-items:flex-start;
+  gap:14px;
+  margin-bottom:16px;
+}
+.batch-detail-header-v504n h1{
+  margin:6px 0 4px;
+  color:#0f172a;
+}
+.batch-detail-header-v504n p{
+  margin:0;
+  color:#64748b;
+  font-weight:700;
+}
+.back-to-batches-v504n{
+  color:#2563eb!important;
+  text-decoration:none;
+  font-weight:950;
+  font-size:14px;
+}
+.upload-more-v504n{
+  background:#2563eb;
+  color:#fff!important;
+  padding:10px 13px;
+  border-radius:12px;
+  text-decoration:none;
+  font-weight:900;
+  display:inline-block;
+}
+.batch-videos-list-v504n{
+  background:#fff;
+  border:1px solid #e5e7eb;
+  border-radius:18px;
+  overflow:hidden;
+  box-shadow:0 6px 22px rgba(15,23,42,.06);
+}
+.batch-video-row-v504n{
+  display:grid;
+  grid-template-columns:44px 1fr auto;
+  gap:12px;
+  align-items:center;
+  padding:14px 16px;
+  border-bottom:1px solid #eef2f7;
+}
+.batch-video-row-v504n:last-child{
+  border-bottom:0;
+}
+.batch-video-row-v504n:hover{
+  background:#f8fafc;
+}
+.video-file-icon-v504n{
+  width:38px;
+  height:38px;
+  border-radius:12px;
+  background:#eff6ff;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  font-size:20px;
+}
+.video-file-name-v504n{
+  color:#0f172a;
+  font-size:15px;
+  font-weight:950;
+  margin-bottom:5px;
+  word-break:break-word;
+}
+.video-file-meta-v504n{
+  display:flex;
+  flex-wrap:wrap;
+  gap:7px;
+  color:#64748b;
+  font-size:13px;
+  font-weight:800;
+}
+.video-file-meta-v504n span{
+  background:#f1f5f9;
+  border:1px solid #e2e8f0;
+  border-radius:999px;
+  padding:4px 8px;
+}
+.video-file-actions-v504n{
+  display:flex;
+  justify-content:flex-end;
+  align-items:center;
+}
+.video-file-actions-v504n form{
+  margin:0;
+}
+.video-file-actions-v504n button{
+  border:0;
+  border-radius:10px;
+  padding:9px 11px;
+  background:#dc2626;
+  color:#fff;
+  font-weight:900;
+  cursor:pointer;
+  font-size:13px;
+}
+@media(max-width:760px){
+  .creator-batch-detail-page-v504n{padding:14px;}
+  .batch-detail-header-v504n{display:block;}
+  .upload-more-v504n{margin-top:12px;}
+  .batch-video-row-v504n{grid-template-columns:38px 1fr;}
+  .video-file-actions-v504n{
+    grid-column:1 / -1;
+    justify-content:flex-start;
+    padding-left:50px;
+  }
+}
