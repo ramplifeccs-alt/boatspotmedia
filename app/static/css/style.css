@@ -2978,3 +2978,53 @@ body.creator-dashboard-v449 main{
 .buyer-auth-small-v504o{font-size:12px;text-align:center;}
 a[href*="apple"], button[onclick*="apple"], .apple-login, .apple-auth, .btn-apple{display:none!important;}
 @media(max-width:640px){.buyer-auth-card-v504o{margin:18px 12px;padding:18px}.buyer-auth-grid-v504o{grid-template-columns:1fr}}
+
+
+/* v50.4P buyer auth ipad/mobile fix */
+.buyer-auth-card-v504o{
+width:min(94vw,560px)!important;
+overflow:hidden!important;
+}
+
+.buyer-auth-form-v504o{
+width:100%!important;
+}
+
+.buyer-auth-form-v504o input{
+width:100%!important;
+box-sizing:border-box!important;
+font-size:16px!important;
+}
+
+.buyer-auth-grid-v504o{
+display:grid!important;
+grid-template-columns:1fr 1fr!important;
+gap:12px!important;
+width:100%!important;
+}
+
+.buyer-auth-card-v504o *{
+max-width:100%!important;
+word-break:break-word!important;
+}
+
+.buyer-checkbox-v504o{
+display:flex!important;
+align-items:flex-start!important;
+}
+
+.buyer-checkbox-v504o span{
+display:block!important;
+font-size:14px!important;
+line-height:1.4!important;
+}
+
+@media(max-width:768px){
+.buyer-auth-grid-v504o{
+grid-template-columns:1fr!important;
+}
+.buyer-auth-card-v504o{
+padding:18px!important;
+margin:20px auto!important;
+}
+}
