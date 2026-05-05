@@ -604,7 +604,7 @@ def buyer_register_public_v422():
             return render_template("public/generic_register.html", role="buyer", error="Password must be at least 6 characters.")
 
         # buyer_terms_required_v444
-        if role == "buyer" and request.form.get("accept_terms") not in ["on", "true", "1", "yes"]:
+        if request.form.get("accept_terms") not in ["on", "true", "1", "yes"]:
             return render_template("public/generic_register.html", role="buyer", error="You must accept the Buyer Terms and Privacy Policy to create an account.")
 
         user = _bsm_find_user_by_email_v422(email)

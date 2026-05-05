@@ -1,9 +1,6 @@
-BoatSpotMedia v50.4Q Fix Public Buyer Register UI
-Base: v50.4P.
-Fix:
-- Corrects the actual public generic register/login templates shown by the buyer auth flow.
-- Makes SMS checkbox readable.
-- Removes Apple wording from the visible UI.
-- Adds phone number field to the visible generic register form.
-- Keeps Google visible.
+BoatSpotMedia v50.4R Fix Buyer Register Role Crash
+Base: v50.4Q.
+Fixes:
+- Fixes NameError: role is not defined in public buyer register route.
+- Keeps buyer terms checkbox visible because the public register route requires accept_terms.
 Does not touch R2, uploads, batches, analytics, billing, Stripe, checkout, downloads, My Orders, or payouts.
