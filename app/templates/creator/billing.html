@@ -54,6 +54,34 @@
 {% set pct = ((used_gb / (subscription.storage_limit_gb or 1)) * 100) %}
 <div class="bsm-storage-bar-v472"><span style="width: {{ 100 if pct > 100 else pct }}%;"></span></div>
 
+
+<section class="bsm-billing-cancel-v504i">
+  <h2>Subscription cancellation</h2>
+
+  {% if subscription.plan_key != 'free' and subscription.stripe_subscription_id %}
+    {% if subscription.cancel_at_period_end %}
+      <div class="cancel-status-v504i warning">
+        Your plan is scheduled to cancel at the end of the current billing period.
+        {% if subscription.current_period_end %}
+          <br><strong>Access until:</strong> {{ subscription.current_period_end }}
+        {% endif %}
+      </div>
+      <form method="POST" action="/creator/billing/resume-subscription" onsubmit="return confirm('Resume this subscription and continue renewals?');">
+        <button type="submit" class="resume-subscription-v504i">Resume Subscription</button>
+      </form>
+    {% else %}
+      <p>You can cancel your paid plan anytime. You will keep access until the end of the current paid period.</p>
+      <form method="POST" action="/creator/billing/cancel-subscription" onsubmit="return confirm('Cancel your subscription at the end of the current billing period?');">
+        <button type="submit" class="cancel-subscription-v504i">Cancel Subscription</button>
+      </form>
+    {% endif %}
+  {% elif subscription.plan_key == 'free' %}
+    <p>You are currently on the Free plan. There is no paid subscription to cancel.</p>
+  {% else %}
+    <p>No Stripe subscription ID is connected to this plan yet.</p>
+  {% endif %}
+</section>
+
 <section class="bsm-billing-connect-v491l">
   <h2>Payouts</h2>
   <p>Connect Stripe to receive payouts from your video sales. This is required before your videos can be sold and paid out automatically.</p>

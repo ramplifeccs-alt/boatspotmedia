@@ -2698,6 +2698,136 @@ def creator_billing_v472():
     except Exception: used=0
     return render_template("creator/billing.html", plans=_bsm_creator_plans_v472(), subscription=sub, used_bytes=used, used_gb=round(float(used or 0)/1024/1024/1024,2), stripe_account_id=_bsm_creator_stripe_account_id_v491l(c.id))
 
+
+# v50.4I creator cancel/resume subscription
+def _bsm_ensure_creator_subscription_cancel_columns_v504i():
+    try:
+        db.session.execute(db.text("ALTER TABLE creator_subscription ADD COLUMN IF NOT EXISTS cancel_at_period_end BOOLEAN DEFAULT FALSE"))
+        db.session.execute(db.text("ALTER TABLE creator_subscription ADD COLUMN IF NOT EXISTS current_period_end TIMESTAMP"))
+        db.session.execute(db.text("ALTER TABLE creator_subscription ADD COLUMN IF NOT EXISTS updated_at TIMESTAMP"))
+        db.session.commit()
+    except Exception:
+        db.session.rollback()
+
+def _bsm_update_creator_subscription_cancel_state_v504i(creator_id, stripe_subscription_id, cancel_at_period_end, current_period_end=None, status=None):
+    _bsm_ensure_creator_subscription_cancel_columns_v504i()
+    try:
+        db.session.execute(db.text("""
+            UPDATE creator_subscription
+            SET cancel_at_period_end=:cancel_at_period_end,
+                current_period_end=COALESCE(
+                    CASE WHEN :period_epoch IS NULL THEN NULL ELSE to_timestamp(:period_epoch) END,
+                    current_period_end
+                ),
+                status=COALESCE(:status, status),
+                updated_at=CURRENT_TIMESTAMP
+            WHERE creator_id=:creator_id
+              AND (:stripe_subscription_id IS NULL OR stripe_subscription_id=:stripe_subscription_id OR stripe_subscription_id IS NULL)
+        """), {
+            "creator_id": creator_id,
+            "stripe_subscription_id": stripe_subscription_id,
+            "cancel_at_period_end": bool(cancel_at_period_end),
+            "period_epoch": int(current_period_end) if current_period_end else None,
+            "status": status,
+        })
+        db.session.commit()
+        return True
+    except Exception as e:
+        db.session.rollback()
+        try:
+            print("subscription cancel state update v50.4I warning:", e)
+        except Exception:
+            pass
+        return False
+
+@creator_bp.route("/billing/cancel-subscription", methods=["POST"])
+def creator_billing_cancel_subscription_v504i():
+    c = current_creator()
+    if not c:
+        return redirect("/creator/login")
+
+    sub = _bsm_get_creator_subscription_v472(c.id)
+    subscription_id = (sub.get("stripe_subscription_id") or "").strip()
+
+    if not subscription_id:
+        flash("No active Stripe subscription was found for this creator.")
+        return redirect("/creator/billing")
+
+    try:
+        import stripe
+        stripe.api_key = os.environ.get("STRIPE_SECRET_KEY")
+        if not stripe.api_key:
+            flash("Stripe is not configured. Missing STRIPE_SECRET_KEY.")
+            return redirect("/creator/billing")
+
+        updated = stripe.Subscription.modify(subscription_id, cancel_at_period_end=True)
+        cancel_at_period_end = bool(getattr(updated, "cancel_at_period_end", True))
+        current_period_end = getattr(updated, "current_period_end", None)
+        status = getattr(updated, "status", None)
+
+        _bsm_update_creator_subscription_cancel_state_v504i(
+            creator_id=c.id,
+            stripe_subscription_id=subscription_id,
+            cancel_at_period_end=cancel_at_period_end,
+            current_period_end=current_period_end,
+            status=status,
+        )
+
+        flash("Your subscription is scheduled to cancel at the end of the current billing period. You can keep using your plan until then.")
+        return redirect("/creator/billing")
+    except Exception as e:
+        db.session.rollback()
+        try:
+            print("cancel creator subscription v50.4I warning:", e)
+        except Exception:
+            pass
+        flash("Could not cancel the subscription. Please try again or open your Stripe billing portal.")
+        return redirect("/creator/billing")
+
+@creator_bp.route("/billing/resume-subscription", methods=["POST"])
+def creator_billing_resume_subscription_v504i():
+    c = current_creator()
+    if not c:
+        return redirect("/creator/login")
+
+    sub = _bsm_get_creator_subscription_v472(c.id)
+    subscription_id = (sub.get("stripe_subscription_id") or "").strip()
+
+    if not subscription_id:
+        flash("No Stripe subscription was found for this creator.")
+        return redirect("/creator/billing")
+
+    try:
+        import stripe
+        stripe.api_key = os.environ.get("STRIPE_SECRET_KEY")
+        if not stripe.api_key:
+            flash("Stripe is not configured. Missing STRIPE_SECRET_KEY.")
+            return redirect("/creator/billing")
+
+        updated = stripe.Subscription.modify(subscription_id, cancel_at_period_end=False)
+        current_period_end = getattr(updated, "current_period_end", None)
+        status = getattr(updated, "status", None)
+
+        _bsm_update_creator_subscription_cancel_state_v504i(
+            creator_id=c.id,
+            stripe_subscription_id=subscription_id,
+            cancel_at_period_end=False,
+            current_period_end=current_period_end,
+            status=status,
+        )
+
+        flash("Your subscription cancellation was removed. Your plan will continue renewing normally.")
+        return redirect("/creator/billing")
+    except Exception as e:
+        db.session.rollback()
+        try:
+            print("resume creator subscription v50.4I warning:", e)
+        except Exception:
+            pass
+        flash("Could not resume the subscription. Please try again.")
+        return redirect("/creator/billing")
+
+
 @creator_bp.route("/billing/checkout/<plan_key>", methods=["GET", "POST"], endpoint="billing_checkout_v472")
 def creator_billing_checkout_v472(plan_key):
     c = current_creator()

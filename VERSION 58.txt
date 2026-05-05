@@ -1,0 +1,12 @@
+BoatSpotMedia v50.4G Robust Creator Application Instagram Menu
+Base: v50.4F.
+Fix:
+- Left menu "Logged in as" now robustly resolves creator_application.instagram.
+- Tries:
+  1 creator_application.id = current creator id
+  2 creator_profile.id -> user.email -> creator_application.email
+  3 creators.id -> creators.email -> creator_application.email
+  4 current_creator.email -> creator_application.email
+  5 creators.instagram fallback
+  6 object attributes fallback
+Does not touch R2, uploads, batches logic, analytics backend, payments, checkout, Stripe, downloads, My Orders, subscriptions, or logins.
