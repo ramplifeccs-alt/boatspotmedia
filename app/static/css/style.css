@@ -2812,3 +2812,24 @@ body.creator-dashboard-v449 main{
 .billing-info-grid-v504l span{display:block;color:#64748b;font-size:12px;font-weight:900;text-transform:uppercase;letter-spacing:.03em;margin-bottom:4px;}
 .billing-info-grid-v504l strong{color:#0f172a;font-size:14px;word-break:break-word;}
 @media(max-width:760px){.bsm-billing-tabs-page-v504l{padding:14px}.billing-tabs-v504l{border-radius:14px}.billing-tabs-v504l button{padding:9px 12px}}
+
+/* v50.4M plan upgrade warning UX */
+.plan-upgrade-warning-v504m{
+  margin:0 0 18px;
+  padding:15px 16px;
+  background:#fff7ed;
+  border:1px solid #fed7aa;
+  color:#9a3412;
+  border-radius:16px;
+  box-shadow:0 4px 14px rgba(154,52,18,.06);
+}
+.plan-upgrade-warning-v504m h2{
+  margin:0 0 8px;
+  color:#9a3412;
+  font-size:18px;
+}
+.plan-upgrade-warning-v504m p{
+  margin:8px 0;
+  font-weight:750;
+  line-height:1.45;
+}
