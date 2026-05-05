@@ -1,0 +1,7 @@
+BoatSpotMedia v50.4F Creator Application Instagram In Menu
+Base: v50.4E.
+Fix:
+- Left menu "Logged in as" now reads creator_application.instagram.
+- Falls back to creator_application.brand_name, first_name + last_name, email, then creators.instagram.
+- Keeps menu/sidebar visual from v50.4E.
+Does not touch R2, uploads, batches logic, analytics backend, payments, checkout, Stripe, downloads, My Orders, subscriptions, or logins.

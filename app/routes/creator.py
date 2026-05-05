@@ -9,7 +9,7 @@ from app.services.r2 import upload as r2_upload
 creator_bp = Blueprint("creator", __name__)
 
 
-# v50.4G robust creator logged-user context - uses creator_application.instagram
+# v50.4H creator logged-user context - match by logged creator email, not application id
 @creator_bp.context_processor
 def _bsm_creator_logged_user_context_v504d():
     data = {
@@ -25,17 +25,17 @@ def _bsm_creator_logged_user_context_v504d():
         except Exception:
             return ""
 
-    def _pick(row):
+    def _apply(row):
         if not row:
             return False
         d = dict(row)
-        handle = _clean(d.get("instagram"))
+        instagram = _clean(d.get("instagram"))
         brand = _clean(d.get("brand_name"))
         first = _clean(d.get("first_name"))
         last = _clean(d.get("last_name"))
         email = _clean(d.get("email"))
-        name = handle or brand or (first + " " + last).strip() or email or "Creator"
-        data["creator_logged_handle"] = handle or name
+        name = instagram or brand or (first + " " + last).strip() or email or "Creator"
+        data["creator_logged_handle"] = instagram or name
         data["creator_logged_name"] = name
         data["creator_logged_email"] = email
         return True
@@ -46,91 +46,68 @@ def _bsm_creator_logged_user_context_v504d():
             return data
 
         cid = getattr(c, "id", None)
-        direct_email = _clean(getattr(c, "email", ""))
+        logged_email = _clean(getattr(c, "email", ""))
 
-        # 1) Best case: current id matches creator_application.id
+        creator_row = None
         if cid:
             try:
-                row = db.session.execute(db.text("""
-                    SELECT instagram, brand_name, first_name, last_name, email
-                    FROM creator_application
+                creator_row = db.session.execute(db.text("""
+                    SELECT id, instagram, brand_name, first_name, last_name, email
+                    FROM creators
                     WHERE id=:cid
-                    ORDER BY id DESC
                     LIMIT 1
                 """), {"cid": cid}).mappings().first()
-                if _pick(row):
+            except Exception:
+                db.session.rollback()
+
+        if creator_row:
+            logged_email = _clean(creator_row.get("email")) or logged_email
+
+        if logged_email:
+            try:
+                app_row = db.session.execute(db.text("""
+                    SELECT instagram, brand_name, first_name, last_name, email
+                    FROM creator_application
+                    WHERE LOWER(COALESCE(email,'')) = LOWER(:email)
+                    ORDER BY
+                        CASE WHEN COALESCE(status,'') = 'approved' THEN 0 ELSE 1 END,
+                        id DESC
+                    LIMIT 1
+                """), {"email": logged_email}).mappings().first()
+                if _apply(app_row):
                     return data
             except Exception:
                 db.session.rollback()
 
-        # 2) current_creator may be creator_profile.id. Resolve user.email and match application.email
+        if _apply(creator_row):
+            return data
+
         if cid:
             try:
-                row = db.session.execute(db.text("""
+                app_row = db.session.execute(db.text("""
                     SELECT ca.instagram, ca.brand_name, ca.first_name, ca.last_name, ca.email
                     FROM creator_profile cp
                     LEFT JOIN "user" u ON u.id = cp.user_id
                     JOIN creator_application ca ON LOWER(COALESCE(ca.email,'')) = LOWER(COALESCE(u.email,''))
                     WHERE cp.id=:cid
-                    ORDER BY ca.id DESC
+                    ORDER BY
+                        CASE WHEN COALESCE(ca.status,'') = 'approved' THEN 0 ELSE 1 END,
+                        ca.id DESC
                     LIMIT 1
                 """), {"cid": cid}).mappings().first()
-                if _pick(row):
+                if _apply(app_row):
                     return data
             except Exception:
                 db.session.rollback()
 
-        # 3) current_creator may be creators.id. Resolve creators.email and match application.email
-        if cid:
-            try:
-                row = db.session.execute(db.text("""
-                    SELECT ca.instagram, ca.brand_name, ca.first_name, ca.last_name, ca.email
-                    FROM creators cr
-                    JOIN creator_application ca ON LOWER(COALESCE(ca.email,'')) = LOWER(COALESCE(cr.email,''))
-                    WHERE cr.id=:cid
-                    ORDER BY ca.id DESC
-                    LIMIT 1
-                """), {"cid": cid}).mappings().first()
-                if _pick(row):
-                    return data
-            except Exception:
-                db.session.rollback()
-
-        # 4) direct email fallback from current_creator object if available
-        if direct_email:
-            try:
-                row = db.session.execute(db.text("""
-                    SELECT instagram, brand_name, first_name, last_name, email
-                    FROM creator_application
-                    WHERE LOWER(COALESCE(email,'')) = LOWER(:email)
-                    ORDER BY id DESC
-                    LIMIT 1
-                """), {"email": direct_email}).mappings().first()
-                if _pick(row):
-                    return data
-            except Exception:
-                db.session.rollback()
-
-        # 5) fallback to creators table by id
-        if cid:
-            try:
-                row = db.session.execute(db.text("""
-                    SELECT instagram, brand_name, first_name, last_name, email
-                    FROM creators
-                    WHERE id=:cid
-                    LIMIT 1
-                """), {"cid": cid}).mappings().first()
-                if _pick(row):
-                    return data
-            except Exception:
-                db.session.rollback()
-
-        # 6) last fallback to object attrs
-        obj_handle = _clean(getattr(c, "instagram", "")) or _clean(getattr(c, "social_handle", ""))
-        obj_name = obj_handle or _clean(getattr(c, "brand_name", "")) or _clean(getattr(c, "public_name", "")) or direct_email or "Creator"
-        data["creator_logged_handle"] = obj_handle or obj_name
+        obj_instagram = _clean(getattr(c, "instagram", ""))
+        obj_brand = _clean(getattr(c, "brand_name", "")) or _clean(getattr(c, "public_name", ""))
+        obj_first = _clean(getattr(c, "first_name", ""))
+        obj_last = _clean(getattr(c, "last_name", ""))
+        obj_name = obj_instagram or obj_brand or (obj_first + " " + obj_last).strip() or logged_email or "Creator"
+        data["creator_logged_handle"] = obj_instagram or obj_name
         data["creator_logged_name"] = obj_name
-        data["creator_logged_email"] = direct_email
+        data["creator_logged_email"] = logged_email
 
     except Exception:
         try:
@@ -141,8 +118,6 @@ def _bsm_creator_logged_user_context_v504d():
     return data
 
 
-
-# v49.1Y safe creator template context for Stripe payout notice
 @creator_bp.context_processor
 def _bsm_creator_stripe_template_context_v491y():
     stripe_account_id = ""

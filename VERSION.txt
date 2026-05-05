@@ -1,12 +1,8 @@
-BoatSpotMedia v50.4G Robust Creator Application Instagram Menu
-Base: v50.4F.
+BoatSpotMedia v50.4H Creator Menu Match By Logged Email
+Base: v50.4G.
 Fix:
-- Left menu "Logged in as" now robustly resolves creator_application.instagram.
-- Tries:
-  1 creator_application.id = current creator id
-  2 creator_profile.id -> user.email -> creator_application.email
-  3 creators.id -> creators.email -> creator_application.email
-  4 current_creator.email -> creator_application.email
-  5 creators.instagram fallback
-  6 object attributes fallback
+- Stops matching creator_application by ID first.
+- Resolves actual logged creator from creators.id and creators.email.
+- Then reads creator_application.instagram by matching creator_application.email to logged creator email.
+- Falls back to creators.instagram/brand/name only when no application matches.
 Does not touch R2, uploads, batches logic, analytics backend, payments, checkout, Stripe, downloads, My Orders, subscriptions, or logins.
