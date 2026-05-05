@@ -1,14 +1,8 @@
-BoatSpotMedia v50.14 Fix Duplicate Endpoint + Delete Incomplete Batches
-Base: latest available v50.13/v50.12.
-Fixes:
-- Removes duplicate clean-incomplete-batches route that crashed Flask.
-- Leaves exactly one working endpoint:
-  POST /creator/clean-incomplete-batches
-  POST /creator/batches/clean-incomplete
-- Uses the v50.4 working cleanup flow:
-  _bsm_batch_is_incomplete_v388
-  _collect_batch_r2_delete_payload
-  _schedule_batch_r2_delete
-  _soft_delete_batch_db_only
-- Keeps newer layout/settings/analytics changes.
-Does not touch payments, checkout, normal uploads, downloads, analytics logic, Stripe, subscriptions, My Orders, logins, or completed batches.
+BoatSpotMedia v50.4B Batches Visual Only Keep Original CB
+Base: v50.4 VIDEO_INSIGHTS.
+Changes:
+- Visual-only update to /creator/batches list.
+- Keeps creator left menu layout.
+- Keeps original v50.4 Delete incomplete batch CB button by loading /static/js/mobile.js.
+- Does NOT modify creator.py or any R2/delete logic.
+Does not touch uploads, R2 cleanup, analytics, tracking, payments, checkout, Stripe, downloads, My Orders, subscriptions, or logins.
