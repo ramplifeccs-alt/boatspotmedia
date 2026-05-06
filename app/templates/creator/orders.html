@@ -299,11 +299,7 @@
       setProgress(progress, 100, complete.message || 'Done.');
       setTimeout(function(){ window.location.reload(); }, 900);
     }catch(err){
-      let msg = err.message || 'Upload failed.';
-      if(String(msg).toLowerCase().includes('network error')){
-        msg = 'Network error during direct R2 upload. This usually means Cloudflare R2 CORS is not configured for this domain. The app code is using the direct R2 upload flow again; check the R2 bucket CORS settings.';
-      }
-      alert(msg);
+      alert(err.message || 'Upload failed.');
       setProgress(progress, 0, 'Upload failed.');
       if(button) button.disabled = false;
     }
