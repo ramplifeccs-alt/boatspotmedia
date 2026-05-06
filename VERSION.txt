@@ -1,19 +1,17 @@
-BoatSpotMedia v50.5B Google OAuth Route Fix
-Base: v50.5A.
+BoatSpotMedia v50.5C Internal Support Center
+Base: v50.5B.
 
-Adds real buyer Google OAuth routes:
-- /auth/google
-- /auth/google/buyer
-- /login/google
-- /buyer/google
-- /auth/callback/google
-- /auth/google/callback
+Adds internal professional support system:
+- Buyer Support: buyers can request support from the creator for specific orders.
+- Creator Support Center:
+  - Buyer Messages
+  - Platform Support
+- Owner Support Inbox: owner responds to creator platform support.
+- Chat-style thread history with replies.
+- Threads are separated by buyer/creator/order and creator/owner.
 
-Google Cloud Authorized redirect URI:
-https://boatspotmedia.com/auth/callback/google
+New tables auto-created:
+- support_thread
+- support_message
 
-Railway variables:
-GOOGLE_CLIENT_ID
-GOOGLE_CLIENT_SECRET
-
-Keeps buyer phone/SMS, forgot password, checkout, uploads, R2, billing, Stripe, payouts, batches, analytics untouched.
+Does not touch uploads, R2, batches, checkout, billing, Stripe, payouts, analytics, Google OAuth, or Twilio SMS.

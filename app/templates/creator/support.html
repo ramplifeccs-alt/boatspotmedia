@@ -1,0 +1,20 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Support Center - BoatSpotMedia</title><link rel="stylesheet" href="/static/css/style.css"></head>
+<body class="creator-dashboard-v451"><div class="bsm-creator-page-shell-v451">
+<aside class="bsm-creator-sidebar-v451"><a href="/creator/dashboard" class="bsm-creator-logo-v451"><img src="/static/img/logo-header.png" alt="BoatSpotMedia"></a><div class="bsm-creator-handle-v451">@BoatSpotMedia.com</div><nav class="bsm-creator-nav-v451">
+<a href="/creator/dashboard">Dashboard</a><a href="/creator/upload">Uploads</a><a href="/creator/batches">Batches</a><a href="/creator/analytics">Analytics</a><a href="/creator/orders">Orders</a><a href="/creator/dashboard#products">Products</a><a href="/creator/pricing">Pricing</a><a href="/creator/billing">Billing</a><a href="/creator/support" class="active">Support Center</a><a href="/creator/dashboard#settings">Settings</a><a href="/logout" class="logout">Log out</a></nav></aside>
+<main class="bsm-creator-main-v451"><div class="support-page-v505c">
+<h1>Support Center</h1>
+<div class="support-tabs-v505c"><a href="/creator/support?tab=buyer" class="{% if active_tab != 'platform' %}active{% endif %}">Buyer Messages</a><a href="/creator/support?tab=platform" class="{% if active_tab == 'platform' %}active{% endif %}">Platform Support</a></div>
+
+{% with messages = get_flashed_messages() %}{% if messages %}<div class="support-flash-v505c">{% for msg in messages %}<div>{{ msg }}</div>{% endfor %}</div>{% endif %}{% endwith %}
+
+{% if active_tab == 'platform' %}
+<div class="support-grid-v505c">
+<section class="support-card-v505c"><h2>Request Platform Support</h2><form method="POST" class="support-form-v505c"><label>Subject<input name="subject" required></label><label>Message<textarea name="message" rows="5" required></textarea></label><button type="submit">Send Request</button></form></section>
+<section class="support-card-v505c"><h2>Platform Requests</h2>{% if not platform_threads %}<p class="support-muted-v505c">No platform support requests yet.</p>{% else %}<div class="support-list-v505c">{% for t in platform_threads %}<a href="/creator/support/{{ t.id }}" class="support-thread-row-v505c"><strong>{{ t.subject }}</strong><span>{{ t.status|title }}</span><small>{{ t.last_message_at }}</small>{% if t.last_body %}<p>{{ t.last_body[:120] }}</p>{% endif %}</a>{% endfor %}</div>{% endif %}</section>
+</div>
+{% else %}
+<section class="support-card-v505c"><h2>Buyer Messages</h2>{% if not buyer_threads %}<p class="support-muted-v505c">No buyer messages yet.</p>{% else %}<div class="support-list-v505c">{% for t in buyer_threads %}<a href="/creator/support/{{ t.id }}" class="support-thread-row-v505c"><strong>{{ t.subject }}</strong><span>Buyer: {{ t.buyer_email or 'Buyer' }} · Order #{{ t.order_id or '-' }}</span><small>{{ t.status|title }} · {{ t.last_message_at }}</small>{% if t.last_body %}<p>{{ t.last_body[:120] }}</p>{% endif %}</a>{% endfor %}</div>{% endif %}</section>
+{% endif %}
+</div></main></div><script src="/static/js/mobile.js"></script></body></html>

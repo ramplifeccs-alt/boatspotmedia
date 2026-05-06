@@ -740,3 +740,193 @@ def _bsm_direct_download_video_response_v435(video_id):
 @buyer_bp.route("/buyer/download-item/<int:video_id>")
 def bsm_download_video_buyer_v435(video_id):
     return _bsm_direct_download_video_response_v435(video_id)
+
+
+
+# v50.5C Internal Support Center helpers
+def _bsm_ensure_support_tables_v505c():
+    try:
+        db.session.execute(db.text("""
+            CREATE TABLE IF NOT EXISTS support_thread (
+                id SERIAL PRIMARY KEY,
+                thread_type TEXT NOT NULL,
+                subject TEXT NOT NULL,
+                buyer_user_id INTEGER,
+                buyer_email TEXT,
+                creator_id INTEGER,
+                order_id INTEGER,
+                status TEXT DEFAULT 'open',
+                last_message_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            )
+        """))
+        db.session.execute(db.text("""
+            CREATE TABLE IF NOT EXISTS support_message (
+                id SERIAL PRIMARY KEY,
+                thread_id INTEGER NOT NULL,
+                sender_role TEXT NOT NULL,
+                sender_id INTEGER,
+                sender_email TEXT,
+                body TEXT NOT NULL,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            )
+        """))
+        db.session.execute(db.text("CREATE INDEX IF NOT EXISTS idx_support_thread_creator ON support_thread(creator_id)"))
+        db.session.execute(db.text("CREATE INDEX IF NOT EXISTS idx_support_thread_buyer ON support_thread(buyer_user_id)"))
+        db.session.execute(db.text("CREATE INDEX IF NOT EXISTS idx_support_msg_thread ON support_message(thread_id)"))
+        db.session.commit()
+    except Exception as e:
+        db.session.rollback()
+        try: print("support tables v50.5C warning:", e)
+        except Exception: pass
+
+def _bsm_thread_messages_v505c(thread_id):
+    try:
+        return db.session.execute(db.text("""
+            SELECT *
+            FROM support_message
+            WHERE thread_id=:tid
+            ORDER BY created_at ASC, id ASC
+        """), {"tid": thread_id}).mappings().all()
+    except Exception:
+        db.session.rollback()
+        return []
+
+@buyer_bp.route("/buyer/support", methods=["GET", "POST"])
+def buyer_support_center_v505c():
+    if not session.get("user_id") or session.get("user_role") != "buyer":
+        session["after_login_redirect"] = "/buyer/support"
+        session.modified = True
+        return redirect("/buyer/login")
+
+    _bsm_ensure_support_tables_v505c()
+    buyer_id = session.get("user_id")
+    buyer_email = session.get("user_email")
+
+    if request.method == "POST":
+        order_id = request.form.get("order_id") or None
+        creator_id = request.form.get("creator_id") or None
+        subject = (request.form.get("subject") or "Support request").strip()[:180]
+        body = (request.form.get("message") or "").strip()
+        if not body:
+            flash("Please enter a message.")
+            return redirect("/buyer/support")
+
+        # Verify buyer owns the order and get creator if not provided.
+        try:
+            row = db.session.execute(db.text("""
+                SELECT o.id AS order_id, i.creator_id
+                FROM bsm_cart_order o
+                JOIN bsm_cart_order_item i ON i.cart_order_id=o.id
+                WHERE o.id=:order_id
+                  AND (o.buyer_user_id=:buyer_id OR lower(o.buyer_email)=lower(:buyer_email))
+                LIMIT 1
+            """), {"order_id": order_id, "buyer_id": buyer_id, "buyer_email": buyer_email}).mappings().first()
+        except Exception:
+            db.session.rollback()
+            row = None
+
+        if row:
+            creator_id = row.get("creator_id") or creator_id
+        if not creator_id:
+            flash("Could not identify the creator for this support request.")
+            return redirect("/buyer/support")
+
+        try:
+            res = db.session.execute(db.text("""
+                INSERT INTO support_thread
+                (thread_type, subject, buyer_user_id, buyer_email, creator_id, order_id, status, last_message_at, created_at, updated_at)
+                VALUES ('buyer_creator', :subject, :buyer_id, :buyer_email, :creator_id, :order_id, 'open', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
+                RETURNING id
+            """), {"subject": subject, "buyer_id": buyer_id, "buyer_email": buyer_email, "creator_id": creator_id, "order_id": order_id})
+            thread_id = res.scalar()
+            db.session.execute(db.text("""
+                INSERT INTO support_message(thread_id, sender_role, sender_id, sender_email, body, created_at)
+                VALUES (:thread_id, 'buyer', :sender_id, :sender_email, :body, CURRENT_TIMESTAMP)
+            """), {"thread_id": thread_id, "sender_id": buyer_id, "sender_email": buyer_email, "body": body})
+            db.session.commit()
+            flash("Support request sent.")
+            return redirect(f"/buyer/support/{thread_id}")
+        except Exception as e:
+            db.session.rollback()
+            try: print("buyer support create v50.5C warning:", e)
+            except Exception: pass
+            flash("Could not send support request.")
+            return redirect("/buyer/support")
+
+    try:
+        threads = db.session.execute(db.text("""
+            SELECT st.*,
+                   cp.public_name AS creator_name,
+                   (SELECT body FROM support_message sm WHERE sm.thread_id=st.id ORDER BY sm.created_at DESC, sm.id DESC LIMIT 1) AS last_body
+            FROM support_thread st
+            LEFT JOIN creator_profile cp ON cp.id=st.creator_id
+            WHERE st.thread_type='buyer_creator'
+              AND (st.buyer_user_id=:buyer_id OR lower(st.buyer_email)=lower(:buyer_email))
+            ORDER BY st.last_message_at DESC, st.id DESC
+        """), {"buyer_id": buyer_id, "buyer_email": buyer_email}).mappings().all()
+    except Exception:
+        db.session.rollback()
+        threads=[]
+
+    try:
+        orders = db.session.execute(db.text("""
+            SELECT DISTINCT o.id, o.created_at, i.creator_id, cp.public_name AS creator_name,
+                   COALESCE(v.location, v.internal_filename, 'Video') AS title
+            FROM bsm_cart_order o
+            JOIN bsm_cart_order_item i ON i.cart_order_id=o.id
+            LEFT JOIN creator_profile cp ON cp.id=i.creator_id
+            LEFT JOIN video v ON v.id=i.video_id
+            WHERE (o.buyer_user_id=:buyer_id OR lower(o.buyer_email)=lower(:buyer_email))
+            ORDER BY o.created_at DESC
+            LIMIT 50
+        """), {"buyer_id": buyer_id, "buyer_email": buyer_email}).mappings().all()
+    except Exception:
+        db.session.rollback()
+        orders=[]
+
+    return render_template("buyer/support.html", threads=threads, orders=orders, email=buyer_email)
+
+@buyer_bp.route("/buyer/support/<int:thread_id>", methods=["GET", "POST"])
+def buyer_support_thread_v505c(thread_id):
+    if not session.get("user_id") or session.get("user_role") != "buyer":
+        return redirect("/buyer/login")
+    _bsm_ensure_support_tables_v505c()
+    buyer_id=session.get("user_id")
+    buyer_email=session.get("user_email")
+
+    try:
+        thread=db.session.execute(db.text("""
+            SELECT st.*, cp.public_name AS creator_name
+            FROM support_thread st
+            LEFT JOIN creator_profile cp ON cp.id=st.creator_id
+            WHERE st.id=:tid AND st.thread_type='buyer_creator'
+              AND (st.buyer_user_id=:buyer_id OR lower(st.buyer_email)=lower(:buyer_email))
+            LIMIT 1
+        """), {"tid":thread_id,"buyer_id":buyer_id,"buyer_email":buyer_email}).mappings().first()
+    except Exception:
+        db.session.rollback()
+        thread=None
+    if not thread:
+        return "Support thread not found", 404
+
+    if request.method=="POST":
+        body=(request.form.get("message") or "").strip()
+        if body:
+            try:
+                db.session.execute(db.text("""
+                    INSERT INTO support_message(thread_id, sender_role, sender_id, sender_email, body, created_at)
+                    VALUES (:tid, 'buyer', :sid, :email, :body, CURRENT_TIMESTAMP)
+                """), {"tid":thread_id,"sid":buyer_id,"email":buyer_email,"body":body})
+                db.session.execute(db.text("""
+                    UPDATE support_thread SET status='open', last_message_at=CURRENT_TIMESTAMP, updated_at=CURRENT_TIMESTAMP WHERE id=:tid
+                """), {"tid":thread_id})
+                db.session.commit()
+            except Exception:
+                db.session.rollback()
+                flash("Could not send message.")
+        return redirect(f"/buyer/support/{thread_id}")
+
+    messages=_bsm_thread_messages_v505c(thread_id)
+    return render_template("buyer/support_thread.html", thread=thread, messages=messages, email=buyer_email)

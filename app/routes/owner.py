@@ -1943,3 +1943,111 @@ def owner_analytics_v500():
     period=request.args.get("period") or "30d"
     return render_template("owner/analytics.html", analytics=_bsm_owner_analytics_data_v500(period))
 
+
+
+
+# v50.5C Internal Support Center helpers
+def _bsm_ensure_support_tables_v505c():
+    try:
+        db.session.execute(db.text("""
+            CREATE TABLE IF NOT EXISTS support_thread (
+                id SERIAL PRIMARY KEY,
+                thread_type TEXT NOT NULL,
+                subject TEXT NOT NULL,
+                buyer_user_id INTEGER,
+                buyer_email TEXT,
+                creator_id INTEGER,
+                order_id INTEGER,
+                status TEXT DEFAULT 'open',
+                last_message_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            )
+        """))
+        db.session.execute(db.text("""
+            CREATE TABLE IF NOT EXISTS support_message (
+                id SERIAL PRIMARY KEY,
+                thread_id INTEGER NOT NULL,
+                sender_role TEXT NOT NULL,
+                sender_id INTEGER,
+                sender_email TEXT,
+                body TEXT NOT NULL,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            )
+        """))
+        db.session.execute(db.text("CREATE INDEX IF NOT EXISTS idx_support_thread_creator ON support_thread(creator_id)"))
+        db.session.execute(db.text("CREATE INDEX IF NOT EXISTS idx_support_thread_buyer ON support_thread(buyer_user_id)"))
+        db.session.execute(db.text("CREATE INDEX IF NOT EXISTS idx_support_msg_thread ON support_message(thread_id)"))
+        db.session.commit()
+    except Exception as e:
+        db.session.rollback()
+        try: print("support tables v50.5C warning:", e)
+        except Exception: pass
+
+def _bsm_thread_messages_v505c(thread_id):
+    try:
+        return db.session.execute(db.text("""
+            SELECT *
+            FROM support_message
+            WHERE thread_id=:tid
+            ORDER BY created_at ASC, id ASC
+        """), {"tid": thread_id}).mappings().all()
+    except Exception:
+        db.session.rollback()
+        return []
+
+@owner_bp.route("/support", methods=["GET"])
+def owner_support_inbox_v505c():
+    _bsm_ensure_support_tables_v505c()
+    try:
+        threads=db.session.execute(db.text("""
+            SELECT st.*, cp.public_name AS creator_name,
+                   (SELECT body FROM support_message sm WHERE sm.thread_id=st.id ORDER BY sm.created_at DESC, sm.id DESC LIMIT 1) AS last_body
+            FROM support_thread st
+            LEFT JOIN creator_profile cp ON cp.id=st.creator_id
+            WHERE st.thread_type='creator_owner'
+            ORDER BY st.last_message_at DESC, st.id DESC
+        """)).mappings().all()
+    except Exception:
+        db.session.rollback(); threads=[]
+    return render_template("owner/support.html", threads=threads)
+
+@owner_bp.route("/support/<int:thread_id>", methods=["GET","POST"])
+def owner_support_thread_v505c(thread_id):
+    _bsm_ensure_support_tables_v505c()
+    try:
+        thread=db.session.execute(db.text("""
+            SELECT st.*, cp.public_name AS creator_name
+            FROM support_thread st
+            LEFT JOIN creator_profile cp ON cp.id=st.creator_id
+            WHERE st.id=:tid AND st.thread_type='creator_owner'
+            LIMIT 1
+        """), {"tid":thread_id}).mappings().first()
+    except Exception:
+        db.session.rollback(); thread=None
+    if not thread:
+        return "Support thread not found", 404
+    if request.method=="POST":
+        body=(request.form.get("message") or "").strip()
+        action=request.form.get("action") or "reply"
+        if action=="close":
+            try:
+                db.session.execute(db.text("UPDATE support_thread SET status='closed', updated_at=CURRENT_TIMESTAMP WHERE id=:tid"), {"tid":thread_id})
+                db.session.commit()
+            except Exception: db.session.rollback()
+            return redirect(f"/owner/support/{thread_id}")
+        if body:
+            try:
+                db.session.execute(db.text("""
+                    INSERT INTO support_message(thread_id, sender_role, sender_id, sender_email, body, created_at)
+                    VALUES (:tid, 'owner', :sid, :email, :body, CURRENT_TIMESTAMP)
+                """), {"tid":thread_id,"sid":session.get("user_id"),"email":session.get("user_email"),"body":body})
+                db.session.execute(db.text("""
+                    UPDATE support_thread SET status='replied', last_message_at=CURRENT_TIMESTAMP, updated_at=CURRENT_TIMESTAMP WHERE id=:tid
+                """), {"tid":thread_id})
+                db.session.commit()
+            except Exception:
+                db.session.rollback(); flash("Could not send reply.")
+        return redirect(f"/owner/support/{thread_id}")
+    messages=_bsm_thread_messages_v505c(thread_id)
+    return render_template("owner/support_thread.html", thread=thread, messages=messages)

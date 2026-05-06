@@ -44,6 +44,7 @@
               {% for item in order.order_items %}
                 {% set _creator_name = bsm_creator_name_for_video(item.video_id or item.get('video_id')) %}
 {% if _creator_name %}<div class="buyer-creator-name-v491p">Creator: {{ _creator_name }}</div>{% endif %}
+<a class="support-mini-btn-v505c" href="/buyer/support">Request Support</a>
 <div class="bsm-bundle-card">
                   <div style="margin-bottom:10px;">
                     <strong>{{ item.location or item.filename or item.internal_filename or ("Video #" ~ item.video_id) }}</strong>
