@@ -1,4 +1,5 @@
 import os
+import secrets
 from datetime import datetime
 from flask import Blueprint, redirect, render_template, request, url_for, session, jsonify, flash
 from sqlalchemy import text
@@ -880,35 +881,205 @@ def apply_creator_v488():
 
 
 
-# v49.1 compatibility: preserve old creator login Google button endpoint.
-@public_bp.route("/auth/google/register/<account_type>", endpoint="auth_google_register")
-@public_bp.route("/auth/google/<account_type>")
-def auth_google_register(account_type="buyer"):
-    """
-    Compatibility route for old templates using:
-    url_for('public.auth_google_register', account_type='creator')
-    It redirects to the existing Google/OAuth route if present, otherwise to the correct login.
-    """
-    account_type = account_type or request.args.get("account_type") or "buyer"
-    # Try common existing OAuth routes without assuming one exact name.
-    for endpoint in [
-        "public.google_login",
-        "public.auth_google",
-        "public.google_auth",
-        "public.oauth_google",
-        "public.login_google",
-        "public.google_register",
-    ]:
+
+
+# v50.5B Google OAuth buyer login/register
+def _bsm_base_url_v505b():
+    return (os.environ.get("PUBLIC_BASE_URL") or os.environ.get("BASE_URL") or "https://boatspotmedia.com").rstrip("/")
+
+def _bsm_google_redirect_uri_v505b():
+    return _bsm_base_url_v505b() + "/auth/callback/google"
+
+def _bsm_google_create_or_login_buyer_v505b(email, name="", google_id=""):
+    email = (email or "").strip().lower()
+    if not email:
+        return None
+
+    try:
+        db.session.execute(db.text('ALTER TABLE "user" ADD COLUMN IF NOT EXISTS google_id TEXT'))
+        db.session.execute(db.text('ALTER TABLE "user" ADD COLUMN IF NOT EXISTS phone_number TEXT'))
+        db.session.execute(db.text('ALTER TABLE "user" ADD COLUMN IF NOT EXISTS sms_notifications_enabled BOOLEAN DEFAULT TRUE'))
+        db.session.commit()
+    except Exception:
+        db.session.rollback()
+
+    user = _bsm_find_user_by_email_v422(email)
+    if user:
+        if getattr(user, "role", None) != "buyer":
+            return None
         try:
-            return redirect(url_for(endpoint, account_type=account_type))
+            db.session.execute(db.text("""
+                UPDATE "user"
+                SET google_id=COALESCE(:google_id, google_id),
+                    is_active=TRUE
+                WHERE id=:uid
+            """), {"google_id": google_id or None, "uid": user.id})
+            db.session.commit()
+        except Exception:
+            db.session.rollback()
+        return user
+
+    try:
+        user = User(
+            email=email,
+            password_hash=generate_password_hash(secrets.token_urlsafe(24)),
+            display_name=name or email,
+            role="buyer",
+            is_active=True,
+        )
+        db.session.add(user)
+        db.session.commit()
+
+        try:
+            db.session.execute(db.text("""
+                UPDATE "user"
+                SET google_id=:google_id,
+                    sms_notifications_enabled=TRUE
+                WHERE id=:uid
+            """), {"google_id": google_id or None, "uid": user.id})
+            db.session.commit()
+        except Exception:
+            db.session.rollback()
+
+        return user
+    except Exception as e:
+        db.session.rollback()
+        try:
+            print("google buyer create v50.5B warning:", e)
         except Exception:
             pass
-    # Fallback keeps the page working instead of crashing.
-    if account_type == "creator":
-        return redirect("/creator/login")
-    return redirect("/buyer/login")
+        return None
 
 
+@public_bp.route("/auth/google")
+@public_bp.route("/auth/google/buyer")
+@public_bp.route("/login/google")
+@public_bp.route("/buyer/google")
+def google_buyer_login_v505b():
+    client_id = os.environ.get("GOOGLE_CLIENT_ID") or os.environ.get("GOOGLE_OAUTH_CLIENT_ID")
+    if not client_id:
+        flash("Google login is not configured. Missing GOOGLE_CLIENT_ID.")
+        return redirect("/buyer/login")
+
+    state = secrets.token_urlsafe(24)
+    session["google_oauth_state"] = state
+    session["google_oauth_role"] = "buyer"
+    session.modified = True
+
+    params = {
+        "client_id": client_id,
+        "redirect_uri": _bsm_google_redirect_uri_v505b(),
+        "response_type": "code",
+        "scope": "openid email profile",
+        "state": state,
+        "access_type": "online",
+        "prompt": "select_account",
+    }
+
+    import urllib.parse
+    return redirect("https://accounts.google.com/o/oauth2/v2/auth?" + urllib.parse.urlencode(params))
+
+
+@public_bp.route("/auth/callback/google")
+@public_bp.route("/auth/google/callback")
+def google_oauth_callback_v505b():
+    if request.args.get("error"):
+        flash("Google login was cancelled or rejected.")
+        return redirect("/buyer/login")
+
+    state = request.args.get("state") or ""
+    code = request.args.get("code") or ""
+
+    if not code:
+        return "Google callback route is working. Start login from /auth/google.", 200
+
+    if not state or state != session.get("google_oauth_state"):
+        flash("Invalid Google login session. Please try again.")
+        return redirect("/buyer/login")
+
+    client_id = os.environ.get("GOOGLE_CLIENT_ID") or os.environ.get("GOOGLE_OAUTH_CLIENT_ID")
+    client_secret = os.environ.get("GOOGLE_CLIENT_SECRET") or os.environ.get("GOOGLE_OAUTH_CLIENT_SECRET")
+    if not client_id or not client_secret:
+        flash("Google login is not configured. Missing Google client secret.")
+        return redirect("/buyer/login")
+
+    try:
+        import requests
+
+        token_res = requests.post(
+            "https://oauth2.googleapis.com/token",
+            data={
+                "code": code,
+                "client_id": client_id,
+                "client_secret": client_secret,
+                "redirect_uri": _bsm_google_redirect_uri_v505b(),
+                "grant_type": "authorization_code",
+            },
+            timeout=12,
+        )
+
+        if token_res.status_code != 200:
+            try:
+                print("google token error v50.5B:", token_res.status_code, token_res.text[:500])
+            except Exception:
+                pass
+            flash("Could not verify Google login.")
+            return redirect("/buyer/login")
+
+        token_data = token_res.json()
+        access_token = token_data.get("access_token")
+
+        if not access_token:
+            flash("Could not get Google access token.")
+            return redirect("/buyer/login")
+
+        userinfo_res = requests.get(
+            "https://www.googleapis.com/oauth2/v3/userinfo",
+            headers={"Authorization": "Bearer " + access_token},
+            timeout=12,
+        )
+
+        if userinfo_res.status_code != 200:
+            try:
+                print("google userinfo error v50.5B:", userinfo_res.status_code, userinfo_res.text[:500])
+            except Exception:
+                pass
+            flash("Could not get Google profile.")
+            return redirect("/buyer/login")
+
+        profile = userinfo_res.json()
+        email = (profile.get("email") or "").strip().lower()
+
+        if not email or not profile.get("email_verified", True):
+            flash("Google account email is not verified.")
+            return redirect("/buyer/login")
+
+        user = _bsm_google_create_or_login_buyer_v505b(
+            email=email,
+            name=profile.get("name") or email,
+            google_id=profile.get("sub") or "",
+        )
+
+        if not user:
+            flash("Could not create or access buyer account with this Google email.")
+            return redirect("/buyer/login")
+
+        _bsm_set_buyer_session_v422(user)
+        _bsm_claim_guest_orders_v428(user)
+
+        session.pop("google_oauth_state", None)
+        session.pop("google_oauth_role", None)
+        session.modified = True
+
+        return redirect(session.pop("after_login_redirect", None) or "/buyer/dashboard")
+
+    except Exception as e:
+        try:
+            print("google oauth callback v50.5B warning:", e)
+        except Exception:
+            pass
+        flash("Google login failed. Please try again.")
+        return redirect("/buyer/login")
 
 
 # v49.1K safe download fallback using R2_PUBLIC_URL + video.file_path.
