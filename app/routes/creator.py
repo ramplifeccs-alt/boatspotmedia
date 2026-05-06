@@ -5174,6 +5174,11 @@ def creator_upload_edited_video_v447(item_id):
         flash("Edited video uploaded. Buyer download is now active." + (" Email sent." if sent else " Email not sent; check SendGrid."))
     except Exception:
         pass
+    try:
+        if request.headers.get("X-Requested-With") == "XMLHttpRequest" or "application/json" in (request.headers.get("Accept") or ""):
+            return jsonify({"ok": True, "email_sent": bool(sent), "message": "Edited video uploaded. Buyer download is now active."})
+    except Exception:
+        pass
     return redirect(request.referrer or "/creator/orders")
 
 @creator_bp.route("/creator/order-item/<int:item_id>/approve-discount-v447", methods=["POST"])

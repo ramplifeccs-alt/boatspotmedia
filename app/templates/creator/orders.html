@@ -264,40 +264,68 @@
         throw new Error(presign.error || 'Could not prepare upload.');
       }
 
-      await new Promise(function(resolve, reject){
-        const xhr = new XMLHttpRequest();
-        xhr.open('PUT', presign.upload_url, true);
-        xhr.setRequestHeader('Content-Type', presign.content_type || file.type || 'video/mp4');
-        xhr.upload.onprogress = function(evt){
-          if(evt.lengthComputable){
-            const pct = Math.round((evt.loaded / evt.total) * 100);
-            setProgress(progress, pct, 'Uploading... ' + pct + '%');
-          }
-        };
-        xhr.onload = function(){
-          if(xhr.status >= 200 && xhr.status < 300) resolve();
-          else reject(new Error('R2 upload failed: HTTP ' + xhr.status));
-        };
-        xhr.onerror = function(){ reject(new Error('Network error during upload.')); };
-        xhr.send(file);
-      });
-
-      setProgress(progress, 100, 'Saving delivery...');
-      const completeRes = await fetch('/creator/order-item/' + itemId + '/edited-upload-complete', {
-        method:'POST',
-        headers:{'Content-Type':'application/json'},
-        body: JSON.stringify({
-          r2_key: presign.r2_key,
-          file_size: file.size
-        })
-      });
-      const complete = await completeRes.json();
-      if(!complete.ok){
-        throw new Error(complete.error || 'Could not save delivery.');
+      let directUploadOk = false;
+      try{
+        await new Promise(function(resolve, reject){
+          const xhr = new XMLHttpRequest();
+          xhr.open('PUT', presign.upload_url, true);
+          xhr.setRequestHeader('Content-Type', presign.content_type || file.type || 'video/mp4');
+          xhr.upload.onprogress = function(evt){
+            if(evt.lengthComputable){
+              const pct = Math.round((evt.loaded / evt.total) * 100);
+              setProgress(progress, pct, 'Uploading... ' + pct + '%');
+            }
+          };
+          xhr.onload = function(){
+            if(xhr.status >= 200 && xhr.status < 300) resolve();
+            else reject(new Error('R2 upload failed: HTTP ' + xhr.status));
+          };
+          xhr.onerror = function(){ reject(new Error('Direct upload failed. Trying secure server upload...')); };
+          xhr.send(file);
+        });
+        directUploadOk = true;
+      }catch(r2err){
+        // v50.4S fallback: if browser/R2 CORS/network blocks direct PUT,
+        // use the existing secure server-side upload endpoint instead.
+        setProgress(progress, 5, 'Direct upload blocked. Trying secure upload...');
+        const formData = new FormData();
+        formData.append('edited_video', file);
+        const fallbackRes = await fetch('/creator/order-item/' + itemId + '/upload-edited', {
+          method:'POST',
+          body: formData,
+          redirect:'follow'
+        });
+        if(!fallbackRes.ok){
+          let msg = 'Secure upload failed: HTTP ' + fallbackRes.status;
+          try{
+            const text = await fallbackRes.text();
+            if(text && text.length < 200) msg = text;
+          }catch(e){}
+          throw new Error(msg);
+        }
+        setProgress(progress, 100, 'Edited video uploaded. Buyer download is now active.');
+        setTimeout(function(){ window.location.reload(); }, 900);
+        return;
       }
 
-      setProgress(progress, 100, complete.message || 'Done.');
-      setTimeout(function(){ window.location.reload(); }, 900);
+      if(directUploadOk){
+        setProgress(progress, 100, 'Saving delivery...');
+        const completeRes = await fetch('/creator/order-item/' + itemId + '/edited-upload-complete', {
+          method:'POST',
+          headers:{'Content-Type':'application/json'},
+          body: JSON.stringify({
+            r2_key: presign.r2_key,
+            file_size: file.size
+          })
+        });
+        const complete = await completeRes.json();
+        if(!complete.ok){
+          throw new Error(complete.error || 'Could not save delivery.');
+        }
+
+        setProgress(progress, 100, complete.message || 'Done.');
+        setTimeout(function(){ window.location.reload(); }, 900);
+      }
     }catch(err){
       alert(err.message || 'Upload failed.');
       setProgress(progress, 0, 'Upload failed.');
