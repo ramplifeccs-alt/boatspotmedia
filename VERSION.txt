@@ -1,6 +1,9 @@
-BoatSpotMedia v50.4W Exact v50.4 Edited Upload Restore
-Base: v50.4R (buyer register crash fixed).
-Restores exact edited video upload JavaScript IIFE from v50.4_VIDEO_INSIGHTS.
-Restores exact creator.py edited-upload-url and edited-upload-complete route blocks from v50.4_VIDEO_INSIGHTS.
-No fallback routes, no route guessing, no server-upload experiment.
-Does not touch buyer register, checkout, Stripe, payouts, billing, batches, analytics, R2 config, or downloads.
+BoatSpotMedia v50.4X Server Edited Upload Real Route
+Base: v50.4W.
+Fix:
+- Disables browser direct R2 PUT for edited video uploads.
+- Uses real Flask server route /creator/order-item/<id>/upload-edited.
+- Adds clean blueprint alias /order-item/<id>/upload-edited that calls the existing v46.3 server upload implementation.
+Reason:
+- Direct browser -> R2 is failing with Network error, likely CORS/browser PUT issue.
+Does not touch buyer auth, checkout, billing, Stripe, payouts, batches, analytics, downloads, or R2 config.

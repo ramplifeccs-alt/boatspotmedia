@@ -1,0 +1,6 @@
+app/routes/owner.py
+app/templates/owner/applications.html
+app/templates/owner/manage_people.html
+app/templates/owner/edit_person.html
+app/templates/public/home.html
+app/static/css/style.css

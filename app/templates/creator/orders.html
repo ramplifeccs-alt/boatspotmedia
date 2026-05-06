@@ -250,53 +250,28 @@
     setProgress(progress, 1, 'Preparing upload...');
 
     try{
-      const presignRes = await fetch('/creator/order-item/' + itemId + '/edited-upload-url', {
+      setProgress(progress, 5, 'Uploading edited video...');
+      const formData = new FormData();
+      formData.append('edited_video', file);
+
+      const uploadRes = await fetch('/creator/order-item/' + itemId + '/upload-edited', {
         method: 'POST',
-        headers: {'Content-Type':'application/json'},
-        body: JSON.stringify({
-          filename: file.name,
-          content_type: file.type || 'video/mp4',
-          file_size: file.size
-        })
+        body: formData,
+        redirect: 'follow'
       });
-      const presign = await presignRes.json();
-      if(!presign.ok){
-        throw new Error(presign.error || 'Could not prepare upload.');
-      }
 
-      await new Promise(function(resolve, reject){
-        const xhr = new XMLHttpRequest();
-        xhr.open('PUT', presign.upload_url, true);
-        xhr.setRequestHeader('Content-Type', presign.content_type || file.type || 'video/mp4');
-        xhr.upload.onprogress = function(evt){
-          if(evt.lengthComputable){
-            const pct = Math.round((evt.loaded / evt.total) * 100);
-            setProgress(progress, pct, 'Uploading... ' + pct + '%');
+      if(!uploadRes.ok){
+        let msg = 'Upload failed: HTTP ' + uploadRes.status;
+        try{
+          const txt = await uploadRes.text();
+          if(txt && txt.trim() && txt.length < 300){
+            msg = txt;
           }
-        };
-        xhr.onload = function(){
-          if(xhr.status >= 200 && xhr.status < 300) resolve();
-          else reject(new Error('R2 upload failed: HTTP ' + xhr.status));
-        };
-        xhr.onerror = function(){ reject(new Error('Network error during upload.')); };
-        xhr.send(file);
-      });
-
-      setProgress(progress, 100, 'Saving delivery...');
-      const completeRes = await fetch('/creator/order-item/' + itemId + '/edited-upload-complete', {
-        method:'POST',
-        headers:{'Content-Type':'application/json'},
-        body: JSON.stringify({
-          r2_key: presign.r2_key,
-          file_size: file.size
-        })
-      });
-      const complete = await completeRes.json();
-      if(!complete.ok){
-        throw new Error(complete.error || 'Could not save delivery.');
+        }catch(e){}
+        throw new Error(msg);
       }
 
-      setProgress(progress, 100, complete.message || 'Done.');
+      setProgress(progress, 100, 'Edited video uploaded successfully.');
       setTimeout(function(){ window.location.reload(); }, 900);
     }catch(err){
       alert(err.message || 'Upload failed.');

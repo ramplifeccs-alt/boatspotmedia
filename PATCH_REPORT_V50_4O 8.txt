@@ -1,0 +1,6 @@
+app/routes/buyer.py
+app/templates/buyer/login.html
+app/templates/buyer/register.html
+app/templates/buyer/forgot_password.html
+app/templates/buyer/reset_password.html
+app/static/css/style.css
