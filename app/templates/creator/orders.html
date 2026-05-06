@@ -256,7 +256,7 @@
       const formData = new FormData();
       formData.append('edited_video', file);
 
-      const fallbackRes = await fetch('/creator/order-item/' + itemId + '/upload-edited', {
+      const fallbackRes = await fetch('/creator/order-item/' + itemId + '/upload-edited-video', {
         method:'POST',
         body: formData,
         redirect:'follow'
