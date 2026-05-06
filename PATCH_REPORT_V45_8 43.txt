@@ -1,0 +1,10 @@
+app/templates/creator/upload.html
+
+Checks:
+Batch name: True
+Location: True
+File input: True
+Form: True
+R2 script included: True
+Hidden original: True
+Visible price labels removed: True
