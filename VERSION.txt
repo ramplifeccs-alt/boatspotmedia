@@ -1,4 +1,8 @@
-BoatSpotMedia v50.4U
-Fixes edited upload HTTP 404 route mismatch.
-Corrects JS upload endpoint to the actual Flask route.
-No changes to Stripe, checkout, R2, analytics, billing, batches or payouts.
+BoatSpotMedia v50.4V
+Restores ORIGINAL working edited video upload flow from stable version.
+Removes experimental fallback upload logic and route guessing.
+Uses original:
+- edited-upload-url
+- direct R2 PUT
+- edited-upload-complete
+flow only.

@@ -251,28 +251,62 @@
 
     try{
       
-      setProgress(progress, 5, 'Uploading edited video...');
-
-      const formData = new FormData();
-      formData.append('edited_video', file);
-
-      const fallbackRes = await fetch('/creator/order-item/' + itemId + '/upload-edited-video', {
-        method:'POST',
-        body: formData,
-        redirect:'follow'
+      
+      const presignRes = await fetch('/creator/order-item/' + itemId + '/edited-upload-url', {
+        method:'POST'
       });
 
-      if(!fallbackRes.ok){
-        let msg = 'Upload failed: HTTP ' + fallbackRes.status;
-        try{
-          const txt = await fallbackRes.text();
-          if(txt && txt.length < 300) msg = txt;
-        }catch(e){}
-        throw new Error(msg);
+      const presign = await presignRes.json();
+
+      if(!presign.ok){
+        throw new Error(presign.error || 'Could not prepare upload.');
       }
 
-      setProgress(progress, 100, 'Edited video uploaded successfully.');
-      setTimeout(function(){ window.location.reload(); }, 1200);
+      await new Promise(function(resolve, reject){
+        const xhr = new XMLHttpRequest();
+        xhr.open('PUT', presign.upload_url, true);
+        xhr.setRequestHeader('Content-Type', presign.content_type || file.type || 'video/mp4');
+
+        xhr.upload.onprogress = function(evt){
+          if(evt.lengthComputable){
+            const pct = Math.round((evt.loaded / evt.total) * 100);
+            setProgress(progress, pct, 'Uploading... ' + pct + '%');
+          }
+        };
+
+        xhr.onload = function(){
+          if(xhr.status >= 200 && xhr.status < 300){
+            resolve();
+          }else{
+            reject(new Error('Upload failed: HTTP ' + xhr.status));
+          }
+        };
+
+        xhr.onerror = function(){
+          reject(new Error('Network error during upload.'));
+        };
+
+        xhr.send(file);
+      });
+
+      const completeRes = await fetch('/creator/order-item/' + itemId + '/edited-upload-complete', {
+        method:'POST',
+        headers:{'Content-Type':'application/json'},
+        body: JSON.stringify({
+          r2_key: presign.r2_key,
+          file_size: file.size
+        })
+      });
+
+      const complete = await completeRes.json();
+
+      if(!complete.ok){
+        throw new Error(complete.error || 'Could not finalize upload.');
+      }
+
+      setProgress(progress, 100, complete.message || 'Edited video uploaded successfully.');
+      setTimeout(function(){ window.location.reload(); }, 1000);
+
 }catch(err){
       alert(err.message || 'Upload failed.');
       setProgress(progress, 0, 'Upload failed.');
