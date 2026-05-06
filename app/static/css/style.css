@@ -3130,3 +3130,6 @@ margin:20px auto!important;
     padding:0 14px 32px;
   }
 }
+
+/* v50.5A phone default readability */
+input[name="phone_number"]{letter-spacing:.02em;}

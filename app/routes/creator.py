@@ -2120,43 +2120,124 @@ def _bsm_v463_add_creator_storage_usage(creator_id, bytes_to_add):
             db.session.rollback()
 
 
+
+# v50.5A Buyer SMS notification for edited video ready
+def _bsm_normalize_sms_phone_v505a(phone):
+    phone = (phone or "").strip()
+    if not phone:
+        return ""
+    cleaned = "".join(ch for ch in phone if ch.isdigit() or ch == "+")
+    if cleaned and not cleaned.startswith("+"):
+        if len(cleaned) == 10:
+            cleaned = "+1" + cleaned
+        elif len(cleaned) == 11 and cleaned.startswith("1"):
+            cleaned = "+" + cleaned
+    return cleaned
+
+def _bsm_get_buyer_sms_phone_v505a(email):
+    if not email:
+        return ""
+    try:
+        row = db.session.execute(db.text("""
+            SELECT phone_number, sms_notifications_enabled
+            FROM "user"
+            WHERE lower(email)=lower(:email)
+              AND role='buyer'
+            ORDER BY id DESC
+            LIMIT 1
+        """), {"email": email}).mappings().first()
+        if not row:
+            return ""
+        if row.get("sms_notifications_enabled") is False:
+            return ""
+        return _bsm_normalize_sms_phone_v505a(row.get("phone_number"))
+    except Exception as e:
+        db.session.rollback()
+        try: print("buyer sms lookup v50.5A warning:", e)
+        except Exception: pass
+        return ""
+
+def _bsm_send_sms_v505a(to_phone, body):
+    to_phone = _bsm_normalize_sms_phone_v505a(to_phone)
+    if not to_phone:
+        return False
+    try:
+        import os, requests
+        sid = os.environ.get("TWILIO_ACCOUNT_SID")
+        token = os.environ.get("TWILIO_AUTH_TOKEN")
+        from_phone = os.environ.get("TWILIO_PHONE_NUMBER") or os.environ.get("TWILIO_FROM_NUMBER")
+        if not sid or not token or not from_phone:
+            print("Twilio missing: set TWILIO_ACCOUNT_SID, TWILIO_AUTH_TOKEN, TWILIO_PHONE_NUMBER")
+            return False
+        url = f"https://api.twilio.com/2010-04-01/Accounts/{sid}/Messages.json"
+        r = requests.post(
+            url,
+            data={"From": from_phone, "To": to_phone, "Body": body},
+            auth=(sid, token),
+            timeout=12,
+        )
+        if r.status_code not in (200, 201):
+            try: print("Twilio SMS failed v50.5A:", r.status_code, r.text[:300])
+            except Exception: pass
+            return False
+        return True
+    except Exception as e:
+        try: print("Twilio SMS warning v50.5A:", e)
+        except Exception: pass
+        return False
+
+
 def _bsm_v463_send_edited_ready_email(to_email, order_id=None):
     if not to_email:
         return False
+    email_sent = False
     try:
         import os, requests
         api_key = os.environ.get("SENDGRID_API_KEY")
         from_email = os.environ.get("SENDGRID_FROM_EMAIL") or os.environ.get("FROM_EMAIL")
         if not api_key or not from_email:
             print("SendGrid missing for edited ready email v46.3")
-            return False
+        else:
+            base_url = (os.environ.get("PUBLIC_BASE_URL") or os.environ.get("BASE_URL") or "https://boatspotmedia.com").rstrip("/")
+            dashboard_url = base_url + "/buyer/dashboard"
 
-        base_url = (os.environ.get("PUBLIC_BASE_URL") or os.environ.get("BASE_URL") or "https://boatspotmedia.com").rstrip("/")
-        dashboard_url = base_url + "/buyer/dashboard"
-
-        payload = {
-            "personalizations": [{"to": [{"email": to_email}]}],
-            "from": {"email": from_email},
-            "subject": "Your edited video is ready",
-            "content": [{"type": "text/html", "value": f"""
-              <h2>Your edited video is ready</h2>
-              <p>Your edited video from BoatSpotMedia is ready to download.</p>
-              <p><strong>Order:</strong> #{order_id or ""}</p>
-              <p><a href="{dashboard_url}" style="background:#2563eb;color:#fff;padding:12px 16px;border-radius:8px;text-decoration:none;">Open My Orders</a></p>
-              <p>For best results, download on a computer. On phones, the video may open for playback.</p>
-            """}],
-        }
-        r = requests.post(
-            "https://api.sendgrid.com/v3/mail/send",
-            headers={"Authorization": "Bearer " + api_key, "Content-Type": "application/json"},
-            json=payload,
-            timeout=12,
-        )
-        return r.status_code in (200, 202)
+            payload = {
+                "personalizations": [{"to": [{"email": to_email}]}],
+                "from": {"email": from_email},
+                "subject": "Your edited video is ready",
+                "content": [{"type": "text/html", "value": f"""
+                  <h2>Your edited video is ready</h2>
+                  <p>Your edited video from BoatSpotMedia is ready to download.</p>
+                  <p><strong>Order:</strong> #{order_id or ""}</p>
+                  <p><a href="{dashboard_url}" style="background:#2563eb;color:#fff;padding:12px 16px;border-radius:8px;text-decoration:none;">Open My Orders</a></p>
+                  <p>For best results, download on a computer. On phones, the video may open for playback.</p>
+                """}],
+            }
+            r = requests.post(
+                "https://api.sendgrid.com/v3/mail/send",
+                headers={"Authorization": "Bearer " + api_key, "Content-Type": "application/json"},
+                json=payload,
+                timeout=12,
+            )
+            email_sent = r.status_code in (200, 202)
     except Exception as e:
         try: print("edited ready email warning v46.3:", e)
         except Exception: pass
-        return False
+
+    try:
+        base_url = (os.environ.get("PUBLIC_BASE_URL") or os.environ.get("BASE_URL") or "https://boatspotmedia.com").rstrip("/")
+        dashboard_url = base_url + "/buyer/dashboard"
+        phone = _bsm_get_buyer_sms_phone_v505a(to_email)
+        if phone:
+            _bsm_send_sms_v505a(
+                phone,
+                "Your edited BoatSpotMedia video is ready to download. Open: " + dashboard_url
+            )
+    except Exception as e:
+        try: print("edited ready sms warning v50.5A:", e)
+        except Exception: pass
+
+    return bool(email_sent)
 
 
 

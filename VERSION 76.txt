@@ -1,0 +1,10 @@
+BoatSpotMedia v50.4Y Restore Direct R2 Edited Upload No Server
+Base: v50.4W.
+Fix:
+- Removes server-side edited video upload experiment that crashes Gunicorn/Werkzeug with large video files.
+- Restores direct presigned R2 edited upload flow.
+- Keeps exact v50.4 edited-upload-url and edited-upload-complete backend.
+- Adds clearer frontend message if browser/R2 direct upload fails due CORS/network.
+Important:
+- If it still says Network error, configure Cloudflare R2 bucket CORS to allow PUT from your domain.
+Does not touch buyer auth, checkout, billing, Stripe, payouts, batches, analytics, downloads, or R2 config.

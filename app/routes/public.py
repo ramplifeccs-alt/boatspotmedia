@@ -590,12 +590,39 @@ def _bsm_fix_order_item_creator_id_v460(order_id=None):
             pass
 
 
+
+# v50.5A buyer phone/SMS helpers for public buyer register
+def _bsm_normalize_phone_public_v505a(phone):
+    phone = (phone or "").strip()
+    if not phone:
+        return ""
+    cleaned = "".join(ch for ch in phone if ch.isdigit() or ch == "+")
+    if cleaned and not cleaned.startswith("+"):
+        if len(cleaned) == 10:
+            cleaned = "+1" + cleaned
+        elif len(cleaned) == 11 and cleaned.startswith("1"):
+            cleaned = "+" + cleaned
+    return cleaned
+
+def _bsm_ensure_buyer_sms_columns_public_v505a():
+    try:
+        db.session.execute(db.text('ALTER TABLE "user" ADD COLUMN IF NOT EXISTS phone_number TEXT'))
+        db.session.execute(db.text('ALTER TABLE "user" ADD COLUMN IF NOT EXISTS sms_notifications_enabled BOOLEAN DEFAULT TRUE'))
+        db.session.commit()
+    except Exception as e:
+        db.session.rollback()
+        try: print("public buyer sms columns v50.5A warning:", e)
+        except Exception: pass
+
+
 @public_bp.route("/buyer/register", methods=["GET", "POST"])
 def buyer_register_public_v422():
     if request.method == "POST":
         display_name = (request.form.get("display_name") or request.form.get("full_name") or request.form.get("name") or "").strip()
         email = (request.form.get("email") or "").strip().lower()
         password = request.form.get("password") or ""
+        phone_number = _bsm_normalize_phone_public_v505a(request.form.get("phone_number") or request.form.get("phone") or "")
+        sms_notifications_enabled = bool(request.form.get("sms_notifications_enabled"))
 
         if not email or not password:
             return render_template("public/generic_register.html", role="buyer", error="Email and password are required.")
@@ -607,6 +634,7 @@ def buyer_register_public_v422():
         if request.form.get("accept_terms") not in ["on", "true", "1", "yes"]:
             return render_template("public/generic_register.html", role="buyer", error="You must accept the Buyer Terms and Privacy Policy to create an account.")
 
+        _bsm_ensure_buyer_sms_columns_public_v505a()
         user = _bsm_find_user_by_email_v422(email)
         if user:
             if getattr(user, "role", None) != "buyer":
@@ -626,6 +654,22 @@ def buyer_register_public_v422():
 
         try:
             db.session.commit()
+            try:
+                db.session.execute(db.text("""
+                    UPDATE "user"
+                    SET phone_number=:phone_number,
+                        sms_notifications_enabled=:sms_enabled
+                    WHERE lower(email)=lower(:email)
+                """), {
+                    "phone_number": phone_number,
+                    "sms_enabled": sms_notifications_enabled,
+                    "email": email,
+                })
+                db.session.commit()
+            except Exception as sms_e:
+                db.session.rollback()
+                try: print("public buyer phone save v50.5A warning:", sms_e)
+                except Exception: pass
             _bsm_set_buyer_session_v422(user)
             _bsm_claim_guest_orders_v428(user)
             return redirect(session.pop("after_login_redirect", None) or request.args.get("next") or "/buyer/dashboard")

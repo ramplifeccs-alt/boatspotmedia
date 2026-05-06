@@ -1,15 +1,15 @@
-BoatSpotMedia v50.4Z Revert Uploads Keep Buyer Auth
-Base: v50.4R_FIX_BUYER_REGISTER_ROLE_CRASH.
-
-Purpose:
-- Reverts away from all experimental edited-upload packages v50.4S/v50.4T/v50.4U/v50.4V/v50.4W/v50.4X/v50.4Y.
-- Keeps buyer registration/auth fixes:
-  - phone number field
-  - SMS opt-in field
-  - forgot/reset password
-  - buyer terms checkbox
-  - public register UI fix
-  - role crash fix
-- Leaves batch upload, normal uploads, edited upload, R2 upload logic, creator.py upload flow, Stripe, checkout, billing, analytics, payouts untouched from v50.4R.
-
-Use this version to restore upload behavior before the edited-upload experiments.
+BoatSpotMedia v50.5A Buyer SMS Edited Ready
+Base: v50.4Z rollback clean package.
+Adds:
+- Public buyer register saves phone_number and sms_notifications_enabled.
+- Phone numbers normalize automatically:
+  9545551234 -> +19545551234
+  19545551234 -> +19545551234
+  +19545551234 stays as-is.
+- Buyer register phone field defaults to +1 in the UI.
+- When edited video is uploaded and the email notification runs, system also sends SMS via Twilio if buyer has phone + SMS enabled.
+Required Railway variables for SMS:
+  TWILIO_ACCOUNT_SID
+  TWILIO_AUTH_TOKEN
+  TWILIO_PHONE_NUMBER
+Does not touch R2 uploads, batches, checkout, billing, Stripe, analytics, downloads, or payouts.
