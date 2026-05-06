@@ -5338,15 +5338,6 @@ def creator_upload_edited_video_v463(item_id):
 
 
 
-
-
-# v50.4X clean server-side edited upload alias.
-# Blueprint already uses /creator prefix, so this final URL is /creator/order-item/<id>/upload-edited.
-@creator_bp.route("/order-item/<int:item_id>/upload-edited", methods=["POST"], endpoint="upload_edited_server_v504x")
-def creator_upload_edited_server_v504x(item_id):
-    # Use the most complete existing server-side upload implementation from v46.3.
-    return creator_upload_edited_video_v463(item_id)
-
 @creator_bp.route("/order-item/<int:item_id>/edited-upload-url", methods=["POST"], endpoint="edited_upload_url_v464")
 def creator_edited_upload_url_v464(item_id):
     creator = current_creator()
