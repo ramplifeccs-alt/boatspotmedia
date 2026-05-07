@@ -1,14 +1,11 @@
-BoatSpotMedia v50.5F Support Menu Inbox Fix
-Base: v50.5E.
+BoatSpotMedia v50.5G Creator Login Fix
+Base: v50.5F.
 
 Fixes:
-- Buyer menu cleaned: removes Shop, Services, and Downloads.
-- Buyer Dashboard/My Orders now uses the buyer sidebar menu layout.
-- Downloads route redirects to My Orders.
-- Request Support Order/Creator dropdown now uses creator from order item OR video creator.
-- Owner Support Inbox query is more robust for creator platform requests.
+- /creator/login 500 caused by broken creator social-login url_for references.
+- Removes Creator Login with Google/Apple buttons from creator login page.
+- Adds /creator root redirect:
+  - logged creator -> /creator/dashboard
+  - otherwise -> /creator/login
 
-Note:
-- If Creator Dashboard opens in Chrome but not Safari, that is usually Safari session/cache/cookies. Clear Safari site data for boatspotmedia.com or log out/login again.
-
-Does not touch uploads, R2, batches, checkout, billing, Stripe, payouts, analytics, Google OAuth, or Twilio SMS.
+Does not touch uploads, R2, batches, checkout, billing, Stripe, payouts, analytics, buyer Google OAuth, Twilio SMS, or support database logic.

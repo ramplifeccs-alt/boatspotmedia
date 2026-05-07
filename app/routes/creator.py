@@ -3654,6 +3654,14 @@ def delete_batch_full_cleanup(batch_id):
         return jsonify({"ok": False, "error": str(e)}), 500
 
 
+
+
+@creator_bp.route("/")
+def creator_root_v505g():
+    if session.get("user_role") == "creator" or session.get("role") == "creator":
+        return redirect("/creator/dashboard")
+    return redirect("/creator/login")
+
 @creator_bp.route("/health")
 def health():
     c = current_creator()
