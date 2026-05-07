@@ -6011,10 +6011,16 @@ def creator_support_center_v505c():
 
     try:
         buyer_threads=db.session.execute(db.text("""
-            SELECT st.*,
+            SELECT DISTINCT st.*,
                    (SELECT body FROM support_message sm WHERE sm.thread_id=st.id ORDER BY sm.created_at DESC, sm.id DESC LIMIT 1) AS last_body
             FROM support_thread st
-            WHERE st.thread_type='buyer_creator' AND st.creator_id=:creator_id
+            LEFT JOIN bsm_cart_order_item i ON i.cart_order_id = st.order_id
+            LEFT JOIN video v ON v.id = i.video_id
+            WHERE st.thread_type='buyer_creator'
+              AND (
+                st.creator_id=:creator_id
+                OR v.creator_id=:creator_id
+              )
             ORDER BY st.last_message_at DESC, st.id DESC
         """), {"creator_id":creator_id}).mappings().all()
     except Exception:
@@ -6043,10 +6049,17 @@ def creator_support_thread_v505c(thread_id):
 
     try:
         thread=db.session.execute(db.text("""
-            SELECT *
-            FROM support_thread
-            WHERE id=:tid AND creator_id=:creator_id
-              AND thread_type IN ('buyer_creator','creator_owner')
+            SELECT DISTINCT st.*
+            FROM support_thread st
+            LEFT JOIN bsm_cart_order_item i ON i.cart_order_id = st.order_id
+            LEFT JOIN video v ON v.id = i.video_id
+            WHERE st.id=:tid
+              AND st.thread_type IN ('buyer_creator','creator_owner')
+              AND (
+                st.creator_id=:creator_id
+                OR v.creator_id=:creator_id
+                OR st.thread_type='creator_owner'
+              )
             LIMIT 1
         """), {"tid":thread_id,"creator_id":creator_id}).mappings().first()
     except Exception:

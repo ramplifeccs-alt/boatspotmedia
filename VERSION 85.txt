@@ -1,0 +1,11 @@
+BoatSpotMedia v50.5I Buyer Support + Timer Real Fix
+Base: v50.5H.
+
+Fixes:
+- Buyer Support dropdown now builds order/creator choices from the same order-item flow used by My Orders.
+- Buyer Support validates selected order from that same list.
+- My Orders download timer JS restored so it no longer stays at "calculating...".
+- Owner Support Inbox query simplified to show creator platform support requests without brittle SQL display expressions.
+- Buyer Orders menu remains redirected to My Orders.
+
+Does not touch uploads, R2, batches, checkout, billing, Stripe, payouts, analytics, Google OAuth, or Twilio SMS.
