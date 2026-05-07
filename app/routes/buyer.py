@@ -793,7 +793,7 @@ def _bsm_thread_messages_v505c(thread_id):
         db.session.rollback()
         return []
 
-@buyer_bp.route("/buyer/support", methods=["GET", "POST"])
+@buyer_bp.route("/support", methods=["GET", "POST"])
 def buyer_support_center_v505c():
     if not session.get("user_id") or session.get("user_role") != "buyer":
         session["after_login_redirect"] = "/buyer/support"
@@ -888,7 +888,7 @@ def buyer_support_center_v505c():
 
     return render_template("buyer/support.html", threads=threads, orders=orders, email=buyer_email)
 
-@buyer_bp.route("/buyer/support/<int:thread_id>", methods=["GET", "POST"])
+@buyer_bp.route("/support/<int:thread_id>", methods=["GET", "POST"])
 def buyer_support_thread_v505c(thread_id):
     if not session.get("user_id") or session.get("user_role") != "buyer":
         return redirect("/buyer/login")
@@ -930,8 +930,3 @@ def buyer_support_thread_v505c(thread_id):
 
     messages=_bsm_thread_messages_v505c(thread_id)
     return render_template("buyer/support_thread.html", thread=thread, messages=messages, email=buyer_email)
-
-
-@buyer_bp.route("/buyer/support")
-def buyer_support_center_hotfix_v505d():
-    return render_template("buyer/support.html", threads=[], orders=[], email=session.get("user_email"))
