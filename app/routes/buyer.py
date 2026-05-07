@@ -996,7 +996,16 @@ def buyer_support_thread_v505c(thread_id):
                 flash("Could not send message.")
         return redirect(f"/buyer/support/{thread_id}")
 
-    messages=[dict(m) for m in _bsm_thread_messages_v505c(thread_id)]
+    try:
+        messages = [dict(m) for m in db.session.execute(db.text("""
+            SELECT id, thread_id, sender_role, sender_id, sender_email, body, created_at
+            FROM support_message
+            WHERE thread_id=:tid
+            ORDER BY created_at ASC, id ASC
+        """), {"tid": thread_id}).mappings().all()]
+    except Exception:
+        db.session.rollback()
+        messages = []
     for m in messages:
         m["created_at_et"] = _bsm_support_et_v505l(m.get("created_at"))
     thread=dict(thread)

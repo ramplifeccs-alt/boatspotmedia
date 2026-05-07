@@ -1,14 +1,11 @@
-BoatSpotMedia v50.5L Support Notifications Time Fix
-Base: v50.5K.
+BoatSpotMedia v50.5M Buyer Reply + Notifications Fix
+Base: v50.5L.
 
 Fixes:
-- Support timestamps display in Miami/New York time.
-- Buyer thread/message pages format message times.
-- Creator/Owner support pages format message times.
-- Adds Creator Dashboard notification cards:
-  - Recent sales
-  - Buyer support
-  - Platform support
-- Keeps creator replies visible through existing support thread flow.
+- Buyer support thread now reads all messages directly from support_message by thread_id.
+- Creator replies are saved and support_thread timestamps are updated robustly.
+- Creator Dashboard now actually receives creator_notifications in render_creator_template.
+- Notification counts are more robust and do not depend on order item created_at.
+- Removes duplicate Support Center link in creator dashboard.
 
 Does not touch uploads, R2, batches, checkout, billing, Stripe, payouts, analytics, Google OAuth, or Twilio SMS.

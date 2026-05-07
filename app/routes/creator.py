@@ -3772,7 +3772,8 @@ def dashboard():
         "creator/dashboard.html",
         creator=creator,
         stats=stats,
-        videos_count=videos_count
+        videos_count=videos_count,
+        creator_notifications=creator_notifications
     )
 
 
@@ -6001,6 +6002,44 @@ def _bsm_creator_notification_counts_v505l(creator_id):
             FROM bsm_cart_order_item i
             LEFT JOIN video v ON v.id=i.video_id
             WHERE COALESCE(i.creator_id, v.creator_id)=:creator_id
+        """), {"creator_id": creator_id}).scalar() or 0
+    except Exception as e:
+        db.session.rollback()
+        try: print("creator notifications sales v50.5M warning:", e)
+        except Exception: pass
+    try:
+        data["buyer_support"] = db.session.execute(db.text("""
+            SELECT COUNT(DISTINCT st.id)
+            FROM support_thread st
+            LEFT JOIN bsm_cart_order_item i ON i.cart_order_id = st.order_id
+            LEFT JOIN video v ON v.id = i.video_id
+            WHERE st.thread_type='buyer_creator'
+              AND COALESCE(st.status,'open') <> 'closed'
+              AND (st.creator_id=:creator_id OR v.creator_id=:creator_id)
+        """), {"creator_id": creator_id}).scalar() or 0
+    except Exception as e:
+        db.session.rollback()
+        try: print("creator notifications buyer support v50.5M warning:", e)
+        except Exception: pass
+    try:
+        data["platform_support"] = db.session.execute(db.text("""
+            SELECT COUNT(*)
+            FROM support_thread
+            WHERE thread_type='creator_owner'
+              AND creator_id=:creator_id
+              AND COALESCE(status,'open') <> 'closed'
+        """), {"creator_id": creator_id}).scalar() or 0
+    except Exception as e:
+        db.session.rollback()
+        try: print("creator notifications platform v50.5M warning:", e)
+        except Exception: pass
+    return data
+    try:
+        data["new_sales"] = db.session.execute(db.text("""
+            SELECT COUNT(*)
+            FROM bsm_cart_order_item i
+            LEFT JOIN video v ON v.id=i.video_id
+            WHERE COALESCE(i.creator_id, v.creator_id)=:creator_id
               AND COALESCE(i.created_at, CURRENT_TIMESTAMP) >= (CURRENT_TIMESTAMP - INTERVAL '7 days')
         """), {"creator_id": creator_id}).scalar() or 0
     except Exception:
@@ -6138,7 +6177,11 @@ def creator_support_thread_v505c(thread_id):
                 """), {"tid":thread_id,"role":sender_role,"sid":creator_id,"email":creator_email,"body":body})
                 new_status = "replied" if thread.get("thread_type")=="buyer_creator" else "open"
                 db.session.execute(db.text("""
-                    UPDATE support_thread SET status=:status, last_message_at=CURRENT_TIMESTAMP, updated_at=CURRENT_TIMESTAMP WHERE id=:tid
+                    UPDATE support_thread
+                    SET status=:status,
+                        last_message_at=CURRENT_TIMESTAMP,
+                        updated_at=CURRENT_TIMESTAMP
+                    WHERE id=:tid
                 """), {"tid":thread_id,"status":new_status})
                 db.session.commit()
             except Exception:
