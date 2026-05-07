@@ -930,3 +930,8 @@ def buyer_support_thread_v505c(thread_id):
 
     messages=_bsm_thread_messages_v505c(thread_id)
     return render_template("buyer/support_thread.html", thread=thread, messages=messages, email=buyer_email)
+
+
+@buyer_bp.route("/buyer/support")
+def buyer_support_center_hotfix_v505d():
+    return render_template("buyer/support.html", threads=[], orders=[], email=session.get("user_email"))
