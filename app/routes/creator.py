@@ -6001,7 +6001,7 @@ def creator_support_center_v505c():
             """), {"tid":tid,"sid":creator_id,"email":creator_email,"body":body})
             db.session.commit()
             flash("Platform support request sent.")
-            return redirect(f"/creator/support/{tid}")
+            return redirect("/creator/support?tab=platform")
         except Exception as e:
             db.session.rollback()
             try: print("creator platform support create v50.5C warning:", e)

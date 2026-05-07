@@ -904,7 +904,7 @@ def buyer_support_center_v505c():
             """), {"thread_id": thread_id, "sender_id": buyer_id, "sender_email": buyer_email, "body": body})
             db.session.commit()
             flash("Support request sent.")
-            return redirect(f"/buyer/support/{thread_id}")
+            return redirect("/buyer/support")
         except Exception as e:
             db.session.rollback()
             try: print("buyer support create v50.5C warning:", e)
@@ -920,7 +920,10 @@ def buyer_support_center_v505c():
             FROM support_thread st
             LEFT JOIN creator_profile cp ON cp.id=st.creator_id
             WHERE st.thread_type='buyer_creator'
-              AND (st.buyer_user_id=:buyer_id OR lower(st.buyer_email)=lower(:buyer_email))
+              AND (
+                lower(COALESCE(st.buyer_email,''))=lower(:buyer_email)
+                OR st.buyer_user_id=:buyer_id
+              )
             ORDER BY st.last_message_at DESC, st.id DESC
         """), {"buyer_id": buyer_id, "buyer_email": buyer_email}).mappings().all()
     except Exception:
@@ -945,7 +948,10 @@ def buyer_support_thread_v505c(thread_id):
             FROM support_thread st
             LEFT JOIN creator_profile cp ON cp.id=st.creator_id
             WHERE st.id=:tid AND st.thread_type='buyer_creator'
-              AND (st.buyer_user_id=:buyer_id OR lower(st.buyer_email)=lower(:buyer_email))
+              AND (
+                lower(COALESCE(st.buyer_email,''))=lower(:buyer_email)
+                OR st.buyer_user_id=:buyer_id
+              )
             LIMIT 1
         """), {"tid":thread_id,"buyer_id":buyer_id,"buyer_email":buyer_email}).mappings().first()
     except Exception:

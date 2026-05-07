@@ -2002,10 +2002,9 @@ def owner_support_inbox_v505c():
     try:
         threads=db.session.execute(db.text("""
             SELECT st.*,
-                   COALESCE(cp.public_name, cp.email, 'Creator') AS creator_name,
+                   'Creator #' || CAST(st.creator_id AS TEXT) AS creator_name,
                    (SELECT body FROM support_message sm WHERE sm.thread_id=st.id ORDER BY sm.created_at DESC, sm.id DESC LIMIT 1) AS last_body
             FROM support_thread st
-            LEFT JOIN creator_profile cp ON cp.id=st.creator_id
             WHERE st.thread_type='creator_owner'
             ORDER BY st.last_message_at DESC, st.id DESC
         """)).mappings().all()
@@ -2018,9 +2017,8 @@ def owner_support_thread_v505c(thread_id):
     _bsm_ensure_support_tables_v505c()
     try:
         thread=db.session.execute(db.text("""
-            SELECT st.*, COALESCE(cp.public_name, cp.email, 'Creator #' || CAST(st.creator_id AS TEXT)) AS creator_name
+            SELECT st.*, 'Creator #' || CAST(st.creator_id AS TEXT) AS creator_name
             FROM support_thread st
-            LEFT JOIN creator_profile cp ON cp.id=st.creator_id
             WHERE st.id=:tid AND st.thread_type='creator_owner'
             LIMIT 1
         """), {"tid":thread_id}).mappings().first()
