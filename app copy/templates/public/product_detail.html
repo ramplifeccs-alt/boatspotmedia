@@ -1,0 +1,50 @@
+<!doctype html>
+<html>
+<head>
+  <meta name="viewport" content="width=device-width, initial-scale=1"><meta charset="utf-8"><title>BoatSpotMedia</title><link rel="stylesheet" href="/static/css/style.css">  <link rel="icon" type="image/png" href="/static/img/favicon.png">
+  <link rel="apple-touch-icon" href="/static/img/apple-touch-icon.png">
+  <meta name="theme-color" content="#071b34">
+</head>
+<body>
+<header><div><a href="/" style="color:inherit;text-decoration:none;"><b>BoatSpotMedia</b></a></div><nav><a href="/">Home</a><a href="/shop">Shop</a>{% if session.get("user_id") %}
+  <a class="nav-user" href="{{ session_dashboard_url() }}" style="text-decoration:none;">{{ session_display_name() }}</a>
+  {% if session.get("user_role") == "buyer" %}
+    <a href="/buyer/dashboard">Dashboard</a>
+  {% elif session.get("user_role") == "creator" %}
+    
+  {% elif session.get("user_role") in ["services", "service"] %}
+    
+  {% elif session.get("user_role") in ["charter", "charters"] %}
+    
+  {% endif %}
+  <a href="/logout">Logout</a>
+{% else %}
+  <a href="/buyer/login">Login</a>
+{% endif %}<a class="creator-apply-link-v487" href="/apply-creator">Apply to Sell Videos</a></nav></header>
+<div class="container">
+  <a href="/shop">← Back to Shop</a>
+  <div class="card">
+    <h1>{{product.title}}</h1>
+    <p>{{product.description}}</p>
+    <h2>${{product.price}}</h2>
+    <p><b>Shipping:</b> ${{product.shipping_cost}}</p>
+    <p><b>Processing:</b> {{product.processing_time or 'Not specified'}}</p>
+    <p><b>Shipping method:</b> {{product.shipping_method or 'Not specified'}}</p>
+
+    {% if variants %}
+      <h3>Available Options</h3>
+      <select>
+        {% for v in variants %}
+          <option>{{v.variant_name}}: {{v.variant_value}}{% if v.price_adjustment %} (+${{v.price_adjustment}}){% endif %}</option>
+        {% endfor %}
+      </select>
+    {% endif %}
+
+    <br><br>
+    <button class="btn">Add to Cart</button>
+  </div>
+</div>
+<script src="/static/js/mobile.js"></script>
+<script src="/static/js/tracking.js"></script>
+</body>
+</html>

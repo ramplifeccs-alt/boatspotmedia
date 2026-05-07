@@ -1,0 +1,44 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Buyer Register - BoatSpotMedia</title>
+  <link rel="stylesheet" href="/static/css/style.css">
+  <link rel="icon" type="image/png" href="/static/img/favicon.png">
+</head>
+<body class="buyer-auth-body-v504o">
+<header class="bsm-simple-header"><a href="/"><img src="/static/img/logo-header.png" alt="BoatSpotMedia" class="bsm-logo-img"></a></header>
+
+<div class="buyer-auth-card-v504o">
+  <div class="buyer-auth-tabs-v504o">
+    <a href="/buyer/login">Login</a>
+    <a class="active" href="/buyer/register">Register</a>
+  </div>
+  <h1>Create Buyer Account</h1>
+  <p>Save your purchases and receive download updates.</p>
+  {% if error %}<div class="buyer-auth-error-v504o">{{ error }}</div>{% endif %}
+  <form method="POST" class="buyer-auth-form-v504o">
+    <div class="buyer-auth-grid-v504o">
+      <label>First Name <input name="first_name" autocomplete="given-name"></label>
+      <label>Last Name <input name="last_name" autocomplete="family-name"></label>
+    </div>
+    <label>Email <input type="email" name="email" required autocomplete="email"></label>
+    <label>Phone Number <input type="tel" name="phone_number" value="+1" placeholder="+1 954 555 1234" autocomplete="tel"></label>
+    <label>Password <input type="password" name="password" required autocomplete="new-password"></label>
+    <label>Confirm Password <input type="password" name="confirm_password" required autocomplete="new-password"></label>
+    <label class="buyer-checkbox-v504o">
+      <input type="checkbox" name="sms_notifications_enabled" value="1" checked>
+      <span>Send me SMS updates when my edited video is ready.</span>
+    </label>
+
+    <label class="buyer-checkbox-v504o">
+      <input type="checkbox" name="accept_terms" value="1" required>
+      <span>I agree to the BoatSpotMedia Terms and Privacy Policy.</span>
+    </label>
+    <button type="submit">Create Account</button>
+  </form>
+  <div class="buyer-auth-divider-v504o"><span>or</span></div>
+  <a class="buyer-google-btn-v504o" href="/auth/google">Continue with Google</a>
+</div>
+<script src="/static/js/mobile.js"></script><script src="/static/js/tracking.js"></script>
+</body></html>

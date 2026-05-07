@@ -1,0 +1,113 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Creator Dashboard - BoatSpotMedia</title>
+  <link rel="stylesheet" href="/static/css/style.css">
+</head>
+<body class="creator-dashboard-v451">
+<div class="bsm-creator-page-shell-v451">
+  
+<aside class="bsm-creator-sidebar-v451">
+  <a href="/creator/dashboard" class="bsm-creator-logo-v451">
+    <img src="/static/img/logo-header.png" alt="BoatSpotMedia">
+  </a>
+  <div class="bsm-creator-handle-v451">@BoatSpotMedia.com</div>
+  <nav class="bsm-creator-nav-v451">
+    <a href="/creator/dashboard" class="active">Dashboard</a>
+    <a href="/creator/upload">Uploads</a>
+    <a href="/creator/batches">Batches</a>
+    <a href="/creator/analytics">Analytics</a>
+<a href="/creator/orders">Orders</a>
+    <a href="/creator/dashboard#products">Products</a>
+    <a href="/creator/pricing">Pricing</a>
+      <a href="/creator/billing">Billing</a>
+<a href="/creator/support">Support Center</a>
+    <a href="/creator/support">Support Center</a>
+    <a href="/creator/dashboard#settings">Settings</a>
+      <div class="creator-sidebar-user-v504e">
+        <div class="creator-sidebar-user-label-v504e">Logged in as</div>
+        <div class="creator-sidebar-user-name-v504e">
+          {% if creator_logged_handle %}
+            {{ creator_logged_handle }}
+          {% else %}
+            {{ creator_logged_name or 'Creator' }}
+          {% endif %}
+        </div>
+      </div>
+
+    <a href="/logout" class="logout">Log out</a>
+  </nav>
+</aside>
+
+  <main class="bsm-creator-main-v451">
+    <div class="container" style="max-width:1200px;margin:0 auto;padding:20px;">
+
+<div>
+    <div class="creator-logged-label-v504d">Logged in as</div>
+    <div class="creator-logged-name-v504d">{{ creator_logged_name or 'Creator' }}</div>
+    {% if creator_logged_email %}
+      <div class="creator-logged-email-v504d">{{ creator_logged_email }}</div>
+    {% endif %}
+  </div>
+</div>
+
+      <h1>Creator Dashboard</h1>
+
+{% if not stripe_account_id %}
+<div class="creator-stripe-required-v491x">
+  <div class="creator-stripe-required-title-v491x">Action required: Connect Stripe to receive payouts</div>
+  <div class="creator-stripe-required-text-v491x">
+    To receive payments from your video sales, you must connect your Stripe account. 
+    This is required before uploading videos or setting prices for sale.
+  </div>
+  <form method="POST" action="/creator/billing/connect-stripe">
+    <button type="submit">Connect Stripe to Receive Payouts</button>
+  </form>
+</div>
+{% endif %}
+
+      <p style="color:#64748b;">Manage your uploads, batches, pricing, orders, and sales from one place.</p>
+
+      <section class="bsm-dashboard-grid-v451">
+        <a class="bsm-dashboard-card-v451" href="/creator/upload">
+          <h2>Uploads</h2>
+          <p>Upload new videos or batches using the existing upload workflow.</p>
+        </a>
+
+        <a class="bsm-dashboard-card-v451" href="/creator/batches">
+          <h2>Batches</h2>
+          <p>Manage uploaded batches and existing videos.</p>
+        </a>
+
+        <a class="bsm-dashboard-card-v451" href="/creator/orders">
+          <h2>Orders / Sales</h2>
+          <p>View buyer orders, upload edited videos, and approve discounts.</p>
+        </a>
+
+        <a class="bsm-dashboard-card-v451" href="/creator/pricing">
+          <h2>Pricing</h2>
+          <p>Manage creator prices and packages using the existing pricing page.</p>
+        </a>
+
+        <a class="bsm-dashboard-card-v451" href="/creator/dashboard#products">
+          <h2>Products / My Videos</h2>
+          <p>Review videos and product-style listings.</p>
+        </a>
+
+        <a class="bsm-dashboard-card-v451" href="/creator/dashboard#settings">
+          <h2>Settings</h2>
+          <p>Manage account settings and creator details.</p>
+        </a>
+      </section>
+
+      <section class="bsm-dashboard-note-v451">
+        <h2>Next operational panel</h2>
+        <p>Orders is now connected to the new dashboard shell. Uploads, Batches, and Pricing continue using the existing working code.</p>
+      </section>
+    </div>
+  </main>
+</div>
+</body>
+</html>

@@ -1,0 +1,24 @@
+<!doctype html>
+<html>
+<head>
+  <meta name="viewport" content="width=device-width, initial-scale=1"><meta charset="utf-8"><title>BoatSpotMedia</title><link rel="stylesheet" href="/static/css/style.css">  <link rel="icon" type="image/png" href="/static/img/favicon.png">
+  <link rel="apple-touch-icon" href="/static/img/apple-touch-icon.png">
+  <meta name="theme-color" content="#071b34">
+</head>
+<body>
+<div class="container">
+  <h1>{{provider}} login for {{role}}</h1>
+  {% if ready %}
+    <div class="success">{{provider}} credentials were found. Next step is connecting the real OAuth callback flow.</div>
+  {% else %}
+    <div class="notice">{{provider}} login is not active yet. Add these Railway environment variables:</div>
+    <div class="card">
+      {% for item in missing %}<p><code>{{item}}</code></p>{% endfor %}
+    </div>
+  {% endif %}
+  <a class="btn" href="/buyer/login">Back to Login</a>
+</div>
+<script src="/static/js/mobile.js"></script>
+<a class="creator-apply-link-v487" href="/apply-creator">Apply to Sell Videos</a>
+<script src="/static/js/tracking.js"></script>
+</body></html>

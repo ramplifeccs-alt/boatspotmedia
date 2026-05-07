@@ -1,0 +1,112 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Batches - BoatSpotMedia</title>
+  <link rel="stylesheet" href="/static/css/style.css">
+</head>
+<body class="creator-dashboard-v453">
+<div class="bsm-creator-page-shell-v453">
+
+<aside class="bsm-creator-sidebar-v453">
+  <a href="/creator/dashboard" class="bsm-creator-logo-v453">
+    <img src="/static/img/logo-header.png" alt="BoatSpotMedia">
+  </a>
+  <div class="bsm-creator-handle-v453">@BoatSpotMedia.com</div>
+  <nav class="bsm-creator-nav-v453">
+    <a href="/creator/dashboard">Dashboard</a>
+    <a href="/creator/upload">Uploads</a>
+    <a href="/creator/batches" class="active">Batches</a>
+    <a href="/creator/analytics">Analytics</a>
+    <a href="/creator/orders">Orders</a>
+    <a href="/creator/dashboard#products">Products</a>
+    <a href="/creator/pricing">Pricing</a>
+    <a href="/creator/billing">Billing</a>
+<a href="/creator/support">Support Center</a>
+    <a href="/creator/support">Support Center</a>
+    <a href="/creator/dashboard#settings">Settings</a>
+      <div class="creator-sidebar-user-v504e">
+        <div class="creator-sidebar-user-label-v504e">Logged in as</div>
+        <div class="creator-sidebar-user-name-v504e">
+          {% if creator_logged_handle %}
+            {{ creator_logged_handle }}
+          {% else %}
+            {{ creator_logged_name or 'Creator' }}
+          {% endif %}
+        </div>
+      </div>
+
+    <a href="/logout" class="logout">Log out</a>
+  </nav>
+</aside>
+
+  <main class="bsm-creator-main-v453">
+    <div class="bsm-creator-module-wrap-v453">
+      <div class="content creator-batches-page-v504b">
+        <div class="creator-batches-header-v504b">
+          <div>
+            <h1>Your Batches</h1>
+            <p>Manage your uploaded video batches.</p>
+          </div>
+          <a class="upload-new-v504b" href="/creator/upload">Upload New Batch</a>
+        </div>
+
+        {% if not stripe_account_id %}
+        <div class="creator-stripe-required-v491x">
+          <div class="creator-stripe-required-title-v491x">Action required: Connect Stripe to receive payouts</div>
+          <div class="creator-stripe-required-text-v491x">
+            To receive payments from your video sales, you must connect your Stripe account. 
+            This is required before uploading videos or setting prices for sale.
+          </div>
+          <form method="POST" action="/creator/billing/connect-stripe">
+            <button type="submit">Connect Stripe to Receive Payouts</button>
+          </form>
+        </div>
+        {% endif %}
+
+        <div class="batches-list-v504b">
+          {% for b in batches %}
+            {% if b.status != 'deleted' %}
+            <div class="batch-row-v504b">
+              <div class="batch-icon-v504b">📁</div>
+
+              <div class="batch-info-v504b">
+                <div class="batch-title-v504b">{{ b.batch_name or ('Batch #' ~ b.id) }}</div>
+                <div class="batch-meta-v504b">
+                  {% if b.location %}
+                    <span>{{ b.location }}</span>
+                  {% endif %}
+                  <span>{{ b.file_count or 0 }} videos</span>
+                  <span>{{ ((b.total_size_bytes or 0) / 1024 / 1024 / 1024)|round(2) }} GB</span>
+                  {% if b.status %}
+                    <span class="batch-status-v504b">{{ b.status }}</span>
+                  {% endif %}
+                </div>
+              </div>
+
+              <div class="batch-actions-v504b">
+                <a href="/creator/batches/{{ b.id }}">Open Batch</a>
+                <form method="post" action="/creator/batches/{{ b.id }}/delete" onsubmit="return confirm('Delete this batch and hide all videos inside it?');">
+                  <button type="submit">Delete Batch</button>
+                </form>
+              </div>
+            </div>
+            {% endif %}
+          {% else %}
+            <div class="empty-batches-v504b">
+              <h2>No batches yet</h2>
+              <p>Upload your first batch to start selling videos.</p>
+              <a href="/creator/upload">Upload your first batch</a>
+            </div>
+          {% endfor %}
+        </div>
+      </div>
+    </div>
+
+    <!-- IMPORTANT: This keeps the original v50.4 Delete incomplete batch CB button and logic. -->
+    <script src="/static/js/mobile.js"></script>
+  </main>
+</div>
+</body>
+</html>

@@ -1,0 +1,77 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Register - BoatSpotMedia</title>
+  <link rel="stylesheet" href="/static/css/style.css">
+  <link rel="icon" type="image/png" href="/static/img/favicon.png">
+</head>
+<body class="buyer-auth-body-v504o">
+<header class="bsm-simple-header">
+  <a href="/"><img src="/static/img/logo-header.png" alt="BoatSpotMedia" class="bsm-logo-img"></a>
+</header>
+
+<main class="bsm-register-clean-v504q">
+  <h1>Register</h1>
+
+  <div class="bsm-register-grid-v504q">
+    <section class="bsm-register-card-v504q">
+      <h2>Create Account</h2>
+
+      {% if error %}
+        <div class="buyer-auth-error-v504o">{{ error }}</div>
+      {% endif %}
+
+      <form method="post" class="buyer-auth-form-v504o">
+        <label>
+          Name
+          <input type="text" name="display_name" autocomplete="name">
+        </label>
+
+        <label>
+          Email
+          <input type="email" name="email" required autocomplete="email">
+        </label>
+
+        <label>
+          Phone Number
+          <input type="tel" name="phone_number" value="+1" placeholder="+1 954 555 1234" autocomplete="tel">
+        </label>
+
+        <label>
+          Password
+          <input type="password" name="password" required autocomplete="new-password">
+        </label>
+
+        <label class="buyer-checkbox-v504o">
+          <input type="checkbox" name="sms_notifications_enabled" value="1" checked>
+          <span>Send me SMS updates when my edited video is ready to download.</span>
+        </label>
+
+        <label class="buyer-checkbox-v504o">
+          <input type="checkbox" name="accept_terms" value="1" required>
+          <span>I agree to the BoatSpotMedia Terms and Privacy Policy.</span>
+        </label>
+
+        <button type="submit">Register</button>
+      </form>
+    </section>
+
+    <section class="bsm-register-card-v504q">
+      <h2>Already registered?</h2>
+      <p>Use login if you already have an account.</p>
+      <a class="bsm-auth-secondary-btn-v504q" href="/buyer/login">Login</a>
+    </section>
+  </div>
+
+  <section class="bsm-register-card-v504q bsm-oauth-clean-v504q">
+    <h2>Google Login</h2>
+    <a class="buyer-google-btn-v504o" href="/auth/google">Continue with Google</a>
+  </section>
+</main>
+
+<script src="/static/js/mobile.js"></script>
+<script src="/static/js/tracking.js"></script>
+</body>
+</html>

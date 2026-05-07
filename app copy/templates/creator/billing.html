@@ -1,0 +1,176 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Creator Billing - BoatSpotMedia</title><link rel="stylesheet" href="/static/css/style.css"></head>
+<body class="creator-dashboard-v459"><div class="bsm-creator-page-shell-v459">
+<aside class="bsm-creator-sidebar-v459">
+<a href="/creator/dashboard" class="bsm-creator-logo-v459"><img src="/static/img/logo-header.png" alt="BoatSpotMedia"></a>
+<div class="bsm-creator-handle-v459">@BoatSpotMedia.com</div>
+<nav class="bsm-creator-nav-v459">
+<a href="/creator/dashboard">Dashboard</a><a href="/creator/upload">Uploads</a><a href="/creator/batches">Batches</a><a href="/creator/analytics">Analytics</a>
+<a href="/creator/orders">Orders</a><a href="/creator/pricing">Pricing</a><a href="/creator/billing" class="active">Billing</a><a href="/creator/dashboard#settings">Settings</a>
+      <div class="creator-sidebar-user-v504e">
+        <div class="creator-sidebar-user-label-v504e">Logged in as</div>
+        <div class="creator-sidebar-user-name-v504e">
+          {% if creator_logged_handle %}
+            {{ creator_logged_handle }}
+          {% else %}
+            {{ creator_logged_name or 'Creator' }}
+          {% endif %}
+        </div>
+      </div>
+<a href="/logout" class="logout">Log out</a>
+</nav></aside>
+<main class="bsm-creator-main-v459">
+<div class="bsm-billing-wrap-v472 bsm-billing-tabs-page-v504l">
+  <div class="billing-header-v504l">
+    <div>
+      <h1>Creator Billing</h1>
+      <p>Manage your plan, subscription payments, payouts, and billing rules.</p>
+    </div>
+  </div>
+
+  {% with messages = get_flashed_messages() %}
+    {% if messages %}
+      <div class="bsm-billing-flashes-v491m">
+        {% for msg in messages %}<div>{{ msg }}</div>{% endfor %}
+      </div>
+    {% endif %}
+  {% endwith %}
+
+  <div class="billing-tabs-v504l" role="tablist">
+    <button type="button" class="active" data-billing-tab="plan">Plan</button>
+    <button type="button" data-billing-tab="payments">Payments</button>
+    <button type="button" data-billing-tab="payouts">Payouts</button>
+    <button type="button" data-billing-tab="settings">Settings</button>
+  </div>
+
+  <section class="billing-tab-panel-v504l active" id="billing-tab-plan">
+    <div class="billing-section-card-v504l">
+      <h2>Current Plan</h2>
+      <section class="bsm-billing-current-v472">
+        <div><span>Current plan</span><strong>{{ subscription.plan_key|title }}</strong></div>
+        <div><span>Status</span><strong>{{ subscription.status|title }}</strong></div>
+        <div><span>Storage</span><strong>{{ used_gb }} GB / {{ subscription.storage_limit_gb }} GB</strong></div>
+        <div><span>Renewal</span><strong>{{ subscription.current_period_end or "N/A" }}</strong></div>
+      </section>
+      {% set pct = ((used_gb / (subscription.storage_limit_gb or 1)) * 100) %}
+      <div class="bsm-storage-bar-v472"><span style="width: {{ 100 if pct > 100 else pct }}%;"></span></div>
+    </div>
+
+    <section class="bsm-billing-cancel-v504i">
+      <h2>Subscription Cancellation</h2>
+      {% if subscription.plan_key != 'free' and subscription.stripe_subscription_id %}
+        {% if subscription.cancel_at_period_end %}
+          <div class="cancel-status-v504i warning">
+            Your plan is scheduled to cancel at the end of the current billing period.
+            {% if subscription.current_period_end %}
+              <br><strong>Access until:</strong> {{ subscription.current_period_end }}
+            {% endif %}
+          </div>
+          <form method="POST" action="/creator/billing/resume-subscription" onsubmit="return confirm('Resume this subscription and continue renewals?');">
+            <button type="submit" class="resume-subscription-v504i">Resume Subscription</button>
+          </form>
+        {% else %}
+          <p>You can cancel your paid plan anytime. You will keep access until the end of the current paid period.</p>
+          <form method="POST" action="/creator/billing/cancel-subscription" onsubmit="return confirm('Cancel your subscription at the end of the current billing period?');">
+            <button type="submit" class="cancel-subscription-v504i">Cancel Subscription</button>
+          </form>
+        {% endif %}
+      {% elif subscription.plan_key == 'free' %}
+        <p>You are currently on the Free plan. There is no paid subscription to cancel.</p>
+      {% else %}
+        <p>No Stripe subscription ID is connected to this plan yet.</p>
+      {% endif %}
+      <div class="auto-downgrade-note-v504j v50-4k-storage-trim-note">
+        <strong>Storage after cancellation:</strong> When your paid subscription ends and your account moves to Free, BoatSpotMedia keeps your latest 5GB of unsold videos. Older unsold videos may be removed from storage. Videos already purchased by buyers are protected.
+      </div>
+      <div class="auto-downgrade-note-v504j">
+        <strong>Auto downgrade:</strong> When Stripe finishes the cancellation period, your account automatically moves to the Free plan with 5GB storage.
+      </div>
+    </section>
+
+
+    <div class="plan-upgrade-warning-v504m">
+      <h2>Before Choosing a Paid Plan</h2>
+      <p><strong>Test the platform first:</strong> Your Free plan includes 5GB. Upload 1 or 2 short sample videos first to confirm your video format, preview, search, pricing, checkout, and download flow work correctly before paying for more storage.</p>
+      <p><strong>Important:</strong> Stripe processing fees are separate from the BoatSpotMedia commission shown on each plan. Standard U.S. online card pricing is commonly 2.9% + 30¢ per successful domestic card transaction; international cards and currency conversion may cost more.</p>
+    </div>
+
+    <div class="billing-section-card-v504l">
+      <h2>Available Plans</h2>
+      <div class="bsm-plan-grid-v472">
+        {% for plan in plans %}
+        <article class="bsm-plan-card-v472 {% if subscription.plan_key == plan.key %}active{% endif %}">
+          <h3>{{ plan.name }}</h3><strong>{{ plan.price_label }}</strong><p>{{ plan.description }}</p>
+          <p><b>Storage:</b> {{ plan.storage_gb }} GB</p><p><b>Platform commission:</b> {{ plan.commission_percent or 0 }}%</p>
+          {% if subscription.plan_key == plan.key %}<button disabled>Current Plan</button>
+          {% elif plan.key == "free" %}<a class="billing-plan-button-v491m" href="/creator/billing/checkout/free">Switch to Free</a>
+          {% elif plan.price_id %}<a class="billing-plan-button-v491m" href="/creator/billing/checkout/{{ plan.key }}">Choose {{ plan.name }}</a>
+          {% else %}<button disabled>Stripe Price ID needed</button><small>Add Stripe Price ID in Owner Plans or STRIPE_PRICE_CREATOR_{{ plan.key|upper }} in Railway variables.</small>{% endif %}
+        </article>{% endfor %}
+      </div>
+    </div>
+  </section>
+
+  <section class="billing-tab-panel-v504l" id="billing-tab-payments">
+    <div class="billing-section-card-v504l">
+      <h2>Payments</h2>
+      <div class="billing-info-grid-v504l">
+        <div><span>Subscription status</span><strong>{{ subscription.status|title }}</strong></div>
+        <div><span>Current period end</span><strong>{{ subscription.current_period_end or "N/A" }}</strong></div>
+        <div><span>Stripe subscription</span><strong>{{ subscription.stripe_subscription_id or "Not available" }}</strong></div>
+        <div><span>Stripe customer</span><strong>{{ subscription.stripe_customer_id or "Not available" }}</strong></div>
+      </div>
+      <p class="muted">Paid plans renew automatically with Stripe. If payment fails, new uploads can be blocked while existing purchases stay protected.</p>
+    </div>
+  </section>
+
+  <section class="billing-tab-panel-v504l" id="billing-tab-payouts">
+    <section class="bsm-billing-connect-v491l">
+      <h2>Payouts</h2>
+      <p>Connect Stripe to receive payouts from your video sales. This is required before your videos can be sold and paid out automatically.</p>
+      {% if stripe_account_id %}
+        <div class="connect-status ok">Stripe account connected: {{ stripe_account_id }}</div>
+        <form method="POST" action="/creator/billing/stripe-dashboard"><button type="submit">Open Stripe Dashboard</button></form>
+      {% else %}
+        <div class="creator-stripe-required-v491x">
+          <div class="creator-stripe-required-title-v491x">Action required: Connect Stripe to receive payouts</div>
+          <div class="creator-stripe-required-text-v491x">To receive payments from your video sales, you must connect your Stripe account.</div>
+          <form method="POST" action="/creator/billing/connect-stripe"><button type="submit">Connect Stripe to Receive Payouts</button></form>
+        </div>
+      {% endif %}
+    </section>
+  </section>
+
+  <section class="billing-tab-panel-v504l" id="billing-tab-settings">    <section class="bsm-billing-note-v472">
+      <h2>Billing Rules</h2>
+      <p>Paid plans renew automatically with Stripe. If payment fails, new uploads can be blocked while existing purchases stay protected.</p>
+      <p>When a paid subscription ends, the account is downgraded to Free and storage is trimmed according to the Free plan rules.</p>
+    </section>
+  </section>
+</div>
+<script>
+(function(){
+  if(window.__BSM_BILLING_TABS_V504L__) return;
+  window.__BSM_BILLING_TABS_V504L__ = true;
+  function activate(tab){
+    document.querySelectorAll('.billing-tabs-v504l button').forEach(function(btn){
+      btn.classList.toggle('active', btn.getAttribute('data-billing-tab') === tab);
+    });
+    document.querySelectorAll('.billing-tab-panel-v504l').forEach(function(panel){
+      panel.classList.toggle('active', panel.id === 'billing-tab-' + tab);
+    });
+    try{ localStorage.setItem('bsm_billing_tab', tab); }catch(e){}
+  }
+  document.addEventListener('click', function(e){
+    var btn = e.target.closest('[data-billing-tab]');
+    if(!btn) return;
+    activate(btn.getAttribute('data-billing-tab'));
+  });
+  var initial = 'plan';
+  try{ initial = localStorage.getItem('bsm_billing_tab') || 'plan'; }catch(e){}
+  if(!document.getElementById('billing-tab-' + initial)) initial = 'plan';
+  activate(initial);
+})();
+</script>
+</main></div></body></html>

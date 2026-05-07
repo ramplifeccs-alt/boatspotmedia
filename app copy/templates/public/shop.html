@@ -1,0 +1,43 @@
+<!doctype html>
+<html>
+<head>
+  <meta name="viewport" content="width=device-width, initial-scale=1"><meta charset="utf-8"><title>BoatSpotMedia</title><link rel="stylesheet" href="/static/css/style.css">  <link rel="icon" type="image/png" href="/static/img/favicon.png">
+  <link rel="apple-touch-icon" href="/static/img/apple-touch-icon.png">
+  <meta name="theme-color" content="#071b34">
+</head>
+<body>
+<header><div><a href="/" style="color:inherit;text-decoration:none;"><b>BoatSpotMedia</b></a></div><nav><a href="/">Home</a><a href="/search">Find Your Video</a><a href="/shop">Shop</a>{% if session.get("user_id") %}
+  <a class="nav-user" href="{{ session_dashboard_url() }}" style="text-decoration:none;">{{ session_display_name() }}</a>
+  {% if session.get("user_role") == "buyer" %}
+    <a href="/buyer/dashboard">Dashboard</a>
+  {% elif session.get("user_role") == "creator" %}
+    
+  {% elif session.get("user_role") in ["services", "service"] %}
+    
+  {% elif session.get("user_role") in ["charter", "charters"] %}
+    
+  {% endif %}
+  <a href="/logout">Logout</a>
+{% else %}
+  <a href="/buyer/login">Login</a>
+{% endif %}<a class="creator-apply-link-v487" href="/apply-creator">Apply to Sell Videos</a></nav></header>
+<div class="container">
+  <h1>Shop</h1>
+  <p>Products from BoatSpotMedia creators.</p>
+  <div class="grid">
+  {% for p in products %}
+    <a class="card" href="/shop/product/{{p.id}}">
+      <h3>{{ p.title }}</h3>
+      <p>{{ p.description[:120] if p.description else '' }}</p>
+      <p><b>${{ p.price }}</b></p>
+      <small>Shipping: ${{ p.shipping_cost }} · {{ p.processing_time or '' }} · {{ p.shipping_method or '' }}</small>
+    </a>
+  {% else %}
+    <div class="card">No products available yet.</div>
+  {% endfor %}
+  </div>
+</div>
+<script src="/static/js/mobile.js"></script>
+<script src="/static/js/tracking.js"></script>
+</body>
+</html>

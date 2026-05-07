@@ -1,0 +1,62 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>{{ title or "Login" }} - BoatSpotMedia</title>
+  <link rel="stylesheet" href="/static/css/style.css">
+  <link rel="icon" type="image/png" href="/static/img/favicon.png">
+</head>
+<body class="buyer-auth-body-v504o">
+<header class="bsm-simple-header">
+  <a href="/"><img src="/static/img/logo-header.png" alt="BoatSpotMedia" class="bsm-logo-img"></a>
+</header>
+
+<main class="bsm-register-clean-v504q">
+  <h1>{{ title or "Login" }}</h1>
+
+  <div class="bsm-register-grid-v504q">
+    <section class="bsm-register-card-v504q">
+      <h2>Login</h2>
+      <p>{{ subtitle or "Access your account." }}</p>
+
+      {% if error %}
+        <div class="buyer-auth-error-v504o">{{ error }}</div>
+      {% endif %}
+
+      <form method="post" class="buyer-auth-form-v504o">
+        <label>
+          Email
+          <input type="email" name="email" required autocomplete="email">
+        </label>
+
+        <label>
+          Password
+          <input type="password" name="password" required autocomplete="current-password">
+        </label>
+
+        <button type="submit">Login</button>
+      </form>
+
+      <div class="buyer-auth-links-v504o">
+        <a href="/buyer/forgot-password">Forgot password?</a>
+      </div>
+    </section>
+
+    <section class="bsm-register-card-v504q">
+      <h2>New here?</h2>
+      <p>Create an account to save your orders and receive updates.</p>
+      <a class="bsm-auth-secondary-btn-v504q" href="{{ register_url or '/buyer/register' }}">Register</a>
+    </section>
+  </div>
+
+  <section class="bsm-register-card-v504q bsm-oauth-clean-v504q">
+    <h2>Google Login</h2>
+    <a class="buyer-google-btn-v504o" href="/auth/google">Continue with Google</a>
+  </section>
+</main>
+
+<script src="/static/js/mobile.js"></script>
+<script src="/static/js/tracking.js"></script>
+</body>
+</html>

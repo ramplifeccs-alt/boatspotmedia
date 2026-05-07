@@ -1,0 +1,88 @@
+<!doctype html>
+<html>
+<head>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta charset="utf-8">
+  <title>BoatSpotMedia</title>
+  <link rel="stylesheet" href="/static/css/style.css">
+  <link rel="icon" type="image/png" href="/static/img/favicon.png">
+  <link rel="apple-touch-icon" href="/static/img/apple-touch-icon.png">
+  <meta name="theme-color" content="#071b34">
+</head>
+<body><div class="creator-topbar" style="display:flex;justify-content:space-between;align-items:center;gap:12px;padding:12px 18px;background:#0b1220;color:#fff;margin:-1px -1px 16px -1px;">
+  <div><a href="{{ url_for('public.home') }}" style="color:white;text-decoration:none;font-weight:800;"><img src="/static/img/logo-header.png" alt="BoatSpotMedia" class="bsm-logo-img"></a></div>
+  <div style="display:flex;align-items:center;gap:12px;font-size:14px;">
+    <a href="{{ url_for('public.home') }}" style="color:white;text-decoration:none;">Home</a>
+    <a href="/shop" style="color:white;text-decoration:none;">Products</a>
+    <a href="/creator/dashboard" style="color:white;text-decoration:none;" class="nav-user">{% if creator and creator.user %}{{ creator_display_name(creator) if creator is defined else 'Creator' }}{% elif session.get('display_name') %}{{ session.get('display_name') }}{% elif session.get('user_email') %}{{ session.get('user_email') }}{% endif %}</a>
+    <a href="/logout" style="color:white;text-decoration:none;">Logout</a>
+  </div>
+</div>
+<div class="sidebar-layout">
+  <div class="sidebar">
+    <h2>{{ creator_name or 'Creator' }}</h2>
+    {% if creator_instagram %}<small>@{{ creator_instagram }}</small><br><br>{% endif %}
+    <a href="/creator/dashboard">Dashboard</a>
+    <a href="/creator/upload">Uploads</a>
+    <a href="/creator/batches">Batches</a>
+    <a href="/creator/analytics">Analytics</a>
+<a href="/creator/orders">Orders</a>
+    <a href="/creator/products">Products</a>
+    <a href="/creator/pricing">Pricing</a>
+      <a href="/creator/billing">Billing</a>
+    <a href="/creator/settings">Settings</a>
+    <br><a href="/logout">Log out</a>
+  </div>
+
+  <div class="content">
+    <h1>Custom Variants for {{product.title}}</h1>
+    <p>Create flexible variants for the same product. Examples: Color = Black, Size = XL, Material = Metal, Style = Premium, Finish = Matte.</p>
+
+    <form method="post" class="card" enctype="multipart/form-data">
+      <label>Variant type</label>
+      <input name="variant_name" placeholder="Example: Color, Size, Material, Style">
+
+      <label>Variant option</label>
+      <input name="variant_value" placeholder="Example: Black, XL, Metal, Premium">
+
+      <label>Price adjustment optional</label>
+      <input name="price_adjustment" placeholder="0.00">
+
+      <label>Photos for this variant (max 5)</label>
+      <input type="file" name="photos" multiple accept="image/*">
+
+      <button class="btn">Add Variant</button>
+    </form>
+
+    <h2>Current Variants</h2>
+    <table>
+      <tr><th>Type</th><th>Option</th><th>Adjustment</th><th>Action</th></tr>
+      {% for v in variants %}
+        <tr>
+          <td>{{v.variant_name or 'Variant'}}</td>
+          <td>{{v.variant_value}}</td>
+          <td>${{v.price_adjustment}}</td>
+          <td>
+            <form method="post" action="/creator/products/variants/{{v.id}}/delete" onsubmit="return confirm('Delete this variant?');">
+              <button class="btn danger">Delete</button>
+            </form>
+          </td>
+        </tr>
+      {% else %}
+        <tr><td colspan="4">No variants yet.</td></tr>
+      {% endfor %}
+    </table>
+  </div>
+</div>
+<script src="/static/js/mobile.js"></script>
+</body>
+</html>
+
+<script>
+function regenerateThumbnail(videoId){
+  fetch("/creator/videos/"+videoId+"/regenerate-thumbnail",{method:"POST"})
+    .then(r=>r.json())
+    .then(d=>{ if(d.ok){ alert("Thumbnail regenerated."); location.reload(); } else { alert(d.error || "Could not regenerate thumbnail."); }})
+    .catch(()=>alert("Could not regenerate thumbnail."));
+}
+</script>
