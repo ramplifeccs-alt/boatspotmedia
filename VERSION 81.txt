@@ -1,0 +1,11 @@
+BoatSpotMedia v50.5E Support Route Prefix Fix
+Base: v50.5C.
+
+Fix:
+- Corrects buyer support route registration for buyer blueprint prefix.
+- Final URL is /buyer/support, but inside buyer_bp route is /support.
+- Keeps creator support routes as /creator/support.
+- Keeps owner support routes as /owner/support.
+- Validates that support routes and /creator/login are registered in Flask url_map.
+
+Does not touch uploads, R2, batches, checkout, billing, Stripe, payouts, analytics, Google OAuth, or SMS/Twilio.
