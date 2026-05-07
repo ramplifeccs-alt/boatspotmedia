@@ -559,6 +559,7 @@ def buyer_reset_password_v504o(token):
     return render_template("buyer/reset_password.html")
 
 
+@buyer_bp.route("/dashboard")
 @buyer_bp.route("/buyer/dashboard")
 def buyer_dashboard():
     if not session.get("user_id") or session.get("user_role") != "buyer":
@@ -612,6 +613,7 @@ def buyer_orders():
     return redirect("/buyer/dashboard")
 
 
+@buyer_bp.route("/downloads")
 @buyer_bp.route("/buyer/downloads")
 def buyer_downloads():
     return redirect("/buyer/dashboard")
@@ -816,9 +818,10 @@ def buyer_support_center_v505c():
         # Verify buyer owns the order and get creator if not provided.
         try:
             row = db.session.execute(db.text("""
-                SELECT o.id AS order_id, i.creator_id
+                SELECT o.id AS order_id, COALESCE(i.creator_id, v.creator_id) AS creator_id
                 FROM bsm_cart_order o
                 JOIN bsm_cart_order_item i ON i.cart_order_id=o.id
+                LEFT JOIN video v ON v.id=i.video_id
                 WHERE o.id=:order_id
                   AND (o.buyer_user_id=:buyer_id OR lower(o.buyer_email)=lower(:buyer_email))
                 LIMIT 1
@@ -872,12 +875,14 @@ def buyer_support_center_v505c():
 
     try:
         orders = db.session.execute(db.text("""
-            SELECT DISTINCT o.id, o.created_at, i.creator_id, cp.public_name AS creator_name,
+            SELECT DISTINCT o.id, o.created_at, COALESCE(i.creator_id, v.creator_id) AS creator_id,
+                   COALESCE(cp.public_name, cpa.public_name, 'Creator') AS creator_name,
                    COALESCE(v.location, v.internal_filename, 'Video') AS title
             FROM bsm_cart_order o
             JOIN bsm_cart_order_item i ON i.cart_order_id=o.id
-            LEFT JOIN creator_profile cp ON cp.id=i.creator_id
             LEFT JOIN video v ON v.id=i.video_id
+            LEFT JOIN creator_profile cp ON cp.id=i.creator_id
+            LEFT JOIN creator_profile cpa ON cpa.id=v.creator_id
             WHERE (o.buyer_user_id=:buyer_id OR lower(o.buyer_email)=lower(:buyer_email))
             ORDER BY o.created_at DESC
             LIMIT 50

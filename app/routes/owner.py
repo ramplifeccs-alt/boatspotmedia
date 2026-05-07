@@ -2001,7 +2001,7 @@ def owner_support_inbox_v505c():
     _bsm_ensure_support_tables_v505c()
     try:
         threads=db.session.execute(db.text("""
-            SELECT st.*, cp.public_name AS creator_name,
+            SELECT st.*, COALESCE(cp.public_name, cp.email, 'Creator #' || st.creator_id) AS creator_name,
                    (SELECT body FROM support_message sm WHERE sm.thread_id=st.id ORDER BY sm.created_at DESC, sm.id DESC LIMIT 1) AS last_body
             FROM support_thread st
             LEFT JOIN creator_profile cp ON cp.id=st.creator_id

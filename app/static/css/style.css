@@ -3166,3 +3166,7 @@ input[name="phone_number"]{letter-spacing:.02em;}
 .support-close-v505c{background:#64748b!important;}
 .support-mini-btn-v505c{display:inline-block;margin:8px 0 10px;background:#f1f5f9;border:1px solid #cbd5e1;color:#0f172a!important;text-decoration:none;border-radius:10px;padding:7px 10px;font-weight:900;font-size:13px;}
 @media(max-width:850px){.support-grid-v505c{grid-template-columns:1fr}.support-page-v505c{padding:14px}.support-bubble-v505c{max-width:92%;}}
+
+/* v50.5F buyer menu polish */
+.sidebar a[href="/buyer/support"]{font-weight:900;}
+.bsm-order-card .support-mini-btn-v505c{width:auto;max-width:180px;text-align:center;}

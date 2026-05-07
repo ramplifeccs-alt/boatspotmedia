@@ -1,20 +1,5 @@
-<!doctype html>
-<html lang="en">
-<head>
-  <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>My Orders - BoatSpotMedia</title>
-  <link rel="stylesheet" href="/static/css/style.css">
-  <link rel="icon" type="image/png" href="/static/img/favicon.png">
-  <link rel="apple-touch-icon" href="/static/img/apple-touch-icon.png">
-  <meta name="theme-color" content="#071b34">
-</head>
-<body>
-<header class="bsm-simple-header">
-  <a href="/"><img src="/static/img/logo-header.png" alt="BoatSpotMedia" class="bsm-logo-img"></a>
-  <a href="/logout">Logout</a>
-</header>
-
+{% extends "buyer/base.html" %}
+{% block content %}
 <div class="container" style="max-width:1000px;margin:30px auto;padding:20px;">
   <h1>My Orders</h1>
   <div style="background:#eff6ff;border:1px solid #bfdbfe;color:#1e3a8a;padding:12px;border-radius:12px;margin:14px 0;">
@@ -110,46 +95,4 @@
   {% endif %}
   <p style="margin-top:20px;"><a class="btn" href="/">Back to BoatSpotMedia</a></p>
 </div>
-
-<script>
-function bsmFormatCountdown(seconds){
-  seconds = Math.max(0, parseInt(seconds || 0, 10));
-  const h = Math.floor(seconds / 3600);
-  const m = Math.floor((seconds % 3600) / 60);
-  const s = seconds % 60;
-  if (seconds <= 0) return "Expired";
-  if (h >= 24) {
-    const d = Math.floor(h / 24);
-    const rh = h % 24;
-    return d + "d " + rh + "h " + m + "m";
-  }
-  return h + "h " + m + "m " + s + "s";
-}
-function bsmTickCountdowns(){
-  document.querySelectorAll(".bsm-countdown").forEach(function(el){
-    let seconds = parseInt(el.getAttribute("data-seconds") || "0", 10);
-    el.textContent = bsmFormatCountdown(seconds);
-    if (seconds <= 0) {
-      const row = el.closest(".bsm-delivery-row");
-      if (row) {
-        const link = row.querySelector("a.bsm-download-btn");
-        if (link) {
-          const btn = document.createElement("button");
-          btn.className = "bsm-download-btn bsm-download-disabled";
-          btn.disabled = true;
-          btn.textContent = "Expired";
-          link.replaceWith(btn);
-        }
-      }
-    } else {
-      el.setAttribute("data-seconds", seconds - 1);
-    }
-  });
-}
-bsmTickCountdowns();
-setInterval(bsmTickCountdowns, 1000);
-</script>
-<script src="/static/js/mobile.js"></script>
-<script src="/static/js/tracking.js"></script>
-</body>
-</html>
+{% endblock %}

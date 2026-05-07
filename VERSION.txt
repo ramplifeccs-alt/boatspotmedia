@@ -1,11 +1,14 @@
-BoatSpotMedia v50.5E Support Route Prefix Fix
-Base: v50.5C.
+BoatSpotMedia v50.5F Support Menu Inbox Fix
+Base: v50.5E.
 
-Fix:
-- Corrects buyer support route registration for buyer blueprint prefix.
-- Final URL is /buyer/support, but inside buyer_bp route is /support.
-- Keeps creator support routes as /creator/support.
-- Keeps owner support routes as /owner/support.
-- Validates that support routes and /creator/login are registered in Flask url_map.
+Fixes:
+- Buyer menu cleaned: removes Shop, Services, and Downloads.
+- Buyer Dashboard/My Orders now uses the buyer sidebar menu layout.
+- Downloads route redirects to My Orders.
+- Request Support Order/Creator dropdown now uses creator from order item OR video creator.
+- Owner Support Inbox query is more robust for creator platform requests.
 
-Does not touch uploads, R2, batches, checkout, billing, Stripe, payouts, analytics, Google OAuth, or SMS/Twilio.
+Note:
+- If Creator Dashboard opens in Chrome but not Safari, that is usually Safari session/cache/cookies. Clear Safari site data for boatspotmedia.com or log out/login again.
+
+Does not touch uploads, R2, batches, checkout, billing, Stripe, payouts, analytics, Google OAuth, or Twilio SMS.
