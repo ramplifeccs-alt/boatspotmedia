@@ -95,4 +95,29 @@
   {% endif %}
   <p style="margin-top:20px;"><a class="btn" href="/">Back to BoatSpotMedia</a></p>
 </div>
+
+<script>
+(function bsmStartBuyerCountdownV505i(){
+  function fmt(total){
+    total = parseInt(total || 0, 10);
+    if(total <= 0) return "Expired";
+    var d = Math.floor(total / 86400);
+    var h = Math.floor((total % 86400) / 3600);
+    var m = Math.floor((total % 3600) / 60);
+    if(d > 0) return d + "d " + h + "h " + m + "m";
+    if(h > 0) return h + "h " + m + "m";
+    return m + "m";
+  }
+  function tick(){
+    document.querySelectorAll(".bsm-countdown").forEach(function(el){
+      var sec = parseInt(el.getAttribute("data-seconds") || "0", 10);
+      el.textContent = fmt(sec);
+      if(sec > 0) el.setAttribute("data-seconds", String(sec - 1));
+    });
+  }
+  tick();
+  setInterval(tick, 1000);
+})();
+</script>
+
 {% endblock %}

@@ -796,6 +796,67 @@ def _bsm_thread_messages_v505c(thread_id):
         db.session.rollback()
         return []
 
+
+def _bsm_buyer_support_order_choices_v505i(buyer_id, buyer_email):
+    """Build support dropdown choices from the same order/item flow used by My Orders."""
+    choices = []
+    seen = set()
+    try:
+        _claim_guest_orders_v428(buyer_id, buyer_email)
+    except Exception:
+        pass
+
+    for order in _buyer_orders_for_user_v424(buyer_id, buyer_email):
+        order_id = order.get("id") if hasattr(order, "get") else order["id"]
+        try:
+            raw_items = _buyer_order_items(order_id)
+        except Exception:
+            raw_items = []
+        for raw in raw_items or []:
+            ix = dict(raw)
+            creator_id = ix.get("creator_id")
+            # _buyer_order_items SELECT i.*, v.* may not expose creator_id reliably in some DB layouts.
+            if not creator_id:
+                try:
+                    row = db.session.execute(db.text("""
+                        SELECT creator_id
+                        FROM video
+                        WHERE id=:video_id
+                        LIMIT 1
+                    """), {"video_id": ix.get("video_id")}).mappings().first()
+                    creator_id = row.get("creator_id") if row else None
+                except Exception:
+                    db.session.rollback()
+                    creator_id = None
+            if not creator_id:
+                continue
+            key = (int(order_id), int(creator_id))
+            if key in seen:
+                continue
+            seen.add(key)
+            creator_name = "Creator"
+            try:
+                row = db.session.execute(db.text("""
+                    SELECT public_name, email
+                    FROM creator_profile
+                    WHERE id=:creator_id
+                    LIMIT 1
+                """), {"creator_id": creator_id}).mappings().first()
+                if row:
+                    creator_name = row.get("public_name") or row.get("email") or creator_name
+            except Exception:
+                db.session.rollback()
+            title = ix.get("location") or ix.get("internal_filename") or ix.get("filename") or "Video"
+            choices.append({
+                "id": order_id,
+                "creator_id": creator_id,
+                "creator_name": creator_name,
+                "title": title,
+                "created_at": order.get("created_at") if hasattr(order, "get") else None,
+            })
+    return choices
+
+
 @buyer_bp.route("/support", methods=["GET", "POST"])
 def buyer_support_center_v505c():
     if not session.get("user_id") or session.get("user_role") != "buyer":
@@ -816,26 +877,17 @@ def buyer_support_center_v505c():
             flash("Please enter a message.")
             return redirect("/buyer/support")
 
-        # Verify buyer owns the order and get creator if not provided.
-        try:
-            row = db.session.execute(db.text("""
-                SELECT o.id AS order_id, v.creator_id AS creator_id
-                FROM bsm_cart_order o
-                JOIN bsm_cart_order_item i ON i.cart_order_id=o.id
-                LEFT JOIN video v ON v.id=i.video_id
-                WHERE o.id=:order_id
-                  AND (o.buyer_user_id=:buyer_id OR lower(o.buyer_email)=lower(:buyer_email))
-                  AND v.creator_id IS NOT NULL
-                LIMIT 1
-            """), {"order_id": order_id, "buyer_id": buyer_id, "buyer_email": buyer_email}).mappings().first()
-        except Exception:
-            db.session.rollback()
-            row = None
-
-        if row:
-            creator_id = row.get("creator_id") or creator_id
-        if not creator_id:
-            flash("Could not identify the creator for this support request.")
+        # Verify buyer owns the order and get creator using the same flow as My Orders.
+        valid_choices = _bsm_buyer_support_order_choices_v505i(buyer_id, buyer_email)
+        selected_choice = None
+        for ch in valid_choices:
+            if str(ch.get("id")) == str(order_id) and (not creator_id or str(ch.get("creator_id")) == str(creator_id)):
+                selected_choice = ch
+                break
+        if selected_choice:
+            creator_id = selected_choice.get("creator_id") or creator_id
+        if not selected_choice or not creator_id:
+            flash("Please select a valid order from the list.")
             return redirect("/buyer/support")
 
         try:
@@ -875,26 +927,7 @@ def buyer_support_center_v505c():
         db.session.rollback()
         threads=[]
 
-    try:
-        orders = db.session.execute(db.text("""
-            SELECT DISTINCT o.id, o.created_at,
-                   v.creator_id AS creator_id,
-                   COALESCE(cp.public_name, cp.email, 'Creator') AS creator_name,
-                   COALESCE(v.location, v.internal_filename, 'Video') AS title
-            FROM bsm_cart_order o
-            JOIN bsm_cart_order_item i ON i.cart_order_id=o.id
-            LEFT JOIN video v ON v.id=i.video_id
-            LEFT JOIN creator_profile cp ON cp.id=v.creator_id
-            WHERE (o.buyer_user_id=:buyer_id OR lower(o.buyer_email)=lower(:buyer_email))
-              AND v.creator_id IS NOT NULL
-            ORDER BY o.created_at DESC
-            LIMIT 50
-        """), {"buyer_id": buyer_id, "buyer_email": buyer_email}).mappings().all()
-    except Exception as e:
-        db.session.rollback()
-        try: print("buyer support orders v50.5H warning:", e)
-        except Exception: pass
-        orders=[]
+    orders = _bsm_buyer_support_order_choices_v505i(buyer_id, buyer_email)
 
     return render_template("buyer/support.html", threads=threads, orders=orders, email=buyer_email)
 
