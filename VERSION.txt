@@ -1,9 +1,14 @@
-BoatSpotMedia v50.5K Buyer to Creator Visibility Fix
-Base: v50.5J.
+BoatSpotMedia v50.5L Support Notifications Time Fix
+Base: v50.5K.
 
-Fix:
-- Buyer -> Creator support requests now appear in Creator Support Center even if support_thread.creator_id does not match perfectly.
-- Creator Buyer Messages now matches by direct creator_id OR by the purchased order's video.creator_id.
-- Creator can open/reply buyer threads using the same order/video ownership fallback.
+Fixes:
+- Support timestamps display in Miami/New York time.
+- Buyer thread/message pages format message times.
+- Creator/Owner support pages format message times.
+- Adds Creator Dashboard notification cards:
+  - Recent sales
+  - Buyer support
+  - Platform support
+- Keeps creator replies visible through existing support thread flow.
 
-Does not touch uploads, R2, batches, checkout, billing, Stripe, payouts, analytics, Google OAuth, Twilio SMS, or Owner/Platform Support flow.
+Does not touch uploads, R2, batches, checkout, billing, Stripe, payouts, analytics, Google OAuth, or Twilio SMS.

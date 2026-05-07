@@ -10,7 +10,7 @@
       <div class="support-bubble-v505c {% if m.sender_role == 'buyer' %}mine{% else %}other{% endif %}">
         <strong>{{ m.sender_role|replace('_',' ')|title }}</strong>
         <p>{{ m.body }}</p>
-        <small>{{ m.created_at }}</small>
+        <small>{{ m.created_at_et or m.created_at }}</small>
       </div>
     {% endfor %}
   </div>

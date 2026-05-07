@@ -3170,3 +3170,11 @@ input[name="phone_number"]{letter-spacing:.02em;}
 /* v50.5F buyer menu polish */
 .sidebar a[href="/buyer/support"]{font-weight:900;}
 .bsm-order-card .support-mini-btn-v505c{width:auto;max-width:180px;text-align:center;}
+
+.creator-notifications-v505l{background:#fff;border:1px solid #e5e7eb;border-radius:18px;padding:16px;margin:14px 0 20px;box-shadow:0 8px 24px rgba(15,23,42,.06)}
+.creator-notifications-v505l h2{margin:0 0 12px;color:#0f172a}
+.creator-notification-grid-v505l{display:grid;grid-template-columns:repeat(3,1fr);gap:12px}
+.creator-notification-grid-v505l a{display:block;text-decoration:none;color:#0f172a;background:#f8fafc;border:1px solid #e2e8f0;border-radius:14px;padding:14px}
+.creator-notification-grid-v505l strong{font-size:28px;display:block;color:#2563eb}
+.creator-notification-grid-v505l span{font-weight:900;color:#475569}
+@media(max-width:800px){.creator-notification-grid-v505l{grid-template-columns:1fr}}

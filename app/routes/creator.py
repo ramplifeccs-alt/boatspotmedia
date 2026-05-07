@@ -3746,6 +3746,7 @@ def dashboard():
     creator = current_creator()
     if creator:
         _recalculate_creator_storage(creator.id)
+    creator_notifications = _bsm_creator_notification_counts_v505l(creator.id if creator else None)
     storage_limit_gb, max_batch_gb = _creator_plan_limits(creator)
     storage_used_gb = _creator_storage_used_gb(creator.id if creator is not None else session.get('creator_id'))
     if not creator:
@@ -5919,6 +5920,22 @@ def _bsm_creator_video_insights_v504(creator_id):
 
 
 
+
+def _bsm_support_et_v505l(value):
+    try:
+        from zoneinfo import ZoneInfo
+        from datetime import timezone
+        if not value:
+            return ""
+        if getattr(value, "tzinfo", None) is None:
+            value = value.replace(tzinfo=timezone.utc)
+        return value.astimezone(ZoneInfo("America/New_York")).strftime("%m/%d/%Y %I:%M %p")
+    except Exception:
+        try:
+            return value.strftime("%m/%d/%Y %I:%M %p")
+        except Exception:
+            return str(value or "")
+
 # v50.5C Internal Support Center helpers
 def _bsm_ensure_support_tables_v505c():
     try:
@@ -5972,6 +5989,45 @@ def _bsm_thread_messages_v505c(thread_id):
 def _bsm_creator_id_v505c():
     c = current_creator()
     return c.id if c else (session.get("creator_id") or session.get("user_id"))
+
+
+def _bsm_creator_notification_counts_v505l(creator_id):
+    data = {"new_sales": 0, "buyer_support": 0, "platform_support": 0}
+    if not creator_id:
+        return data
+    try:
+        data["new_sales"] = db.session.execute(db.text("""
+            SELECT COUNT(*)
+            FROM bsm_cart_order_item i
+            LEFT JOIN video v ON v.id=i.video_id
+            WHERE COALESCE(i.creator_id, v.creator_id)=:creator_id
+              AND COALESCE(i.created_at, CURRENT_TIMESTAMP) >= (CURRENT_TIMESTAMP - INTERVAL '7 days')
+        """), {"creator_id": creator_id}).scalar() or 0
+    except Exception:
+        db.session.rollback()
+    try:
+        data["buyer_support"] = db.session.execute(db.text("""
+            SELECT COUNT(DISTINCT st.id)
+            FROM support_thread st
+            LEFT JOIN bsm_cart_order_item i ON i.cart_order_id = st.order_id
+            LEFT JOIN video v ON v.id = i.video_id
+            WHERE st.thread_type='buyer_creator'
+              AND COALESCE(st.status,'open') <> 'closed'
+              AND (st.creator_id=:creator_id OR v.creator_id=:creator_id)
+        """), {"creator_id": creator_id}).scalar() or 0
+    except Exception:
+        db.session.rollback()
+    try:
+        data["platform_support"] = db.session.execute(db.text("""
+            SELECT COUNT(*)
+            FROM support_thread
+            WHERE thread_type='creator_owner'
+              AND creator_id=:creator_id
+              AND COALESCE(status,'open') <> 'closed'
+        """), {"creator_id": creator_id}).scalar() or 0
+    except Exception:
+        db.session.rollback()
+    return data
 
 @creator_bp.route("/support", methods=["GET", "POST"])
 def creator_support_center_v505c():
@@ -6037,6 +6093,10 @@ def creator_support_center_v505c():
     except Exception:
         db.session.rollback(); platform_threads=[]
 
+    buyer_threads=[dict(t) for t in buyer_threads]
+    platform_threads=[dict(t) for t in platform_threads]
+    for t in buyer_threads + platform_threads:
+        t["last_message_at_et"] = _bsm_support_et_v505l(t.get("last_message_at") or t.get("updated_at") or t.get("created_at"))
     return render_template("creator/support.html", buyer_threads=buyer_threads, platform_threads=platform_threads, active_tab=(request.args.get("tab") or "buyer"))
 
 @creator_bp.route("/support/<int:thread_id>", methods=["GET","POST"])
@@ -6085,5 +6145,9 @@ def creator_support_thread_v505c(thread_id):
                 db.session.rollback(); flash("Could not send message.")
         return redirect(f"/creator/support/{thread_id}")
 
-    messages=_bsm_thread_messages_v505c(thread_id)
+    messages=[dict(m) for m in _bsm_thread_messages_v505c(thread_id)]
+    for m in messages:
+        m["created_at_et"] = _bsm_support_et_v505l(m.get("created_at"))
+    thread=dict(thread)
+    thread["last_message_at_et"] = _bsm_support_et_v505l(thread.get("last_message_at") or thread.get("updated_at") or thread.get("created_at"))
     return render_template("creator/support_thread.html", thread=thread, messages=messages)

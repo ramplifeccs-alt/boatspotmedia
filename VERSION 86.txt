@@ -1,0 +1,11 @@
+BoatSpotMedia v50.5J Support Thread Flow Fix
+Base: v50.5I.
+
+Fixes:
+- Buyer support creation now returns to Support list instead of immediately opening a thread that could fail ownership lookup.
+- Buyer thread/list lookup uses buyer_email as primary match and tolerates buyer_user_id mismatch/null.
+- Creator Platform Support creation returns to Platform Support list.
+- Owner Support Inbox query no longer depends on creator_profile join/columns; lists all creator_owner threads.
+- Owner support thread view no longer depends on creator_profile join/columns.
+
+Does not touch uploads, R2, batches, checkout, billing, Stripe, payouts, analytics, Google OAuth, or Twilio SMS.

@@ -746,6 +746,22 @@ def bsm_download_video_buyer_v435(video_id):
 
 
 
+
+def _bsm_support_et_v505l(value):
+    try:
+        from zoneinfo import ZoneInfo
+        from datetime import timezone
+        if not value:
+            return ""
+        if getattr(value, "tzinfo", None) is None:
+            value = value.replace(tzinfo=timezone.utc)
+        return value.astimezone(ZoneInfo("America/New_York")).strftime("%m/%d/%Y %I:%M %p")
+    except Exception:
+        try:
+            return value.strftime("%m/%d/%Y %I:%M %p")
+        except Exception:
+            return str(value or "")
+
 # v50.5C Internal Support Center helpers
 def _bsm_ensure_support_tables_v505c():
     try:
@@ -921,7 +937,7 @@ def buyer_support_center_v505c():
             LEFT JOIN creator_profile cp ON cp.id=st.creator_id
             WHERE st.thread_type='buyer_creator'
               AND (
-                lower(COALESCE(st.buyer_email,''))=lower(:buyer_email)
+                lower(COALESCE(st.buyer_email,''))=lower(COALESCE(:buyer_email,''))
                 OR st.buyer_user_id=:buyer_id
               )
             ORDER BY st.last_message_at DESC, st.id DESC
@@ -932,6 +948,9 @@ def buyer_support_center_v505c():
 
     orders = _bsm_buyer_support_order_choices_v505i(buyer_id, buyer_email)
 
+    threads=[dict(t) for t in threads]
+    for t in threads:
+        t["last_message_at_et"] = _bsm_support_et_v505l(t.get("last_message_at") or t.get("updated_at") or t.get("created_at"))
     return render_template("buyer/support.html", threads=threads, orders=orders, email=buyer_email)
 
 @buyer_bp.route("/support/<int:thread_id>", methods=["GET", "POST"])
@@ -949,7 +968,7 @@ def buyer_support_thread_v505c(thread_id):
             LEFT JOIN creator_profile cp ON cp.id=st.creator_id
             WHERE st.id=:tid AND st.thread_type='buyer_creator'
               AND (
-                lower(COALESCE(st.buyer_email,''))=lower(:buyer_email)
+                lower(COALESCE(st.buyer_email,''))=lower(COALESCE(:buyer_email,''))
                 OR st.buyer_user_id=:buyer_id
               )
             LIMIT 1
@@ -977,5 +996,9 @@ def buyer_support_thread_v505c(thread_id):
                 flash("Could not send message.")
         return redirect(f"/buyer/support/{thread_id}")
 
-    messages=_bsm_thread_messages_v505c(thread_id)
+    messages=[dict(m) for m in _bsm_thread_messages_v505c(thread_id)]
+    for m in messages:
+        m["created_at_et"] = _bsm_support_et_v505l(m.get("created_at"))
+    thread=dict(thread)
+    thread["last_message_at_et"] = _bsm_support_et_v505l(thread.get("last_message_at") or thread.get("updated_at") or thread.get("created_at"))
     return render_template("buyer/support_thread.html", thread=thread, messages=messages, email=buyer_email)

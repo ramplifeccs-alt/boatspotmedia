@@ -54,6 +54,15 @@
 </div>
 
       <h1>Creator Dashboard</h1>
+<div class="creator-notifications-v505l">
+  <h2>Notifications</h2>
+  <div class="creator-notification-grid-v505l">
+    <a href="/creator/orders"><strong>{{ creator_notifications.new_sales if creator_notifications else 0 }}</strong><span>Recent sales</span></a>
+    <a href="/creator/support"><strong>{{ creator_notifications.buyer_support if creator_notifications else 0 }}</strong><span>Buyer support</span></a>
+    <a href="/creator/support?tab=platform"><strong>{{ creator_notifications.platform_support if creator_notifications else 0 }}</strong><span>Platform support</span></a>
+  </div>
+</div>
+
 
 {% if not stripe_account_id %}
 <div class="creator-stripe-required-v491x">
