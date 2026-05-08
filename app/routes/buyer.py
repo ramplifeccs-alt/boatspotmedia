@@ -879,7 +879,7 @@ def _bsm_buyer_support_threads_v505o(buyer_id, buyer_email):
     try:
         rows = db.session.execute(db.text("""
             SELECT st.*,
-                   COALESCE(cp.public_name, 'Creator') AS creator_name,
+                   'Creator' AS creator_name,
                    (
                     SELECT body
                     FROM support_message sm
@@ -900,7 +900,6 @@ def _bsm_buyer_support_threads_v505o(buyer_id, buyer_email):
                     WHERE sm.thread_id=st.id
                    ) AS message_count
             FROM support_thread st
-            LEFT JOIN creator_profile cp ON cp.id=st.creator_id
             WHERE st.thread_type='buyer_creator'
               AND (
                 lower(COALESCE(st.buyer_email,''))=lower(COALESCE(:buyer_email,''))
@@ -917,11 +916,10 @@ def _bsm_buyer_support_threads_v505o(buyer_id, buyer_email):
     except Exception as e:
         db.session.rollback()
         try:
-            print("buyer support inbox v50.5O warning:", e)
+            print("buyer support inbox v50.5P warning:", e)
         except Exception:
             pass
         return []
-
 
 def buyer_support_center_v505c():
     if not session.get("user_id") or session.get("user_role") != "buyer":
@@ -1019,9 +1017,8 @@ def buyer_support_thread_v505c(thread_id):
 
     try:
         thread=db.session.execute(db.text("""
-            SELECT st.*, cp.public_name AS creator_name
+            SELECT st.*, 'Creator' AS creator_name
             FROM support_thread st
-            LEFT JOIN creator_profile cp ON cp.id=st.creator_id
             WHERE st.id=:tid AND st.thread_type='buyer_creator'
               AND (
                 lower(COALESCE(st.buyer_email,''))=lower(COALESCE(:buyer_email,''))

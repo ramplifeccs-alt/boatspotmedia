@@ -1,0 +1,10 @@
+BoatSpotMedia v50.5N Force Buyer Reply Visibility
+Base: v50.5M.
+
+Fixes:
+- Buyer support thread reads all messages directly by thread_id after thread ownership is verified.
+- Creator replies are explicitly saved as sender_role='creator'.
+- Buyer support thread labels messages as You / Creator.
+- Creator support thread labels messages as You / Buyer / Platform Support.
+
+Does not touch uploads, R2, batches, checkout, billing, Stripe, payouts, analytics, Google OAuth, or Twilio SMS.
