@@ -1,9 +1,9 @@
-BoatSpotMedia v50.5R Buyer Support Route Helper Fix
-Base: v50.5Q.
+BoatSpotMedia v50.5S Buyer Support Thread Render Fix
+Base: v50.5R.
 
 Fix:
-- Removes accidental Flask route decorator from helper _bsm_buyer_support_threads_v505o.
-- Ensures /buyer/support points to buyer_support_center_v505c.
-- Fixes TypeError: _bsm_buyer_support_threads_v505o() missing buyer_id and buyer_email.
+- /buyer/support/<id> now renders buyer/support_thread.html instead of returning raw message rows.
+- Buyer can open a support conversation and see Buyer/Creator messages in the chat UI.
+- Keeps /buyer/support helper route fix from v50.5R.
 
-Does not touch uploads, R2, batches, checkout, billing, Stripe, payouts, Google OAuth, SMS, Creator Support, or Owner Support.
+Does not touch uploads, R2, batches, checkout, billing, Stripe, payouts, analytics, Google OAuth, SMS, Creator Support, or Owner Support.

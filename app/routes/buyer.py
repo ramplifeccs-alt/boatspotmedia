@@ -1047,77 +1047,90 @@ def buyer_support_center_v505c():
 
 
 
+
 @buyer_bp.route("/support/<int:thread_id>", methods=["GET", "POST"])
-
-def _bsm_support_messages_for_thread_v505n(thread_id):
-    try:
-        rows = db.session.execute(db.text("""
-            SELECT
-                id,
-                thread_id,
-                COALESCE(sender_role, 'system') AS sender_role,
-                sender_id,
-                sender_email,
-                COALESCE(body, '') AS body,
-                created_at
-            FROM support_message
-            WHERE thread_id=:tid
-            ORDER BY id ASC
-        """), {"tid": thread_id}).mappings().all()
-        return [dict(r) for r in rows]
-    except Exception as e:
-        db.session.rollback()
-        try:
-            print("buyer support messages v50.5N warning:", e)
-        except Exception:
-            pass
-        return []
-
-
 def buyer_support_thread_v505c(thread_id):
     if not session.get("user_id") or session.get("user_role") != "buyer":
         return redirect("/buyer/login")
-    _bsm_ensure_support_tables_v505c()
-    buyer_id=session.get("user_id")
-    buyer_email=session.get("user_email")
 
     try:
-        thread=db.session.execute(db.text("""
+        _bsm_ensure_support_tables_v505c()
+    except Exception:
+        pass
+
+    buyer_id = session.get("user_id")
+    buyer_email = session.get("user_email")
+
+    try:
+        thread = db.session.execute(db.text("""
             SELECT st.*, 'Creator' AS creator_name
             FROM support_thread st
-            WHERE st.id=:tid AND st.thread_type='buyer_creator'
+            WHERE st.id=:tid
+              AND st.thread_type='buyer_creator'
               AND (
                 lower(COALESCE(st.buyer_email,''))=lower(COALESCE(:buyer_email,''))
                 OR st.buyer_user_id=:buyer_id
               )
             LIMIT 1
-        """), {"tid":thread_id,"buyer_id":buyer_id,"buyer_email":buyer_email}).mappings().first()
-    except Exception:
+        """), {"tid": thread_id, "buyer_id": buyer_id or 0, "buyer_email": buyer_email or ""}).mappings().first()
+    except Exception as e:
         db.session.rollback()
-        thread=None
+        try: print("buyer support thread lookup v50.5S warning:", e)
+        except Exception: pass
+        thread = None
+
     if not thread:
         return "Support thread not found", 404
 
-    if request.method=="POST":
-        body=(request.form.get("message") or "").strip()
+    if request.method == "POST":
+        body = (request.form.get("message") or "").strip()
         if body:
             try:
                 db.session.execute(db.text("""
                     INSERT INTO support_message(thread_id, sender_role, sender_id, sender_email, body, created_at)
                     VALUES (:tid, 'buyer', :sid, :email, :body, CURRENT_TIMESTAMP)
-                """), {"tid":thread_id,"sid":buyer_id,"email":buyer_email,"body":body})
+                """), {"tid": thread_id, "sid": buyer_id, "email": buyer_email, "body": body})
                 db.session.execute(db.text("""
-                    UPDATE support_thread SET status='open', last_message_at=CURRENT_TIMESTAMP, updated_at=CURRENT_TIMESTAMP WHERE id=:tid
-                """), {"tid":thread_id})
+                    UPDATE support_thread
+                    SET status='open',
+                        last_message_at=CURRENT_TIMESTAMP,
+                        updated_at=CURRENT_TIMESTAMP
+                    WHERE id=:tid
+                """), {"tid": thread_id})
                 db.session.commit()
-            except Exception:
+            except Exception as e:
                 db.session.rollback()
+                try: print("buyer support reply v50.5S warning:", e)
+                except Exception: pass
                 flash("Could not send message.")
         return redirect(f"/buyer/support/{thread_id}")
 
-    messages = _bsm_support_messages_for_thread_v505n(thread_id)
+    try:
+        messages = db.session.execute(db.text("""
+            SELECT id, thread_id, sender_role, sender_id, sender_email, body, created_at
+            FROM support_message
+            WHERE thread_id=:tid
+            ORDER BY id ASC
+        """), {"tid": thread_id}).mappings().all()
+        messages = [dict(m) for m in messages]
+    except Exception as e:
+        db.session.rollback()
+        try: print("buyer support messages v50.5S warning:", e)
+        except Exception: pass
+        messages = []
+
     for m in messages:
-        m["created_at_et"] = _bsm_support_et_v505l(m.get("created_at"))
-    thread=dict(thread)
-    thread["last_message_at_et"] = _bsm_support_et_v505l(thread.get("last_message_at") or thread.get("updated_at") or thread.get("created_at"))
+        try:
+            m["created_at_et"] = _bsm_support_et_v505l(m.get("created_at"))
+        except Exception:
+            m["created_at_et"] = str(m.get("created_at") or "")
+
+    thread = dict(thread)
+    try:
+        thread["last_message_at_et"] = _bsm_support_et_v505l(thread.get("last_message_at") or thread.get("updated_at") or thread.get("created_at"))
+    except Exception:
+        thread["last_message_at_et"] = str(thread.get("last_message_at") or "")
+
     return render_template("buyer/support_thread.html", thread=thread, messages=messages, email=buyer_email)
+
+
