@@ -47,10 +47,10 @@
               <small>
                 {{ t.status|title }}
                 {% if t.last_message_at_et %} · {{ t.last_message_at_et }}{% endif %}
-                {% if t.message_count %} · {{ t.message_count }} message{% if t.message_count != 1 %}s{% endif %}{% endif %}
+                {% if t.message_count %} · {{ t.message_count or 0 }} message{% if (t.message_count or 0) != 1 %}s{% endif %}{% endif %}
               </small>
               {% if t.last_body %}
-                <p>{% if t.last_sender_role == 'creator' %}<b>Creator:</b> {% elif t.last_sender_role == 'buyer' %}<b>You:</b> {% endif %}{{ t.last_body[:140] }}</p>
+                <p>{% if t.last_sender_role == 'creator' %}<b>Creator:</b> {% elif t.last_sender_role == 'buyer' %}<b>You:</b> {% endif %}{{ (t.last_body or '')[:140] }}</p>
               {% endif %}
             </a>
           {% endfor %}

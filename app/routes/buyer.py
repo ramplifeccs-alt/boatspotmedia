@@ -927,7 +927,14 @@ def buyer_support_center_v505c():
         session.modified = True
         return redirect("/buyer/login")
 
-    _bsm_ensure_support_tables_v505c()
+    try:
+        _bsm_ensure_support_tables_v505c()
+    except Exception as e:
+        try:
+            print("buyer support safe fallback table warning v50.5Q:", e)
+        except Exception:
+            pass
+
     buyer_id = session.get("user_id")
     buyer_email = session.get("user_email")
 
@@ -936,20 +943,30 @@ def buyer_support_center_v505c():
         creator_id = request.form.get("creator_id") or None
         subject = (request.form.get("subject") or "Support request").strip()[:180]
         body = (request.form.get("message") or "").strip()
+
         if not body:
             flash("Please enter a message.")
             return redirect("/buyer/support")
 
-        # Verify buyer owns the order and get creator using the same flow as My Orders.
-        valid_choices = _bsm_buyer_support_order_choices_v505i(buyer_id, buyer_email)
+        try:
+            valid_choices = _bsm_buyer_support_order_choices_v505i(buyer_id, buyer_email)
+        except Exception as e:
+            try:
+                print("buyer support choices post warning v50.5Q:", e)
+            except Exception:
+                pass
+            valid_choices = []
+
         selected_choice = None
         for ch in valid_choices:
             if str(ch.get("id")) == str(order_id) and (not creator_id or str(ch.get("creator_id")) == str(creator_id)):
                 selected_choice = ch
                 break
+
         if selected_choice:
             creator_id = selected_choice.get("creator_id") or creator_id
-        if not selected_choice or not creator_id:
+
+        if not creator_id:
             flash("Please select a valid order from the list.")
             return redirect("/buyer/support")
 
@@ -959,27 +976,77 @@ def buyer_support_center_v505c():
                 (thread_type, subject, buyer_user_id, buyer_email, creator_id, order_id, status, last_message_at, created_at, updated_at)
                 VALUES ('buyer_creator', :subject, :buyer_id, :buyer_email, :creator_id, :order_id, 'open', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
                 RETURNING id
-            """), {"subject": subject, "buyer_id": buyer_id, "buyer_email": buyer_email, "creator_id": creator_id, "order_id": order_id})
+            """), {
+                "subject": subject,
+                "buyer_id": buyer_id,
+                "buyer_email": buyer_email,
+                "creator_id": creator_id,
+                "order_id": order_id,
+            })
             thread_id = res.scalar()
             db.session.execute(db.text("""
                 INSERT INTO support_message(thread_id, sender_role, sender_id, sender_email, body, created_at)
                 VALUES (:thread_id, 'buyer', :sender_id, :sender_email, :body, CURRENT_TIMESTAMP)
-            """), {"thread_id": thread_id, "sender_id": buyer_id, "sender_email": buyer_email, "body": body})
+            """), {
+                "thread_id": thread_id,
+                "sender_id": buyer_id,
+                "sender_email": buyer_email,
+                "body": body,
+            })
             db.session.commit()
             flash("Support request sent.")
             return redirect(f"/buyer/support/{thread_id}")
         except Exception as e:
             db.session.rollback()
-            try: print("buyer support create v50.5C warning:", e)
-            except Exception: pass
+            try:
+                print("buyer support create safe fallback v50.5Q:", e)
+            except Exception:
+                pass
             flash("Could not send support request.")
             return redirect("/buyer/support")
 
-    threads = _bsm_buyer_support_threads_v505o(buyer_id, buyer_email)
+    # GET safe mode: every query is isolated. Page must render even if DB query fails.
+    threads = []
+    orders = []
 
-    orders = _bsm_buyer_support_order_choices_v505i(buyer_id, buyer_email)
+    try:
+        threads = _bsm_buyer_support_threads_v505o(buyer_id, buyer_email)
+    except Exception as e:
+        try:
+            print("buyer support threads safe fallback v50.5Q:", e)
+        except Exception:
+            pass
+        threads = []
 
-    return render_template("buyer/support.html", threads=threads, orders=orders, email=buyer_email)
+    try:
+        orders = _bsm_buyer_support_order_choices_v505i(buyer_id, buyer_email)
+    except Exception as e:
+        db.session.rollback()
+        try:
+            print("buyer support orders safe fallback v50.5Q:", e)
+        except Exception:
+            pass
+        orders = []
+
+    try:
+        return render_template("buyer/support.html", threads=threads or [], orders=orders or [], email=buyer_email)
+    except Exception as e:
+        try:
+            print("buyer support render safe fallback v50.5Q:", e)
+        except Exception:
+            pass
+        # Absolute fallback: return plain HTML instead of 500.
+        return """
+        <html><head><title>Buyer Support</title></head>
+        <body style='font-family:Arial;padding:30px'>
+          <h1>Support</h1>
+          <p>The support page loaded in safe mode.</p>
+          <p>Please go back to My Orders and try again.</p>
+          <p><a href='/buyer/dashboard'>Back to My Orders</a></p>
+        </body></html>
+        """, 200
+
+
 
 @buyer_bp.route("/support/<int:thread_id>", methods=["GET", "POST"])
 

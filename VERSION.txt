@@ -1,9 +1,14 @@
-BoatSpotMedia v50.5P Buyer Support 500 Fix
-Base: v50.5O.
+BoatSpotMedia v50.5Q Buyer Support Safe Fallback
+Base: v50.5P.
 
 Fix:
-- Buyer Support no longer joins creator_profile when loading My Requests.
-- Buyer Support thread detail no longer joins creator_profile.
-- Prevents 500 error caused by fragile creator_profile join/columns in production DB.
+- /buyer/support now has a safe fallback and should not return 500.
+- Each buyer support query is isolated with try/except.
+- If DB/template fails, route returns a basic safe HTML page instead of Internal Server Error.
+- Adds clear log markers:
+  buyer support safe fallback v50.5Q
+  buyer support threads safe fallback v50.5Q
+  buyer support orders safe fallback v50.5Q
+  buyer support render safe fallback v50.5Q
 
-Does not touch uploads, R2, batches, checkout, billing, Stripe, payouts, analytics, Google OAuth, Twilio SMS, Creator Support, or Owner Support.
+Does not touch uploads, R2, batches, checkout, billing, Stripe, payouts, Google OAuth, SMS, Creator Support, or Owner Support.
