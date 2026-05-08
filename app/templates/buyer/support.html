@@ -42,7 +42,7 @@
         <div class="support-list-v505c">
           {% for t in threads %}
             <a href="/buyer/support/{{ t.id }}" class="support-thread-row-v505c">
-              <strong>{{ t.subject }}</strong>{% if t.last_sender_role == 'creator' %}<em class="support-new-badge-v505m">New reply</em>{% endif %}
+              <strong>{{ t.subject }}</strong>
               <span>{{ t.creator_name or 'Creator' }} · Order #{{ t.order_id or '-' }}</span>
               <small>{{ t.status|title }} · {{ t.last_message_at_et or t.last_message_at }}</small>
               {% if t.last_body %}<p>{{ t.last_body[:120] }}</p>{% endif %}

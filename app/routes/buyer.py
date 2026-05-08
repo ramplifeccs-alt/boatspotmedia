@@ -800,7 +800,7 @@ def _bsm_ensure_support_tables_v505c():
         try: print("support tables v50.5C warning:", e)
         except Exception: pass
 
-def _bsm_thread_messages_all_v505m(thread_id):
+def _bsm_thread_messages_v505c(thread_id):
     try:
         return db.session.execute(db.text("""
             SELECT *
@@ -932,8 +932,7 @@ def buyer_support_center_v505c():
         threads = db.session.execute(db.text("""
             SELECT st.*,
                    cp.public_name AS creator_name,
-                   (SELECT body FROM support_message sm WHERE sm.thread_id=st.id ORDER BY sm.created_at DESC, sm.id DESC LIMIT 1) AS last_body,
-                   (SELECT sender_role FROM support_message sm WHERE sm.thread_id=st.id ORDER BY sm.created_at DESC, sm.id DESC LIMIT 1) AS last_sender_role
+                   (SELECT body FROM support_message sm WHERE sm.thread_id=st.id ORDER BY sm.created_at DESC, sm.id DESC LIMIT 1) AS last_body
             FROM support_thread st
             LEFT JOIN creator_profile cp ON cp.id=st.creator_id
             WHERE st.thread_type='buyer_creator'
@@ -956,21 +955,30 @@ def buyer_support_center_v505c():
 
 @buyer_bp.route("/support/<int:thread_id>", methods=["GET", "POST"])
 
-def _bsm_thread_messages_all_v505m(thread_id):
+def _bsm_support_messages_for_thread_v505n(thread_id):
     try:
-        return db.session.execute(db.text("""
-            SELECT id, thread_id, sender_role, sender_id, sender_email, body, created_at
+        rows = db.session.execute(db.text("""
+            SELECT
+                id,
+                thread_id,
+                COALESCE(sender_role, 'system') AS sender_role,
+                sender_id,
+                sender_email,
+                COALESCE(body, '') AS body,
+                created_at
             FROM support_message
             WHERE thread_id=:tid
-            ORDER BY created_at ASC, id ASC
+            ORDER BY id ASC
         """), {"tid": thread_id}).mappings().all()
+        return [dict(r) for r in rows]
     except Exception as e:
         db.session.rollback()
         try:
-            print("support messages load v50.5M warning:", e)
+            print("buyer support messages v50.5N warning:", e)
         except Exception:
             pass
         return []
+
 
 def buyer_support_thread_v505c(thread_id):
     if not session.get("user_id") or session.get("user_role") != "buyer":
@@ -1014,7 +1022,7 @@ def buyer_support_thread_v505c(thread_id):
                 flash("Could not send message.")
         return redirect(f"/buyer/support/{thread_id}")
 
-    messages=[dict(m) for m in _bsm_thread_messages_all_v505m(thread_id)]
+    messages = _bsm_support_messages_for_thread_v505n(thread_id)
     for m in messages:
         m["created_at_et"] = _bsm_support_et_v505l(m.get("created_at"))
     thread=dict(thread)

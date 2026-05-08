@@ -1,3 +1,4 @@
-app/templates/creator/dashboard.html
 app/routes/buyer.py
+app/routes/public.py
+app/__init__.py
 app/routes/creator.py
