@@ -15,9 +15,22 @@
     {% endfor %}
   </div>
 
+  <div style="margin:10px 0;">
+    <button type="button" class="support-mini-btn-v505c" onclick="window.location.reload()">Refresh Conversation</button>
+  </div>
   <form method="POST" class="support-reply-v505c">
     <textarea name="message" rows="4" placeholder="Write a reply..." required></textarea>
     <button type="submit">Send Reply</button>
   </form>
 </div>
+<script>
+(function bsmBuyerSupportRefreshV505o(){
+  setInterval(function(){
+    var box = document.querySelector('textarea[name="message"]');
+    if(!box || !box.value.trim()){
+      window.location.reload();
+    }
+  }, 20000);
+})();
+</script>
 {% endblock %}

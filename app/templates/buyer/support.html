@@ -20,7 +20,7 @@
             {% endfor %}
           </select>
           {% if not orders %}
-            <small class="support-muted-v505c">No eligible purchased orders were found for support. Open My Orders and confirm the order has a creator attached.</small>
+            <small class="support-muted-v505c">No eligible purchased orders were found for support.</small>
           {% endif %}
         </label>
         <input type="hidden" name="creator_id" value="">
@@ -44,8 +44,14 @@
             <a href="/buyer/support/{{ t.id }}" class="support-thread-row-v505c">
               <strong>{{ t.subject }}</strong>
               <span>{{ t.creator_name or 'Creator' }} · Order #{{ t.order_id or '-' }}</span>
-              <small>{{ t.status|title }} · {{ t.last_message_at_et or t.last_message_at }}</small>
-              {% if t.last_body %}<p>{{ t.last_body[:120] }}</p>{% endif %}
+              <small>
+                {{ t.status|title }}
+                {% if t.last_message_at_et %} · {{ t.last_message_at_et }}{% endif %}
+                {% if t.message_count %} · {{ t.message_count }} message{% if t.message_count != 1 %}s{% endif %}{% endif %}
+              </small>
+              {% if t.last_body %}
+                <p>{% if t.last_sender_role == 'creator' %}<b>Creator:</b> {% elif t.last_sender_role == 'buyer' %}<b>You:</b> {% endif %}{{ t.last_body[:140] }}</p>
+              {% endif %}
             </a>
           {% endfor %}
         </div>

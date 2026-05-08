@@ -1,0 +1,12 @@
+BoatSpotMedia v50.5M Buyer-Creator Chat Fix
+Base: v50.5L.
+
+Fixes:
+- Buyer support thread loads ALL messages from support_message by thread_id.
+- Creator support thread loads ALL messages from support_message by thread_id.
+- Creator replies are saved and buyer thread can display them.
+- Adds auto refresh to buyer/creator support thread pages.
+- Adds New reply badge on buyer support list when last sender is creator.
+- Chat scrolls to latest messages.
+
+Does not touch uploads, R2, batches, checkout, billing, Stripe, payouts, analytics, Google OAuth, or Twilio SMS.

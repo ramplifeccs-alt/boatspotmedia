@@ -3178,3 +3178,6 @@ input[name="phone_number"]{letter-spacing:.02em;}
 .creator-notification-grid-v505l strong{font-size:28px;display:block;color:#2563eb}
 .creator-notification-grid-v505l span{font-weight:900;color:#475569}
 @media(max-width:800px){.creator-notification-grid-v505l{grid-template-columns:1fr}}
+
+/* v50.5O buyer support inbox */
+.support-thread-row-v505c b{color:#0f172a;}

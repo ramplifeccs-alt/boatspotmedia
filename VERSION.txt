@@ -1,10 +1,11 @@
-BoatSpotMedia v50.5N Force Buyer Reply Visibility
-Base: v50.5M.
+BoatSpotMedia v50.5O Buyer Support Inbox Real Fix
+Base: v50.5N.
 
 Fixes:
-- Buyer support thread reads all messages directly by thread_id after thread ownership is verified.
-- Creator replies are explicitly saved as sender_role='creator'.
-- Buyer support thread labels messages as You / Creator.
-- Creator support thread labels messages as You / Buyer / Platform Support.
+- Buyer My Requests now loads directly from support_thread/support_message.
+- After buyer sends a support request, it opens the thread.
+- Buyer My Requests shows last message, sender, message count, and Miami/New York time.
+- Buyer thread includes refresh button and light auto-refresh every 20 seconds when reply box is empty.
+- Keeps creator/owner support flow unchanged.
 
 Does not touch uploads, R2, batches, checkout, billing, Stripe, payouts, analytics, Google OAuth, or Twilio SMS.

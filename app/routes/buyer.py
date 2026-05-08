@@ -874,6 +874,55 @@ def _bsm_buyer_support_order_choices_v505i(buyer_id, buyer_email):
 
 
 @buyer_bp.route("/support", methods=["GET", "POST"])
+
+def _bsm_buyer_support_threads_v505o(buyer_id, buyer_email):
+    try:
+        rows = db.session.execute(db.text("""
+            SELECT st.*,
+                   COALESCE(cp.public_name, 'Creator') AS creator_name,
+                   (
+                    SELECT body
+                    FROM support_message sm
+                    WHERE sm.thread_id=st.id
+                    ORDER BY sm.id DESC
+                    LIMIT 1
+                   ) AS last_body,
+                   (
+                    SELECT sender_role
+                    FROM support_message sm
+                    WHERE sm.thread_id=st.id
+                    ORDER BY sm.id DESC
+                    LIMIT 1
+                   ) AS last_sender_role,
+                   (
+                    SELECT COUNT(*)
+                    FROM support_message sm
+                    WHERE sm.thread_id=st.id
+                   ) AS message_count
+            FROM support_thread st
+            LEFT JOIN creator_profile cp ON cp.id=st.creator_id
+            WHERE st.thread_type='buyer_creator'
+              AND (
+                lower(COALESCE(st.buyer_email,''))=lower(COALESCE(:buyer_email,''))
+                OR st.buyer_user_id=:buyer_id
+              )
+            ORDER BY COALESCE(st.last_message_at, st.updated_at, st.created_at) DESC, st.id DESC
+        """), {"buyer_id": buyer_id or 0, "buyer_email": buyer_email or ""}).mappings().all()
+        out=[]
+        for r in rows:
+            d=dict(r)
+            d["last_message_at_et"] = _bsm_support_et_v505l(d.get("last_message_at") or d.get("updated_at") or d.get("created_at"))
+            out.append(d)
+        return out
+    except Exception as e:
+        db.session.rollback()
+        try:
+            print("buyer support inbox v50.5O warning:", e)
+        except Exception:
+            pass
+        return []
+
+
 def buyer_support_center_v505c():
     if not session.get("user_id") or session.get("user_role") != "buyer":
         session["after_login_redirect"] = "/buyer/support"
@@ -920,7 +969,7 @@ def buyer_support_center_v505c():
             """), {"thread_id": thread_id, "sender_id": buyer_id, "sender_email": buyer_email, "body": body})
             db.session.commit()
             flash("Support request sent.")
-            return redirect("/buyer/support")
+            return redirect(f"/buyer/support/{thread_id}")
         except Exception as e:
             db.session.rollback()
             try: print("buyer support create v50.5C warning:", e)
@@ -928,29 +977,10 @@ def buyer_support_center_v505c():
             flash("Could not send support request.")
             return redirect("/buyer/support")
 
-    try:
-        threads = db.session.execute(db.text("""
-            SELECT st.*,
-                   cp.public_name AS creator_name,
-                   (SELECT body FROM support_message sm WHERE sm.thread_id=st.id ORDER BY sm.created_at DESC, sm.id DESC LIMIT 1) AS last_body
-            FROM support_thread st
-            LEFT JOIN creator_profile cp ON cp.id=st.creator_id
-            WHERE st.thread_type='buyer_creator'
-              AND (
-                lower(COALESCE(st.buyer_email,''))=lower(COALESCE(:buyer_email,''))
-                OR st.buyer_user_id=:buyer_id
-              )
-            ORDER BY st.last_message_at DESC, st.id DESC
-        """), {"buyer_id": buyer_id, "buyer_email": buyer_email}).mappings().all()
-    except Exception:
-        db.session.rollback()
-        threads=[]
+    threads = _bsm_buyer_support_threads_v505o(buyer_id, buyer_email)
 
     orders = _bsm_buyer_support_order_choices_v505i(buyer_id, buyer_email)
 
-    threads=[dict(t) for t in threads]
-    for t in threads:
-        t["last_message_at_et"] = _bsm_support_et_v505l(t.get("last_message_at") or t.get("updated_at") or t.get("created_at"))
     return render_template("buyer/support.html", threads=threads, orders=orders, email=buyer_email)
 
 @buyer_bp.route("/support/<int:thread_id>", methods=["GET", "POST"])
