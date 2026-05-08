@@ -873,8 +873,6 @@ def _bsm_buyer_support_order_choices_v505i(buyer_id, buyer_email):
     return choices
 
 
-@buyer_bp.route("/support", methods=["GET", "POST"])
-
 def _bsm_buyer_support_threads_v505o(buyer_id, buyer_email):
     try:
         rows = db.session.execute(db.text("""
@@ -921,6 +919,7 @@ def _bsm_buyer_support_threads_v505o(buyer_id, buyer_email):
             pass
         return []
 
+@buyer_bp.route("/support", methods=["GET", "POST"])
 def buyer_support_center_v505c():
     if not session.get("user_id") or session.get("user_role") != "buyer":
         session["after_login_redirect"] = "/buyer/support"

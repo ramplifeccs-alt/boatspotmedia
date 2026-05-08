@@ -1,0 +1,9 @@
+BoatSpotMedia v50.5P Buyer Support 500 Fix
+Base: v50.5O.
+
+Fix:
+- Buyer Support no longer joins creator_profile when loading My Requests.
+- Buyer Support thread detail no longer joins creator_profile.
+- Prevents 500 error caused by fragile creator_profile join/columns in production DB.
+
+Does not touch uploads, R2, batches, checkout, billing, Stripe, payouts, analytics, Google OAuth, Twilio SMS, Creator Support, or Owner Support.
