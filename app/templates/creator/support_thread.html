@@ -8,4 +8,18 @@
 <h1>{{ thread.subject }}</h1><p class="support-muted-v505c">{% if thread.thread_type == 'buyer_creator' %}Buyer: {{ thread.buyer_email or 'Buyer' }} · Order #{{ thread.order_id or '-' }}{% else %}Platform Support{% endif %} · Status: {{ thread.status|title }}</p>
 <div class="support-chat-v505c">{% for m in messages %}<div class="support-bubble-v505c {% if m.sender_role == 'creator' %}mine{% else %}other{% endif %}"><strong>{{ m.sender_role|replace('_',' ')|title }}</strong><p>{{ m.body }}</p><small>{{ m.created_at_et or m.created_at }}</small></div>{% endfor %}</div>
 <form method="POST" class="support-reply-v505c"><textarea name="message" rows="4" placeholder="Write a reply..." required></textarea><button type="submit">Send Reply</button></form>
-</div></main></div><script src="/static/js/mobile.js"></script></body></html>
+</div></main></div><script src="/static/js/mobile.js"></script>
+<script>
+(function bsmSupportAutoRefreshV505m(){
+  var box = document.querySelector(".support-chat-v505c");
+  if(box){ box.scrollTop = box.scrollHeight; }
+  setTimeout(function(){
+    var active = document.activeElement;
+    var isTyping = active && active.tagName && active.tagName.toLowerCase() === "textarea";
+    if(!document.hidden && !isTyping){
+      window.location.reload();
+    }
+  }, 12000);
+})();
+</script>
+</body></html>

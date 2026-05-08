@@ -3772,8 +3772,7 @@ def dashboard():
         "creator/dashboard.html",
         creator=creator,
         stats=stats,
-        videos_count=videos_count,
-        creator_notifications=creator_notifications
+        videos_count=videos_count
     )
 
 
@@ -5975,7 +5974,7 @@ def _bsm_ensure_support_tables_v505c():
         try: print("support tables v50.5C warning:", e)
         except Exception: pass
 
-def _bsm_thread_messages_v505c(thread_id):
+def _bsm_thread_messages_all_v505m(thread_id):
     try:
         return db.session.execute(db.text("""
             SELECT *
@@ -5996,44 +5995,6 @@ def _bsm_creator_notification_counts_v505l(creator_id):
     data = {"new_sales": 0, "buyer_support": 0, "platform_support": 0}
     if not creator_id:
         return data
-    try:
-        data["new_sales"] = db.session.execute(db.text("""
-            SELECT COUNT(*)
-            FROM bsm_cart_order_item i
-            LEFT JOIN video v ON v.id=i.video_id
-            WHERE COALESCE(i.creator_id, v.creator_id)=:creator_id
-        """), {"creator_id": creator_id}).scalar() or 0
-    except Exception as e:
-        db.session.rollback()
-        try: print("creator notifications sales v50.5M warning:", e)
-        except Exception: pass
-    try:
-        data["buyer_support"] = db.session.execute(db.text("""
-            SELECT COUNT(DISTINCT st.id)
-            FROM support_thread st
-            LEFT JOIN bsm_cart_order_item i ON i.cart_order_id = st.order_id
-            LEFT JOIN video v ON v.id = i.video_id
-            WHERE st.thread_type='buyer_creator'
-              AND COALESCE(st.status,'open') <> 'closed'
-              AND (st.creator_id=:creator_id OR v.creator_id=:creator_id)
-        """), {"creator_id": creator_id}).scalar() or 0
-    except Exception as e:
-        db.session.rollback()
-        try: print("creator notifications buyer support v50.5M warning:", e)
-        except Exception: pass
-    try:
-        data["platform_support"] = db.session.execute(db.text("""
-            SELECT COUNT(*)
-            FROM support_thread
-            WHERE thread_type='creator_owner'
-              AND creator_id=:creator_id
-              AND COALESCE(status,'open') <> 'closed'
-        """), {"creator_id": creator_id}).scalar() or 0
-    except Exception as e:
-        db.session.rollback()
-        try: print("creator notifications platform v50.5M warning:", e)
-        except Exception: pass
-    return data
     try:
         data["new_sales"] = db.session.execute(db.text("""
             SELECT COUNT(*)
@@ -6139,6 +6100,23 @@ def creator_support_center_v505c():
     return render_template("creator/support.html", buyer_threads=buyer_threads, platform_threads=platform_threads, active_tab=(request.args.get("tab") or "buyer"))
 
 @creator_bp.route("/support/<int:thread_id>", methods=["GET","POST"])
+
+def _bsm_thread_messages_all_v505m(thread_id):
+    try:
+        return db.session.execute(db.text("""
+            SELECT id, thread_id, sender_role, sender_id, sender_email, body, created_at
+            FROM support_message
+            WHERE thread_id=:tid
+            ORDER BY created_at ASC, id ASC
+        """), {"tid": thread_id}).mappings().all()
+    except Exception as e:
+        db.session.rollback()
+        try:
+            print("support messages load v50.5M warning:", e)
+        except Exception:
+            pass
+        return []
+
 def creator_support_thread_v505c(thread_id):
     if not _creator_has_valid_profile_v491():
         return redirect("/creator/login")
@@ -6188,7 +6166,7 @@ def creator_support_thread_v505c(thread_id):
                 db.session.rollback(); flash("Could not send message.")
         return redirect(f"/creator/support/{thread_id}")
 
-    messages=[dict(m) for m in _bsm_thread_messages_v505c(thread_id)]
+    messages=[dict(m) for m in _bsm_thread_messages_all_v505m(thread_id)]
     for m in messages:
         m["created_at_et"] = _bsm_support_et_v505l(m.get("created_at"))
     thread=dict(thread)

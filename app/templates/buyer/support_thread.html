@@ -20,4 +20,18 @@
     <button type="submit">Send Reply</button>
   </form>
 </div>
+
+<script>
+(function bsmSupportAutoRefreshV505m(){
+  var box = document.querySelector(".support-chat-v505c");
+  if(box){ box.scrollTop = box.scrollHeight; }
+  setTimeout(function(){
+    var active = document.activeElement;
+    var isTyping = active && active.tagName && active.tagName.toLowerCase() === "textarea";
+    if(!document.hidden && !isTyping){
+      window.location.reload();
+    }
+  }, 12000);
+})();
+</script>
 {% endblock %}
