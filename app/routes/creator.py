@@ -4142,6 +4142,21 @@ def delete_pricing(preset_id):
 
 
 
+
+def _bsm_normalize_creator_phone_v505u(phone):
+    phone = (phone or "").strip()
+    if not phone:
+        return ""
+    digits = "".join(ch for ch in phone if ch.isdigit())
+    if len(digits) == 10:
+        return "+1" + digits
+    if len(digits) == 11 and digits.startswith("1"):
+        return "+" + digits
+    if phone.startswith("+") and digits:
+        return "+" + digits
+    return phone
+
+
 @creator_bp.route("/settings", methods=["GET","POST"], endpoint="settings_v488")
 def creator_settings_v488():
     creator_id = session.get("creator_id") or session.get("creator_user_id")
@@ -4159,6 +4174,8 @@ def creator_settings_v488():
                    u.public_name,
                    u.primary_location,
                    u.phone,
+                   u.password_hash,
+                   u.password,
                    cp.instagram
             FROM creator_profile cp
             LEFT JOIN "user" u ON u.id = cp.user_id
@@ -4174,7 +4191,74 @@ def creator_settings_v488():
         return redirect("/creator/dashboard")
 
     if request.method == "POST":
+        action = request.form.get("action") or "profile"
+
+        if action == "password":
+            current_password = request.form.get("current_password") or ""
+            new_password = request.form.get("new_password") or ""
+            confirm_password = request.form.get("confirm_password") or ""
+            stored_hash = row.get("password_hash") or row.get("password") or ""
+
+            if not new_password or len(new_password) < 8:
+                flash("New password must be at least 8 characters.")
+                return redirect("/creator/settings")
+            if new_password != confirm_password:
+                flash("New password and confirmation do not match.")
+                return redirect("/creator/settings")
+
+            valid_current = False
+            try:
+                valid_current = bool(stored_hash and check_password_hash(stored_hash, current_password))
+            except Exception:
+                valid_current = False
+            if not valid_current and stored_hash and stored_hash == current_password:
+                valid_current = True
+
+            if not valid_current:
+                flash("Current password is incorrect.")
+                return redirect("/creator/settings")
+
+            try:
+                hashed = generate_password_hash(new_password)
+                db.session.execute(db.text("""
+                    UPDATE "user"
+                    SET password_hash=:password_hash
+                    WHERE id=:user_id
+                """), {"password_hash": hashed, "user_id": row.get("user_id")})
+                try:
+                    db.session.execute(db.text("""
+                        UPDATE "user"
+                        SET password=:password_hash
+                        WHERE id=:user_id
+                    """), {"password_hash": hashed, "user_id": row.get("user_id")})
+                except Exception:
+                    db.session.rollback()
+                    db.session.execute(db.text("""
+                        UPDATE "user"
+                        SET password_hash=:password_hash
+                        WHERE id=:user_id
+                    """), {"password_hash": hashed, "user_id": row.get("user_id")})
+                db.session.commit()
+                flash("Password updated successfully.")
+                return redirect("/creator/settings")
+            except Exception as e:
+                db.session.rollback()
+                try:
+                    print("creator password settings v50.5U warning:", e)
+                except Exception:
+                    pass
+                flash("Could not update password.")
+                return redirect("/creator/settings")
+
         try:
+            phone = _bsm_normalize_creator_phone_v505u(request.form.get("phone") or "")
+            email = (request.form.get("email") or "").strip().lower()
+            display_name = (request.form.get("display_name") or "").strip()
+            first_name = (request.form.get("first_name") or "").strip()
+            last_name = (request.form.get("last_name") or "").strip()
+            primary_location = (request.form.get("primary_location") or "").strip()
+            instagram = (request.form.get("instagram") or "").strip().replace("@","")
+
             db.session.execute(db.text("""
                 UPDATE "user"
                 SET email=:email,
@@ -4187,12 +4271,12 @@ def creator_settings_v488():
                 WHERE id=:user_id
             """), {
                 "user_id": row.get("user_id"),
-                "email": request.form.get("email") or "",
-                "first_name": request.form.get("first_name") or "",
-                "last_name": request.form.get("last_name") or "",
-                "display_name": request.form.get("display_name") or "",
-                "primary_location": request.form.get("primary_location") or "",
-                "phone": request.form.get("phone") or "",
+                "email": email,
+                "first_name": first_name,
+                "last_name": last_name,
+                "display_name": display_name,
+                "primary_location": primary_location,
+                "phone": phone,
             })
             db.session.execute(db.text("""
                 UPDATE creator_profile
@@ -4200,16 +4284,25 @@ def creator_settings_v488():
                 WHERE id=:creator_id
             """), {
                 "creator_id": creator_id,
-                "instagram": request.form.get("instagram") or "",
+                "instagram": instagram,
             })
             db.session.commit()
+
+            session["user_email"] = email
+            session["display_name"] = display_name or email
+            session["creator_name"] = display_name or email
+            session.modified = True
+
             flash("Settings saved.")
             return redirect("/creator/settings")
-        except Exception:
+        except Exception as e:
             db.session.rollback()
+            try:
+                print("creator settings save v50.5U warning:", e)
+            except Exception:
+                pass
             flash("Could not save settings.")
     return render_template("creator/settings.html", creator=row)
-
 
 @creator_bp.route("/products/<int:product_id>/variants", methods=["GET", "POST"])
 def product_variants(product_id):
