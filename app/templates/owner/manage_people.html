@@ -85,10 +85,13 @@
                 <div><span>Phone</span>{{ r.display_phone }}</div>
                 <div><span>Brand / Location</span>{{ r.display_brand }}</div>
                 <div><span>Social</span>{{ r.display_social }}</div>
+                <div><span>Commission</span>{{ r.commission_rate }}%{% if r.commission_override_rate is not none %} → {{ r.commission_override_rate }}%{% endif %}</div>
+                <div><span>Product Commission</span>{{ r.product_commission_rate or 0 }}%{% if r.product_commission_override_rate is not none %} → {{ r.product_commission_override_rate }}%{% endif %}</div>
+                <div><span>Subscription</span>{% if r.subscription_exempt %}Internal / Exempt{% else %}{{ r.plan_key or 'standard' }} · {{ r.subscription_status or '' }}{% endif %}</div>
               </div>
 
               <div class="owner-actions-v478 actions-wrap-v491b">
-                <a href="/owner/creator/{{ r.id }}/edit">Edit</a>
+                <a href="/owner/creator/{{ r.id }}/edit">Edit</a><a href="/owner/creator/{{ r.id }}/rules">Rules</a>
                 <form method="POST" action="/owner/creator/{{ r.id }}/status/suspended"><button type="submit">Suspend</button></form>
                 <form method="POST" action="/owner/creator/{{ r.id }}/status/active"><button type="submit">Reactivate</button></form>
                 <form method="POST" action="/owner/creator/{{ r.id }}/reset-password">

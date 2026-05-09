@@ -1,4 +1,4 @@
-from werkzeug.security import check_password_hash, generate_password_hash, check_password_hash
+from werkzeug.security import check_password_hash
 import os, tempfile, uuid
 from flask import Blueprint, render_template, request, redirect, url_for, current_app, flash, jsonify, session
 from app.models import User, CreatorProfile, Batch, Video, Location, CreatorClickStats, Product, VideoPricingPreset, OrderItem, StoragePlan, ProductVariant
@@ -4142,252 +4142,73 @@ def delete_pricing(preset_id):
 
 
 
-
-def _bsm_normalize_creator_phone_v505y(phone):
-    phone = (phone or "").strip()
-    if not phone:
-        return ""
-    digits = "".join(ch for ch in phone if ch.isdigit())
-    if len(digits) == 10:
-        return "+1" + digits
-    if len(digits) == 11 and digits.startswith("1"):
-        return "+" + digits
-    if phone.startswith("+") and digits:
-        return "+" + digits
-    return phone
-
-
 @creator_bp.route("/settings", methods=["GET","POST"], endpoint="settings_v488")
 def creator_settings_v488():
-    if not session.get("user_id") or session.get("user_role") != "creator":
-        return redirect("/creator/login")
-
-    session_email = (
-        session.get("user_email")
-        or session.get("creator_email")
-        or session.get("email")
-        or ""
-    ).strip().lower()
-    user_id = session.get("user_id")
-
-    if not session_email and user_id:
-        try:
-            urow = db.session.execute(db.text('SELECT email FROM "user" WHERE id=:uid LIMIT 1'), {"uid": user_id}).mappings().first()
-            if urow:
-                session_email = (urow.get("email") or "").strip().lower()
-                session["user_email"] = session_email
-                session.modified = True
-        except Exception:
-            db.session.rollback()
-
-    if not session_email:
-        flash("Creator email not found in session. Please log in again.")
+    creator_id = session.get("creator_id") or session.get("creator_user_id")
+    if not creator_id:
         return redirect("/creator/login")
 
     try:
-        db.session.execute(db.text("ALTER TABLE creator_application ADD COLUMN IF NOT EXISTS phone TEXT"))
-        db.session.execute(db.text("ALTER TABLE creator_application ADD COLUMN IF NOT EXISTS website TEXT"))
-        db.session.execute(db.text("ALTER TABLE creator_application ADD COLUMN IF NOT EXISTS location TEXT"))
-        db.session.commit()
+        row = db.session.execute(db.text("""
+            SELECT cp.id AS id,
+                   cp.user_id,
+                   u.email,
+                   u.first_name,
+                   u.last_name,
+                   u.display_name,
+                   u.public_name,
+                   u.primary_location,
+                   u.phone,
+                   cp.instagram
+            FROM creator_profile cp
+            LEFT JOIN "user" u ON u.id = cp.user_id
+            WHERE cp.id=:id
+            LIMIT 1
+        """), {"id": creator_id}).mappings().first()
     except Exception:
         db.session.rollback()
+        row = None
 
-    def _load_application():
-        try:
-            return db.session.execute(db.text("""
-                SELECT *
-                FROM creator_application
-                WHERE lower(COALESCE(email,'')) = lower(:email)
-                ORDER BY
-                    CASE WHEN COALESCE(status,'')='approved' THEN 0 ELSE 1 END,
-                    id DESC
-                LIMIT 1
-            """), {"email": session_email}).mappings().first()
-        except Exception as e:
-            db.session.rollback()
-            try:
-                print("creator settings load creator_application v50.5Y warning:", e)
-            except Exception:
-                pass
-            return None
-
-    app_row = _load_application()
-    if not app_row:
-        flash("Creator application not found for this email.")
+    if not row:
+        flash("Creator not found.")
         return redirect("/creator/dashboard")
 
     if request.method == "POST":
-        action = request.form.get("action") or "profile"
-
-        if action == "password":
-            current_password = request.form.get("current_password") or ""
-            new_password = request.form.get("new_password") or ""
-            confirm_password = request.form.get("confirm_password") or ""
-
-            if not new_password or len(new_password) < 8:
-                flash("New password must be at least 8 characters.")
-                return redirect("/creator/settings")
-            if new_password != confirm_password:
-                flash("New password and confirmation do not match.")
-                return redirect("/creator/settings")
-
-            # v50.5Z: Password is stored in "user".password_hash.
-            # Do not select/update a non-existing "password" column.
-            candidate_emails = []
-            for e in [
-                (request.form.get("email") or "").strip().lower(),
-                session_email,
-                (app_row.get("email") or "").strip().lower() if app_row else "",
-                (session.get("user_email") or "").strip().lower(),
-                (session.get("creator_email") or "").strip().lower(),
-            ]:
-                if e and e not in candidate_emails:
-                    candidate_emails.append(e)
-
-            urow = None
-            for email_candidate in candidate_emails:
-                try:
-                    urow = db.session.execute(db.text("""
-                        SELECT id, email, password_hash
-                        FROM "user"
-                        WHERE lower(COALESCE(email,'')) = lower(:email)
-                          AND COALESCE(role,'')='creator'
-                        LIMIT 1
-                    """), {"email": email_candidate}).mappings().first()
-                    if urow:
-                        break
-                except Exception as e:
-                    db.session.rollback()
-                    try:
-                        print("creator settings user password lookup v50.5Z warning:", e)
-                    except Exception:
-                        pass
-
-            if not urow:
-                flash("Login account not found for this creator email.")
-                return redirect("/creator/settings")
-
-            stored_hash = urow.get("password_hash") or ""
-            valid_current = False
-            try:
-                valid_current = bool(stored_hash and check_password_hash(stored_hash, current_password))
-            except Exception:
-                valid_current = False
-
-            if not valid_current:
-                flash("Current password is incorrect.")
-                return redirect("/creator/settings")
-
-            try:
-                hashed = generate_password_hash(new_password)
-                db.session.execute(db.text("""
-                    UPDATE "user"
-                    SET password_hash=:password_hash
-                    WHERE id=:uid
-                """), {"password_hash": hashed, "uid": urow.get("id")})
-                db.session.commit()
-                flash("Password updated successfully.")
-            except Exception as e:
-                db.session.rollback()
-                try:
-                    print("creator settings password update v50.5Z warning:", e)
-                except Exception:
-                    pass
-                flash("Could not update password.")
-            return redirect("/creator/settings")
-
-        first_name = (request.form.get("first_name") or "").strip()
-        last_name = (request.form.get("last_name") or "").strip()
-        brand_name = (request.form.get("brand_name") or "").strip()
-        email = (request.form.get("email") or session_email).strip().lower()
-        phone = _bsm_normalize_creator_phone_v505y(request.form.get("phone") or "")
-        instagram = (request.form.get("instagram") or "").strip().replace("@", "")
-        website = (request.form.get("website") or "").strip()
-        location = (request.form.get("location") or "").strip()
-
         try:
             db.session.execute(db.text("""
-                UPDATE creator_application
-                SET first_name=:first_name,
+                UPDATE "user"
+                SET email=:email,
+                    first_name=:first_name,
                     last_name=:last_name,
-                    brand_name=:brand_name,
-                    email=:email,
-                    phone=:phone,
-                    instagram=:instagram,
-                    website=:website,
-                    location=:location
-                WHERE id=:id
+                    display_name=:display_name,
+                    public_name=:display_name,
+                    primary_location=:primary_location,
+                    phone=:phone
+                WHERE id=:user_id
             """), {
-                "id": app_row.get("id"),
-                "first_name": first_name,
-                "last_name": last_name,
-                "brand_name": brand_name,
-                "email": email,
-                "phone": phone,
-                "instagram": instagram,
-                "website": website,
-                "location": location,
+                "user_id": row.get("user_id"),
+                "email": request.form.get("email") or "",
+                "first_name": request.form.get("first_name") or "",
+                "last_name": request.form.get("last_name") or "",
+                "display_name": request.form.get("display_name") or "",
+                "primary_location": request.form.get("primary_location") or "",
+                "phone": request.form.get("phone") or "",
             })
-            try:
-                db.session.execute(db.text("""
-                    UPDATE "user"
-                    SET email=:email,
-                        first_name=:first_name,
-                        last_name=:last_name,
-                        display_name=:brand_name,
-                        public_name=:brand_name,
-                        phone=:phone
-                    WHERE id=:uid
-                """), {
-                    "uid": user_id,
-                    "email": email,
-                    "first_name": first_name,
-                    "last_name": last_name,
-                    "brand_name": brand_name,
-                    "phone": phone,
-                })
-            except Exception:
-                db.session.rollback()
-                db.session.execute(db.text("""
-                    UPDATE creator_application
-                    SET first_name=:first_name,
-                        last_name=:last_name,
-                        brand_name=:brand_name,
-                        email=:email,
-                        phone=:phone,
-                        instagram=:instagram,
-                        website=:website,
-                        location=:location
-                    WHERE id=:id
-                """), {
-                    "id": app_row.get("id"),
-                    "first_name": first_name,
-                    "last_name": last_name,
-                    "brand_name": brand_name,
-                    "email": email,
-                    "phone": phone,
-                    "instagram": instagram,
-                    "website": website,
-                    "location": location,
-                })
+            db.session.execute(db.text("""
+                UPDATE creator_profile
+                SET instagram=:instagram
+                WHERE id=:creator_id
+            """), {
+                "creator_id": creator_id,
+                "instagram": request.form.get("instagram") or "",
+            })
             db.session.commit()
-            session["user_email"] = email
-            session["creator_email"] = email
-            session["creator_name"] = brand_name or email
-            session.modified = True
             flash("Settings saved.")
             return redirect("/creator/settings")
-        except Exception as e:
+        except Exception:
             db.session.rollback()
-            try:
-                print("creator settings save v50.5Y warning:", e)
-            except Exception:
-                pass
             flash("Could not save settings.")
-            return redirect("/creator/settings")
-
-    app_row = _load_application()
-    return render_template("creator/settings.html", creator=app_row)
+    return render_template("creator/settings.html", creator=row)
 
 
 @creator_bp.route("/products/<int:product_id>/variants", methods=["GET", "POST"])

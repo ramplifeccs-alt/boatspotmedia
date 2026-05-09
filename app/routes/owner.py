@@ -1244,6 +1244,12 @@ def _owner_current_creators_v488():
                COALESCE(cs.storage_limit_gb, cp.storage_limit_gb, 0) AS storage_limit_gb,
                COALESCE(cp.storage_used_bytes,0) AS storage_used_bytes,
                COALESCE(cp.commission_rate, 0) AS commission_rate,
+               cp.commission_override_rate,
+               cp.commission_override_until,
+               COALESCE(cp.product_commission_rate, 0) AS product_commission_rate,
+               cp.product_commission_override_rate,
+               cp.product_commission_override_until,
+               CASE WHEN COALESCE(cs.plan_key,'')='internal' THEN true ELSE false END AS subscription_exempt,
                cp.created_at
         FROM creator_profile cp
         LEFT JOIN "user" u ON u.id = cp.user_id
@@ -1444,6 +1450,174 @@ def owner_panel_v477():
 @owner_bp.route("/applications")
 def owner_applications_v479():
     return render_template("owner/applications.html", applications=_owner_current_applications_v488(), table_name="creator_application", columns=[])
+
+
+def _bsm_owner_ensure_creator_rules_columns_v505z():
+    try:
+        db.session.execute(db.text("ALTER TABLE creator_profile ADD COLUMN IF NOT EXISTS commission_override_rate NUMERIC"))
+        db.session.execute(db.text("ALTER TABLE creator_profile ADD COLUMN IF NOT EXISTS commission_override_until TIMESTAMP"))
+        db.session.execute(db.text("ALTER TABLE creator_profile ADD COLUMN IF NOT EXISTS commission_override_reason TEXT"))
+        db.session.execute(db.text("ALTER TABLE creator_profile ADD COLUMN IF NOT EXISTS product_commission_override_rate NUMERIC"))
+        db.session.execute(db.text("ALTER TABLE creator_profile ADD COLUMN IF NOT EXISTS product_commission_override_until TIMESTAMP"))
+        db.session.execute(db.text("ALTER TABLE creator_profile ADD COLUMN IF NOT EXISTS product_commission_override_reason TEXT"))
+        db.session.execute(db.text("ALTER TABLE creator_profile ADD COLUMN IF NOT EXISTS storage_limit_gb NUMERIC"))
+        db.session.execute(db.text("ALTER TABLE creator_profile ADD COLUMN IF NOT EXISTS suspended BOOLEAN DEFAULT FALSE"))
+        db.session.execute(db.text("ALTER TABLE creator_profile ADD COLUMN IF NOT EXISTS approved BOOLEAN DEFAULT TRUE"))
+        db.session.execute(db.text("ALTER TABLE creator_subscription ADD COLUMN IF NOT EXISTS plan_key TEXT"))
+        db.session.execute(db.text("ALTER TABLE creator_subscription ADD COLUMN IF NOT EXISTS status TEXT DEFAULT 'active'"))
+        db.session.execute(db.text("ALTER TABLE creator_subscription ADD COLUMN IF NOT EXISTS storage_limit_gb NUMERIC"))
+        db.session.execute(db.text("ALTER TABLE creator_subscription ADD COLUMN IF NOT EXISTS stripe_customer_id TEXT"))
+        db.session.execute(db.text("ALTER TABLE creator_subscription ADD COLUMN IF NOT EXISTS stripe_subscription_id TEXT"))
+        db.session.execute(db.text("ALTER TABLE creator_subscription ADD COLUMN IF NOT EXISTS cancel_at_period_end BOOLEAN DEFAULT FALSE"))
+        db.session.commit()
+    except Exception as e:
+        db.session.rollback()
+        try:
+            print("owner creator rules ensure v50.5Z warning:", e)
+        except Exception:
+            pass
+
+def _bsm_owner_creator_rules_row_v505z(creator_id):
+    _bsm_owner_ensure_creator_rules_columns_v505z()
+    try:
+        return db.session.execute(db.text("""
+            SELECT cp.id AS id,
+                   cp.user_id,
+                   u.email,
+                   COALESCE(u.display_name, u.public_name, u.email, 'Creator #' || cp.id::text) AS display_name,
+                   COALESCE(cp.instagram, '') AS instagram,
+                   COALESCE(cp.storage_limit_gb, 0) AS profile_storage_limit_gb,
+                   COALESCE(cp.storage_used_bytes, 0) AS storage_used_bytes,
+                   COALESCE(cp.commission_rate, 0) AS commission_rate,
+                   cp.commission_override_rate,
+                   cp.commission_override_until,
+                   cp.commission_override_reason,
+                   COALESCE(cp.product_commission_rate, 0) AS product_commission_rate,
+                   cp.product_commission_override_rate,
+                   cp.product_commission_override_until,
+                   cp.product_commission_override_reason,
+                   COALESCE(cp.approved, true) AS approved,
+                   COALESCE(cp.suspended, false) AS suspended,
+                   cs.id AS subscription_id,
+                   COALESCE(cs.plan_key, '') AS plan_key,
+                   COALESCE(cs.status, '') AS subscription_status,
+                   COALESCE(cs.storage_limit_gb, cp.storage_limit_gb, 0) AS subscription_storage_limit_gb,
+                   cs.stripe_customer_id,
+                   cs.stripe_subscription_id,
+                   COALESCE(cs.cancel_at_period_end, false) AS cancel_at_period_end
+            FROM creator_profile cp
+            LEFT JOIN "user" u ON u.id=cp.user_id
+            LEFT JOIN creator_subscription cs ON cs.creator_id=cp.id
+            WHERE cp.id=:cid
+            LIMIT 1
+        """), {"cid": creator_id}).mappings().first()
+    except Exception as e:
+        db.session.rollback()
+        try:
+            print("owner creator rules row v50.5Z warning:", e)
+        except Exception:
+            pass
+        return None
+
+@owner_bp.route("/creator/<int:creator_id>/rules", methods=["GET", "POST"])
+def owner_creator_rules_v505z(creator_id):
+    row = _bsm_owner_creator_rules_row_v505z(creator_id)
+    if not row:
+        flash("Creator not found.")
+        return redirect("/owner/creators")
+
+    if request.method == "POST":
+        def _num_or_none(name):
+            raw = (request.form.get(name) or "").strip()
+            if raw == "":
+                return None
+            try:
+                return float(raw)
+            except Exception:
+                return None
+
+        def _dt_or_none(name):
+            raw = (request.form.get(name) or "").strip()
+            if not raw:
+                return None
+            try:
+                return datetime.strptime(raw, "%Y-%m-%dT%H:%M")
+            except Exception:
+                try:
+                    return datetime.strptime(raw, "%Y-%m-%d")
+                except Exception:
+                    return None
+
+        subscription_exempt = request.form.get("subscription_exempt") in ("on", "true", "1", "yes")
+        storage_limit_gb = _num_or_none("storage_limit_gb")
+        commission_override_rate = _num_or_none("commission_override_rate")
+        commission_override_until = _dt_or_none("commission_override_until")
+        product_commission_override_rate = _num_or_none("product_commission_override_rate")
+        product_commission_override_until = _dt_or_none("product_commission_override_until")
+        commission_reason = (request.form.get("commission_override_reason") or "").strip()
+        product_reason = (request.form.get("product_commission_override_reason") or "").strip()
+
+        try:
+            db.session.execute(db.text("""
+                UPDATE creator_profile
+                SET storage_limit_gb=COALESCE(:storage_limit_gb, storage_limit_gb),
+                    commission_override_rate=:commission_override_rate,
+                    commission_override_until=:commission_override_until,
+                    commission_override_reason=:commission_reason,
+                    product_commission_override_rate=:product_commission_override_rate,
+                    product_commission_override_until=:product_commission_override_until,
+                    product_commission_override_reason=:product_reason
+                WHERE id=:creator_id
+            """), {
+                "creator_id": creator_id,
+                "storage_limit_gb": storage_limit_gb,
+                "commission_override_rate": commission_override_rate,
+                "commission_override_until": commission_override_until,
+                "commission_reason": commission_reason or None,
+                "product_commission_override_rate": product_commission_override_rate,
+                "product_commission_override_until": product_commission_override_until,
+                "product_reason": product_reason or None,
+            })
+
+            if subscription_exempt:
+                # Upsert internal/free active subscription. Does not hardcode any creator ID.
+                db.session.execute(db.text("""
+                    INSERT INTO creator_subscription
+                    (creator_id, plan_key, status, storage_limit_gb, stripe_customer_id, stripe_subscription_id, cancel_at_period_end, created_at, updated_at)
+                    VALUES (:creator_id, 'internal', 'active', COALESCE(:storage_limit_gb, 999999), NULL, NULL, false, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
+                    ON CONFLICT (creator_id) DO UPDATE SET
+                        plan_key='internal',
+                        status='active',
+                        storage_limit_gb=COALESCE(EXCLUDED.storage_limit_gb, creator_subscription.storage_limit_gb),
+                        stripe_customer_id=NULL,
+                        stripe_subscription_id=NULL,
+                        cancel_at_period_end=false,
+                        updated_at=CURRENT_TIMESTAMP
+                """), {"creator_id": creator_id, "storage_limit_gb": storage_limit_gb or 999999})
+            else:
+                # Keep existing subscription, but remove internal marker if owner unchecks exemption.
+                db.session.execute(db.text("""
+                    UPDATE creator_subscription
+                    SET plan_key = CASE WHEN plan_key='internal' THEN 'free' ELSE plan_key END,
+                        updated_at=CURRENT_TIMESTAMP
+                    WHERE creator_id=:creator_id
+                """), {"creator_id": creator_id})
+
+            db.session.commit()
+            flash("Creator rules saved.")
+            return redirect(f"/owner/creator/{creator_id}/rules")
+        except Exception as e:
+            db.session.rollback()
+            try:
+                print("owner creator rules save v50.5Z warning:", e)
+            except Exception:
+                pass
+            flash("Could not save creator rules.")
+            return redirect(f"/owner/creator/{creator_id}/rules")
+
+    row = _bsm_owner_creator_rules_row_v505z(creator_id)
+    return render_template("owner/creator_rules.html", creator=row)
+
 
 @owner_bp.route("/creators", endpoint="owner_creators_v478")
 def owner_creators_v478():

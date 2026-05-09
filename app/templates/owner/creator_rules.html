@@ -1,0 +1,96 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Creator Rules - Owner</title>
+  <link rel="stylesheet" href="/static/css/style.css">
+</head>
+<body class="owner-dashboard-v476">
+<div class="owner-shell-v475">
+  <aside class="owner-sidebar-v475">
+    <a href="/owner/panel" class="owner-logo-v475"><img src="/static/img/logo-header.png" alt="BoatSpotMedia"></a>
+    <nav>
+      <a href="/owner/panel">Owner Dashboard</a>
+      <a href="/owner/applications">Creator Applications</a>
+      <a href="/owner/creators" class="active">Manage Creators</a>
+      <a href="/owner/buyers">Manage Buyers</a>
+      <a href="/owner/analytics">Analytics</a>
+      <a href="/owner/support">Support Inbox</a>
+      <a href="/owner/creator-plans">Creator Plans</a>
+      <a href="/logout" class="danger">Log out</a>
+    </nav>
+  </aside>
+  <main class="owner-main-v475">
+    <div class="owner-card-v475">
+      <h1>Creator Rules</h1>
+      <p>Manage subscription exemptions, storage, and commission overrides for this creator.</p>
+      <p><strong>{{ creator.display_name }}</strong> · {{ creator.email }} · Creator ID {{ creator.id }}</p>
+    </div>
+
+    {% with messages = get_flashed_messages() %}
+      {% if messages %}
+        <div class="owner-flash-v474">{% for msg in messages %}<div>{{ msg }}</div>{% endfor %}</div>
+      {% endif %}
+    {% endwith %}
+
+    <form method="POST" class="owner-rules-grid-v505z">
+      <section class="owner-rule-card-v505z">
+        <h2>Subscription / Internal Account</h2>
+        <label class="check-v505z">
+          <input type="checkbox" name="subscription_exempt" {% if creator.plan_key == 'internal' %}checked{% endif %}>
+          No subscription required / Internal creator
+        </label>
+        <p class="muted-v505z">When enabled, the creator is marked as internal, active, and Stripe subscription fields are cleared for this creator.</p>
+
+        <label>Storage Limit GB
+          <input type="number" step="1" name="storage_limit_gb" value="{{ creator.subscription_storage_limit_gb or creator.profile_storage_limit_gb or '' }}" placeholder="999999">
+        </label>
+
+        <div class="rule-current-v505z">
+          <div><span>Current plan</span>{{ creator.plan_key or 'N/A' }}</div>
+          <div><span>Status</span>{{ creator.subscription_status or 'N/A' }}</div>
+          <div><span>Stripe customer</span>{{ creator.stripe_customer_id or 'None' }}</div>
+          <div><span>Stripe subscription</span>{{ creator.stripe_subscription_id or 'None' }}</div>
+        </div>
+      </section>
+
+      <section class="owner-rule-card-v505z">
+        <h2>Video Commission Override</h2>
+        <p class="muted-v505z">Base video commission: <strong>{{ creator.commission_rate or 0 }}%</strong></p>
+        <label>Override Percent
+          <input type="number" step="0.01" name="commission_override_rate" value="{{ creator.commission_override_rate if creator.commission_override_rate is not none else '' }}" placeholder="Example: 0, 5, 10">
+        </label>
+        <label>Override Until
+          <input type="datetime-local" name="commission_override_until" value="{% if creator.commission_override_until %}{{ creator.commission_override_until.strftime('%Y-%m-%dT%H:%M') }}{% endif %}">
+        </label>
+        <label>Reason
+          <input name="commission_override_reason" value="{{ creator.commission_override_reason or '' }}" placeholder="Example: Launch promotion">
+        </label>
+      </section>
+
+      <section class="owner-rule-card-v505z">
+        <h2>Product Commission Override</h2>
+        <p class="muted-v505z">Base product commission: <strong>{{ creator.product_commission_rate or 0 }}%</strong></p>
+        <label>Override Percent
+          <input type="number" step="0.01" name="product_commission_override_rate" value="{{ creator.product_commission_override_rate if creator.product_commission_override_rate is not none else '' }}" placeholder="Example: 0, 5, 10">
+        </label>
+        <label>Override Until
+          <input type="datetime-local" name="product_commission_override_until" value="{% if creator.product_commission_override_until %}{{ creator.product_commission_override_until.strftime('%Y-%m-%dT%H:%M') }}{% endif %}">
+        </label>
+        <label>Reason
+          <input name="product_commission_override_reason" value="{{ creator.product_commission_override_reason or '' }}" placeholder="Example: VIP creator">
+        </label>
+      </section>
+
+      <section class="owner-rule-card-v505z">
+        <h2>Save Changes</h2>
+        <p class="muted-v505z">No creator ID is hardcoded. These rules apply only to the selected creator.</p>
+        <button type="submit">Save Creator Rules</button>
+        <a href="/owner/creators" class="owner-secondary-link-v505z">Back to creators</a>
+      </section>
+    </form>
+  </main>
+</div>
+</body>
+</html>

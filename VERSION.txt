@@ -1,14 +1,21 @@
-BoatSpotMedia v50.5Z Creator Password User Table Fix
-Base: v50.5Y.
+BoatSpotMedia v50.5Z Owner Creator Rules Panel
+Base: v50.5T.
 
-Fix:
-- Creator password change now uses existing "user".password_hash column.
-- Removes SELECT/UPDATE dependency on non-existing "user".password column.
-- Finds login account by:
-  - form email
-  - session email
-  - creator_application.email
-- Keeps Settings source of truth as creator_application.
-- Does not create tables.
+Adds:
+- Owner dashboard creator rules page.
+- No hardcoded creator IDs.
+- No new creator tables.
+- Uses creator_profile as operational creator table.
+- Uses creator_subscription for internal/subscription exemption.
+- Adds Rules button under Owner > Creators.
 
-Does not touch uploads, R2, batches, checkout, billing, Stripe, payouts, support, Google OAuth, or SMS.
+Owner can set per creator:
+- No subscription required / internal creator
+- Storage limit GB
+- Video commission override %
+- Video commission override expiration
+- Product commission override %
+- Product commission override expiration
+- Reasons for overrides
+
+Does not touch uploads, R2, batches, checkout, billing UI, Stripe checkout, payouts, support, Google OAuth, or SMS.

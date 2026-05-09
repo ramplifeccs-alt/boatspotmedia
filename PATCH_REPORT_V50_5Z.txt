@@ -1,1 +1,4 @@
-app/routes/creator.py
+app/routes/owner.py
+app/templates/owner/manage_people.html
+app/templates/owner/creator_rules.html
+app/static/css/style.css

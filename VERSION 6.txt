@@ -1,0 +1,13 @@
+BoatSpotMedia v50.5Y Settings Uses creator_application
+Base: v50.5T.
+
+Important:
+- No new creators table.
+- No dependency on nonexistent creators table.
+- Creator Settings uses existing creator_application table as source of truth.
+- Password change uses existing "user" table matched by creator email.
+- Billing is not touched.
+- No global JS interception.
+- No creator_profile dependency for Settings.
+
+Does not touch uploads, R2, batches, checkout, billing, Stripe, payouts, support, Google OAuth, or SMS.
