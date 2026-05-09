@@ -3194,3 +3194,5 @@ input[name="phone_number"]{letter-spacing:.02em;}
 .settings-form-v505u input{border:1px solid #cbd5e1;border-radius:12px;padding:11px 12px;font-size:15px;width:100%;box-sizing:border-box}
 .settings-form-v505u button{border:0;border-radius:12px;background:#2563eb;color:#fff;font-weight:950;padding:12px 14px;cursor:pointer}
 @media(max-width:850px){.settings-grid-v505u{grid-template-columns:1fr}.creator-settings-v505u{padding:14px}}
+
+.settings-open-v505v{display:inline-block;margin-top:8px;color:#2563eb;font-weight:900;text-decoration:none}

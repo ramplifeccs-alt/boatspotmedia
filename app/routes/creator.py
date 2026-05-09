@@ -4157,6 +4157,11 @@ def _bsm_normalize_creator_phone_v505u(phone):
     return phone
 
 
+
+@creator_bp.route("/dashboard/settings")
+def creator_settings_alias_v505v():
+    return redirect("/creator/settings")
+
 @creator_bp.route("/settings", methods=["GET","POST"], endpoint="settings_v488")
 def creator_settings_v488():
     creator_id = session.get("creator_id") or session.get("creator_user_id")
