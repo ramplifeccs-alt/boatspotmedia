@@ -1,3 +1,0 @@
-app/__init__.py
-app/routes/public.py
-app/routes/buyer.py

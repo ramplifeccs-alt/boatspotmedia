@@ -1,7 +1,0 @@
-BoatSpotMedia v50.3 Smart Insights
-Base: v50.2.
-Adds:
-- Creator Smart Insights based on views, clicks, sales, conversion, revenue per sold video, and top video.
-- Owner Smart Insights based on platform sales, fee share, conversion, top creators, and top-creator concentration.
-- Smart Insights visual cards in creator and owner analytics.
-Does not touch payments, checkout, split payments, uploads, downloads, My Orders, subscriptions, logins, or R2.

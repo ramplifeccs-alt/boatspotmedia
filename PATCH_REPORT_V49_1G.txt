@@ -1,2 +1,0 @@
-app/routes/buyer.py
-app/routes/public.py

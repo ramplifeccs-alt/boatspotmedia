@@ -1,8 +1,0 @@
-BoatSpotMedia v50.4B Batches Visual Only Keep Original CB
-Base: v50.4 VIDEO_INSIGHTS.
-Changes:
-- Visual-only update to /creator/batches list.
-- Keeps creator left menu layout.
-- Keeps original v50.4 Delete incomplete batch CB button by loading /static/js/mobile.js.
-- Does NOT modify creator.py or any R2/delete logic.
-Does not touch uploads, R2 cleanup, analytics, tracking, payments, checkout, Stripe, downloads, My Orders, subscriptions, or logins.

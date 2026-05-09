@@ -1,8 +1,0 @@
-BoatSpotMedia v50.4V
-Restores ORIGINAL working edited video upload flow from stable version.
-Removes experimental fallback upload logic and route guessing.
-Uses original:
-- edited-upload-url
-- direct R2 PUT
-- edited-upload-complete
-flow only.

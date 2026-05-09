@@ -1,9 +1,0 @@
-BoatSpotMedia v50.5S Buyer Support Thread Render Fix
-Base: v50.5R.
-
-Fix:
-- /buyer/support/<id> now renders buyer/support_thread.html instead of returning raw message rows.
-- Buyer can open a support conversation and see Buyer/Creator messages in the chat UI.
-- Keeps /buyer/support helper route fix from v50.5R.
-
-Does not touch uploads, R2, batches, checkout, billing, Stripe, payouts, analytics, Google OAuth, SMS, Creator Support, or Owner Support.

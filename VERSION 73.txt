@@ -1,6 +1,0 @@
-BoatSpotMedia v50.4W Exact v50.4 Edited Upload Restore
-Base: v50.4R (buyer register crash fixed).
-Restores exact edited video upload JavaScript IIFE from v50.4_VIDEO_INSIGHTS.
-Restores exact creator.py edited-upload-url and edited-upload-complete route blocks from v50.4_VIDEO_INSIGHTS.
-No fallback routes, no route guessing, no server-upload experiment.
-Does not touch buyer register, checkout, Stripe, payouts, billing, batches, analytics, R2 config, or downloads.

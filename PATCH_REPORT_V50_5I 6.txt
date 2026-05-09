@@ -1,3 +1,0 @@
-app/routes/buyer.py
-app/templates/buyer/dashboard.html
-app/routes/owner.py

@@ -1,4 +1,0 @@
-app/routes/buyer.py
-app/__init__.py
-app/routes/public.py
-app/templates/buyer/dashboard.html

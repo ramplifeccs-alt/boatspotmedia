@@ -1,5 +1,0 @@
-app/routes/public.py
-app/templates/public/generic_register.html
-app/templates/buyer/register.html
-app/routes/creator.py
-app/static/css/style.css

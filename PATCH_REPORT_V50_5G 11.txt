@@ -1,2 +1,0 @@
-app/templates/creator/login.html
-app/routes/creator.py

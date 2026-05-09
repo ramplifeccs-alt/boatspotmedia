@@ -1,3 +1,0 @@
-app/routes/public.py
-app/templates/creator/login.html
-app/templates/buyer/login.html

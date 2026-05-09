@@ -1,3 +1,0 @@
-app/routes/creator.py
-
-/orders route count: 2

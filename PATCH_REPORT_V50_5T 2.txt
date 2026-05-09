@@ -1,3 +1,0 @@
-app/routes/public.py
-app/templates/public/apply_creator.html
-app/routes/owner.py

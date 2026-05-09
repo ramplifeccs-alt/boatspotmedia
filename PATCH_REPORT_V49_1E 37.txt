@@ -1,4 +1,0 @@
-app/static/js/r2_upload.js
-app/services/cart.py
-app/routes/cart.py
-app/routes/payments.py

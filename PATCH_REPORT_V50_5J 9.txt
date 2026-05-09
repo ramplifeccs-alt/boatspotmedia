@@ -1,3 +1,0 @@
-app/routes/buyer.py
-app/routes/creator.py
-app/routes/owner.py

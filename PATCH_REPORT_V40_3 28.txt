@@ -1,3 +1,0 @@
-app/routes/public.py
-app/templates/public/preview.html
-app/routes/creator.py

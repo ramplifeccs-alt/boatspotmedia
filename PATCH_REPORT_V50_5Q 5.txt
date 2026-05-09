@@ -1,2 +1,0 @@
-app/routes/buyer.py
-app/templates/buyer/support.html

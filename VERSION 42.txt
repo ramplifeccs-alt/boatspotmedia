@@ -1,8 +1,0 @@
-BoatSpotMedia v50.9 Creator Settings Edit Profile
-Base: v50.8.
-Adds:
-- /creator/settings page inside creator layout with left menu.
-- Creator can edit public name, display name, brand name, phone, location, bio, and social links.
-- Updates creator_profile and user table safely with missing columns added automatically.
-- Replaces Settings menu links to /creator/settings.
-Does not touch payments, checkout, split payments, subscriptions, analytics, tracking, batches logic, uploads, downloads, My Orders, logins, or R2.

@@ -1,3 +1,0 @@
-app/routes/public.py
-app/templates/public/generic_register.html
-app/templates/buyer/register.html

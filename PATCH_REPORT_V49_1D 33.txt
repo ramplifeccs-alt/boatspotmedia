@@ -1,2 +1,0 @@
-app/routes/owner.py
-app/static/css/style.css

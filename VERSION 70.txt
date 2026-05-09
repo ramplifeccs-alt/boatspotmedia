@@ -1,4 +1,0 @@
-BoatSpotMedia v50.4T
-Forces edited video uploads through secure Flask server upload only.
-Direct R2 browser upload disabled to avoid CORS/network failures.
-No changes to checkout, payouts, batches, analytics, billing, Stripe or downloads.

@@ -1,3 +1,0 @@
-app/templates/cart/view.html
-app/templates/creator/discount_review.html
-app/templates/buyer/payment_success.html

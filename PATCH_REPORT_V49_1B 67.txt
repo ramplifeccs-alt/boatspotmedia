@@ -1,2 +1,0 @@
-app/templates/owner/manage_people.html
-app/static/css/style.css

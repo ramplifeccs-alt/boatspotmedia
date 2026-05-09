@@ -1,3 +1,0 @@
-app/routes/buyer.py
-app/__init__.py
-app/templates/buyer/register.html

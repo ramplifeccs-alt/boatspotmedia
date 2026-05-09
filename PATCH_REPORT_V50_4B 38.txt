@@ -1,2 +1,0 @@
-app/templates/creator/batches.html
-app/static/css/style.css

@@ -1,8 +1,0 @@
-BoatSpotMedia v50.4H Creator Menu Match By Logged Email
-Base: v50.4G.
-Fix:
-- Stops matching creator_application by ID first.
-- Resolves actual logged creator from creators.id and creators.email.
-- Then reads creator_application.instagram by matching creator_application.email to logged creator email.
-- Falls back to creators.instagram/brand/name only when no application matches.
-Does not touch R2, uploads, batches logic, analytics backend, payments, checkout, Stripe, downloads, My Orders, subscriptions, or logins.

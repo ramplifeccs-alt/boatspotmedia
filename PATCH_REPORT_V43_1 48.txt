@@ -1,4 +1,0 @@
-app/routes/public.py
-app/routes/buyer.py
-app/templates/buyer/dashboard.html
-app/static/css/style.css
