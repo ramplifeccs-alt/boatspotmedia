@@ -1,0 +1,21 @@
+BoatSpotMedia v50.5U Creator Settings + Password
+Base: v50.5T.
+
+Adds:
+- Real Creator Settings page in creator menu.
+- Creator can update:
+  - email
+  - first name
+  - last name
+  - public/display name
+  - brand/main location
+  - phone
+  - Instagram
+- Creator can change password:
+  - current password
+  - new password
+  - confirm new password
+- Phone normalizes to +1 format.
+- Dashboard/menu Settings now points to /creator/settings.
+
+Does not touch uploads, R2, batches, checkout, billing, Stripe, payouts, analytics, Google OAuth, SMS, or Support Center.

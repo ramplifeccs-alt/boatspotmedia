@@ -1,0 +1,22 @@
+removed app/static/js/creator_settings_force_v505w.js
+app/templates/creator/pending_edits.html
+app/templates/creator/orders.html
+app/templates/creator/settings.html
+app/templates/creator/upload.html
+app/templates/creator/batch_detail.html
+app/templates/creator/products.html
+app/templates/creator/batches.html
+app/templates/creator/login.html
+app/templates/creator/dashboard.html
+app/templates/creator/billing.html
+app/templates/creator/support.html
+app/templates/creator/upload_edited.html
+app/templates/creator/analytics.html
+app/templates/creator/support_thread.html
+app/templates/creator/discount_review.html
+app/templates/creator/application.html
+app/templates/creator/apply.html
+app/templates/creator/product_variants.html
+app/templates/creator/pricing.html
+app/routes/creator.py
+app/static/css/style.css

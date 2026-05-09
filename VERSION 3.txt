@@ -1,0 +1,10 @@
+BoatSpotMedia v50.5V Creator Settings Link Fix
+Base: v50.5U.
+
+Fix:
+- Creator sidebar Settings now points to /creator/settings.
+- Replaces old /creator/dashboard#settings and #settings links.
+- Adds /creator/dashboard/settings redirect alias.
+- Adds visible Open Settings link if needed.
+
+Does not touch uploads, R2, batches, checkout, billing, Stripe, payouts, support, Google OAuth, or SMS.

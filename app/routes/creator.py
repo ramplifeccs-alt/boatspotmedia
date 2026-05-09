@@ -4163,15 +4163,31 @@ def creator_settings_alias_v505v():
     return redirect("/creator/settings")
 
 
-@creator_bp.route("/settings/")
+
+
 @creator_bp.route("/dashboard/settings")
-@creator_bp.route("/dashboard/settings/")
-def creator_settings_alias_force_v505w():
+def creator_settings_alias_clean_v505x():
     return redirect("/creator/settings")
 
 @creator_bp.route("/settings", methods=["GET","POST"], endpoint="settings_v488")
 def creator_settings_v488():
     creator_id = session.get("creator_id") or session.get("creator_user_id")
+    user_id = session.get("user_id")
+    if not creator_id and not user_id:
+        return redirect("/creator/login")
+
+    if not creator_id and user_id:
+        try:
+            row_cid = db.session.execute(db.text("""
+                SELECT id FROM creator_profile WHERE user_id=:uid LIMIT 1
+            """), {"uid": user_id}).mappings().first()
+            if row_cid:
+                creator_id = row_cid.get("id")
+                session["creator_id"] = creator_id
+                session.modified = True
+        except Exception:
+            db.session.rollback()
+
     if not creator_id:
         return redirect("/creator/login")
 
@@ -4197,6 +4213,34 @@ def creator_settings_v488():
     except Exception:
         db.session.rollback()
         row = None
+
+    if not row and user_id:
+        try:
+            row = db.session.execute(db.text("""
+                SELECT cp.id AS id,
+                       cp.user_id,
+                       u.email,
+                       u.first_name,
+                       u.last_name,
+                       u.display_name,
+                       u.public_name,
+                       u.primary_location,
+                       u.phone,
+                       u.password_hash,
+                       u.password,
+                       cp.instagram
+                FROM creator_profile cp
+                LEFT JOIN "user" u ON u.id = cp.user_id
+                WHERE cp.user_id=:uid
+                LIMIT 1
+            """), {"uid": user_id}).mappings().first()
+            if row:
+                creator_id = row.get("id")
+                session["creator_id"] = creator_id
+                session.modified = True
+        except Exception:
+            db.session.rollback()
+            row = None
 
     if not row:
         flash("Creator not found.")
