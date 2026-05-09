@@ -10,6 +10,78 @@ from app.services.db_repair import repair_creator_application_table, repair_all_
 
 owner_bp = Blueprint("owner", __name__)
 
+def _bsm_creator_onboarding_from_email_v505t():
+    import os
+    return (
+        os.environ.get("SENDGRID_FROM_EMAIL")
+        or os.environ.get("CREATOR_FROM_EMAIL")
+        or os.environ.get("FROM_EMAIL")
+        or "creators@boatspotmedia.com"
+    )
+
+def _bsm_send_creator_approval_email_v505t(to_email, temp_password):
+    if not to_email:
+        return False
+    try:
+        import os, requests
+        api_key = os.environ.get("SENDGRID_API_KEY")
+        from_email = _bsm_creator_onboarding_from_email_v505t()
+        base_url = (os.environ.get("PUBLIC_BASE_URL") or os.environ.get("BASE_URL") or "https://boatspotmedia.com").rstrip("/")
+        login_url = base_url + "/creator/login"
+        subject = "BoatSpotMedia Creator Account Approved"
+        text_body = (
+            "Your BoatSpotMedia creator application has been approved.\\n\\n"
+            f"Login: {login_url}\\n"
+            f"Email: {to_email}\\n"
+            f"Temporary password: {temp_password}\\n\\n"
+            "Please log in and update your account settings."
+        )
+        html_body = f"""
+        <div style="font-family:Arial,sans-serif;line-height:1.5;color:#0f172a">
+          <h2>Your BoatSpotMedia Creator Account Was Approved</h2>
+          <p>Your creator application has been approved.</p>
+          <p><strong>Login:</strong> <a href="{login_url}">{login_url}</a></p>
+          <p><strong>Email:</strong> {to_email}</p>
+          <p><strong>Temporary password:</strong> {temp_password}</p>
+          <p>Please log in and update your account settings.</p>
+        </div>
+        """
+        if api_key:
+            payload = {
+                "personalizations": [{"to": [{"email": to_email}]}],
+                "from": {"email": from_email},
+                "subject": subject,
+                "content": [
+                    {"type": "text/plain", "value": text_body},
+                    {"type": "text/html", "value": html_body},
+                ],
+            }
+            r = requests.post(
+                "https://api.sendgrid.com/v3/mail/send",
+                headers={"Authorization": "Bearer " + api_key, "Content-Type": "application/json"},
+                json=payload,
+                timeout=12,
+            )
+            if r.status_code in (200, 202):
+                return True
+            try:
+                print("creator approval sendgrid v50.5T failed:", r.status_code, r.text[:300])
+            except Exception:
+                pass
+        # fallback to existing app emailer
+        try:
+            return bool(send_email(to_email, subject, text_body))
+        except Exception:
+            send_email(to_email, subject, text_body)
+            return True
+    except Exception as e:
+        try:
+            print("creator approval email v50.5T warning:", e)
+        except Exception:
+            pass
+        return False
+
+
 
 def _ensure_creator_profile_deleted_column():
     """Create creator_profile.deleted before Owner ORM queries reference it."""
@@ -711,7 +783,7 @@ def approve_application(app_id):
     db.session.execute(text("UPDATE creator_application SET status='approved', reviewed_at=CURRENT_TIMESTAMP WHERE id=:id"), {"id": app_id})
     db.session.commit()
 
-    send_email(email, "BoatSpotMedia Creator Approved", "Your creator application was approved. Login at /creator/login. Temporary password: TempCreator123!")
+    _bsm_send_creator_approval_email_v505t(email, "TempCreator123!")
     return redirect("/owner/applications")
 
 @owner_bp.route("/applications/<int:app_id>/reject", methods=["POST"])
@@ -1407,6 +1479,13 @@ def owner_approve_application_v488(row_id):
                 WHERE id=:id
             """), {"id": row_id})
         db.session.commit()
+        try:
+            _bsm_send_creator_approval_email_v505t((app.get("email") or "").strip().lower(), temp_password)
+        except Exception as email_e:
+            try:
+                print("creator approval email v50.5T warning:", email_e)
+            except Exception:
+                pass
         flash(f"Application approved. Creator ID #{creator_id} is ready. Temporary password: {temp_password}")
     except Exception as e:
         db.session.rollback()

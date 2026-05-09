@@ -846,6 +846,27 @@ def preview_video(video_id):
 
 
 
+
+def _bsm_normalize_us_phone_v505t(phone):
+    phone = (phone or "").strip()
+    if not phone:
+        return ""
+    cleaned = "".join(ch for ch in phone if ch.isdigit() or ch == "+")
+    if cleaned.startswith("+"):
+        digits = "".join(ch for ch in cleaned if ch.isdigit())
+        if len(digits) == 11 and digits.startswith("1"):
+            return "+" + digits
+        if len(digits) == 10:
+            return "+1" + digits
+        return "+" + digits if digits else ""
+    digits = "".join(ch for ch in cleaned if ch.isdigit())
+    if len(digits) == 10:
+        return "+1" + digits
+    if len(digits) == 11 and digits.startswith("1"):
+        return "+" + digits
+    return "+" + digits if digits else ""
+
+
 @public_bp.route("/apply-creator", methods=["GET","POST"], endpoint="apply_creator_v488")
 @public_bp.route("/creator/apply", methods=["GET","POST"])
 @public_bp.route("/apply", methods=["GET","POST"])
@@ -855,7 +876,7 @@ def apply_creator_v488():
         last_name = request.form.get("last_name") or ""
         brand_name = request.form.get("brand_name") or request.form.get("company_name") or ""
         email = request.form.get("email") or ""
-        phone = request.form.get("phone") or ""
+        phone = _bsm_normalize_us_phone_v505t(request.form.get("phone") or "")
         instagram = request.form.get("instagram") or ""
         try:
             db.session.execute(db.text("ALTER TABLE creator_application ADD COLUMN IF NOT EXISTS phone TEXT"))
