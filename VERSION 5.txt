@@ -1,0 +1,12 @@
+BoatSpotMedia v50.5X Remove Force JS + Restore Billing
+Base: v50.5W.
+
+Fix:
+- Removes aggressive creator_settings_force_v505w.js.
+- Stops intercepting every Settings click globally.
+- Restores Billing Settings tab behavior.
+- Keeps Creator sidebar Settings as /creator/settings.
+- Makes Creator Settings route more robust by resolving creator profile from session user_id if creator_id is missing/wrong.
+- Adds clean /creator/dashboard/settings redirect alias.
+
+Does not touch uploads, R2, batches, checkout, Stripe, payouts, support, Google OAuth, or SMS.

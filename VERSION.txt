@@ -1,13 +1,14 @@
-BoatSpotMedia v50.5Y Settings Uses creator_application
-Base: v50.5T.
+BoatSpotMedia v50.5Z Creator Password User Table Fix
+Base: v50.5Y.
 
-Important:
-- No new creators table.
-- No dependency on nonexistent creators table.
-- Creator Settings uses existing creator_application table as source of truth.
-- Password change uses existing "user" table matched by creator email.
-- Billing is not touched.
-- No global JS interception.
-- No creator_profile dependency for Settings.
+Fix:
+- Creator password change now uses existing "user".password_hash column.
+- Removes SELECT/UPDATE dependency on non-existing "user".password column.
+- Finds login account by:
+  - form email
+  - session email
+  - creator_application.email
+- Keeps Settings source of truth as creator_application.
+- Does not create tables.
 
 Does not touch uploads, R2, batches, checkout, billing, Stripe, payouts, support, Google OAuth, or SMS.

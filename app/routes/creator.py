@@ -4231,50 +4231,68 @@ def creator_settings_v488():
                 flash("New password and confirmation do not match.")
                 return redirect("/creator/settings")
 
-            try:
-                urow = db.session.execute(db.text("""
-                    SELECT id, password_hash, password
-                    FROM "user"
-                    WHERE lower(COALESCE(email,'')) = lower(:email)
-                    LIMIT 1
-                """), {"email": session_email}).mappings().first()
-            except Exception:
-                db.session.rollback()
-                urow = None
+            # v50.5Z: Password is stored in "user".password_hash.
+            # Do not select/update a non-existing "password" column.
+            candidate_emails = []
+            for e in [
+                (request.form.get("email") or "").strip().lower(),
+                session_email,
+                (app_row.get("email") or "").strip().lower() if app_row else "",
+                (session.get("user_email") or "").strip().lower(),
+                (session.get("creator_email") or "").strip().lower(),
+            ]:
+                if e and e not in candidate_emails:
+                    candidate_emails.append(e)
+
+            urow = None
+            for email_candidate in candidate_emails:
+                try:
+                    urow = db.session.execute(db.text("""
+                        SELECT id, email, password_hash
+                        FROM "user"
+                        WHERE lower(COALESCE(email,'')) = lower(:email)
+                          AND COALESCE(role,'')='creator'
+                        LIMIT 1
+                    """), {"email": email_candidate}).mappings().first()
+                    if urow:
+                        break
+                except Exception as e:
+                    db.session.rollback()
+                    try:
+                        print("creator settings user password lookup v50.5Z warning:", e)
+                    except Exception:
+                        pass
 
             if not urow:
                 flash("Login account not found for this creator email.")
                 return redirect("/creator/settings")
 
-            stored_hash = urow.get("password_hash") or urow.get("password") or ""
+            stored_hash = urow.get("password_hash") or ""
             valid_current = False
             try:
                 valid_current = bool(stored_hash and check_password_hash(stored_hash, current_password))
             except Exception:
                 valid_current = False
-            if not valid_current and stored_hash == current_password:
-                valid_current = True
 
             if not valid_current:
                 flash("Current password is incorrect.")
                 return redirect("/creator/settings")
 
-            hashed = generate_password_hash(new_password)
-            updated = False
             try:
-                db.session.execute(db.text('UPDATE "user" SET password_hash=:password_hash WHERE id=:uid'), {"password_hash": hashed, "uid": urow.get("id")})
-                updated = True
-            except Exception:
-                db.session.rollback()
-            try:
-                db.session.execute(db.text('UPDATE "user" SET password=:password_hash WHERE id=:uid'), {"password_hash": hashed, "uid": urow.get("id")})
-                updated = True
-            except Exception:
-                db.session.rollback()
-            if updated:
+                hashed = generate_password_hash(new_password)
+                db.session.execute(db.text("""
+                    UPDATE "user"
+                    SET password_hash=:password_hash
+                    WHERE id=:uid
+                """), {"password_hash": hashed, "uid": urow.get("id")})
                 db.session.commit()
                 flash("Password updated successfully.")
-            else:
+            except Exception as e:
+                db.session.rollback()
+                try:
+                    print("creator settings password update v50.5Z warning:", e)
+                except Exception:
+                    pass
                 flash("Could not update password.")
             return redirect("/creator/settings")
 
