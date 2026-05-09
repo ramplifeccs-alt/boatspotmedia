@@ -3182,19 +3182,15 @@ input[name="phone_number"]{letter-spacing:.02em;}
 /* v50.5O buyer support inbox */
 .support-thread-row-v505c b{color:#0f172a;}
 
-/* v50.5U creator settings */
-.creator-settings-v505u{max-width:1100px;margin:0 auto;padding:22px}
-.creator-settings-v505u h1{margin:0 0 8px;color:#0f172a;font-size:32px;font-weight:950}
-.settings-muted-v505u{color:#64748b;font-weight:700;margin:0 0 18px}
-.settings-grid-v505u{display:grid;grid-template-columns:1.2fr .8fr;gap:18px;align-items:start}
-.settings-card-v505u{background:#fff;border:1px solid #e5e7eb;border-radius:18px;padding:18px;box-shadow:0 8px 26px rgba(15,23,42,.06)}
-.settings-card-v505u h2{margin:0 0 14px;color:#0f172a}
-.settings-form-v505u{display:grid;gap:12px}
-.settings-form-v505u label{display:grid;gap:6px;color:#334155;font-weight:900;font-size:13px}
-.settings-form-v505u input{border:1px solid #cbd5e1;border-radius:12px;padding:11px 12px;font-size:15px;width:100%;box-sizing:border-box}
-.settings-form-v505u button{border:0;border-radius:12px;background:#2563eb;color:#fff;font-weight:950;padding:12px 14px;cursor:pointer}
-@media(max-width:850px){.settings-grid-v505u{grid-template-columns:1fr}.creator-settings-v505u{padding:14px}}
-
-.settings-open-v505v{display:inline-block;margin-top:8px;color:#2563eb;font-weight:900;text-decoration:none}
-
-.settings-open-v505x{display:inline-block;margin-top:8px;color:#2563eb;font-weight:900;text-decoration:none}
+/* v50.5Y creator_application settings */
+.creator-settings-v505y{max-width:1100px;margin:0 auto;padding:22px}
+.creator-settings-v505y h1{margin:0 0 8px;color:#0f172a;font-size:32px;font-weight:950}
+.settings-muted-v505y{color:#64748b;font-weight:700;margin:0 0 18px}
+.settings-grid-v505y{display:grid;grid-template-columns:1.2fr .8fr;gap:18px;align-items:start}
+.settings-card-v505y{background:#fff;border:1px solid #e5e7eb;border-radius:18px;padding:18px;box-shadow:0 8px 26px rgba(15,23,42,.06)}
+.settings-card-v505y h2{margin:0 0 14px;color:#0f172a}
+.settings-form-v505y{display:grid;gap:12px}
+.settings-form-v505y label{display:grid;gap:6px;color:#334155;font-weight:900;font-size:13px}
+.settings-form-v505y input{border:1px solid #cbd5e1;border-radius:12px;padding:11px 12px;font-size:15px;width:100%;box-sizing:border-box}
+.settings-form-v505y button{border:0;border-radius:12px;background:#2563eb;color:#fff;font-weight:950;padding:12px 14px;cursor:pointer}
+@media(max-width:850px){.settings-grid-v505y{grid-template-columns:1fr}.creator-settings-v505y{padding:14px}}

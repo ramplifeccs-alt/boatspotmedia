@@ -17,68 +17,45 @@
       <a href="/creator/batches">Batches</a>
       <a href="/creator/analytics">Analytics</a>
       <a href="/creator/orders">Orders</a>
+      <a href="/creator/products">Products</a>
+      <a href="/creator/pricing">Pricing</a>
       <a href="/creator/billing">Billing</a>
       <a href="/creator/support">Support Center</a>
       <a href="/creator/settings" class="active">Settings</a>
       <a href="/logout" class="logout">Log out</a>
     </nav>
   </aside>
-
   <main class="bsm-creator-main-v451">
-    <div class="creator-settings-v505u">
+    <div class="creator-settings-v505y">
       <h1>Creator Settings</h1>
-      <p class="settings-muted-v505u">Manage your public profile, contact information, and password.</p>
-
+      <p class="settings-muted-v505y">This page uses your approved creator_application record.</p>
       {% with messages = get_flashed_messages() %}
-        {% if messages %}
-          <div class="owner-flash-v474">{% for msg in messages %}<div>{{ msg }}</div>{% endfor %}</div>
-        {% endif %}
+        {% if messages %}<div class="owner-flash-v474">{% for msg in messages %}<div>{{ msg }}</div>{% endfor %}</div>{% endif %}
       {% endwith %}
-
-      <div class="settings-grid-v505u">
-        <section class="settings-card-v505u">
-          <h2>Profile Information</h2>
-          <form method="POST" class="settings-form-v505u">
+      <div class="settings-grid-v505y">
+        <section class="settings-card-v505y">
+          <h2>Creator Information</h2>
+          <form method="POST" class="settings-form-v505y">
             <input type="hidden" name="action" value="profile">
-            <label>Email
-              <input name="email" type="email" value="{{ creator.email or '' }}" required>
-            </label>
-            <label>First Name
-              <input name="first_name" value="{{ creator.first_name or '' }}">
-            </label>
-            <label>Last Name
-              <input name="last_name" value="{{ creator.last_name or '' }}">
-            </label>
-            <label>Public / Display Name
-              <input name="display_name" value="{{ creator.display_name or creator.public_name or '' }}" placeholder="Example: RampLifeCCS">
-            </label>
-            <label>Brand / Main Location
-              <input name="primary_location" value="{{ creator.primary_location or '' }}" placeholder="Example: Boca Raton Inlet">
-            </label>
-            <label>Phone
-              <input name="phone" type="tel" inputmode="tel" value="{{ creator.phone or '+1' }}" placeholder="+1 754 245 9666">
-            </label>
-            <label>Instagram
-              <input name="instagram" value="{{ creator.instagram or '' }}" placeholder="yourhandle">
-            </label>
-            <button type="submit">Save Profile</button>
+            <label>First Name <input name="first_name" value="{{ creator.first_name or '' }}"></label>
+            <label>Last Name <input name="last_name" value="{{ creator.last_name or '' }}"></label>
+            <label>Brand / Public Name <input name="brand_name" value="{{ creator.brand_name or '' }}" placeholder="Example: RampLifeCCS"></label>
+            <label>Email <input name="email" type="email" value="{{ creator.email or '' }}" required></label>
+            <label>Phone <input name="phone" type="tel" inputmode="tel" value="{{ creator.phone or '+1' }}" placeholder="+1 754 245 9666"></label>
+            <label>Instagram <input name="instagram" value="{{ creator.instagram or '' }}" placeholder="yourhandle"></label>
+            <label>Website <input name="website" value="{{ creator.website or '' }}" placeholder="https://example.com"></label>
+            <label>Location <input name="location" value="{{ creator.location or '' }}" placeholder="Boca Raton Inlet"></label>
+            <button type="submit">Save Settings</button>
           </form>
         </section>
-
-        <section class="settings-card-v505u">
+        <section class="settings-card-v505y">
           <h2>Change Password</h2>
-          <p class="settings-muted-v505u">Use this after logging in with your temporary password.</p>
-          <form method="POST" class="settings-form-v505u">
+          <p class="settings-muted-v505y">Use this after logging in with your temporary password.</p>
+          <form method="POST" class="settings-form-v505y">
             <input type="hidden" name="action" value="password">
-            <label>Current Password
-              <input name="current_password" type="password" required>
-            </label>
-            <label>New Password
-              <input name="new_password" type="password" minlength="8" required>
-            </label>
-            <label>Confirm New Password
-              <input name="confirm_password" type="password" minlength="8" required>
-            </label>
+            <label>Current Password <input name="current_password" type="password" required></label>
+            <label>New Password <input name="new_password" type="password" minlength="8" required></label>
+            <label>Confirm New Password <input name="confirm_password" type="password" minlength="8" required></label>
             <button type="submit">Update Password</button>
           </form>
         </section>
@@ -86,6 +63,5 @@
     </div>
   </main>
 </div>
-<script src="/static/js/mobile.js"></script>
 </body>
 </html>

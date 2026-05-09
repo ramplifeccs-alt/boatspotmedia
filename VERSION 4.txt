@@ -1,0 +1,10 @@
+BoatSpotMedia v50.5W Force Creator Settings Click
+Base: v50.5V.
+
+Fix:
+- Adds global click handler on creator pages.
+- Any click on text/link/button labeled Settings redirects to /creator/settings.
+- Replaces #settings/dashboard#settings links.
+- Adds /creator/settings/ and /creator/dashboard/settings aliases.
+
+Does not touch uploads, R2, billing, Stripe, payouts, support, Google OAuth, or SMS.

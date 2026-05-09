@@ -1,12 +1,13 @@
-BoatSpotMedia v50.5X Remove Force JS + Restore Billing
-Base: v50.5W.
+BoatSpotMedia v50.5Y Settings Uses creator_application
+Base: v50.5T.
 
-Fix:
-- Removes aggressive creator_settings_force_v505w.js.
-- Stops intercepting every Settings click globally.
-- Restores Billing Settings tab behavior.
-- Keeps Creator sidebar Settings as /creator/settings.
-- Makes Creator Settings route more robust by resolving creator profile from session user_id if creator_id is missing/wrong.
-- Adds clean /creator/dashboard/settings redirect alias.
+Important:
+- No new creators table.
+- No dependency on nonexistent creators table.
+- Creator Settings uses existing creator_application table as source of truth.
+- Password change uses existing "user" table matched by creator email.
+- Billing is not touched.
+- No global JS interception.
+- No creator_profile dependency for Settings.
 
-Does not touch uploads, R2, batches, checkout, Stripe, payouts, support, Google OAuth, or SMS.
+Does not touch uploads, R2, batches, checkout, billing, Stripe, payouts, support, Google OAuth, or SMS.
