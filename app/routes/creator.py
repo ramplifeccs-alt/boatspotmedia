@@ -3388,6 +3388,9 @@ def creator_billing_checkout_v472(plan_key):
 
         checkout = stripe.checkout.Session.create(
             mode="subscription",
+                automatic_tax={"enabled": True},
+                billing_address_collection="required",
+                customer_update={"address": "auto", "name": "auto"},
             line_items=[{"price": price_id, "quantity": 1}],
             success_url=base + "/creator/billing?subscription=success&session_id={CHECKOUT_SESSION_ID}",
             cancel_url=base + "/creator/billing?subscription=cancelled",

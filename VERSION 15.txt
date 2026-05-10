@@ -1,0 +1,18 @@
+BoatSpotMedia v50.5AG Creator Password Lookup Fix
+Base: v50.5AF.
+
+Fixes only Creator Settings password change:
+- Stops selecting optional "user.password" column.
+- Uses creator_profile.user_id first.
+- Uses logged session user_id second.
+- Uses known creator emails only as fallback.
+- Updates "user".password_hash only.
+
+Keeps:
+- Buyer Settings from v50.5AF.
+- Owner Header Links from v50.5AE.
+- Buyer Forgot Password from v50.5AD.
+- Stripe commission fixes from v50.5AC.
+- Creator Settings page from v50.5AB.
+
+Does not touch Stripe, billing, uploads, support, buyer settings, owner rules, or header links.
