@@ -39,9 +39,9 @@
         <h2>Subscription / Internal Account</h2>
         <label class="check-v505z">
           <input type="checkbox" name="subscription_exempt" {% if creator.plan_key == 'internal' %}checked{% endif %}>
-          No subscription required / Internal creator
+          No subscription required
         </label>
-        <p class="muted-v505z">When enabled, the creator is marked as internal, active, and Stripe subscription fields are cleared for this creator.</p>
+        <p class="muted-v505z">When enabled, the creator does not need a paid subscription. Commission is controlled separately by the override fields.</p>
 
         <label>Storage Limit GB
           <input type="number" step="1" name="storage_limit_gb" value="{{ creator.subscription_storage_limit_gb or creator.profile_storage_limit_gb or '' }}" placeholder="999999">
@@ -85,7 +85,7 @@
 
       <section class="owner-rule-card-v505z">
         <h2>Save Changes</h2>
-        <p class="muted-v505z">No creator ID is hardcoded. These rules apply only to the selected creator.</p>
+        <p class="muted-v505z">No creator ID is hardcoded. Subscription exemption and commission override are separate controls.</p>
         <button type="submit">Save Creator Rules</button>
         <a href="/owner/creators" class="owner-secondary-link-v505z">Back to creators</a>
       </section>

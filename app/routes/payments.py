@@ -227,31 +227,36 @@ def _bsm_connect_info_for_cart_v491q(items):
         plan_key = (row.get("plan_key") or "").strip().lower()
         is_internal = plan_key == "internal"
 
+        # v50.5AC:
+        # Internal / subscription exempt must NOT force commission to 0.
+        # The owner controls commission through commission_override_rate.
+        # Examples:
+        # - subscription exempt + override blank = use base commission_rate
+        # - subscription exempt + override 0 = 0% platform fee
+        # - subscription exempt + override 5 = 5% platform fee
         commission_rate = float(row.get("base_commission_rate") or 25)
         commission_source = "base"
 
-        if is_internal:
-            commission_rate = 0.0
-            commission_source = "internal"
-        else:
-            override = row.get("commission_override_rate")
-            override_until = row.get("commission_override_until")
-            override_active = False
-            if override is not None:
-                if not override_until:
+        override = row.get("commission_override_rate")
+        override_until = row.get("commission_override_until")
+        override_active = False
+        if override is not None:
+            if not override_until:
+                override_active = True
+            else:
+                try:
+                    # DB usually returns datetime; string fallback supported.
+                    if hasattr(override_until, "replace"):
+                        override_active = override_until >= datetime.utcnow()
+                    else:
+                        override_active = str(override_until) >= datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S")
+                except Exception:
                     override_active = True
-                else:
-                    try:
-                        # DB usually returns datetime; string fallback supported.
-                        if hasattr(override_until, "replace"):
-                            override_active = override_until >= datetime.utcnow()
-                        else:
-                            override_active = str(override_until) >= datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S")
-                    except Exception:
-                        override_active = True
-            if override is not None and override_active:
-                commission_rate = float(override or 0)
-                commission_source = "override"
+        if override is not None and override_active:
+            commission_rate = float(override or 0)
+            commission_source = "override"
+        elif is_internal:
+            commission_source = "internal_base"
 
         if commission_rate < 0:
             commission_rate = 0.0

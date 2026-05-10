@@ -1,14 +1,19 @@
-BoatSpotMedia v50.5AB Restore Creator Settings
-Base: v50.5AA.
+BoatSpotMedia v50.5AC Fix Internal Commission Override
+Base: v50.5AB.
 
-Keeps the Stripe dynamic commission fix from v50.5AA.
-Restores Creator Settings page:
-- /creator/settings route
-- creator details form
-- phone normalization with +1
-- password change
-- Settings menu link points to /creator/settings
+Fix:
+- Internal / No subscription required no longer forces Stripe commission to 0%.
+- Stripe commission now follows Owner Rules correctly:
+  - override blank = use creator_profile.commission_rate
+  - override 0 = 0%
+  - override 5 = 5%
+  - override 15 = 15%
+- Subscription exemption and commission override are now separate controls.
 
-No creator IDs hardcoded.
-No new creator tables.
-Does not touch Stripe checkout logic, Billing logic, R2 uploads, support, or Owner rules.
+Keeps:
+- v50.5AA dynamic Stripe commission system
+- v50.5AB restored Creator Settings
+- No hardcoded creator IDs
+- No new creator tables
+
+Does not touch uploads, R2, support, Billing UI, or creator Settings.
