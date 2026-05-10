@@ -1,0 +1,24 @@
+BoatSpotMedia v50.5AE Owner Public Header Links
+Base: v50.5AD.
+
+Adds:
+- Owner Dashboard > Header Links
+- /owner/public-header-links
+- public_header_link table for configurable header links
+- Public header removes hardcoded Shop link
+- Public header shows Owner-configured links next to Home / Find Your Video / Login
+- Supports multiple links, active/inactive, sort order, open in new tab
+
+Keeps:
+- v50.5AD buyer forgot password routes
+- v50.5AC Stripe dynamic commission override behavior
+- v50.5AB Creator Settings
+- Owner Creator Rules
+- No hardcoded creator IDs
+
+Does not touch:
+- Stripe checkout logic
+- R2 uploads
+- Creator billing
+- Support messages
+- Existing order/download logic

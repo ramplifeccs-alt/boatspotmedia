@@ -4255,22 +4255,74 @@ def creator_settings_v505ab():
                 return redirect("/creator/settings")
 
             try:
-                # v50.5AF: use the real logged-in creator account first.
-                # Do not depend only on creator_application.email because the creator may edit email/brand later.
-                urow = db.session.execute(db.text("""
-                    SELECT u.id, u.password_hash, u.password, u.email
-                    FROM "user" u
-                    LEFT JOIN creator_profile cp ON cp.user_id = u.id
-                    WHERE (u.id=:uid)
-                       OR (cp.user_id=:uid)
-                       OR (lower(COALESCE(u.email,'')) = lower(:email) AND COALESCE(u.role,'')='creator')
-                    ORDER BY CASE WHEN u.id=:uid THEN 0 ELSE 1 END
-                    LIMIT 1
-                """), {"uid": user_id, "email": session_email}).mappings().first()
+                # v50.5AG:
+                # Find the real creator login account without selecting optional columns
+                # that may not exist in production. Source of truth is "user".password_hash.
+                creator_profile_user_id = None
+                try:
+                    cctx = current_creator()
+                    if cctx and getattr(cctx, "user_id", None):
+                        creator_profile_user_id = int(cctx.user_id)
+                except Exception:
+                    creator_profile_user_id = None
+
+                possible_emails = []
+                for e in [
+                    session_email,
+                    (app_row.get("email") if app_row else None),
+                    session.get("user_email"),
+                    session.get("creator_email"),
+                    session.get("email"),
+                ]:
+                    e = (e or "").strip().lower()
+                    if e and e not in possible_emails:
+                        possible_emails.append(e)
+
+                urow = None
+
+                # 1) Try creator_profile.user_id first.
+                if creator_profile_user_id:
+                    urow = db.session.execute(db.text("""
+                        SELECT id, email, password_hash
+                        FROM "user"
+                        WHERE id=:uid
+                        LIMIT 1
+                    """), {"uid": creator_profile_user_id}).mappings().first()
+
+                # 2) Try logged session user_id.
+                if not urow and user_id:
+                    urow = db.session.execute(db.text("""
+                        SELECT id, email, password_hash
+                        FROM "user"
+                        WHERE id=:uid
+                        LIMIT 1
+                    """), {"uid": user_id}).mappings().first()
+
+                # 3) Try all known emails as creator.
+                if not urow and possible_emails:
+                    urow = db.session.execute(db.text("""
+                        SELECT id, email, password_hash
+                        FROM "user"
+                        WHERE lower(COALESCE(email,'')) = ANY(:emails)
+                          AND COALESCE(role,'')='creator'
+                        ORDER BY id DESC
+                        LIMIT 1
+                    """), {"emails": possible_emails}).mappings().first()
+
+                # 4) Last fallback: creator_application email may exist but role may not be set correctly.
+                if not urow and possible_emails:
+                    urow = db.session.execute(db.text("""
+                        SELECT id, email, password_hash
+                        FROM "user"
+                        WHERE lower(COALESCE(email,'')) = ANY(:emails)
+                        ORDER BY CASE WHEN COALESCE(role,'')='creator' THEN 0 ELSE 1 END, id DESC
+                        LIMIT 1
+                    """), {"emails": possible_emails}).mappings().first()
+
             except Exception as e:
                 db.session.rollback()
                 try:
-                    print("creator settings password account lookup v50.5AF warning:", e)
+                    print("creator settings password account lookup v50.5AG warning:", e)
                 except Exception:
                     pass
                 urow = None
@@ -4279,7 +4331,7 @@ def creator_settings_v505ab():
                 flash("Login account not found. Please log out and log in again.")
                 return redirect("/creator/settings")
 
-            stored_hash = urow.get("password_hash") or urow.get("password") or ""
+            stored_hash = urow.get("password_hash") or ""
             valid_current = False
             try:
                 valid_current = bool(stored_hash and check_password_hash(stored_hash, current_password))
@@ -4293,22 +4345,20 @@ def creator_settings_v505ab():
                 return redirect("/creator/settings")
 
             hashed = generate_password_hash(new_password)
-            updated = False
             try:
-                db.session.execute(db.text('UPDATE "user" SET password_hash=:password_hash WHERE id=:uid'), {"password_hash": hashed, "uid": urow.get("id")})
-                updated = True
-            except Exception:
-                db.session.rollback()
-            try:
-                db.session.execute(db.text('UPDATE "user" SET password=:password_hash WHERE id=:uid'), {"password_hash": hashed, "uid": urow.get("id")})
-                updated = True
-            except Exception:
-                db.session.rollback()
-
-            if updated:
+                db.session.execute(db.text("""
+                    UPDATE "user"
+                    SET password_hash=:password_hash
+                    WHERE id=:uid
+                """), {"password_hash": hashed, "uid": urow.get("id")})
                 db.session.commit()
                 flash("Password updated successfully.")
-            else:
+            except Exception as e:
+                db.session.rollback()
+                try:
+                    print("creator password update v50.5AG warning:", e)
+                except Exception:
+                    pass
                 flash("Could not update password.")
             return redirect("/creator/settings")
 
