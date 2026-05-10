@@ -3197,3 +3197,16 @@ input[name="phone_number"]{letter-spacing:.02em;}
 .rule-current-v505z span{display:block;color:#64748b;font-size:12px;text-transform:uppercase}
 .owner-secondary-link-v505z{display:block;text-align:center;margin-top:12px;font-weight:900;color:#2563eb;text-decoration:none}
 @media(max-width:850px){.owner-rules-grid-v505z{grid-template-columns:1fr}.rule-current-v505z{grid-template-columns:1fr}}
+
+/* v50.5AB restored creator settings */
+.creator-settings-v505ab{max-width:1100px;margin:0 auto;padding:22px}
+.creator-settings-v505ab h1{margin:0 0 8px;color:#0f172a;font-size:32px;font-weight:950}
+.settings-muted-v505ab{color:#64748b;font-weight:700;margin:0 0 18px}
+.settings-grid-v505ab{display:grid;grid-template-columns:1.2fr .8fr;gap:18px;align-items:start}
+.settings-card-v505ab{background:#fff;border:1px solid #e5e7eb;border-radius:18px;padding:18px;box-shadow:0 8px 26px rgba(15,23,42,.06)}
+.settings-card-v505ab h2{margin:0 0 14px;color:#0f172a}
+.settings-form-v505ab{display:grid;gap:12px}
+.settings-form-v505ab label{display:grid;gap:6px;color:#334155;font-weight:900;font-size:13px}
+.settings-form-v505ab input{border:1px solid #cbd5e1;border-radius:12px;padding:11px 12px;font-size:15px;width:100%;box-sizing:border-box}
+.settings-form-v505ab button{border:0;border-radius:12px;background:#2563eb;color:#fff;font-weight:950;padding:12px 14px;cursor:pointer}
+@media(max-width:850px){.settings-grid-v505ab{grid-template-columns:1fr}.creator-settings-v505ab{padding:14px}}
