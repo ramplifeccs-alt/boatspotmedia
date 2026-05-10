@@ -3237,3 +3237,36 @@ input[name="phone_number"]{letter-spacing:.02em;}
 .settings-form-v505af input{border:1px solid #cbd5e1;border-radius:12px;padding:11px 12px;font-size:15px;width:100%;box-sizing:border-box}
 .settings-form-v505af button{border:0;border-radius:12px;background:#2563eb;color:#fff;font-weight:950;padding:12px 14px;cursor:pointer}
 @media(max-width:850px){.settings-grid-v505af{grid-template-columns:1fr}.buyer-settings-v505af{padding:14px}}
+
+/* v50.5AH creator pricing clean UI */
+.creator-pricing-v505ah{max-width:1120px;margin:0 auto;padding:22px}
+.pricing-hero-v505ah{display:flex;justify-content:space-between;gap:16px;align-items:center;margin-bottom:18px}
+.pricing-hero-v505ah h1{margin:0;color:#0f172a;font-size:34px;font-weight:950}
+.pricing-hero-v505ah p{margin:6px 0 0;color:#64748b;font-weight:700}
+.pricing-back-v505ah{background:#eff6ff;color:#1d4ed8;border:1px solid #bfdbfe;border-radius:12px;padding:10px 14px;text-decoration:none;font-weight:950}
+.pricing-card-v505ah{background:#fff;border:1px solid #e5e7eb;border-radius:18px;padding:18px;margin-bottom:18px;box-shadow:0 8px 26px rgba(15,23,42,.06)}
+.pricing-section-head-v505ah{display:flex;justify-content:space-between;gap:12px;align-items:flex-start;margin-bottom:14px}
+.pricing-section-head-v505ah h2{margin:0;color:#0f172a;font-size:22px;font-weight:950}
+.pricing-section-head-v505ah p{margin:5px 0 0;color:#64748b;font-weight:700}
+.pricing-form-v505ah{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+.pricing-form-v505ah label{display:grid;gap:7px;color:#334155;font-weight:900;font-size:13px}
+.pricing-form-v505ah input,.pricing-form-v505ah textarea,.pricing-form-v505ah select{border:1px solid #cbd5e1;border-radius:12px;padding:11px 12px;font-size:15px;width:100%;box-sizing:border-box;background:#fff}
+.full-v505ah{grid-column:1/-1}
+.price-input-wrap-v505ah{display:flex;align-items:center;border:1px solid #cbd5e1;border-radius:12px;overflow:hidden;background:#fff}
+.price-input-wrap-v505ah span{padding:0 12px;color:#64748b;font-weight:950}
+.price-input-wrap-v505ah input{border:0;border-radius:0}
+.pricing-actions-v505ah{grid-column:1/-1;display:flex;gap:10px;align-items:center}
+.pricing-actions-v505ah button{border:0;border-radius:12px;background:#2563eb;color:#fff;font-weight:950;padding:12px 18px;cursor:pointer}
+.pricing-actions-v505ah a{color:#2563eb;font-weight:900;text-decoration:none}
+.pricing-list-v505ah{display:grid;gap:12px}
+.pricing-row-v505ah{display:grid;grid-template-columns:1.4fr .55fr .45fr auto;gap:14px;align-items:center;border:1px solid #e2e8f0;background:#f8fafc;border-radius:14px;padding:14px}
+.pricing-row-v505ah strong{display:block;color:#0f172a;font-size:16px}
+.pricing-row-v505ah span{display:block;color:#64748b;font-size:13px;margin-top:3px}
+.pricing-pill-v505ah{justify-self:start;background:#e0f2fe;color:#075985;border:1px solid #bae6fd;border-radius:999px;padding:7px 10px;font-weight:900;text-transform:capitalize;font-size:12px}
+.pricing-price-v505ah{font-size:20px;font-weight:950;color:#0f172a}
+.pricing-row-actions-v505ah{display:flex;gap:8px;align-items:center;justify-content:flex-end}
+.pricing-row-actions-v505ah a{background:#2563eb;color:#fff;border-radius:10px;padding:9px 12px;text-decoration:none;font-weight:900}
+.pricing-row-actions-v505ah form{margin:0}
+.pricing-row-actions-v505ah button{border:0;background:#dc2626;color:#fff;border-radius:10px;padding:9px 12px;font-weight:900;cursor:pointer}
+.pricing-empty-v505ah{background:#f8fafc;border:1px dashed #cbd5e1;border-radius:14px;padding:18px;color:#64748b;font-weight:800;text-align:center}
+@media(max-width:900px){.pricing-hero-v505ah{align-items:flex-start;flex-direction:column}.pricing-form-v505ah,.pricing-row-v505ah{grid-template-columns:1fr}.pricing-row-actions-v505ah{justify-content:flex-start}}

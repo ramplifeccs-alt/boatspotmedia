@@ -1,18 +1,15 @@
-BoatSpotMedia v50.5AG Creator Password Lookup Fix
-Base: v50.5AF.
+BoatSpotMedia v50.5AH Creator Pricing Clean UI
+Base: v50.5AG.
 
-Fixes only Creator Settings password change:
-- Stops selecting optional "user.password" column.
-- Uses creator_profile.user_id first.
-- Uses logged session user_id second.
-- Uses known creator emails only as fallback.
-- Updates "user".password_hash only.
+Changes only Creator > Pricing:
+- Removes "Use as default for new uploads".
+- Removes "Second clip discount %".
+- Removes the second clip discount explanation text.
+- Rebuilds Pricing page with cleaner cards, form layout, and modern price list.
 
 Keeps:
-- Buyer Settings from v50.5AF.
-- Owner Header Links from v50.5AE.
-- Buyer Forgot Password from v50.5AD.
-- Stripe commission fixes from v50.5AC.
-- Creator Settings page from v50.5AB.
-
-Does not touch Stripe, billing, uploads, support, buyer settings, owner rules, or header links.
+- Buyer Settings.
+- Creator password fix.
+- Owner Header Links.
+- Stripe commission fixes.
+- Billing, uploads, support, R2 unchanged.

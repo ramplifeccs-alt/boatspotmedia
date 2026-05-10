@@ -1,0 +1,24 @@
+BoatSpotMedia v50.5AF Buyer Settings + Creator Password Fix
+Base: v50.5AE.
+
+Fixes:
+- Buyer now has /buyer/settings.
+- Buyer menu now includes Settings.
+- Buyer can edit first name, last name, display name, email, phone, location.
+- Buyer can change password.
+- Creator password change no longer depends only on creator_application.email.
+- Creator password lookup uses logged-in user.id and creator_profile.user_id first.
+
+Keeps:
+- v50.5AE Owner Header Links.
+- v50.5AD Buyer Forgot Password.
+- v50.5AC Stripe commission override behavior.
+- v50.5AB Creator Settings.
+- Owner Creator Rules.
+
+Does not touch:
+- Stripe checkout
+- R2 uploads
+- Support messages
+- Billing
+- Owner commission rules
