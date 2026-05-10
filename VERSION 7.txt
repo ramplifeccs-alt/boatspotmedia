@@ -1,0 +1,14 @@
+BoatSpotMedia v50.5Z Creator Password User Table Fix
+Base: v50.5Y.
+
+Fix:
+- Creator password change now uses existing "user".password_hash column.
+- Removes SELECT/UPDATE dependency on non-existing "user".password column.
+- Finds login account by:
+  - form email
+  - session email
+  - creator_application.email
+- Keeps Settings source of truth as creator_application.
+- Does not create tables.
+
+Does not touch uploads, R2, batches, checkout, billing, Stripe, payouts, support, Google OAuth, or SMS.

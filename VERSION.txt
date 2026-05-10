@@ -1,21 +1,37 @@
-BoatSpotMedia v50.5Z Owner Creator Rules Panel
-Base: v50.5T.
+BoatSpotMedia v50.5AA Dynamic Creator Commission Stripe Fix
+Base: v50.5Z.
 
-Adds:
-- Owner dashboard creator rules page.
-- No hardcoded creator IDs.
-- No new creator tables.
-- Uses creator_profile as operational creator table.
-- Uses creator_subscription for internal/subscription exemption.
-- Adds Rules button under Owner > Creators.
+Fixes the real Stripe checkout commission calculation.
 
-Owner can set per creator:
-- No subscription required / internal creator
-- Storage limit GB
-- Video commission override %
-- Video commission override expiration
-- Product commission override %
-- Product commission override expiration
-- Reasons for overrides
+What changed:
+- Stripe Checkout now reads commission dynamically from creator_profile.
+- If creator_subscription.plan_key = internal:
+  commission_rate = 0
+  application_fee_amount is NOT sent
+  transfer_data is still sent to the connected creator account
+- If creator_profile.commission_override_rate is set and not expired:
+  uses commission_override_rate
+- Otherwise:
+  uses creator_profile.commission_rate
+- No creator ID is hardcoded.
+- No new creator tables are created.
 
-Does not touch uploads, R2, batches, checkout, billing UI, Stripe checkout, payouts, support, Google OAuth, or SMS.
+Also:
+- Stripe PaymentIntent metadata now reflects correct:
+  commission_rate
+  platform_fee_cents
+  commission_source
+  internal_creator
+- bsm_cart_order_item now gets accounting columns if missing:
+  platform_fee_cents
+  creator_payout_cents
+  commission_rate
+- Order/item accounting is updated after webhook/success.
+
+Important test:
+After setting a creator to Internal / 0% in Owner Rules, make a new purchase.
+Stripe metadata should show:
+commission_rate = 0
+platform_fee_cents = 0
+internal_creator = true
+Collected fee should be $0.00 from BoatSpotMedia platform.

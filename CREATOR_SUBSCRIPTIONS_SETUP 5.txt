@@ -1,0 +1,26 @@
+BoatSpotMedia v47.2 Creator Stripe Subscriptions
+
+Railway variables:
+STRIPE_SECRET_KEY=sk_test_or_live
+STRIPE_WEBHOOK_SECRET=whsec_...
+PUBLIC_BASE_URL=https://boatspotmedia.com
+
+Stripe Price IDs:
+STRIPE_PRICE_CREATOR_STARTER=price_...
+STRIPE_PRICE_CREATOR_PRO=price_...
+STRIPE_PRICE_CREATOR_STUDIO=price_...
+
+Optional:
+CREATOR_FREE_STORAGE_GB=5
+CREATOR_STARTER_STORAGE_GB=100
+CREATOR_PRO_STORAGE_GB=512
+CREATOR_STUDIO_STORAGE_GB=2048
+CREATOR_STARTER_PRICE_LABEL=$19/mo
+CREATOR_PRO_PRICE_LABEL=$49/mo
+CREATOR_STUDIO_PRICE_LABEL=$149/mo
+
+Webhook events:
+checkout.session.completed
+invoice.paid
+invoice.payment_failed
+customer.subscription.deleted
