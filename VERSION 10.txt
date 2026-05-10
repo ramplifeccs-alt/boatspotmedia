@@ -1,0 +1,14 @@
+BoatSpotMedia v50.5AB Restore Creator Settings
+Base: v50.5AA.
+
+Keeps the Stripe dynamic commission fix from v50.5AA.
+Restores Creator Settings page:
+- /creator/settings route
+- creator details form
+- phone normalization with +1
+- password change
+- Settings menu link points to /creator/settings
+
+No creator IDs hardcoded.
+No new creator tables.
+Does not touch Stripe checkout logic, Billing logic, R2 uploads, support, or Owner rules.

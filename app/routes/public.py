@@ -685,6 +685,226 @@ def buyer_register_public_v422():
     return render_template("public/generic_register.html", role="buyer")
 
 
+
+def _bsm_sendgrid_send_v505ad(to_email, subject, html_body, text_body=None):
+    try:
+        import os, requests
+        api_key = os.environ.get("SENDGRID_API_KEY")
+        from_email = (
+            os.environ.get("SENDGRID_FROM_EMAIL")
+            or os.environ.get("MAIL_FROM")
+            or os.environ.get("FROM_EMAIL")
+            or "noreply@boatspotmedia.com"
+        )
+        from_name = os.environ.get("SENDGRID_FROM_NAME") or "BoatSpotMedia"
+        if not api_key:
+            try:
+                print("buyer forgot password v50.5AD: SENDGRID_API_KEY missing")
+            except Exception:
+                pass
+            return False
+        payload = {
+            "personalizations": [{"to": [{"email": to_email}]}],
+            "from": {"email": from_email, "name": from_name},
+            "subject": subject,
+            "content": [
+                {"type": "text/plain", "value": text_body or "Reset your BoatSpotMedia password."},
+                {"type": "text/html", "value": html_body},
+            ],
+        }
+        r = requests.post(
+            "https://api.sendgrid.com/v3/mail/send",
+            headers={"Authorization": f"Bearer {api_key}", "Content-Type": "application/json"},
+            json=payload,
+            timeout=12,
+        )
+        if r.status_code not in (200, 202):
+            try:
+                print("buyer forgot password SendGrid v50.5AD failed:", r.status_code, r.text[:500])
+            except Exception:
+                pass
+            return False
+        return True
+    except Exception as e:
+        try:
+            print("buyer forgot password SendGrid v50.5AD exception:", e)
+        except Exception:
+            pass
+        return False
+
+def _bsm_public_base_url_v505ad():
+    try:
+        import os
+        base = (os.environ.get("PUBLIC_BASE_URL") or os.environ.get("APP_BASE_URL") or os.environ.get("BASE_URL") or "").strip()
+        if base:
+            return base.rstrip("/")
+        return request.url_root.rstrip("/")
+    except Exception:
+        return "https://boatspotmedia.com"
+
+def _bsm_ensure_password_reset_table_v505ad():
+    try:
+        db.session.execute(db.text("""
+            CREATE TABLE IF NOT EXISTS password_reset_token (
+                id SERIAL PRIMARY KEY,
+                user_id INTEGER NOT NULL,
+                email TEXT NOT NULL,
+                token TEXT NOT NULL UNIQUE,
+                role TEXT DEFAULT 'buyer',
+                expires_at TIMESTAMP NOT NULL,
+                used_at TIMESTAMP,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            )
+        """))
+        db.session.execute(db.text("CREATE INDEX IF NOT EXISTS idx_password_reset_token_token ON password_reset_token(token)"))
+        db.session.execute(db.text("CREATE INDEX IF NOT EXISTS idx_password_reset_token_email ON password_reset_token(email)"))
+        db.session.commit()
+    except Exception as e:
+        db.session.rollback()
+        try:
+            print("buyer forgot password table v50.5AD warning:", e)
+        except Exception:
+            pass
+
+@public_bp.route("/buyer/forgot-password", methods=["GET", "POST"])
+@public_bp.route("/buyer/forgot_password", methods=["GET", "POST"])
+def buyer_forgot_password_v505ad():
+    _bsm_ensure_password_reset_table_v505ad()
+    sent = False
+    if request.method == "POST":
+        email = (request.form.get("email") or "").strip().lower()
+        if email:
+            try:
+                user = db.session.execute(db.text("""
+                    SELECT id, email
+                    FROM "user"
+                    WHERE lower(COALESCE(email,'')) = lower(:email)
+                      AND COALESCE(role,'') = 'buyer'
+                    LIMIT 1
+                """), {"email": email}).mappings().first()
+                if user:
+                    token = secrets.token_urlsafe(40)
+                    expires_at = datetime.utcnow() + timedelta(hours=2)
+                    db.session.execute(db.text("""
+                        INSERT INTO password_reset_token (user_id, email, token, role, expires_at)
+                        VALUES (:user_id, :email, :token, 'buyer', :expires_at)
+                    """), {
+                        "user_id": user.get("id"),
+                        "email": email,
+                        "token": token,
+                        "expires_at": expires_at,
+                    })
+                    db.session.commit()
+
+                    link = f"{_bsm_public_base_url_v505ad()}/buyer/reset-password/{token}"
+                    html = f"""
+                    <div style="font-family:Arial,sans-serif;color:#0f172a">
+                      <h2>Reset your BoatSpotMedia password</h2>
+                      <p>Click the button below to reset your buyer account password. This link expires in 2 hours.</p>
+                      <p><a href="{link}" style="display:inline-block;background:#2563eb;color:#fff;padding:12px 18px;border-radius:10px;text-decoration:none;font-weight:bold">Reset Password</a></p>
+                      <p>If the button does not work, copy and paste this link:</p>
+                      <p>{link}</p>
+                    </div>
+                    """
+                    text = f"Reset your BoatSpotMedia password: {link}\nThis link expires in 2 hours."
+                    _bsm_sendgrid_send_v505ad(email, "Reset your BoatSpotMedia password", html, text)
+                else:
+                    # Keep same UX for privacy.
+                    db.session.rollback()
+            except Exception as e:
+                db.session.rollback()
+                try:
+                    print("buyer forgot password v50.5AD warning:", e)
+                except Exception:
+                    pass
+        sent = True
+    return render_template("buyer/forgot_password.html", sent=sent)
+
+@public_bp.route("/buyer/reset-password/<token>", methods=["GET", "POST"])
+@public_bp.route("/buyer/reset_password/<token>", methods=["GET", "POST"])
+def buyer_reset_password_v505ad(token):
+    _bsm_ensure_password_reset_table_v505ad()
+    invalid = False
+    success = False
+    error = None
+    token = (token or "").strip()
+
+    try:
+        row = db.session.execute(db.text("""
+            SELECT prt.id, prt.user_id, prt.email, prt.expires_at, prt.used_at
+            FROM password_reset_token prt
+            JOIN "user" u ON u.id = prt.user_id
+            WHERE prt.token=:token
+              AND COALESCE(prt.role,'buyer')='buyer'
+              AND COALESCE(u.role,'')='buyer'
+            LIMIT 1
+        """), {"token": token}).mappings().first()
+    except Exception:
+        db.session.rollback()
+        row = None
+
+    if not row:
+        invalid = True
+        return render_template("buyer/reset_password.html", invalid=invalid, success=success, error=error)
+
+    try:
+        exp = row.get("expires_at")
+        used = row.get("used_at")
+        expired = False
+        if used:
+            expired = True
+        elif hasattr(exp, "replace"):
+            expired = exp < datetime.utcnow()
+        else:
+            expired = str(exp) < datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S")
+        if expired:
+            invalid = True
+            return render_template("buyer/reset_password.html", invalid=invalid, success=success, error=error)
+    except Exception:
+        invalid = True
+        return render_template("buyer/reset_password.html", invalid=invalid, success=success, error=error)
+
+    if request.method == "POST":
+        password = request.form.get("password") or ""
+        confirm = request.form.get("confirm_password") or ""
+        if len(password) < 8:
+            error = "Password must be at least 8 characters."
+        elif password != confirm:
+            error = "Passwords do not match."
+        else:
+            hashed = generate_password_hash(password)
+            try:
+                updated = False
+                try:
+                    db.session.execute(db.text('UPDATE "user" SET password_hash=:ph WHERE id=:uid'), {"ph": hashed, "uid": row.get("user_id")})
+                    updated = True
+                except Exception:
+                    db.session.rollback()
+                try:
+                    db.session.execute(db.text('UPDATE "user" SET password=:ph WHERE id=:uid'), {"ph": hashed, "uid": row.get("user_id")})
+                    updated = True
+                except Exception:
+                    db.session.rollback()
+                if not updated:
+                    raise Exception("No password column updated")
+                db.session.execute(db.text("""
+                    UPDATE password_reset_token
+                    SET used_at=CURRENT_TIMESTAMP
+                    WHERE id=:id
+                """), {"id": row.get("id")})
+                db.session.commit()
+                success = True
+            except Exception as e:
+                db.session.rollback()
+                try:
+                    print("buyer reset password v50.5AD warning:", e)
+                except Exception:
+                    pass
+                error = "Could not reset password. Please request a new link."
+
+    return render_template("buyer/reset_password.html", invalid=invalid, success=success, error=error)
+
+
 @public_bp.route("/buyer/login", methods=["GET", "POST"])
 def buyer_login_public_v422():
     if request.method == "POST":
