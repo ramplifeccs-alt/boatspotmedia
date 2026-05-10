@@ -1,0 +1,39 @@
+Owner Creator Rules v50.5Z
+
+No hardcoded creator IDs.
+No new creator tables.
+Uses existing real schema:
+- user.id
+- creator_profile.id and creator_profile.user_id -> user.id
+- creator_subscription.creator_id -> creator_profile.id
+- video.creator_id -> creator_profile.id
+- bsm_cart_order_item.creator_id -> creator_profile.id
+- storage_plan for plan catalog
+
+Owner path:
+- /owner/creators
+- Click Rules beside any creator
+- /owner/creator/<creator_profile.id>/rules
+
+Fields controlled:
+- Subscription exempt/internal creator
+- Storage limit GB
+- Video commission override %
+- Video commission override expiration
+- Product commission override %
+- Product commission override expiration
+
+Internal creator behavior:
+- creator_subscription.plan_key = internal
+- creator_subscription.status = active
+- stripe_customer_id = NULL
+- stripe_subscription_id = NULL
+- cancel_at_period_end = false
+- storage limit set to entered value or 999999
+
+Next step after testing:
+Use these owner-controlled fields in checkout/payout calculation if not already respected:
+- creator_profile.commission_override_rate
+- creator_profile.commission_override_until
+- creator_profile.product_commission_override_rate
+- creator_profile.product_commission_override_until

@@ -34,6 +34,26 @@ def create_app():
     except Exception as e:
         print("services blueprint skipped:", e)
 
+
+    @flask_app.context_processor
+    def inject_public_header_links_v505ae():
+        def public_header_links():
+            try:
+                rows = db.session.execute(db.text("""
+                    SELECT label, url, open_new_tab
+                    FROM public_header_link
+                    WHERE COALESCE(active, true)=true
+                    ORDER BY COALESCE(sort_order,0), id
+                """)).mappings().all()
+                return rows
+            except Exception:
+                try:
+                    db.session.rollback()
+                except Exception:
+                    pass
+                return []
+        return {"public_header_links": public_header_links}
+
     with flask_app.app_context():
         try:
             db.create_all()

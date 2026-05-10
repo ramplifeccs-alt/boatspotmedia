@@ -1,20 +1,24 @@
-BoatSpotMedia v50.5AD Fix Buyer Forgot Password
-Base: v50.5AC.
+BoatSpotMedia v50.5AE Owner Public Header Links
+Base: v50.5AD.
 
-Fix:
-- /buyer/forgot-password now exists.
-- /buyer/forgot_password alias also exists.
-- /buyer/reset-password/<token> now exists.
-- /buyer/reset_password/<token> alias also exists.
-- Creates password_reset_token table if missing.
-- Sends reset email through SendGrid using SENDGRID_API_KEY.
-- Updates password_hash and password columns safely if present.
+Adds:
+- Owner Dashboard > Header Links
+- /owner/public-header-links
+- public_header_link table for configurable header links
+- Public header removes hardcoded Shop link
+- Public header shows Owner-configured links next to Home / Find Your Video / Login
+- Supports multiple links, active/inactive, sort order, open in new tab
 
 Keeps:
-- v50.5AA/v50.5AC Stripe dynamic commission fixes.
-- v50.5AB Creator Settings.
-- Owner Creator Rules.
-- No hardcoded creator IDs.
-- No new creator/business tables.
+- v50.5AD buyer forgot password routes
+- v50.5AC Stripe dynamic commission override behavior
+- v50.5AB Creator Settings
+- Owner Creator Rules
+- No hardcoded creator IDs
 
-Does not touch uploads, R2, support, billing, checkout pricing, or owner commission logic.
+Does not touch:
+- Stripe checkout logic
+- R2 uploads
+- Creator billing
+- Support messages
+- Existing order/download logic

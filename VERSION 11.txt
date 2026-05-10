@@ -1,0 +1,19 @@
+BoatSpotMedia v50.5AC Fix Internal Commission Override
+Base: v50.5AB.
+
+Fix:
+- Internal / No subscription required no longer forces Stripe commission to 0%.
+- Stripe commission now follows Owner Rules correctly:
+  - override blank = use creator_profile.commission_rate
+  - override 0 = 0%
+  - override 5 = 5%
+  - override 15 = 15%
+- Subscription exemption and commission override are now separate controls.
+
+Keeps:
+- v50.5AA dynamic Stripe commission system
+- v50.5AB restored Creator Settings
+- No hardcoded creator IDs
+- No new creator tables
+
+Does not touch uploads, R2, support, Billing UI, or creator Settings.

@@ -9,7 +9,7 @@
   <meta name="theme-color" content="#071b34">
 </head>
 <body>
-<nav class="topnav"><a href="/">Home</a><a href="/video-search">Find Your Video</a><a href="/shop">Shop</a><a class="creator-apply-link-v487" href="/apply-creator">Apply to Sell Videos</a></nav>
+<nav class="topnav"><a href="/">Home</a><a href="/video-search">Find Your Video</a>{% for link in public_header_links() %}<a href="{{ link.url }}" {% if link.open_new_tab %}target="_blank" rel="noopener"{% endif %}>{{ link.label }}</a>{% endfor %}<a class="creator-apply-link-v487" href="/apply-creator">Apply to Sell Videos</a></nav>
 <div class="content">
   <h1>Find Your Video</h1>
   <form class="card" method="get">

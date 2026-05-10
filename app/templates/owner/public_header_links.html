@@ -1,0 +1,88 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Public Header Links - Owner</title>
+  <link rel="stylesheet" href="/static/css/style.css">
+</head>
+<body class="owner-dashboard-v476">
+<div class="owner-shell-v475">
+  <aside class="owner-sidebar-v475">
+    <a href="/owner/panel" class="owner-logo-v475"><img src="/static/img/logo-header.png" alt="BoatSpotMedia"></a>
+    <nav>
+      <a href="/owner/panel">Owner Dashboard</a>
+      <a href="/owner/applications">Creator Applications</a>
+      <a href="/owner/creators">Manage Creators</a>
+      <a href="/owner/buyers">Manage Buyers</a>
+      <a href="/owner/analytics">Analytics</a>
+      <a href="/owner/support">Support Inbox</a>
+      <a href="/owner/creator-plans">Creator Plans</a>
+      <a href="/owner/public-header-links" class="active">Header Links</a>
+      <a href="/logout" class="danger">Log out</a>
+    </nav>
+  </aside>
+
+  <main class="owner-main-v475">
+    <div class="owner-card-v475">
+      <h1>Public Header Links</h1>
+      <p>Configure the extra public header links that appear beside Home, Find Your Video, and Login. Shop is removed from the public header.</p>
+    </div>
+
+    {% with messages = get_flashed_messages() %}
+      {% if messages %}
+        <div class="owner-flash-v474">{% for msg in messages %}<div>{{ msg }}</div>{% endfor %}</div>
+      {% endif %}
+    {% endwith %}
+
+    <section class="owner-header-link-card-v505ae">
+      <h2>Add New Link</h2>
+      <form method="POST" class="owner-header-link-form-v505ae">
+        <input type="hidden" name="action" value="add">
+        <label>Text shown in header
+          <input name="label" placeholder="Example: Services" required>
+        </label>
+        <label>Link URL
+          <input name="url" placeholder="https://services.boatspotmedia.com" required>
+        </label>
+        <label>Order
+          <input type="number" name="sort_order" value="10">
+        </label>
+        <label class="check-v505ae"><input type="checkbox" name="active" checked> Active</label>
+        <label class="check-v505ae"><input type="checkbox" name="open_new_tab"> Open in new tab</label>
+        <button type="submit">Add Link</button>
+      </form>
+    </section>
+
+    <section class="owner-header-link-card-v505ae">
+      <h2>Current Links</h2>
+      {% if links %}
+        <div class="owner-header-link-list-v505ae">
+          {% for link in links %}
+            <form method="POST" class="owner-header-link-row-v505ae">
+              <input type="hidden" name="action" value="update">
+              <input type="hidden" name="link_id" value="{{ link.id }}">
+              <label>Text
+                <input name="label" value="{{ link.label }}" required>
+              </label>
+              <label>URL
+                <input name="url" value="{{ link.url }}" required>
+              </label>
+              <label>Order
+                <input type="number" name="sort_order" value="{{ link.sort_order or 0 }}">
+              </label>
+              <label class="check-v505ae"><input type="checkbox" name="active" {% if link.active %}checked{% endif %}> Active</label>
+              <label class="check-v505ae"><input type="checkbox" name="open_new_tab" {% if link.open_new_tab %}checked{% endif %}> New tab</label>
+              <button type="submit">Save</button>
+              <button type="submit" name="action" value="delete" class="danger-btn-v505ae" onclick="return confirm('Delete this header link?')">Delete</button>
+            </form>
+          {% endfor %}
+        </div>
+      {% else %}
+        <p class="muted-v505ae">No extra header links configured yet.</p>
+      {% endif %}
+    </section>
+  </main>
+</div>
+</body>
+</html>

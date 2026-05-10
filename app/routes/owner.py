@@ -1889,6 +1889,116 @@ def owner_db_debug_v488():
 def applications_endpoint_alias_v489():
     return redirect("/owner/applications")
 
+
+def _bsm_ensure_public_header_links_v505ae():
+    try:
+        db.session.execute(db.text("""
+            CREATE TABLE IF NOT EXISTS public_header_link (
+                id SERIAL PRIMARY KEY,
+                label TEXT NOT NULL,
+                url TEXT NOT NULL,
+                sort_order INTEGER DEFAULT 0,
+                active BOOLEAN DEFAULT TRUE,
+                open_new_tab BOOLEAN DEFAULT FALSE,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            )
+        """))
+        db.session.commit()
+    except Exception as e:
+        db.session.rollback()
+        try:
+            print("public header link table v50.5AE warning:", e)
+        except Exception:
+            pass
+
+def _bsm_public_header_links_v505ae():
+    _bsm_ensure_public_header_links_v505ae()
+    try:
+        return db.session.execute(db.text("""
+            SELECT id, label, url, sort_order, active, open_new_tab
+            FROM public_header_link
+            ORDER BY COALESCE(sort_order,0), id
+        """)).mappings().all()
+    except Exception as e:
+        db.session.rollback()
+        try:
+            print("public header links load v50.5AE warning:", e)
+        except Exception:
+            pass
+        return []
+
+@owner_bp.route("/public-header-links", methods=["GET", "POST"])
+def owner_public_header_links_v505ae():
+    _bsm_ensure_public_header_links_v505ae()
+    if request.method == "POST":
+        action = request.form.get("action") or "add"
+        try:
+            if action == "add":
+                label = (request.form.get("label") or "").strip()
+                url = (request.form.get("url") or "").strip()
+                sort_order = int(request.form.get("sort_order") or 0)
+                active = request.form.get("active") in ("on", "1", "true", "yes")
+                open_new_tab = request.form.get("open_new_tab") in ("on", "1", "true", "yes")
+                if label and url:
+                    db.session.execute(db.text("""
+                        INSERT INTO public_header_link (label, url, sort_order, active, open_new_tab, updated_at)
+                        VALUES (:label, :url, :sort_order, :active, :open_new_tab, CURRENT_TIMESTAMP)
+                    """), {
+                        "label": label,
+                        "url": url,
+                        "sort_order": sort_order,
+                        "active": active,
+                        "open_new_tab": open_new_tab,
+                    })
+                    db.session.commit()
+                    flash("Header link added.")
+                else:
+                    flash("Label and URL are required.")
+            elif action == "update":
+                link_id = int(request.form.get("link_id") or 0)
+                label = (request.form.get("label") or "").strip()
+                url = (request.form.get("url") or "").strip()
+                sort_order = int(request.form.get("sort_order") or 0)
+                active = request.form.get("active") in ("on", "1", "true", "yes")
+                open_new_tab = request.form.get("open_new_tab") in ("on", "1", "true", "yes")
+                db.session.execute(db.text("""
+                    UPDATE public_header_link
+                    SET label=:label,
+                        url=:url,
+                        sort_order=:sort_order,
+                        active=:active,
+                        open_new_tab=:open_new_tab,
+                        updated_at=CURRENT_TIMESTAMP
+                    WHERE id=:id
+                """), {
+                    "id": link_id,
+                    "label": label,
+                    "url": url,
+                    "sort_order": sort_order,
+                    "active": active,
+                    "open_new_tab": open_new_tab,
+                })
+                db.session.commit()
+                flash("Header link updated.")
+            elif action == "delete":
+                link_id = int(request.form.get("link_id") or 0)
+                db.session.execute(db.text("DELETE FROM public_header_link WHERE id=:id"), {"id": link_id})
+                db.session.commit()
+                flash("Header link deleted.")
+        except Exception as e:
+            db.session.rollback()
+            try:
+                print("owner public header links save v50.5AE warning:", e)
+            except Exception:
+                pass
+            flash("Could not save header link.")
+        return redirect("/owner/public-header-links")
+
+    links = _bsm_public_header_links_v505ae()
+    return render_template("owner/public_header_links.html", links=links)
+
+
 @owner_bp.route("/creator-plans", methods=["GET", "POST"])
 def owner_creator_plans_v473():
     _owner_ensure_creator_plan_table_v473()

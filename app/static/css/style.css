@@ -3210,3 +3210,17 @@ input[name="phone_number"]{letter-spacing:.02em;}
 .settings-form-v505ab input{border:1px solid #cbd5e1;border-radius:12px;padding:11px 12px;font-size:15px;width:100%;box-sizing:border-box}
 .settings-form-v505ab button{border:0;border-radius:12px;background:#2563eb;color:#fff;font-weight:950;padding:12px 14px;cursor:pointer}
 @media(max-width:850px){.settings-grid-v505ab{grid-template-columns:1fr}.creator-settings-v505ab{padding:14px}}
+
+/* v50.5AE owner public header links */
+.owner-header-link-card-v505ae{background:#fff;border:1px solid #e5e7eb;border-radius:18px;padding:18px;margin-top:18px;box-shadow:0 8px 26px rgba(15,23,42,.06)}
+.owner-header-link-card-v505ae h2{margin:0 0 14px;color:#0f172a}
+.owner-header-link-form-v505ae,.owner-header-link-row-v505ae{display:grid;grid-template-columns:1.1fr 1.6fr .45fr .45fr .55fr .45fr .45fr;gap:10px;align-items:end}
+.owner-header-link-form-v505ae label,.owner-header-link-row-v505ae label{display:grid;gap:6px;color:#334155;font-weight:900;font-size:12px}
+.owner-header-link-form-v505ae input,.owner-header-link-row-v505ae input{border:1px solid #cbd5e1;border-radius:10px;padding:10px;font-size:14px;box-sizing:border-box;width:100%}
+.owner-header-link-form-v505ae button,.owner-header-link-row-v505ae button{border:0;border-radius:10px;background:#2563eb;color:#fff;font-weight:950;padding:11px;cursor:pointer}
+.check-v505ae{display:flex!important;flex-direction:row;align-items:center;gap:8px!important}
+.check-v505ae input{width:auto!important}
+.danger-btn-v505ae{background:#dc2626!important}
+.owner-header-link-list-v505ae{display:grid;gap:12px}
+.muted-v505ae{color:#64748b;font-weight:700}
+@media(max-width:950px){.owner-header-link-form-v505ae,.owner-header-link-row-v505ae{grid-template-columns:1fr}}
