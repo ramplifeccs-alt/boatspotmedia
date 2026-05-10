@@ -1,4 +1,4 @@
-from werkzeug.security import check_password_hash, generate_password_hash, check_password_hash
+from werkzeug.security import check_password_hash, generate_password_hash
 import os, tempfile, uuid
 from flask import Blueprint, render_template, request, redirect, url_for, current_app, flash, jsonify, session
 from app.models import User, CreatorProfile, Batch, Video, Location, CreatorClickStats, Product, VideoPricingPreset, OrderItem, StoragePlan, ProductVariant
@@ -4255,18 +4255,28 @@ def creator_settings_v505ab():
                 return redirect("/creator/settings")
 
             try:
+                # v50.5AF: use the real logged-in creator account first.
+                # Do not depend only on creator_application.email because the creator may edit email/brand later.
                 urow = db.session.execute(db.text("""
-                    SELECT id, password_hash, password
-                    FROM "user"
-                    WHERE id=:uid OR lower(COALESCE(email,'')) = lower(:email)
+                    SELECT u.id, u.password_hash, u.password, u.email
+                    FROM "user" u
+                    LEFT JOIN creator_profile cp ON cp.user_id = u.id
+                    WHERE (u.id=:uid)
+                       OR (cp.user_id=:uid)
+                       OR (lower(COALESCE(u.email,'')) = lower(:email) AND COALESCE(u.role,'')='creator')
+                    ORDER BY CASE WHEN u.id=:uid THEN 0 ELSE 1 END
                     LIMIT 1
                 """), {"uid": user_id, "email": session_email}).mappings().first()
-            except Exception:
+            except Exception as e:
                 db.session.rollback()
+                try:
+                    print("creator settings password account lookup v50.5AF warning:", e)
+                except Exception:
+                    pass
                 urow = None
 
             if not urow:
-                flash("Login account not found for this creator email.")
+                flash("Login account not found. Please log out and log in again.")
                 return redirect("/creator/settings")
 
             stored_hash = urow.get("password_hash") or urow.get("password") or ""

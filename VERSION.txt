@@ -1,24 +1,24 @@
-BoatSpotMedia v50.5AE Owner Public Header Links
-Base: v50.5AD.
+BoatSpotMedia v50.5AF Buyer Settings + Creator Password Fix
+Base: v50.5AE.
 
-Adds:
-- Owner Dashboard > Header Links
-- /owner/public-header-links
-- public_header_link table for configurable header links
-- Public header removes hardcoded Shop link
-- Public header shows Owner-configured links next to Home / Find Your Video / Login
-- Supports multiple links, active/inactive, sort order, open in new tab
+Fixes:
+- Buyer now has /buyer/settings.
+- Buyer menu now includes Settings.
+- Buyer can edit first name, last name, display name, email, phone, location.
+- Buyer can change password.
+- Creator password change no longer depends only on creator_application.email.
+- Creator password lookup uses logged-in user.id and creator_profile.user_id first.
 
 Keeps:
-- v50.5AD buyer forgot password routes
-- v50.5AC Stripe dynamic commission override behavior
-- v50.5AB Creator Settings
-- Owner Creator Rules
-- No hardcoded creator IDs
+- v50.5AE Owner Header Links.
+- v50.5AD Buyer Forgot Password.
+- v50.5AC Stripe commission override behavior.
+- v50.5AB Creator Settings.
+- Owner Creator Rules.
 
 Does not touch:
-- Stripe checkout logic
+- Stripe checkout
 - R2 uploads
-- Creator billing
 - Support messages
-- Existing order/download logic
+- Billing
+- Owner commission rules

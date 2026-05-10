@@ -1,0 +1,20 @@
+BoatSpotMedia v50.5AD Fix Buyer Forgot Password
+Base: v50.5AC.
+
+Fix:
+- /buyer/forgot-password now exists.
+- /buyer/forgot_password alias also exists.
+- /buyer/reset-password/<token> now exists.
+- /buyer/reset_password/<token> alias also exists.
+- Creates password_reset_token table if missing.
+- Sends reset email through SendGrid using SENDGRID_API_KEY.
+- Updates password_hash and password columns safely if present.
+
+Keeps:
+- v50.5AA/v50.5AC Stripe dynamic commission fixes.
+- v50.5AB Creator Settings.
+- Owner Creator Rules.
+- No hardcoded creator IDs.
+- No new creator/business tables.
+
+Does not touch uploads, R2, support, billing, checkout pricing, or owner commission logic.

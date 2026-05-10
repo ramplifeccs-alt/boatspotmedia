@@ -559,6 +559,156 @@ def buyer_reset_password_v504o(token):
     return render_template("buyer/reset_password.html")
 
 
+
+@buyer_bp.route("/settings", methods=["GET", "POST"])
+def buyer_settings_v505af():
+    if not session.get("user_id") or session.get("user_role") != "buyer":
+        return redirect("/buyer/login")
+
+    _bsm_ensure_buyer_auth_columns_v504o()
+    user_id = session.get("user_id")
+    session_email = (session.get("user_email") or session.get("email") or "").strip().lower()
+
+    try:
+        # Add optional profile columns only if they do not exist. No new business tables.
+        db.session.execute(db.text('ALTER TABLE "user" ADD COLUMN IF NOT EXISTS first_name TEXT'))
+        db.session.execute(db.text('ALTER TABLE "user" ADD COLUMN IF NOT EXISTS last_name TEXT'))
+        db.session.execute(db.text('ALTER TABLE "user" ADD COLUMN IF NOT EXISTS display_name TEXT'))
+        db.session.execute(db.text('ALTER TABLE "user" ADD COLUMN IF NOT EXISTS public_name TEXT'))
+        db.session.execute(db.text('ALTER TABLE "user" ADD COLUMN IF NOT EXISTS phone TEXT'))
+        db.session.execute(db.text('ALTER TABLE "user" ADD COLUMN IF NOT EXISTS primary_location TEXT'))
+        db.session.commit()
+    except Exception:
+        db.session.rollback()
+
+    def _load_buyer():
+        try:
+            return db.session.execute(db.text("""
+                SELECT id,
+                       COALESCE(first_name,'') AS first_name,
+                       COALESCE(last_name,'') AS last_name,
+                       COALESCE(display_name, public_name, email) AS display_name,
+                       email,
+                       COALESCE(phone, phone_number, '') AS phone,
+                       COALESCE(primary_location,'') AS primary_location,
+                       password_hash
+                FROM "user"
+                WHERE id=:uid AND role='buyer'
+                LIMIT 1
+            """), {"uid": user_id}).mappings().first()
+        except Exception:
+            db.session.rollback()
+            return None
+
+    buyer_row = _load_buyer()
+    if not buyer_row and session_email:
+        try:
+            buyer_row = db.session.execute(db.text("""
+                SELECT id,
+                       COALESCE(first_name,'') AS first_name,
+                       COALESCE(last_name,'') AS last_name,
+                       COALESCE(display_name, public_name, email) AS display_name,
+                       email,
+                       COALESCE(phone, phone_number, '') AS phone,
+                       COALESCE(primary_location,'') AS primary_location,
+                       password_hash
+                FROM "user"
+                WHERE lower(COALESCE(email,''))=lower(:email) AND role='buyer'
+                LIMIT 1
+            """), {"email": session_email}).mappings().first()
+        except Exception:
+            db.session.rollback()
+
+    if not buyer_row:
+        flash("Buyer account not found. Please log in again.")
+        return redirect("/buyer/login")
+
+    if request.method == "POST":
+        action = request.form.get("action") or "profile"
+
+        if action == "password":
+            current_password = request.form.get("current_password") or ""
+            new_password = request.form.get("new_password") or ""
+            confirm_password = request.form.get("confirm_password") or ""
+
+            if len(new_password) < 8:
+                flash("New password must be at least 8 characters.")
+                return redirect("/buyer/settings")
+            if new_password != confirm_password:
+                flash("New password and confirmation do not match.")
+                return redirect("/buyer/settings")
+
+            stored_hash = buyer_row.get("password_hash") or ""
+            if not _password_ok(stored_hash, current_password):
+                flash("Current password is incorrect.")
+                return redirect("/buyer/settings")
+
+            try:
+                db.session.execute(db.text("""
+                    UPDATE "user"
+                    SET password_hash=:password_hash
+                    WHERE id=:uid AND role='buyer'
+                """), {"password_hash": generate_password_hash(new_password), "uid": buyer_row.get("id")})
+                db.session.commit()
+                flash("Password updated successfully.")
+            except Exception:
+                db.session.rollback()
+                flash("Could not update password.")
+            return redirect("/buyer/settings")
+
+        first_name = (request.form.get("first_name") or "").strip()
+        last_name = (request.form.get("last_name") or "").strip()
+        display_name = (request.form.get("display_name") or "").strip()
+        email = (request.form.get("email") or buyer_row.get("email") or "").strip().lower()
+        phone = _bsm_normalize_phone_v504o(request.form.get("phone") or "")
+        primary_location = (request.form.get("primary_location") or "").strip()
+
+        try:
+            db.session.execute(db.text("""
+                UPDATE "user"
+                SET first_name=:first_name,
+                    last_name=:last_name,
+                    display_name=:display_name,
+                    public_name=:display_name,
+                    email=:email,
+                    phone=:phone,
+                    phone_number=:phone,
+                    primary_location=:primary_location
+                WHERE id=:uid AND role='buyer'
+            """), {
+                "uid": buyer_row.get("id"),
+                "first_name": first_name,
+                "last_name": last_name,
+                "display_name": display_name or email,
+                "email": email,
+                "phone": phone,
+                "primary_location": primary_location,
+            })
+            # Keep buyer orders tied to the new email where practical.
+            db.session.execute(db.text("""
+                UPDATE bsm_cart_order
+                SET buyer_email=:new_email
+                WHERE lower(COALESCE(buyer_email,''))=lower(:old_email)
+                   OR buyer_user_id=:uid
+            """), {"new_email": email, "old_email": buyer_row.get("email"), "uid": buyer_row.get("id")})
+            db.session.commit()
+            session["user_email"] = email
+            session["display_name"] = display_name or email
+            session.modified = True
+            flash("Settings saved.")
+        except Exception as e:
+            db.session.rollback()
+            try:
+                print("buyer settings v50.5AF warning:", e)
+            except Exception:
+                pass
+            flash("Could not save settings.")
+        return redirect("/buyer/settings")
+
+    buyer_row = _load_buyer() or buyer_row
+    return render_template("buyer/settings.html", buyer=buyer_row, email=buyer_row.get("email"))
+
+
 @buyer_bp.route("/dashboard")
 @buyer_bp.route("/buyer/dashboard")
 def buyer_dashboard():
