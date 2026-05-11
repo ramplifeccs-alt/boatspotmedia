@@ -1,8 +1,12 @@
 <!doctype html><html><head>
+  <link rel="icon" href="/static/img/favicon.ico">
+  <link rel="icon" type="image/png" sizes="192x192" href="/static/img/favicon-192.png">
+  <link rel="apple-touch-icon" href="/static/img/apple-touch-icon.png">
+
   <meta name="viewport" content="width=device-width, initial-scale=1"><meta charset="utf-8"><title>BoatSpotMedia</title><link rel="stylesheet" href="/static/css/style.css">  <link rel="icon" type="image/png" href="/static/img/favicon.png">
   <link rel="apple-touch-icon" href="/static/img/apple-touch-icon.png">
   <meta name="theme-color" content="#071b34">
-</head><body><div style="display:none"><img src="/static/img/boatspot-icon.png" alt="BoatSpotMedia icon"></div><header><div><a href="/" style="color:inherit;text-decoration:none;"><b>BoatSpotMedia</b></a></div><nav><a href="/">Home</a><a href="/search">Find Your Video</a>{% for link in public_header_links() %}<a href="{{ link.url }}" {% if link.open_new_tab %}target="_blank" rel="noopener"{% endif %}>{{ link.label }}</a>{% endfor %}{% if session.get("user_id") %}
+</head><body><div style="display:none"><img src="/static/img/boatspot-icon.png" alt="BoatSpotMedia icon"></div><header><div><a href="/" style="color:inherit;text-decoration:none;"><b>BoatSpotMedia</b></a></div><nav><a href="/">{{ t('home') }}</a><a href="/search">{{ t('find_your_video') }}</a>{% for link in public_header_links() %}<a href="{{ link.url }}" {% if link.open_new_tab %}target="_blank" rel="noopener"{% endif %}>{{ link.label }}</a>{% endfor %}{% if session.get("user_id") %}
   <a class="nav-user" href="{{ session_dashboard_url() }}" style="text-decoration:none;">{{ session_display_name() }}</a>
   {% if session.get("user_role") == "buyer" %}
     <a href="/buyer/dashboard">Dashboard</a>
@@ -15,17 +19,23 @@
   {% endif %}
   <a href="/logout">Logout</a>
 {% else %}
-  <a href="/buyer/login">Login</a>
-{% endif %}</nav></header><div class="container">
+  <a href="/buyer/login">{{ t('login') }}</a>
+{% endif %}</nav></header>
+<div class="language-toggle-v505al">
+  <a href="/language/en" class="{% if site_lang == 'en' %}active{% endif %}">EN</a>
+  <a href="/language/es" class="{% if site_lang == 'es' %}active{% endif %}">ES</a>
+</div>
+<div class="container">
 <div class="hero">
 <h1>Find your boat video</h1>
 <p>Search by inlet, date, and approximate time. Buy the original video or request an edited version.</p>
-<a class="btn" href="/search">Find Your Video</a>
+<a class="btn" href="/search">{{ t('find_your_video') }}</a>
 </div>
 
 {% set _home_ads = homepage_ad_campaigns() %}
 {% if _home_ads %}
 <section class="home-sponsored-wrap-v505ak" aria-label="Sponsored">
+  <div class="home-sponsored-label-v505al">{{ t("sponsored") }}</div>
   {% for ad in _home_ads %}
     <a class="home-sponsored-ad-v505ak" href="{{ ad.target_url }}" {% if ad.open_new_tab %}target="_blank" rel="noopener sponsored"{% else %}rel="sponsored"{% endif %}>
       <img src="{{ ad.image_url }}" alt="{{ ad.title or 'Sponsored advertisement' }}">
@@ -34,7 +44,7 @@
 </section>
 {% endif %}
 
-<h2>Latest Uploads</h2>
+<h2>{{ t('latest_uploads') }}</h2>
 <div class="grid">
 {% for v in videos %}
 <div class="card">

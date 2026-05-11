@@ -1,3 +1,6 @@
+import mimetypes
+import boto3
+from botocore.config import Config
 import os
 import uuid
 from sqlalchemy import text
@@ -1994,15 +1997,57 @@ def _bsm_owner_home_ad_rows_v505ak():
         return []
 
 def _bsm_save_home_ad_image_v505ak(file_storage):
+    """Upload homepage ad banners to Cloudflare R2 when configured; fallback local for testing."""
     if not file_storage or not getattr(file_storage, "filename", ""):
         return ""
     filename = secure_filename(file_storage.filename or "")
     ext = os.path.splitext(filename)[1].lower()
     if ext not in [".jpg", ".jpeg", ".png", ".webp", ".gif"]:
         raise ValueError("Image must be JPG, PNG, WEBP, or GIF.")
+
+    content_type = mimetypes.guess_type(filename)[0] or "application/octet-stream"
+    new_name = f"home_ad_{uuid.uuid4().hex}{ext}"
+    r2_key = f"ads/homepage/{new_name}"
+
+    account_id = os.environ.get("R2_ACCOUNT_ID") or os.environ.get("CLOUDFLARE_ACCOUNT_ID")
+    access_key = os.environ.get("R2_ACCESS_KEY_ID") or os.environ.get("CLOUDFLARE_R2_ACCESS_KEY_ID")
+    secret_key = os.environ.get("R2_SECRET_ACCESS_KEY") or os.environ.get("CLOUDFLARE_R2_SECRET_ACCESS_KEY")
+    bucket = os.environ.get("R2_BUCKET_NAME") or os.environ.get("CLOUDFLARE_R2_BUCKET")
+    public_url = (os.environ.get("R2_PUBLIC_URL") or os.environ.get("CLOUDFLARE_R2_PUBLIC_URL") or "").rstrip("/")
+
+    if account_id and access_key and secret_key and bucket and public_url:
+        try:
+            client = boto3.client(
+                "s3",
+                endpoint_url=f"https://{account_id}.r2.cloudflarestorage.com",
+                aws_access_key_id=access_key,
+                aws_secret_access_key=secret_key,
+                config=Config(signature_version="s3v4"),
+                region_name="auto",
+            )
+            file_storage.stream.seek(0)
+            client.upload_fileobj(
+                file_storage.stream,
+                bucket,
+                r2_key,
+                ExtraArgs={
+                    "ContentType": content_type,
+                    "CacheControl": "public, max-age=31536000, immutable",
+                },
+            )
+            return f"{public_url}/{r2_key}"
+        except Exception as e:
+            try:
+                print("R2 homepage ad upload failed; falling back local v50.5AL:", e)
+            except Exception:
+                pass
+
     upload_dir = os.path.join(os.getcwd(), "app", "static", "uploads", "homepage_ads")
     os.makedirs(upload_dir, exist_ok=True)
-    new_name = f"home_ad_{uuid.uuid4().hex}{ext}"
+    try:
+        file_storage.stream.seek(0)
+    except Exception:
+        pass
     full_path = os.path.join(upload_dir, new_name)
     file_storage.save(full_path)
     return f"/static/uploads/homepage_ads/{new_name}"

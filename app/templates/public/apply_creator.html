@@ -1,5 +1,9 @@
 <!doctype html>
-<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Apply to Sell Videos</title><link rel="stylesheet" href="/static/css/style.css"></head>
+<html lang="en"><head>
+  <link rel="icon" href="/static/img/favicon.ico">
+  <link rel="icon" type="image/png" sizes="192x192" href="/static/img/favicon-192.png">
+  <link rel="apple-touch-icon" href="/static/img/apple-touch-icon.png">
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Apply to Sell Videos</title><link rel="stylesheet" href="/static/css/style.css"></head>
 <body><div class="apply-creator-v488 owner-card-v475"><h1>Apply to Sell Videos</h1>{% if submitted %}<p>Thank you. Your creator application was submitted and will be reviewed.</p><a href="/">Back Home</a>{% else %}{% with messages = get_flashed_messages() %}{% if messages %}<div class="owner-flash-v474">{% for msg in messages %}<div>{{ msg }}</div>{% endfor %}</div>{% endif %}{% endwith %}<form method="POST" class="owner-edit-form-v474"><label>First Name <input name="first_name" required></label><label>Last Name <input name="last_name" required></label><label>Brand / Company Name <input name="brand_name" required></label><label>Email <input name="email" type="email" required></label><label>Phone <input name="phone" type="tel" inputmode="tel" value="+1" placeholder="+1 754 245 9666"></label><label>Instagram <input name="instagram" placeholder="@yourhandle"></label><div class="full actions"><button type="submit">Submit Application</button><a href="/">Cancel</a></div></form>{% endif %}</div><a class="creator-apply-link-v488" href="/apply-creator">Apply to Sell Videos</a>
 <script src="/static/js/tracking.js"></script>
 </body></html>

@@ -1,48 +1,21 @@
-BoatSpotMedia v50.5AK Homepage Advertising Campaigns
-Base: v50.5AJ.
+BoatSpotMedia v50.5AL R2 Homepage Ads + Spanish Home + Favicon
+Base: v50.5AK.
 
-Adds a complete Owner-controlled homepage advertising banner system.
+Changes:
+- Homepage ad campaign images upload to Cloudflare R2 when configured.
+- Uses ads/homepage/ path in R2.
+- Stores public R2 URL in homepage_ad_campaign.image_url.
+- Local fallback remains only for testing if R2 env vars are missing.
+- Adds favicon and touch icons from provided boat logo image.
+- Adds EN/ES language selector on home page.
+- Adds initial Spanish translations for homepage/search text.
 
-New table:
-- homepage_ad_campaign
-
-Owner:
-- /owner/homepage-ads
-- Create campaign
-- Upload banner image
-- Set advertiser name/email
-- Set target link
-- Set price
-- Set start/end dates
-- Activate/deactivate
-- Open in new tab
-- Display order
-- Preview/payment link
-- Mark paid manually if needed
-- Delete campaign
-
-Public:
-- /sponsored/<token>
-- advertiser previews campaign
-- advertiser accepts Advertising Terms & Conditions
-- advertiser pays with Stripe Checkout
-- after payment, Stripe webhook marks campaign paid and active
-- banner appears automatically on homepage during active paid dates
-- expired banners disappear automatically
-
-Homepage:
-- Shows paid/active/scheduled banners after the hero search section.
-- No banner appears if no active paid campaign exists.
-
-Does not use or modify:
-- user table
-- creator_profile
-- creator_application
+Does not touch:
+- buyer settings
+- creator settings
+- Stripe Connect payouts
 - video sales
-- creator payouts
-- support messages
-- uploads
-- pricing
-- billing logic
-
-Advertising terms are embedded in the public campaign payment page.
+- creator subscriptions
+- support system
+- pricing UI
+- order/download logic

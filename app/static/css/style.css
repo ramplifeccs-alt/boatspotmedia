@@ -3315,3 +3315,38 @@ input[name="phone_number"]{letter-spacing:.02em;}
 .ad-success-v505ak{background:#dcfce7;color:#166534;border:1px solid #86efac;border-radius:12px;padding:12px;font-weight:900;margin-bottom:12px}
 .ad-warning-v505ak{background:#fef3c7;color:#92400e;border:1px solid #fde68a;border-radius:12px;padding:12px;font-weight:900;margin-bottom:12px}
 @media(max-width:900px){.owner-ad-form-v505ak,.owner-ad-grid-v505ak,.ad-summary-v505ak{grid-template-columns:1fr}.owner-ad-row-v505ak{grid-template-columns:1fr}.home-sponsored-ad-v505ak img{max-height:260px}}
+
+/* v50.5AL R2 ads spanish favicon */
+.language-toggle-v505al{
+  position:fixed;
+  top:14px;
+  right:14px;
+  z-index:9999;
+  display:flex;
+  gap:6px;
+  background:rgba(15,23,42,.82);
+  padding:6px;
+  border-radius:999px;
+  backdrop-filter:blur(8px);
+  box-shadow:0 8px 24px rgba(0,0,0,.22);
+}
+.language-toggle-v505al a{
+  color:#fff;
+  text-decoration:none;
+  font-weight:950;
+  font-size:12px;
+  padding:6px 9px;
+  border-radius:999px;
+  opacity:.8;
+}
+.language-toggle-v505al a.active{background:#2563eb;opacity:1}
+.home-sponsored-label-v505al{
+  font-size:12px;
+  font-weight:950;
+  color:#64748b;
+  text-transform:uppercase;
+  letter-spacing:.08em;
+  margin:0 0 -6px 4px;
+}
+.home-sponsored-ad-v505ak img{background:#e5e7eb}
+@media(max-width:700px){.language-toggle-v505al{top:8px;right:8px}}

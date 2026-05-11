@@ -1146,6 +1146,51 @@ def public_home_ad_campaign_checkout_v505ak(token):
         return redirect(f"/sponsored/{token}")
 
 
+
+@public_bp.route("/language/<lang>")
+def public_set_language_v505al(lang):
+    lang = (lang or "en").lower()
+    if lang not in ("en", "es"):
+        lang = "en"
+    session["site_lang"] = lang
+    return redirect(request.referrer or "/")
+
+def _bsm_t_v505al(key):
+    lang = (session.get("site_lang") or request.args.get("lang") or "en").lower()
+    translations = {
+        "en": {
+            "find_title": "Find your boat video",
+            "find_subtitle": "Search by date, location, creator, or boat details.",
+            "search_placeholder": "Search your video...",
+            "search_button": "Find Videos",
+            "latest_uploads": "Latest Uploads",
+            "home": "Home",
+            "find_your_video": "Find Your Video",
+            "login": "Login",
+            "sponsored": "Sponsored",
+        },
+        "es": {
+            "find_title": "Encuentra el video de tu bote",
+            "find_subtitle": "Busca por fecha, lugar, creador o detalles del bote.",
+            "search_placeholder": "Busca tu video...",
+            "search_button": "Buscar Videos",
+            "latest_uploads": "Videos Recientes",
+            "home": "Inicio",
+            "find_your_video": "Buscar Video",
+            "login": "Ingresar",
+            "sponsored": "Publicidad",
+        }
+    }
+    return translations.get(lang, translations["en"]).get(key, key)
+
+@public_bp.context_processor
+def inject_public_language_v505al():
+    return {
+        "site_lang": (session.get("site_lang") or "en"),
+        "t": _bsm_t_v505al
+    }
+
+
 @public_bp.route("/")
 def home():
     try:
