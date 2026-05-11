@@ -54,6 +54,33 @@ def create_app():
                 return []
         return {"public_header_links": public_header_links}
 
+
+    @flask_app.context_processor
+    def inject_homepage_ad_campaigns_v505ak():
+        def homepage_ad_campaigns():
+            try:
+                rows = db.session.execute(db.text("""
+                    SELECT id, title, image_url, target_url, open_new_tab
+                    FROM homepage_ad_campaign
+                    WHERE payment_status='paid'
+                      AND COALESCE(is_active,false)=true
+                      AND (start_date IS NULL OR start_date <= CURRENT_TIMESTAMP)
+                      AND (end_date IS NULL OR end_date >= CURRENT_TIMESTAMP)
+                      AND COALESCE(image_url,'') <> ''
+                      AND COALESCE(target_url,'') <> ''
+                    ORDER BY COALESCE(display_order,0), id DESC
+                    LIMIT 3
+                """)).mappings().all()
+                return rows
+            except Exception:
+                try:
+                    db.session.rollback()
+                except Exception:
+                    pass
+                return []
+        return {"homepage_ad_campaigns": homepage_ad_campaigns}
+
+
     with flask_app.app_context():
         try:
             db.create_all()

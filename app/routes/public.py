@@ -1,6 +1,7 @@
 import os
 import secrets
-from datetime import datetime
+import stripe
+from datetime import datetime, timedelta
 from flask import Blueprint, redirect, render_template, request, url_for, session, jsonify, flash
 from sqlalchemy import text
 from werkzeug.security import generate_password_hash, check_password_hash
@@ -1001,6 +1002,148 @@ def payment_success_public_fallback_v415():
 def track_video_event_v403(video_id, event_name):
     ok = _track_video_event_raw(video_id, event_name)
     return jsonify({"ok": bool(ok)})
+
+
+
+def _bsm_ensure_home_ad_campaign_table_public_v505ak():
+    try:
+        db.session.execute(db.text("""
+            CREATE TABLE IF NOT EXISTS homepage_ad_campaign (
+                id SERIAL PRIMARY KEY,
+                token TEXT UNIQUE NOT NULL,
+                advertiser_name TEXT,
+                advertiser_email TEXT,
+                title TEXT,
+                image_url TEXT,
+                target_url TEXT,
+                price_amount NUMERIC(10,2) DEFAULT 0,
+                currency TEXT DEFAULT 'usd',
+                start_date TIMESTAMP,
+                end_date TIMESTAMP,
+                is_active BOOLEAN DEFAULT FALSE,
+                payment_status TEXT DEFAULT 'draft',
+                stripe_session_id TEXT,
+                stripe_payment_intent_id TEXT,
+                open_new_tab BOOLEAN DEFAULT TRUE,
+                display_order INTEGER DEFAULT 0,
+                notes TEXT,
+                terms_accepted_at TIMESTAMP,
+                paid_at TIMESTAMP,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            )
+        """))
+        db.session.commit()
+    except Exception:
+        db.session.rollback()
+
+def _bsm_public_base_url_home_ads_v505ak():
+    try:
+        base = os.environ.get("PUBLIC_BASE_URL") or os.environ.get("APP_BASE_URL") or os.environ.get("BASE_URL")
+        if base:
+            return base.rstrip("/")
+        return request.host_url.rstrip("/")
+    except Exception:
+        return "https://boatspotmedia.com"
+
+@public_bp.route("/sponsored/<token>")
+@public_bp.route("/ad-campaign/<token>")
+def public_home_ad_campaign_preview_v505ak(token):
+    _bsm_ensure_home_ad_campaign_table_public_v505ak()
+    try:
+        campaign = db.session.execute(db.text("""
+            SELECT *
+            FROM homepage_ad_campaign
+            WHERE token=:token
+            LIMIT 1
+        """), {"token": token}).mappings().first()
+    except Exception:
+        db.session.rollback()
+        campaign = None
+    if not campaign:
+        return render_template("public/home_ad_not_found.html"), 404
+    return render_template("public/home_ad_checkout.html", campaign=campaign)
+
+@public_bp.route("/sponsored/<token>/checkout", methods=["POST"])
+@public_bp.route("/ad-campaign/<token>/checkout", methods=["POST"])
+def public_home_ad_campaign_checkout_v505ak(token):
+    _bsm_ensure_home_ad_campaign_table_public_v505ak()
+    try:
+        campaign = db.session.execute(db.text("""
+            SELECT *
+            FROM homepage_ad_campaign
+            WHERE token=:token
+            LIMIT 1
+        """), {"token": token}).mappings().first()
+    except Exception:
+        db.session.rollback()
+        campaign = None
+
+    if not campaign:
+        return render_template("public/home_ad_not_found.html"), 404
+
+    if request.form.get("accept_terms") not in ("on", "true", "1", "yes"):
+        flash("You must accept the advertising terms before payment.")
+        return redirect(f"/sponsored/{token}")
+
+    amount_cents = int(round(float(campaign.get("price_amount") or 0) * 100))
+    if amount_cents < 50:
+        flash("This campaign does not have a valid payment amount.")
+        return redirect(f"/sponsored/{token}")
+
+    stripe.api_key = os.environ.get("STRIPE_SECRET_KEY")
+    if not stripe.api_key:
+        return "Stripe is not configured.", 500
+
+    base = _bsm_public_base_url_home_ads_v505ak()
+    try:
+        session = stripe.checkout.Session.create(
+            mode="payment",
+            payment_method_types=["card"],
+            automatic_tax={"enabled": True},
+            billing_address_collection="required",
+            customer_email=campaign.get("advertiser_email") or None,
+            line_items=[{
+                "price_data": {
+                    "currency": campaign.get("currency") or "usd",
+                    "product_data": {
+                        "name": "BoatSpotMedia Homepage Advertising Campaign",
+                        "description": (campaign.get("title") or "Homepage Banner")[:500],
+                    },
+                    "unit_amount": amount_cents,
+                },
+                "quantity": 1,
+            }],
+            metadata={
+                "homepage_ad_campaign": "1",
+                "campaign_id": str(campaign.get("id")),
+                "campaign_token": str(campaign.get("token")),
+                "advertiser_email": str(campaign.get("advertiser_email") or ""),
+                "campaign_title": str(campaign.get("title") or ""),
+            },
+            success_url=base + f"/sponsored/{token}?paid=1&session_id={{CHECKOUT_SESSION_ID}}",
+            cancel_url=base + f"/sponsored/{token}?canceled=1",
+        )
+
+        db.session.execute(db.text("""
+            UPDATE homepage_ad_campaign
+            SET stripe_session_id=:sid,
+                terms_accepted_at=CURRENT_TIMESTAMP,
+                payment_status=CASE WHEN payment_status='paid' THEN payment_status ELSE 'checkout_created' END,
+                updated_at=CURRENT_TIMESTAMP
+            WHERE token=:token
+        """), {"sid": session.id, "token": token})
+        db.session.commit()
+
+        return redirect(session.url, code=303)
+    except Exception as e:
+        db.session.rollback()
+        try:
+            print("homepage ad Stripe checkout v50.5AK warning:", e)
+        except Exception:
+            pass
+        flash("Could not create payment link. Please contact BoatSpotMedia.")
+        return redirect(f"/sponsored/{token}")
 
 
 @public_bp.route("/")

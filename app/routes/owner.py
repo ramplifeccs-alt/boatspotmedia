@@ -1,7 +1,10 @@
+import os
+import uuid
 from sqlalchemy import text
 from datetime import datetime, timedelta
 from flask import Blueprint, render_template, request, redirect, url_for, flash, session
 from werkzeug.security import generate_password_hash
+from werkzeug.utils import secure_filename
 from sqlalchemy import text
 from app.models import User, CreatorProfile, StoragePlan, CommissionOverrideLog, Video, Product
 from app.services.db import db
@@ -1927,6 +1930,221 @@ def _bsm_public_header_links_v505ae():
         except Exception:
             pass
         return []
+
+
+def _bsm_ensure_home_ad_campaign_table_v505ak():
+    try:
+        db.session.execute(db.text("""
+            CREATE TABLE IF NOT EXISTS homepage_ad_campaign (
+                id SERIAL PRIMARY KEY,
+                token TEXT UNIQUE NOT NULL,
+                advertiser_name TEXT,
+                advertiser_email TEXT,
+                title TEXT,
+                image_url TEXT,
+                target_url TEXT,
+                price_amount NUMERIC(10,2) DEFAULT 0,
+                currency TEXT DEFAULT 'usd',
+                start_date TIMESTAMP,
+                end_date TIMESTAMP,
+                is_active BOOLEAN DEFAULT FALSE,
+                payment_status TEXT DEFAULT 'draft',
+                stripe_session_id TEXT,
+                stripe_payment_intent_id TEXT,
+                open_new_tab BOOLEAN DEFAULT TRUE,
+                display_order INTEGER DEFAULT 0,
+                notes TEXT,
+                terms_accepted_at TIMESTAMP,
+                paid_at TIMESTAMP,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            )
+        """))
+        db.session.execute(db.text("CREATE INDEX IF NOT EXISTS idx_homepage_ad_campaign_token ON homepage_ad_campaign(token)"))
+        db.session.execute(db.text("CREATE INDEX IF NOT EXISTS idx_homepage_ad_campaign_active_dates ON homepage_ad_campaign(is_active,start_date,end_date)"))
+        db.session.commit()
+    except Exception as e:
+        db.session.rollback()
+        try:
+            print("homepage ad campaign table v50.5AK warning:", e)
+        except Exception:
+            pass
+
+def _bsm_owner_home_ad_rows_v505ak():
+    _bsm_ensure_home_ad_campaign_table_v505ak()
+    try:
+        return db.session.execute(db.text("""
+            SELECT *,
+                   CASE
+                     WHEN payment_status='paid' AND is_active=true AND (start_date IS NULL OR start_date <= CURRENT_TIMESTAMP) AND (end_date IS NULL OR end_date >= CURRENT_TIMESTAMP) THEN 'Live'
+                     WHEN payment_status='paid' AND (start_date IS NOT NULL AND start_date > CURRENT_TIMESTAMP) THEN 'Scheduled'
+                     WHEN end_date IS NOT NULL AND end_date < CURRENT_TIMESTAMP THEN 'Expired'
+                     WHEN payment_status='paid' THEN 'Paid / Paused'
+                     ELSE COALESCE(payment_status,'draft')
+                   END AS display_status
+            FROM homepage_ad_campaign
+            ORDER BY created_at DESC, id DESC
+        """)).mappings().all()
+    except Exception as e:
+        db.session.rollback()
+        try:
+            print("homepage ad rows v50.5AK warning:", e)
+        except Exception:
+            pass
+        return []
+
+def _bsm_save_home_ad_image_v505ak(file_storage):
+    if not file_storage or not getattr(file_storage, "filename", ""):
+        return ""
+    filename = secure_filename(file_storage.filename or "")
+    ext = os.path.splitext(filename)[1].lower()
+    if ext not in [".jpg", ".jpeg", ".png", ".webp", ".gif"]:
+        raise ValueError("Image must be JPG, PNG, WEBP, or GIF.")
+    upload_dir = os.path.join(os.getcwd(), "app", "static", "uploads", "homepage_ads")
+    os.makedirs(upload_dir, exist_ok=True)
+    new_name = f"home_ad_{uuid.uuid4().hex}{ext}"
+    full_path = os.path.join(upload_dir, new_name)
+    file_storage.save(full_path)
+    return f"/static/uploads/homepage_ads/{new_name}"
+
+@owner_bp.route("/homepage-ads", methods=["GET", "POST"])
+def owner_homepage_ads_v505ak():
+    _bsm_ensure_home_ad_campaign_table_v505ak()
+
+    if request.method == "POST":
+        action = request.form.get("action") or "create"
+        try:
+            if action == "create":
+                token = uuid.uuid4().hex
+                image_url = _bsm_save_home_ad_image_v505ak(request.files.get("image"))
+                advertiser_name = (request.form.get("advertiser_name") or "").strip()
+                advertiser_email = (request.form.get("advertiser_email") or "").strip().lower()
+                title = (request.form.get("title") or "").strip()
+                target_url = (request.form.get("target_url") or "").strip()
+                price_amount = float(request.form.get("price_amount") or 0)
+                currency = (request.form.get("currency") or "usd").strip().lower()
+                start_date = (request.form.get("start_date") or "").strip() or None
+                end_date = (request.form.get("end_date") or "").strip() or None
+                is_active = request.form.get("is_active") in ("on", "1", "true", "yes")
+                open_new_tab = request.form.get("open_new_tab") in ("on", "1", "true", "yes")
+                display_order = int(request.form.get("display_order") or 0)
+                notes = (request.form.get("notes") or "").strip()
+
+                if not title or not target_url:
+                    flash("Campaign title and target URL are required.")
+                    return redirect("/owner/homepage-ads")
+                if not image_url:
+                    flash("Campaign image is required.")
+                    return redirect("/owner/homepage-ads")
+
+                db.session.execute(db.text("""
+                    INSERT INTO homepage_ad_campaign
+                    (token, advertiser_name, advertiser_email, title, image_url, target_url, price_amount, currency,
+                     start_date, end_date, is_active, payment_status, open_new_tab, display_order, notes, updated_at)
+                    VALUES
+                    (:token, :advertiser_name, :advertiser_email, :title, :image_url, :target_url, :price_amount, :currency,
+                     :start_date, :end_date, :is_active, 'pending_payment', :open_new_tab, :display_order, :notes, CURRENT_TIMESTAMP)
+                """), {
+                    "token": token,
+                    "advertiser_name": advertiser_name,
+                    "advertiser_email": advertiser_email,
+                    "title": title,
+                    "image_url": image_url,
+                    "target_url": target_url,
+                    "price_amount": price_amount,
+                    "currency": currency,
+                    "start_date": start_date,
+                    "end_date": end_date,
+                    "is_active": is_active,
+                    "open_new_tab": open_new_tab,
+                    "display_order": display_order,
+                    "notes": notes,
+                })
+                db.session.commit()
+                flash("Campaign created. Send the payment/preview link to the advertiser.")
+                return redirect("/owner/homepage-ads")
+
+            if action == "update":
+                campaign_id = int(request.form.get("campaign_id") or 0)
+                existing = db.session.execute(db.text("SELECT image_url FROM homepage_ad_campaign WHERE id=:id"), {"id": campaign_id}).mappings().first()
+                if not existing:
+                    flash("Campaign not found.")
+                    return redirect("/owner/homepage-ads")
+
+                new_image = ""
+                if request.files.get("image") and request.files.get("image").filename:
+                    new_image = _bsm_save_home_ad_image_v505ak(request.files.get("image"))
+
+                db.session.execute(db.text("""
+                    UPDATE homepage_ad_campaign
+                    SET advertiser_name=:advertiser_name,
+                        advertiser_email=:advertiser_email,
+                        title=:title,
+                        image_url=COALESCE(NULLIF(:image_url,''), image_url),
+                        target_url=:target_url,
+                        price_amount=:price_amount,
+                        currency=:currency,
+                        start_date=:start_date,
+                        end_date=:end_date,
+                        is_active=:is_active,
+                        open_new_tab=:open_new_tab,
+                        display_order=:display_order,
+                        notes=:notes,
+                        updated_at=CURRENT_TIMESTAMP
+                    WHERE id=:id
+                """), {
+                    "id": campaign_id,
+                    "advertiser_name": (request.form.get("advertiser_name") or "").strip(),
+                    "advertiser_email": (request.form.get("advertiser_email") or "").strip().lower(),
+                    "title": (request.form.get("title") or "").strip(),
+                    "image_url": new_image,
+                    "target_url": (request.form.get("target_url") or "").strip(),
+                    "price_amount": float(request.form.get("price_amount") or 0),
+                    "currency": (request.form.get("currency") or "usd").strip().lower(),
+                    "start_date": (request.form.get("start_date") or "").strip() or None,
+                    "end_date": (request.form.get("end_date") or "").strip() or None,
+                    "is_active": request.form.get("is_active") in ("on", "1", "true", "yes"),
+                    "open_new_tab": request.form.get("open_new_tab") in ("on", "1", "true", "yes"),
+                    "display_order": int(request.form.get("display_order") or 0),
+                    "notes": (request.form.get("notes") or "").strip(),
+                })
+                db.session.commit()
+                flash("Campaign updated.")
+                return redirect("/owner/homepage-ads")
+
+            if action == "delete":
+                campaign_id = int(request.form.get("campaign_id") or 0)
+                db.session.execute(db.text("DELETE FROM homepage_ad_campaign WHERE id=:id"), {"id": campaign_id})
+                db.session.commit()
+                flash("Campaign deleted.")
+                return redirect("/owner/homepage-ads")
+
+            if action == "mark_paid":
+                campaign_id = int(request.form.get("campaign_id") or 0)
+                db.session.execute(db.text("""
+                    UPDATE homepage_ad_campaign
+                    SET payment_status='paid',
+                        is_active=true,
+                        paid_at=CURRENT_TIMESTAMP,
+                        updated_at=CURRENT_TIMESTAMP
+                    WHERE id=:id
+                """), {"id": campaign_id})
+                db.session.commit()
+                flash("Campaign marked paid and active.")
+                return redirect("/owner/homepage-ads")
+
+        except Exception as e:
+            db.session.rollback()
+            try:
+                print("owner homepage ad campaign save v50.5AK warning:", e)
+            except Exception:
+                pass
+            flash("Could not save campaign.")
+            return redirect("/owner/homepage-ads")
+
+    campaigns = _bsm_owner_home_ad_rows_v505ak()
+    return render_template("owner/homepage_ads.html", campaigns=campaigns)
+
 
 @owner_bp.route("/public-header-links", methods=["GET", "POST"])
 def owner_public_header_links_v505ae():

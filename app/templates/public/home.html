@@ -22,6 +22,18 @@
 <p>Search by inlet, date, and approximate time. Buy the original video or request an edited version.</p>
 <a class="btn" href="/search">Find Your Video</a>
 </div>
+
+{% set _home_ads = homepage_ad_campaigns() %}
+{% if _home_ads %}
+<section class="home-sponsored-wrap-v505ak" aria-label="Sponsored">
+  {% for ad in _home_ads %}
+    <a class="home-sponsored-ad-v505ak" href="{{ ad.target_url }}" {% if ad.open_new_tab %}target="_blank" rel="noopener sponsored"{% else %}rel="sponsored"{% endif %}>
+      <img src="{{ ad.image_url }}" alt="{{ ad.title or 'Sponsored advertisement' }}">
+    </a>
+  {% endfor %}
+</section>
+{% endif %}
+
 <h2>Latest Uploads</h2>
 <div class="grid">
 {% for v in videos %}

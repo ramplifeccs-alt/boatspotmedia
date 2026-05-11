@@ -1,0 +1,151 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Homepage Ads - Owner</title>
+  <link rel="stylesheet" href="/static/css/style.css">
+</head>
+<body class="owner-dashboard-v476">
+<div class="owner-shell-v475">
+  <aside class="owner-sidebar-v475">
+    <a href="/owner/panel" class="owner-logo-v475"><img src="/static/img/logo-header.png" alt="BoatSpotMedia"></a>
+    <nav>
+      <a href="/owner/panel">Owner Dashboard</a>
+      <a href="/owner/applications">Creator Applications</a>
+      <a href="/owner/creators">Manage Creators</a>
+      <a href="/owner/buyers">Manage Buyers</a>
+      <a href="/owner/analytics">Analytics</a>
+      <a href="/owner/support">Support Inbox</a>
+      <a href="/owner/creator-plans">Creator Plans</a>
+      <a href="/owner/public-header-links">Header Links</a>
+      <a href="/owner/homepage-ads" class="active">Homepage Ads</a>
+      <a href="/logout" class="danger">Log out</a>
+    </nav>
+  </aside>
+
+  <main class="owner-main-v475">
+    <div class="owner-card-v475">
+      <h1>Homepage Advertising Campaigns</h1>
+      <p>Create a paid homepage banner campaign. Send the preview/payment link to the advertiser. After payment, the banner goes live automatically during the scheduled dates.</p>
+    </div>
+
+    {% with messages = get_flashed_messages() %}
+      {% if messages %}
+        <div class="owner-flash-v474">{% for msg in messages %}<div>{{ msg }}</div>{% endfor %}</div>
+      {% endif %}
+    {% endwith %}
+
+    <section class="owner-ad-card-v505ak">
+      <h2>Create Campaign</h2>
+      <form method="POST" enctype="multipart/form-data" class="owner-ad-form-v505ak">
+        <input type="hidden" name="action" value="create">
+
+        <label>Advertiser Name
+          <input name="advertiser_name" placeholder="Example: Marine Insurance Group">
+        </label>
+
+        <label>Advertiser Email
+          <input type="email" name="advertiser_email" placeholder="client@example.com">
+        </label>
+
+        <label>Campaign Title
+          <input name="title" placeholder="Example: Boat Insurance Special" required>
+        </label>
+
+        <label>Target Link
+          <input name="target_url" placeholder="https://example.com or Instagram/TikTok link" required>
+        </label>
+
+        <label>Price
+          <input type="number" step="0.01" name="price_amount" placeholder="400.00" required>
+        </label>
+
+        <label>Currency
+          <input name="currency" value="usd">
+        </label>
+
+        <label>Start Date
+          <input type="datetime-local" name="start_date">
+        </label>
+
+        <label>End Date
+          <input type="datetime-local" name="end_date">
+        </label>
+
+        <label>Display Order
+          <input type="number" name="display_order" value="0">
+        </label>
+
+        <label class="check-v505ak"><input type="checkbox" name="is_active" checked> Activate after payment</label>
+        <label class="check-v505ak"><input type="checkbox" name="open_new_tab" checked> Open click in new tab</label>
+
+        <label class="full-v505ak">Banner Image
+          <input type="file" name="image" accept="image/png,image/jpeg,image/webp,image/gif" required>
+        </label>
+
+        <label class="full-v505ak">Internal Notes
+          <textarea name="notes" rows="3" placeholder="Example: Paid for 1 year. Campaign contact from Instagram."></textarea>
+        </label>
+
+        <button type="submit">Create Campaign</button>
+      </form>
+    </section>
+
+    <section class="owner-ad-card-v505ak">
+      <h2>Campaigns</h2>
+      {% if campaigns %}
+        <div class="owner-ad-list-v505ak">
+          {% for c in campaigns %}
+            <div class="owner-ad-row-v505ak">
+              <div class="owner-ad-preview-v505ak">
+                {% if c.image_url %}<img src="{{ c.image_url }}" alt="{{ c.title }}">{% endif %}
+              </div>
+
+              <form method="POST" enctype="multipart/form-data" class="owner-ad-edit-v505ak">
+                <input type="hidden" name="action" value="update">
+                <input type="hidden" name="campaign_id" value="{{ c.id }}">
+
+                <div class="owner-ad-title-v505ak">
+                  <strong>{{ c.title }}</strong>
+                  <span class="status-v505ak status-{{ (c.display_status or 'draft')|lower|replace(' ','-')|replace('/','') }}">{{ c.display_status }}</span>
+                </div>
+
+                <div class="owner-ad-links-v505ak">
+                  <a href="/sponsored/{{ c.token }}" target="_blank" rel="noopener">Preview / Payment Link</a>
+                  {% if c.target_url %}<a href="{{ c.target_url }}" target="_blank" rel="noopener">Destination</a>{% endif %}
+                </div>
+
+                <div class="owner-ad-grid-v505ak">
+                  <label>Advertiser Name <input name="advertiser_name" value="{{ c.advertiser_name or '' }}"></label>
+                  <label>Advertiser Email <input type="email" name="advertiser_email" value="{{ c.advertiser_email or '' }}"></label>
+                  <label>Title <input name="title" value="{{ c.title or '' }}" required></label>
+                  <label>Target URL <input name="target_url" value="{{ c.target_url or '' }}" required></label>
+                  <label>Price <input type="number" step="0.01" name="price_amount" value="{{ c.price_amount or 0 }}"></label>
+                  <label>Currency <input name="currency" value="{{ c.currency or 'usd' }}"></label>
+                  <label>Start <input type="datetime-local" name="start_date" value="{% if c.start_date %}{{ c.start_date.strftime('%Y-%m-%dT%H:%M') }}{% endif %}"></label>
+                  <label>End <input type="datetime-local" name="end_date" value="{% if c.end_date %}{{ c.end_date.strftime('%Y-%m-%dT%H:%M') }}{% endif %}"></label>
+                  <label>Order <input type="number" name="display_order" value="{{ c.display_order or 0 }}"></label>
+                  <label class="check-v505ak"><input type="checkbox" name="is_active" {% if c.is_active %}checked{% endif %}> Active</label>
+                  <label class="check-v505ak"><input type="checkbox" name="open_new_tab" {% if c.open_new_tab %}checked{% endif %}> New tab</label>
+                  <label>Replace Image <input type="file" name="image" accept="image/png,image/jpeg,image/webp,image/gif"></label>
+                  <label class="full-v505ak">Notes <textarea name="notes" rows="2">{{ c.notes or '' }}</textarea></label>
+                </div>
+
+                <div class="owner-ad-actions-v505ak">
+                  <button type="submit">Save</button>
+                  <button type="submit" name="action" value="mark_paid">Mark Paid / Activate</button>
+                  <button type="submit" name="action" value="delete" class="danger-btn-v505ak" onclick="return confirm('Delete this campaign?')">Delete</button>
+                </div>
+              </form>
+            </div>
+          {% endfor %}
+        </div>
+      {% else %}
+        <p class="muted-v505ak">No homepage ad campaigns yet.</p>
+      {% endif %}
+    </section>
+  </main>
+</div>
+</body>
+</html>

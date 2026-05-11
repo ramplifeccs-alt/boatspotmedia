@@ -1482,6 +1482,36 @@ def stripe_webhook():
             try: print("pending edit status correction v46.6:", e)
             except Exception: pass
 
+
+        # v50.5AK Homepage ad campaign payment activation
+        try:
+            if str(metadata.get("homepage_ad_campaign") or "") == "1":
+                campaign_id = int(metadata.get("campaign_id") or 0)
+                if campaign_id:
+                    db.session.execute(db.text("""
+                        UPDATE homepage_ad_campaign
+                        SET payment_status='paid',
+                            is_active=true,
+                            stripe_session_id=:sid,
+                            stripe_payment_intent_id=:pi,
+                            paid_at=CURRENT_TIMESTAMP,
+                            terms_accepted_at=COALESCE(terms_accepted_at, CURRENT_TIMESTAMP),
+                            updated_at=CURRENT_TIMESTAMP
+                        WHERE id=:campaign_id
+                    """), {
+                        "campaign_id": campaign_id,
+                        "sid": obj.get("id"),
+                        "pi": obj.get("payment_intent"),
+                    })
+                    db.session.commit()
+                    print("HOMEPAGE AD CAMPAIGN PAID:", {"campaign_id": campaign_id, "session_id": obj.get("id")})
+        except Exception as e:
+            db.session.rollback()
+            try:
+                print("homepage ad campaign webhook v50.5AK warning:", e)
+            except Exception:
+                pass
+
         print("STRIPE CHECKOUT COMPLETED:", {
             "session_id": obj.get("id"),
             "amount_total": obj.get("amount_total"),

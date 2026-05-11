@@ -1,0 +1,60 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Advertising Campaign - BoatSpotMedia</title>
+  <link rel="stylesheet" href="/static/css/style.css">
+</head>
+<body class="ad-checkout-body-v505ak">
+<header class="bsm-simple-header"><a href="/"><img src="/static/img/logo-header.png" alt="BoatSpotMedia" class="bsm-logo-img"></a></header>
+
+<main class="ad-checkout-shell-v505ak">
+  <section class="ad-checkout-card-v505ak">
+    {% if request.args.get('paid') %}
+      <div class="ad-success-v505ak">Payment received. Your campaign will display automatically according to the approved schedule.</div>
+    {% elif request.args.get('canceled') %}
+      <div class="ad-warning-v505ak">Payment was canceled. You can try again below.</div>
+    {% endif %}
+
+    <h1>Homepage Advertising Campaign</h1>
+    <p class="muted-v505ak">Review the campaign preview, dates, and advertising terms before payment.</p>
+
+    <div class="ad-preview-v505ak">
+      <a href="{{ campaign.target_url }}" target="_blank" rel="noopener sponsored">
+        <img src="{{ campaign.image_url }}" alt="{{ campaign.title or 'Advertising banner' }}">
+      </a>
+    </div>
+
+    <div class="ad-summary-v505ak">
+      <div><span>Campaign</span>{{ campaign.title }}</div>
+      <div><span>Advertiser</span>{{ campaign.advertiser_name or campaign.advertiser_email or 'Advertiser' }}</div>
+      <div><span>Destination</span>{{ campaign.target_url }}</div>
+      <div><span>Run Dates</span>{% if campaign.start_date %}{{ campaign.start_date.strftime('%m/%d/%Y') }}{% else %}Upon payment{% endif %} - {% if campaign.end_date %}{{ campaign.end_date.strftime('%m/%d/%Y') }}{% else %}Until manually ended{% endif %}</div>
+      <div><span>Total</span>${{ "%.2f"|format(campaign.price_amount or 0) }} {{ (campaign.currency or 'usd')|upper }}</div>
+      <div><span>Status</span>{{ campaign.payment_status or 'pending' }}</div>
+    </div>
+
+    <section class="ad-terms-v505ak">
+      <h2>Advertising Terms & Conditions</h2>
+      <p>By submitting payment, advertiser agrees that BoatSpotMedia may display the provided banner image on the BoatSpotMedia homepage during the approved campaign period.</p>
+      <p>Advertiser confirms it has the rights to use all images, logos, trademarks, text, claims, and destination links provided for the campaign.</p>
+      <p>BoatSpotMedia may reject, pause, remove, or request changes to any advertisement that is misleading, illegal, offensive, unsafe, infringes intellectual property rights, violates platform policies, or may harm the BoatSpotMedia brand.</p>
+      <p>BoatSpotMedia does not guarantee clicks, sales, leads, conversions, impressions, search ranking, or any specific business result. Advertising placement is sold as display placement only.</p>
+      <p>Advertiser is responsible for the products, services, claims, pricing, licenses, insurance, permits, and legal compliance of its own business and landing page. BoatSpotMedia is not responsible for advertiser products or services.</p>
+      <p>Campaign dates are controlled by the approved start and end dates. Once a campaign expires, it may automatically stop displaying. Renewals require a new agreement or payment.</p>
+      <p>Payments are generally non-refundable once a campaign has been approved, scheduled, or displayed, except where required by law or agreed in writing by BoatSpotMedia.</p>
+      <p>Advertiser understands that BoatSpotMedia may experience maintenance, downtime, technical issues, third-party service interruptions, or reasonable layout changes, and minor interruptions do not create a refund unless otherwise agreed in writing.</p>
+    </section>
+
+    <form method="POST" action="/sponsored/{{ campaign.token }}/checkout" class="ad-pay-form-v505ak">
+      <label class="check-v505ak">
+        <input type="checkbox" name="accept_terms" required>
+        I agree to the Advertising Terms & Conditions.
+      </label>
+      <button type="submit">Pay Securely with Stripe</button>
+    </form>
+  </section>
+</main>
+</body>
+</html>
