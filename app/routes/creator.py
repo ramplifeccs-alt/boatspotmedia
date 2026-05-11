@@ -3388,6 +3388,7 @@ def creator_billing_checkout_v472(plan_key):
 
         checkout = stripe.checkout.Session.create(
             mode="subscription",
+        tax_id_collection={"enabled": True},
                 automatic_tax={"enabled": True},
                 billing_address_collection="required",
                 customer_update={"address": "auto", "name": "auto"},

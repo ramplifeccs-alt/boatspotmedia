@@ -1,16 +1,20 @@
-BoatSpotMedia v50.5AI Stripe Subscription Tax
+BoatSpotMedia v50.5AJ Force Subscription Tax Address
 
-Adds Stripe Tax to creator subscription checkout only.
+Base: v50.5AI if available.
 
-Added:
+Reinforces Stripe Tax for every creator subscription Checkout Session.
+
+Adds to all subscription checkout sessions:
 - automatic_tax={"enabled": True}
 - billing_address_collection="required"
-- customer_update={"address":"auto","name":"auto"}
+- customer_update={"address": "auto", "name": "auto"}
+- tax_id_collection={"enabled": True}
 
-Does not affect:
-- video sales
-- creator payouts
-- Stripe Connect transfers
+Does not touch:
+- video sales checkout
+- Stripe Connect / creator payouts
+- owner commission rules
 - uploads
 - support
-- pricing UI
+- buyer settings
+- creator pricing

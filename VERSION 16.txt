@@ -1,0 +1,15 @@
+BoatSpotMedia v50.5AH Creator Pricing Clean UI
+Base: v50.5AG.
+
+Changes only Creator > Pricing:
+- Removes "Use as default for new uploads".
+- Removes "Second clip discount %".
+- Removes the second clip discount explanation text.
+- Rebuilds Pricing page with cleaner cards, form layout, and modern price list.
+
+Keeps:
+- Buyer Settings.
+- Creator password fix.
+- Owner Header Links.
+- Stripe commission fixes.
+- Billing, uploads, support, R2 unchanged.
