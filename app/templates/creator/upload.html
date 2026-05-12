@@ -150,8 +150,8 @@ Choose video files</label>
       <div id="uploadResult"></div>
     <button type="button" id="cancelUploadBtn" style="display:none;background:#dc2626;color:#fff;border:0;border-radius:10px;padding:10px 14px;margin-left:8px;">Cancel Upload</button>
 <script>
-let boatspotCancelUpload=false; let boatspotCurrentBatchId=null;
-document.addEventListener("click",function(e){if(e.target&&e.target.id==="cancelUploadBtn"){boatspotCancelUpload=true;e.target.disabled=true;e.target.textContent="Cancelling..."; if(boatspotCurrentBatchId){fetch("/creator/upload/batch/"+boatspotCurrentBatchId+"/cancel",{method:"POST"}).then(r=>r.json()).then(d=>{alert(d.message||d.error||"Upload cancelled");location.reload();});}else{alert("Upload cancelled before saving the batch.");location.reload();}}});
+window.boatspotCancelUpload=false; window.boatspotCurrentBatchId=null;
+document.addEventListener("click",function(e){if(e.target&&e.target.id==="cancelUploadBtn"){window.boatspotCancelUpload=true;e.target.disabled=true;e.target.textContent="Cancelling..."; if(window.boatspotCurrentBatchId){fetch("/creator/upload/batch/"+window.boatspotCurrentBatchId+"/cancel",{method:"POST"}).then(r=>r.json()).then(d=>{alert(d.message||d.error||"Upload cancelled");location.reload();});}else{alert("Upload cancelled before saving the batch.");location.reload();}}});
 </script></form>
   </div>
 </div>

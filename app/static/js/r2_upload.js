@@ -134,14 +134,47 @@ document.addEventListener("DOMContentLoaded", function(){
 
   function sleep(ms){ return new Promise(resolve => setTimeout(resolve, ms)); }
 
+  // v50.5AV: browser-safe timeout wrapper. Large 4K/long videos can make Safari/Chrome hang
+  // while reading a local file for thumbnails or waiting on a network request. Never block the
+  // whole batch forever for a thumbnail or stalled finalize call.
+  function withTimeout(promise, ms, label){
+    let timer;
+    const timeout = new Promise(function(_, reject){
+      timer = setTimeout(function(){ reject(new Error((label || "Operation") + " timed out")); }, ms);
+    });
+    return Promise.race([promise, timeout]).finally(function(){ try{ clearTimeout(timer); }catch(e){} });
+  }
+
+  async function safeCaptureThumbnail(file){
+    // For huge camera files, thumbnail extraction can be the part that appears "stuck" after upload.
+    // Skip it for very large files; records still save and thumbnails can be regenerated later.
+    const maxThumbSourceBytes = 2 * 1024 * 1024 * 1024; // 2GB
+    if (!file || file.size > maxThumbSourceBytes) return null;
+    try { return await withTimeout(captureMiddleThumbnail(file), 15000, "Thumbnail generation"); }
+    catch(e) { console.warn("Thumbnail skipped:", e); return null; }
+  }
+
+  async function safeFetchJson(url, options, timeoutMs){
+    const ctrl = (typeof AbortController !== "undefined") ? new AbortController() : null;
+    const opts = Object.assign({}, options || {});
+    if (ctrl) opts.signal = ctrl.signal;
+    let timer = setTimeout(function(){ try{ if(ctrl) ctrl.abort(); }catch(e){} }, timeoutMs || 120000);
+    try {
+      const res = await fetch(url, opts);
+      let data = {};
+      try { data = await res.json(); } catch(e) {}
+      return {res: res, data: data};
+    } finally { try{ clearTimeout(timer); }catch(e){} }
+  }
+
   async function postJson(url, payload){
-    const res = await fetch(url, {
+    const out = await safeFetchJson(url, {
       method: "POST",
       headers: {"Content-Type": "application/json"},
       body: JSON.stringify(payload || {})
-    });
-    let data = {};
-    try { data = await res.json(); } catch(e) {}
+    }, 120000);
+    const res = out.res;
+    const data = out.data || {};
     if (!res.ok || !data.ok) throw new Error(data.error || ("Request failed: " + url));
     return data;
   }
@@ -354,6 +387,10 @@ document.addEventListener("DOMContentLoaded", function(){
       });
       prepare = await res.json();
       if (!res.ok || !prepare.ok) throw new Error(prepare.error || "Could not prepare upload.");
+      try {
+        window.boatspotCurrentBatchId = prepare.batch_id;
+        document.querySelectorAll('#cancelUploadBtn').forEach(function(btn){ btn.style.display='inline-block'; });
+      } catch(e) {}
     } catch(err) {
       setResult('<div class="notice error">' + err.message + '</div>');
       return;
@@ -389,20 +426,21 @@ document.addEventListener("DOMContentLoaded", function(){
         loadedByIndex[i] = file.size;
         bar.style.width = "100%";
         try {
-          const thumbBlob = await captureMiddleThumbnail(file);
+          setOverall(Math.min(99, Math.round((Object.values(loadedByIndex).reduce((a,b) => a + b, 0) / totalBytes) * 100)), "Processing uploaded file...");
+          const thumbBlob = await safeCaptureThumbnail(file);
           if (thumbBlob) {
-            await uploadBlob(thumbBlob, info.thumbnail_upload_url, "image/jpeg");
+            await withTimeout(uploadBlob(thumbBlob, info.thumbnail_upload_url, "image/jpeg"), 20000, "Thumbnail upload");
             done.thumbnail_key = info.thumbnail_key;
           }
         } catch(thumbErr) {
-          console.warn(thumbErr);
+          console.warn("Thumbnail skipped:", thumbErr);
         }
         done.last_modified = file.lastModified;
         uploaded.push(done);
       }
 
       setOverall(100, "Saving video records...");
-      const completeRes = await fetch("/creator/upload/r2/complete", {
+      const completeOut = await safeFetchJson("/creator/upload/r2/complete", {
         method: "POST",
         headers: {"Content-Type": "application/json"},
         body: JSON.stringify({
@@ -413,8 +451,9 @@ document.addEventListener("DOMContentLoaded", function(){
           edited_price: metadata.edited_price,
           bundle_price: metadata.bundle_price
         })
-      });
-      const complete = await completeRes.json();
+      }, 180000);
+      const completeRes = completeOut.res;
+      const complete = completeOut.data || {};
       if (!completeRes.ok || !complete.ok) throw new Error(complete.error || "Upload completed but records were not saved.");
 
       setOverall(100, "100% complete");

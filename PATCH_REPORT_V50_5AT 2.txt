@@ -1,0 +1,34 @@
+BoatSpotMedia v50.5AT - SAFE R2 MULTIPART LARGE UPLOAD FIX
+
+Scope changed only:
+- Creator R2 uploader for large files.
+- app/static/js/r2_upload.js
+- app/services/r2.py
+- app/routes/creator.py (new upload-only multipart endpoints)
+
+Not touched:
+- Stripe payments, subscriptions, webhooks, Connect logic
+- Buyer login/orders/download logic
+- Creator login/billing/pricing logic
+- Owner dashboard logic
+- Ads logic
+- Database schema for existing business flows
+
+What changed:
+- Files 512MB and larger now use Cloudflare R2 multipart upload.
+- Large files are uploaded in 256MB parts instead of one giant PUT request.
+- Each part is retried up to 3 times.
+- Multipart upload is completed only after all parts succeed.
+- Multipart upload is aborted if a file fails/cancels.
+- Existing /creator/upload/r2/prepare and /creator/upload/r2/complete flow remains intact.
+- Existing DB video/batch record creation remains unchanged.
+
+Important Cloudflare R2 CORS requirement:
+- The browser must be allowed to read the ETag response header from R2 multipart part uploads.
+- In Cloudflare R2 bucket CORS, add ETag to exposed headers / ExposeHeaders if large uploads fail with an ETag message.
+
+Recommended production test:
+1. Test one small video first.
+2. Test one 1GB-3GB video.
+3. Then test the 115GB batch.
+4. Keep MacBook awake and Safari tab open during upload.
