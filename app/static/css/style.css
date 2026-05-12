@@ -3350,3 +3350,20 @@ input[name="phone_number"]{letter-spacing:.02em;}
 }
 .home-sponsored-ad-v505ak img{background:#e5e7eb}
 @media(max-width:700px){.language-toggle-v505al{top:8px;right:8px}}
+
+
+/* BoatSpotMedia v50.5AM public footer/legal polish */
+.bsm-footer-v505am{background:#071b34;color:#fff;margin-top:34px;padding:28px 20px;text-align:left}
+.bsm-footer-grid-v505am{max-width:1100px;margin:0 auto;display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:22px}
+.bsm-footer-v505am h3{margin:0 0 10px;font-size:15px;color:#fff}
+.bsm-footer-v505am a{display:block;color:#dce9ff;text-decoration:none;margin:7px 0;font-size:14px}
+.bsm-footer-v505am a:hover{text-decoration:underline}
+.bsm-footer-bottom-v505am{max-width:1100px;margin:22px auto 0;border-top:1px solid rgba(255,255,255,.18);padding-top:16px;text-align:center;color:#dce9ff;font-size:13px;line-height:1.5}
+.bsm-legal-page-v505am{max-width:920px;margin:30px auto;padding:24px;background:#fff;border-radius:14px;box-shadow:0 10px 30px rgba(7,27,52,.08);line-height:1.65}
+.bsm-legal-page-v505am h1{margin-top:0;color:#071b34}
+.bsm-legal-page-v505am h2{margin-top:24px;color:#071b34;font-size:20px}
+.bsm-legal-updated-v505am{color:#64748b;font-size:14px}
+.language-toggle-v505al{text-align:center;margin:12px 0}
+.language-toggle-v505al a{display:inline-block;padding:6px 10px;border:1px solid #d7e3f7;margin:0 3px;border-radius:999px;text-decoration:none;color:#071b34;font-weight:700;font-size:13px}
+.language-toggle-v505al a.active{background:#071b34;color:#fff;border-color:#071b34}
+@media(max-width:760px){.bsm-footer-grid-v505am{grid-template-columns:1fr}.bsm-legal-page-v505am{margin:18px 12px;padding:18px}}

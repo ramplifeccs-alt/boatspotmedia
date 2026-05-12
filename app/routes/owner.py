@@ -14,6 +14,57 @@ from app.services.db import db
 from app.services.emailer import send_email
 from app.services.db_repair import repair_creator_application_table, repair_all_known_tables
 
+
+
+# Owner homepage ads Miami timezone helpers v50.5AM
+BSM_LOCAL_TZ = "America/New_York"
+
+def _bsm_home_ad_local_to_utc_naive_v505am(raw):
+    """datetime-local input is entered in Miami/New York time; store as naive UTC for DB comparisons."""
+    raw = (raw or "").strip()
+    if not raw:
+        return None
+    try:
+        from zoneinfo import ZoneInfo
+        local_dt = datetime.strptime(raw, "%Y-%m-%dT%H:%M").replace(tzinfo=ZoneInfo(BSM_LOCAL_TZ))
+        return local_dt.astimezone(ZoneInfo("UTC")).replace(tzinfo=None)
+    except Exception:
+        try:
+            return datetime.strptime(raw, "%Y-%m-%d")
+        except Exception:
+            return None
+
+def _bsm_home_ad_input_value_v505am(value):
+    if not value:
+        return ""
+    try:
+        from zoneinfo import ZoneInfo
+        if isinstance(value, str):
+            value = datetime.fromisoformat(value.replace("Z", "+00:00"))
+        if getattr(value, "tzinfo", None) is None:
+            value = value.replace(tzinfo=ZoneInfo("UTC"))
+        return value.astimezone(ZoneInfo(BSM_LOCAL_TZ)).strftime("%Y-%m-%dT%H:%M")
+    except Exception:
+        try:
+            return value.strftime("%Y-%m-%dT%H:%M")
+        except Exception:
+            return ""
+
+def _bsm_home_ad_display_time_v505am(value):
+    if not value:
+        return ""
+    try:
+        from zoneinfo import ZoneInfo
+        if isinstance(value, str):
+            value = datetime.fromisoformat(value.replace("Z", "+00:00"))
+        if getattr(value, "tzinfo", None) is None:
+            value = value.replace(tzinfo=ZoneInfo("UTC"))
+        return value.astimezone(ZoneInfo(BSM_LOCAL_TZ)).strftime("%m/%d/%Y %I:%M %p ET")
+    except Exception:
+        try:
+            return value.strftime("%m/%d/%Y %I:%M %p ET")
+        except Exception:
+            return ""
 owner_bp = Blueprint("owner", __name__)
 
 def _bsm_creator_onboarding_from_email_v505t():
@@ -2052,6 +2103,14 @@ def _bsm_save_home_ad_image_v505ak(file_storage):
     file_storage.save(full_path)
     return f"/static/uploads/homepage_ads/{new_name}"
 
+
+@owner_bp.context_processor
+def inject_owner_home_ad_time_helpers_v505am():
+    return {
+        "bsm_home_ad_input_value": _bsm_home_ad_input_value_v505am,
+        "bsm_home_ad_display_time": _bsm_home_ad_display_time_v505am,
+    }
+
 @owner_bp.route("/homepage-ads", methods=["GET", "POST"])
 def owner_homepage_ads_v505ak():
     _bsm_ensure_home_ad_campaign_table_v505ak()
@@ -2068,8 +2127,8 @@ def owner_homepage_ads_v505ak():
                 target_url = (request.form.get("target_url") or "").strip()
                 price_amount = float(request.form.get("price_amount") or 0)
                 currency = (request.form.get("currency") or "usd").strip().lower()
-                start_date = (request.form.get("start_date") or "").strip() or None
-                end_date = (request.form.get("end_date") or "").strip() or None
+                start_date = _bsm_home_ad_local_to_utc_naive_v505am(request.form.get("start_date"))
+                end_date = _bsm_home_ad_local_to_utc_naive_v505am(request.form.get("end_date"))
                 is_active = request.form.get("is_active") in ("on", "1", "true", "yes")
                 open_new_tab = request.form.get("open_new_tab") in ("on", "1", "true", "yes")
                 display_order = int(request.form.get("display_order") or 0)
@@ -2146,8 +2205,8 @@ def owner_homepage_ads_v505ak():
                     "target_url": (request.form.get("target_url") or "").strip(),
                     "price_amount": float(request.form.get("price_amount") or 0),
                     "currency": (request.form.get("currency") or "usd").strip().lower(),
-                    "start_date": (request.form.get("start_date") or "").strip() or None,
-                    "end_date": (request.form.get("end_date") or "").strip() or None,
+                    "start_date": _bsm_home_ad_local_to_utc_naive_v505am(request.form.get("start_date")),
+                    "end_date": _bsm_home_ad_local_to_utc_naive_v505am(request.form.get("end_date")),
                     "is_active": request.form.get("is_active") in ("on", "1", "true", "yes"),
                     "open_new_tab": request.form.get("open_new_tab") in ("on", "1", "true", "yes"),
                     "display_order": int(request.form.get("display_order") or 0),

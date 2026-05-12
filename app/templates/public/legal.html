@@ -1,0 +1,65 @@
+<!doctype html>
+<html lang="{{ site_lang or 'en' }}">
+<head>
+  <link rel="icon" href="/static/img/favicon.ico">
+  <link rel="icon" type="image/png" sizes="192x192" href="/static/img/favicon-192.png">
+  <link rel="apple-touch-icon" href="/static/img/apple-touch-icon.png">
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  {% set legal_titles_en = {
+    'terms':'Terms & Conditions','privacy':'Privacy Policy','refund':'Refund Policy','dmca':'Copyright / DMCA','advertising':'Advertising Terms','buyer':'Buyer Terms','support':'Contact / Support'
+  } %}
+  {% set legal_titles_es = {
+    'terms':'Términos y Condiciones','privacy':'Política de Privacidad','refund':'Política de Reembolsos','dmca':'Copyright / DMCA','advertising':'Términos de Publicidad','buyer':'Términos del Comprador','support':'Contacto / Soporte'
+  } %}
+  {% set titles = legal_titles_es if site_lang == 'es' else legal_titles_en %}
+  <title>{{ titles.get(page_key, 'BoatSpotMedia') }} - BoatSpotMedia</title>
+  <link rel="stylesheet" href="/static/css/style.css">
+</head>
+<body>
+<header class="bsm-simple-header"><a href="/"><img src="/static/img/logo-header.png" class="bsm-logo-img" alt="BoatSpotMedia"></a></header>
+<div class="language-toggle-v505al"><a href="/language/en" class="{% if site_lang == 'en' %}active{% endif %}">EN</a><a href="/language/es" class="{% if site_lang == 'es' %}active{% endif %}">ES</a></div>
+<main class="bsm-legal-page-v505am">
+  <h1>{{ titles.get(page_key, 'BoatSpotMedia') }}</h1>
+  <p class="bsm-legal-updated-v505am">{% if site_lang == 'es' %}Última actualización: Mayo 2026{% else %}Last Updated: May 2026{% endif %}</p>
+
+  {% if page_key == 'terms' %}
+    {% if site_lang == 'es' %}
+      <p>BoatSpotMedia es un marketplace independiente para comprar y vender videos digitales de botes. Al usar la plataforma, aceptas estas condiciones.</p>
+      <h2>Cuentas y acceso</h2><p>Los compradores pueden buscar videos, comprar paquetes disponibles y acceder a descargas según el tipo de compra. Los creadores son responsables por la exactitud de su contenido, metadata, precios y entregas editadas.</p>
+      <h2>Compras digitales</h2><p>Los videos se entregan electrónicamente por enlace de descarga, panel del comprador o correo. Algunos paquetes editados requieren tiempo adicional del creador.</p>
+      <h2>Responsabilidad del marketplace</h2><p>BoatSpotMedia facilita la plataforma, pagos, búsqueda y entrega digital. Los creadores son responsables por los videos que suben y por tener los derechos necesarios para venderlos.</p>
+      <h2>Uso prohibido</h2><p>No se permite subir contenido robado, ilegal, engañoso, ofensivo, que infrinja derechos de autor o que dañe la plataforma.</p>
+    {% else %}
+      <p>BoatSpotMedia is an independent marketplace for buying and selling digital boat video content. By using the platform, you agree to these terms.</p>
+      <h2>Accounts and access</h2><p>Buyers may search videos, purchase available packages, and access downloads based on the selected purchase type. Creators are responsible for the accuracy of their content, metadata, pricing, and edited deliveries.</p>
+      <h2>Digital purchases</h2><p>Videos are delivered electronically by download link, buyer dashboard, or email. Some edited packages require additional creator processing time.</p>
+      <h2>Marketplace responsibility</h2><p>BoatSpotMedia provides the platform, payment flow, search tools, and digital delivery. Creators are responsible for uploaded videos and for holding the necessary rights to sell them.</p>
+      <h2>Prohibited use</h2><p>Users may not upload stolen, illegal, misleading, offensive, infringing, or platform-damaging content.</p>
+    {% endif %}
+  {% elif page_key == 'privacy' %}
+    {% if site_lang == 'es' %}
+      <p>Recopilamos información necesaria para operar la plataforma, incluyendo datos de cuenta, pedidos, soporte, pagos, preferencias de idioma y comunicaciones.</p><h2>Pagos</h2><p>Los pagos son procesados por proveedores externos como Stripe. BoatSpotMedia no guarda números completos de tarjetas.</p><h2>Comunicaciones</h2><p>Podemos enviar confirmaciones, enlaces de descarga, mensajes de soporte y notificaciones relacionadas con pedidos por email, SMS o WhatsApp cuando estén disponibles.</p><h2>Servicios externos</h2><p>Podemos usar servicios como Stripe, SendGrid, Cloudflare R2, analytics y herramientas de seguridad para operar la plataforma.</p>
+    {% else %}
+      <p>We collect information needed to operate the platform, including account details, orders, support messages, payment-related data, language preferences, and communications.</p><h2>Payments</h2><p>Payments are processed by third-party providers such as Stripe. BoatSpotMedia does not store full card numbers.</p><h2>Communications</h2><p>We may send confirmations, download links, support messages, and order-related notices by email, SMS, or WhatsApp when available.</p><h2>Third-party services</h2><p>We may use services such as Stripe, SendGrid, Cloudflare R2, analytics, and security tools to operate the platform.</p>
+    {% endif %}
+  {% elif page_key == 'refund' %}
+    {% if site_lang == 'es' %}<p>Las compras digitales normalmente no son reembolsables una vez aprobado el pago o entregado el acceso al archivo.</p><p>Podemos revisar excepciones si el archivo está corrupto, se entregó el video incorrecto, hubo una compra duplicada accidental o una falla técnica impidió el acceso.</p>{% else %}<p>Digital purchases are generally non-refundable once payment is approved or file access is delivered.</p><p>We may review exceptions when a file is corrupted, the wrong video was delivered, an accidental duplicate purchase occurred, or a technical issue prevented access.</p>{% endif %}
+  {% elif page_key == 'dmca' %}
+    {% if site_lang == 'es' %}<p>Los creadores deben tener derechos sobre el contenido que suben. Si crees que un video infringe tus derechos, contacta a soporte con la información del reclamo.</p><p>BoatSpotMedia puede remover o pausar contenido mientras revisa un reclamo de copyright o DMCA.</p>{% else %}<p>Creators must hold rights to the content they upload. If you believe a video infringes your rights, contact support with the claim details.</p><p>BoatSpotMedia may remove or pause content while reviewing a copyright or DMCA claim.</p>{% endif %}
+  {% elif page_key == 'advertising' %}
+    {% if site_lang == 'es' %}<p>Los anunciantes son responsables por sus imágenes, logos, textos, ofertas, permisos, licencias, seguros, productos, servicios y páginas de destino.</p><p>BoatSpotMedia puede rechazar, pausar o remover anuncios engañosos, ilegales, ofensivos o que afecten la marca.</p><p>Las campañas se muestran según las fechas aprobadas en hora Miami / Eastern Time.</p>{% else %}<p>Advertisers are responsible for their images, logos, text, offers, permits, licenses, insurance, products, services, and destination pages.</p><p>BoatSpotMedia may reject, pause, or remove ads that are misleading, illegal, offensive, or harmful to the brand.</p><p>Campaigns run according to approved dates in Miami / Eastern Time.</p>{% endif %}
+  {% elif page_key == 'buyer' %}
+    {% if site_lang == 'es' %}<p>Al comprar un video, entiendes que es una compra digital entregada electrónicamente y que puede tener una ventana limitada de descarga.</p><p>Los videos editados se entregan cuando el creador sube el archivo final. Guarda tus archivos tan pronto estén disponibles.</p>{% else %}<p>By purchasing a video, you understand that digital video purchases are delivered electronically and may have a limited download window.</p><p>Edited videos are delivered after the creator uploads the final file. Save your files promptly when available.</p>{% endif %}
+  {% elif page_key == 'support' %}
+    {% if site_lang == 'es' %}<p>Para soporte de compradores, creadores, publicidad, copyright/DMCA o problemas técnicos, contáctanos desde el panel correspondiente o por el correo de soporte configurado para BoatSpotMedia.</p>{% else %}<p>For buyer support, creator support, advertising, copyright/DMCA, or technical issues, contact us from the appropriate dashboard or through the configured BoatSpotMedia support email.</p>{% endif %}
+  {% endif %}
+
+  <p><a href="/">{% if site_lang == 'es' %}Volver al inicio{% else %}Back to Home{% endif %}</a></p>
+</main>
+<footer class="bsm-footer-v505am">
+  <div>© 2026 BoatSpotMedia. All rights reserved.</div>
+</footer>
+<a class="creator-apply-link-v487" href="/apply-creator">{% if site_lang == 'es' %}Aplicar para vender videos{% else %}Apply to Sell Videos{% endif %}</a>
+<script src="/static/js/tracking.js"></script>
+</body></html>

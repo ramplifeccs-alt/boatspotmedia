@@ -11,6 +11,51 @@ from app.services.db import db
 public_bp = Blueprint("public", __name__)
 
 
+# BoatSpotMedia public/legal/time helpers v50.5AM
+BSM_LOCAL_TZ = "America/New_York"
+
+
+def _bsm_local_tz_v505am():
+    from zoneinfo import ZoneInfo
+    return ZoneInfo(BSM_LOCAL_TZ)
+
+
+def _bsm_dt_for_input_v505am(value):
+    """DB timestamps are stored naive UTC; owner forms show Miami/New York local time."""
+    if not value:
+        return ""
+    try:
+        if isinstance(value, str):
+            value = datetime.fromisoformat(value.replace("Z", "+00:00"))
+        from zoneinfo import ZoneInfo
+        if getattr(value, "tzinfo", None) is None:
+            value = value.replace(tzinfo=ZoneInfo("UTC"))
+        return value.astimezone(_bsm_local_tz_v505am()).strftime("%Y-%m-%dT%H:%M")
+    except Exception:
+        try:
+            return value.strftime("%Y-%m-%dT%H:%M")
+        except Exception:
+            return ""
+
+
+def _bsm_dt_display_v505am(value, date_only=False):
+    if not value:
+        return ""
+    try:
+        if isinstance(value, str):
+            value = datetime.fromisoformat(value.replace("Z", "+00:00"))
+        from zoneinfo import ZoneInfo
+        if getattr(value, "tzinfo", None) is None:
+            value = value.replace(tzinfo=ZoneInfo("UTC"))
+        fmt = "%m/%d/%Y" if date_only else "%m/%d/%Y %I:%M %p ET"
+        return value.astimezone(_bsm_local_tz_v505am()).strftime(fmt)
+    except Exception:
+        try:
+            return value.strftime("%m/%d/%Y") if date_only else value.strftime("%m/%d/%Y %I:%M %p ET")
+        except Exception:
+            return ""
+
+
 def clean_instagram(value):
     value = (value or "").strip()
     for prefix in ["https://www.instagram.com/", "https://instagram.com/", "http://www.instagram.com/", "http://instagram.com/"]:
@@ -176,7 +221,9 @@ def inject_public_helpers():
     return {
         "ny_dt": _ny_dt,
         "session_dashboard_url": _session_dashboard_url,
-        "session_display_name": _session_display_name
+        "session_display_name": _session_display_name,
+        "bsm_dt_for_input": _bsm_dt_for_input_v505am,
+        "bsm_dt_display": _bsm_dt_display_v505am
     }
 
 
@@ -1147,6 +1194,37 @@ def public_home_ad_campaign_checkout_v505ak(token):
 
 
 
+@public_bp.route("/terms")
+def public_terms_v505am():
+    return render_template("public/legal.html", page_key="terms")
+
+@public_bp.route("/privacy")
+def public_privacy_v505am():
+    return render_template("public/legal.html", page_key="privacy")
+
+@public_bp.route("/refund-policy")
+def public_refund_policy_v505am():
+    return render_template("public/legal.html", page_key="refund")
+
+@public_bp.route("/copyright-dmca")
+@public_bp.route("/dmca")
+def public_copyright_dmca_v505am():
+    return render_template("public/legal.html", page_key="dmca")
+
+@public_bp.route("/advertising-terms")
+def public_advertising_terms_v505am():
+    return render_template("public/legal.html", page_key="advertising")
+
+@public_bp.route("/buyer-terms")
+def public_buyer_terms_v505am():
+    return render_template("public/legal.html", page_key="buyer")
+
+@public_bp.route("/contact-support")
+@public_bp.route("/support")
+def public_contact_support_v505am():
+    return render_template("public/legal.html", page_key="support")
+
+
 @public_bp.route("/language/<lang>")
 def public_set_language_v505al(lang):
     lang = (lang or "en").lower()
@@ -1168,6 +1246,26 @@ def _bsm_t_v505al(key):
             "find_your_video": "Find Your Video",
             "login": "Login",
             "sponsored": "Sponsored",
+            "hero_title": "Find your boat video",
+            "hero_subtitle": "Search by inlet, date, and approximate time. Buy the original video or request an edited version.",
+            "preview": "Preview",
+            "time_pending": "Time pending",
+            "captured_by": "Captured by",
+            "creator": "Creator",
+            "no_videos": "No videos uploaded yet.",
+            "marketplace": "Marketplace",
+            "company": "Company",
+            "legal": "Legal",
+            "browse_videos": "Browse Videos",
+            "sell_your_videos": "Sell Your Videos",
+            "contact_support": "Contact / Support",
+            "terms_conditions": "Terms & Conditions",
+            "privacy_policy": "Privacy Policy",
+            "refund_policy": "Refund Policy",
+            "copyright_dmca": "Copyright / DMCA",
+            "advertising_terms": "Advertising Terms",
+            "buyer_terms": "Buyer Terms",
+            "footer_note": "BoatSpotMedia is an independent marketplace platform for boat video creators and buyers.",
         },
         "es": {
             "find_title": "Encuentra el video de tu bote",
@@ -1179,6 +1277,26 @@ def _bsm_t_v505al(key):
             "find_your_video": "Buscar Video",
             "login": "Ingresar",
             "sponsored": "Publicidad",
+            "hero_title": "Encuentra el video de tu bote",
+            "hero_subtitle": "Busca por inlet, fecha y hora aproximada. Compra el video original o solicita una versión editada.",
+            "preview": "Vista previa",
+            "time_pending": "Hora pendiente",
+            "captured_by": "Grabado por",
+            "creator": "Creador",
+            "no_videos": "Todavía no hay videos subidos.",
+            "marketplace": "Marketplace",
+            "company": "Compañía",
+            "legal": "Legal",
+            "browse_videos": "Buscar videos",
+            "sell_your_videos": "Vender tus videos",
+            "contact_support": "Contacto / Soporte",
+            "terms_conditions": "Términos y Condiciones",
+            "privacy_policy": "Política de Privacidad",
+            "refund_policy": "Política de Reembolsos",
+            "copyright_dmca": "Copyright / DMCA",
+            "advertising_terms": "Términos de Publicidad",
+            "buyer_terms": "Términos del Comprador",
+            "footer_note": "BoatSpotMedia es una plataforma marketplace independiente para creadores y compradores de videos de botes.",
         }
     }
     return translations.get(lang, translations["en"]).get(key, key)

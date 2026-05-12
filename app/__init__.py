@@ -1,4 +1,13 @@
 from flask import Flask, redirect, request, session
+import os
+import time
+
+# BoatSpotMedia timezone hardening v50.5AM: keep Python date/time defaults on Miami time.
+os.environ.setdefault("TZ", "America/New_York")
+try:
+    time.tzset()
+except Exception:
+    pass
 from config import Config
 from .services.db import db
 

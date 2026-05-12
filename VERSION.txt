@@ -19,3 +19,4 @@ Does not touch:
 - support system
 - pricing UI
 - order/download logic
+Patched: v50.5AM - legal footer, Spanish public pages, Miami ad timezone

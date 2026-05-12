@@ -34,7 +34,7 @@
       <div><span>Campaign</span>{{ campaign.title }}</div>
       <div><span>Advertiser</span>{{ campaign.advertiser_name or campaign.advertiser_email or 'Advertiser' }}</div>
       <div><span>Destination</span>{{ campaign.target_url }}</div>
-      <div><span>Run Dates</span>{% if campaign.start_date %}{{ campaign.start_date.strftime('%m/%d/%Y') }}{% else %}Upon payment{% endif %} - {% if campaign.end_date %}{{ campaign.end_date.strftime('%m/%d/%Y') }}{% else %}Until manually ended{% endif %}</div>
+      <div><span>Run Dates</span>{% if campaign.start_date %}{{ bsm_dt_display(campaign.start_date) }}{% else %}Upon payment{% endif %} - {% if campaign.end_date %}{{ bsm_dt_display(campaign.end_date) }}{% else %}Until manually ended{% endif %}</div>
       <div><span>Total</span>${{ "%.2f"|format(campaign.price_amount or 0) }} {{ (campaign.currency or 'usd')|upper }}</div>
       <div><span>Status</span>{{ campaign.payment_status or 'pending' }}</div>
     </div>

@@ -31,7 +31,7 @@
   <main class="owner-main-v475">
     <div class="owner-card-v475">
       <h1>Homepage Advertising Campaigns</h1>
-      <p>Create a paid homepage banner campaign. Send the preview/payment link to the advertiser. After payment, the banner goes live automatically during the scheduled dates.</p>
+      <p>Create a paid homepage banner campaign. Send the preview/payment link to the advertiser. After payment, the banner goes live automatically during the scheduled dates.</p><p class="muted-v505ak"><b>Timezone:</b> campaign dates are entered and displayed in Miami / Eastern Time.</p>
     </div>
 
     {% with messages = get_flashed_messages() %}
@@ -112,7 +112,7 @@
 
                 <div class="owner-ad-title-v505ak">
                   <strong>{{ c.title }}</strong>
-                  <span class="status-v505ak status-{{ (c.display_status or 'draft')|lower|replace(' ','-')|replace('/','') }}">{{ c.display_status }}</span>
+                  <span class="status-v505ak status-{{ (c.display_status or 'draft')|lower|replace(' ','-')|replace('/','') }}">{{ c.display_status }}</span>{% if c.start_date or c.end_date %}<span class="muted-v505ak">{{ bsm_home_ad_display_time(c.start_date) or 'Upon payment' }} - {{ bsm_home_ad_display_time(c.end_date) or 'Until manually ended' }}</span>{% endif %}
                 </div>
 
                 <div class="owner-ad-links-v505ak">
@@ -127,8 +127,8 @@
                   <label>Target URL <input name="target_url" value="{{ c.target_url or '' }}" required></label>
                   <label>Price <input type="number" step="0.01" name="price_amount" value="{{ c.price_amount or 0 }}"></label>
                   <label>Currency <input name="currency" value="{{ c.currency or 'usd' }}"></label>
-                  <label>Start <input type="datetime-local" name="start_date" value="{% if c.start_date %}{{ c.start_date.strftime('%Y-%m-%dT%H:%M') }}{% endif %}"></label>
-                  <label>End <input type="datetime-local" name="end_date" value="{% if c.end_date %}{{ c.end_date.strftime('%Y-%m-%dT%H:%M') }}{% endif %}"></label>
+                  <label>Start <input type="datetime-local" name="start_date" value="{% if c.start_date %}{{ bsm_home_ad_input_value(c.start_date) }}{% endif %}"></label>
+                  <label>End <input type="datetime-local" name="end_date" value="{% if c.end_date %}{{ bsm_home_ad_input_value(c.end_date) }}{% endif %}"></label>
                   <label>Order <input type="number" name="display_order" value="{{ c.display_order or 0 }}"></label>
                   <label class="check-v505ak"><input type="checkbox" name="is_active" {% if c.is_active %}checked{% endif %}> Active</label>
                   <label class="check-v505ak"><input type="checkbox" name="open_new_tab" {% if c.open_new_tab %}checked{% endif %}> New tab</label>

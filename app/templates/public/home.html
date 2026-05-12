@@ -27,8 +27,8 @@
 </div>
 <div class="container">
 <div class="hero">
-<h1>Find your boat video</h1>
-<p>Search by inlet, date, and approximate time. Buy the original video or request an edited version.</p>
+<h1>{{ t('hero_title') }}</h1>
+<p>{{ t('hero_subtitle') }}</p>
 <a class="btn" href="/search">{{ t('find_your_video') }}</a>
 </div>
 
@@ -50,22 +50,25 @@
 <div class="card">
   <div class="thumb">{% if v.public_thumbnail_url %}<img src="{{v.public_thumbnail_url}}">{% else %}Preview{% endif %}</div>
   <b>{{ v.location or "Boat Video" }}</b><br>
-  <small>{{ ny_dt(v.recorded_at).strftime('%m/%d/%Y %I:%M %p') if v.recorded_at else "Time pending" }}</small><br>
-  <small>Captured by: {{ v.creator.user.display_name if v.creator and v.creator.user else "Creator" }}</small><br><br>
-  <a class="btn" href="/preview/{{v.id}}">Preview</a>
+  <small>{{ ny_dt(v.recorded_at).strftime('%m/%d/%Y %I:%M %p') if v.recorded_at else t("time_pending") }}</small><br>
+  <small>{{ t("captured_by") }}: {{ v.creator.user.display_name if v.creator and v.creator.user else t("creator") }}</small><br><br>
+  <a class="btn" href="/preview/{{v.id}}">{{ t("preview") }}</a>
 </div>
 {% else %}
-<div class="card">No videos uploaded yet.</div>
+<div class="card">{{ t("no_videos") }}</div>
 {% endfor %}
 </div>
 </div><script src="/static/js/mobile.js"></script>
 
 
 
-<footer class="bsm-footer-legal" style="background:#071b34;color:#fff;padding:20px;text-align:center;margin-top:30px;">
-  <a href="/buyer-terms" style="color:#fff;margin:0 10px;">Buyer Terms</a>
-  <a href="/terms" style="color:#fff;margin:0 10px;">Terms & Conditions</a>
-  <a href="/privacy" style="color:#fff;margin:0 10px;">Privacy Policy</a>
+<footer class="bsm-footer-v505am">
+  <div class="bsm-footer-grid-v505am">
+    <div><h3>{{ t("marketplace") }}</h3><a href="/search">{{ t("browse_videos") }}</a><a href="/apply-creator">{{ t("sell_your_videos") }}</a></div>
+    <div><h3>{{ t("company") }}</h3><a href="/contact-support">{{ t("contact_support") }}</a></div>
+    <div><h3>{{ t("legal") }}</h3><a href="/buyer-terms">{{ t("buyer_terms") }}</a><a href="/terms">{{ t("terms_conditions") }}</a><a href="/privacy">{{ t("privacy_policy") }}</a><a href="/refund-policy">{{ t("refund_policy") }}</a><a href="/copyright-dmca">{{ t("copyright_dmca") }}</a><a href="/advertising-terms">{{ t("advertising_terms") }}</a></div>
+  </div>
+  <div class="bsm-footer-bottom-v505am">© 2026 BoatSpotMedia. All rights reserved.<br>{{ t("footer_note") }}</div>
 </footer>
 <a class="creator-apply-link-v485" href="/apply-creator">Apply to Sell Videos</a>
 <script src="/static/js/tracking.js"></script>
