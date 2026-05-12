@@ -930,7 +930,7 @@ def buyer_reset_password_v505ad(token):
                 # while the old password stayed active. Keep this flow focused on the real
                 # login column only, then mark the token as used in the same transaction.
                 result = db.session.execute(
-                    db.text('UPDATE "user" SET password_hash=:ph WHERE id=:uid AND role='buyer''),
+                    db.text("UPDATE \"user\" SET password_hash=:ph WHERE id=:uid AND role='buyer'"),
                     {"ph": hashed, "uid": row.get("user_id")}
                 )
                 if getattr(result, "rowcount", 0) != 1:

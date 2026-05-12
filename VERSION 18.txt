@@ -1,0 +1,22 @@
+BoatSpotMedia v50.5AL R2 Homepage Ads + Spanish Home + Favicon
+Base: v50.5AK.
+
+Changes:
+- Homepage ad campaign images upload to Cloudflare R2 when configured.
+- Uses ads/homepage/ path in R2.
+- Stores public R2 URL in homepage_ad_campaign.image_url.
+- Local fallback remains only for testing if R2 env vars are missing.
+- Adds favicon and touch icons from provided boat logo image.
+- Adds EN/ES language selector on home page.
+- Adds initial Spanish translations for homepage/search text.
+
+Does not touch:
+- buyer settings
+- creator settings
+- Stripe Connect payouts
+- video sales
+- creator subscriptions
+- support system
+- pricing UI
+- order/download logic
+Patched: v50.5AM - legal footer, Spanish public pages, Miami ad timezone

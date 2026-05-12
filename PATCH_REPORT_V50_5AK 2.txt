@@ -1,0 +1,9 @@
+app/routes/owner.py
+app/routes/public.py
+app/routes/payments.py
+app/__init__.py
+app/templates/public/home.html
+app/templates/owner/homepage_ads.html
+app/templates/public/home_ad_checkout.html
+app/templates/public/home_ad_not_found.html
+app/static/css/style.css

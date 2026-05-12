@@ -1,0 +1,37 @@
+BoatSpotMedia v50.5AM Patch
+
+Scope: minimal safe patch over v50.5AL.
+
+Changes included:
+1. Homepage Advertising timezone fix
+   - Owner ad campaign datetime-local inputs are now treated as Miami / Eastern Time.
+   - Campaign start/end values are stored as UTC-naive timestamps for reliable database comparison.
+   - Owner campaign editor displays saved dates back in Miami / Eastern Time.
+   - Public sponsored checkout displays run dates in Miami / Eastern Time.
+   - App process defaults TZ to America/New_York.
+
+2. Public legal footer
+   - Footer now includes functional public legal links.
+   - Added routes for Terms & Conditions, Privacy Policy, Refund Policy, Copyright / DMCA, Advertising Terms, Buyer Terms, and Contact / Support.
+   - Added professional legal page layout.
+
+3. Spanish public support
+   - Homepage hero, latest uploads labels, preview labels, footer, and legal pages support EN/ES using the existing language switcher.
+   - Search page navigation and key actions use the existing translation system.
+
+Files modified:
+- app/__init__.py
+- app/routes/public.py
+- app/routes/owner.py
+- app/templates/public/home.html
+- app/templates/public/search.html
+- app/templates/public/home_ad_checkout.html
+- app/templates/public/legal.html
+- app/templates/owner/homepage_ads.html
+- app/static/css/style.css
+- .env.example
+
+Notes:
+- Existing page structure and design were preserved as much as possible.
+- No payment, creator upload, buyer checkout, R2, Stripe, or dashboard workflow was intentionally changed.
+- For old ad campaigns saved before this patch, open the campaign in Owner > Homepage Ads and click Save once to normalize start/end times using Miami / Eastern Time.
