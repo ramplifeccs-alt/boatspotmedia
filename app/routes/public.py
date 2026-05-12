@@ -922,19 +922,19 @@ def buyer_reset_password_v505ad(token):
         else:
             hashed = generate_password_hash(password)
             try:
-                updated = False
-                try:
-                    db.session.execute(db.text('UPDATE "user" SET password_hash=:ph WHERE id=:uid'), {"ph": hashed, "uid": row.get("user_id")})
-                    updated = True
-                except Exception:
-                    db.session.rollback()
-                try:
-                    db.session.execute(db.text('UPDATE "user" SET password=:ph WHERE id=:uid'), {"ph": hashed, "uid": row.get("user_id")})
-                    updated = True
-                except Exception:
-                    db.session.rollback()
-                if not updated:
-                    raise Exception("No password column updated")
+                # IMPORTANT v50.5AO FIX:
+                # The buyer login checks the password_hash column. The previous reset flow
+                # updated password_hash first, then tried to update an optional legacy
+                # "password" column. On databases where that legacy column does not exist,
+                # SQLAlchemy rolled back the full transaction, so the page showed success
+                # while the old password stayed active. Keep this flow focused on the real
+                # login column only, then mark the token as used in the same transaction.
+                result = db.session.execute(
+                    db.text('UPDATE "user" SET password_hash=:ph WHERE id=:uid AND role='buyer''),
+                    {"ph": hashed, "uid": row.get("user_id")}
+                )
+                if getattr(result, "rowcount", 0) != 1:
+                    raise Exception("Buyer password was not updated")
                 db.session.execute(db.text("""
                     UPDATE password_reset_token
                     SET used_at=CURRENT_TIMESTAMP
