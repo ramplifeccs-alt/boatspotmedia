@@ -1,0 +1,14 @@
+app/routes/payments.py
+
+Patched functions:
+- _bsm_connect_info_for_cart_v491q
+- _bsm_application_fee_cents_v491q
+- _bsm_payment_intent_data_v505aa
+- _bsm_record_order_connect_fields_v491q
+- _ensure_cart_order_tables
+- checkout_cart Stripe metadata/payment_intent_data
+- webhook order accounting
+- success page order accounting
+
+No hardcoded creator IDs.
+No new creator tables.

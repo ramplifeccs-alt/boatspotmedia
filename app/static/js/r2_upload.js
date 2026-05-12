@@ -126,8 +126,11 @@ document.addEventListener("DOMContentLoaded", function(){
     });
   }
 
-  const BSM_MULTIPART_THRESHOLD = 512 * 1024 * 1024; // 512 MB: large files use safer multipart upload.
-  const BSM_MULTIPART_PART_SIZE = 256 * 1024 * 1024; // 256 MB parts; 115 GB ~= 460 parts.
+  const BSM_MULTIPART_THRESHOLD = 256 * 1024 * 1024; // v50.5AU: use multipart earlier for safer large uploads.
+  const BSM_MULTIPART_PART_SIZE = 64 * 1024 * 1024; // 64 MB parts; safer for 100GB-128GB batches over browser/R2.
+  const BSM_PART_MAX_ATTEMPTS = 6;
+  const BSM_PART_STALL_TIMEOUT_MS = 90000; // retry a part if no upload progress for 90 seconds.
+  const BSM_PART_TOTAL_TIMEOUT_MS = 25 * 60 * 1000; // hard timeout per 64MB part.
 
   function sleep(ms){ return new Promise(resolve => setTimeout(resolve, ms)); }
 
@@ -143,48 +146,86 @@ document.addEventListener("DOMContentLoaded", function(){
     return data;
   }
 
-  function uploadPartWithXhr(blob, uploadUrl, contentType, onProgress){
+  function uploadPartWithXhr(blob, uploadUrl, contentType, onProgress, opts){
+    opts = opts || {};
     return new Promise(function(resolve, reject){
+      let settled = false;
+      let lastProgressAt = Date.now();
+      let lastLoaded = 0;
       const xhr = new XMLHttpRequest();
+
+      const stallTimer = setInterval(function(){
+        if (settled) return;
+        if (Date.now() - lastProgressAt > (opts.stallTimeoutMs || BSM_PART_STALL_TIMEOUT_MS)) {
+          try { xhr.abort(); } catch(e) {}
+          finish(reject, new Error("Upload part stalled with no progress; retrying part."));
+        }
+      }, 10000);
+
+      const totalTimer = setTimeout(function(){
+        if (settled) return;
+        try { xhr.abort(); } catch(e) {}
+        finish(reject, new Error("Upload part timed out; retrying part."));
+      }, opts.totalTimeoutMs || BSM_PART_TOTAL_TIMEOUT_MS);
+
+      function finish(fn, value){
+        if (settled) return;
+        settled = true;
+        try { clearInterval(stallTimer); } catch(e) {}
+        try { clearTimeout(totalTimer); } catch(e) {}
+        fn(value);
+      }
+
       xhr.open("PUT", uploadUrl);
       xhr.setRequestHeader("Content-Type", contentType || "application/octet-stream");
       xhr.upload.onprogress = function(evt){
-        if (evt.lengthComputable && onProgress) onProgress(evt.loaded, evt.total);
+        if (evt.lengthComputable) {
+          if (evt.loaded > lastLoaded) {
+            lastLoaded = evt.loaded;
+            lastProgressAt = Date.now();
+          }
+          if (onProgress) onProgress(evt.loaded, evt.total);
+        }
       };
       xhr.onload = function(){
         if (xhr.status >= 200 && xhr.status < 300) {
           let etag = xhr.getResponseHeader("ETag") || xhr.getResponseHeader("etag") || "";
           etag = (etag || "").replace(/^\"|\"$/g, "");
           if (!etag) {
-            reject(new Error("Large-file upload finished a part, but R2 did not expose the ETag header. In Cloudflare R2 CORS, add ETag to Expose-Headers."));
+            finish(reject, new Error("Large-file upload finished a part, but R2 did not expose the ETag header. In Cloudflare R2 CORS, add ETag to Expose-Headers."));
             return;
           }
-          resolve(etag);
+          finish(resolve, etag);
         } else {
-          reject(new Error("R2 part upload failed (HTTP " + xhr.status + ")"));
+          finish(reject, new Error("R2 part upload failed (HTTP " + xhr.status + ")"));
         }
       };
-      xhr.onerror = function(){ reject(new Error("Network error uploading part")); };
+      xhr.onerror = function(){ finish(reject, new Error("Network error uploading part")); };
+      xhr.onabort = function(){ if (!settled) finish(reject, new Error("Upload part aborted; retrying part.")); };
       xhr.send(blob);
     });
   }
 
-  async function uploadPartWithRetry(file, info, uploadId, partNumber, start, end, contentType, onPartProgress){
-    const maxAttempts = 3;
+  async function uploadPartWithRetry(file, info, uploadId, partNumber, start, end, contentType, onPartProgress, row){
     let lastErr = null;
-    for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+    for (let attempt = 1; attempt <= BSM_PART_MAX_ATTEMPTS; attempt++) {
       try {
+        if (row && row._bsmPartText) row._bsmPartText.textContent = "Large-file upload: part " + partNumber + " attempt " + attempt;
         const sign = await postJson("/creator/upload/r2/multipart/sign-part", {
           key: info.key,
           upload_id: uploadId,
           part_number: partNumber
         });
         const blob = file.slice(start, end);
-        const etag = await uploadPartWithXhr(blob, sign.upload_url, contentType, onPartProgress);
+        const etag = await uploadPartWithXhr(blob, sign.upload_url, contentType, onPartProgress, {
+          stallTimeoutMs: BSM_PART_STALL_TIMEOUT_MS,
+          totalTimeoutMs: BSM_PART_TOTAL_TIMEOUT_MS
+        });
         return {PartNumber: partNumber, ETag: etag};
       } catch(err) {
         lastErr = err;
-        if (attempt < maxAttempts) await sleep(1200 * attempt);
+        if (row && row._bsmPartText) row._bsmPartText.textContent = "Large-file upload: retrying part " + partNumber + " (" + attempt + "/" + BSM_PART_MAX_ATTEMPTS + ")";
+        if (attempt < BSM_PART_MAX_ATTEMPTS) await sleep(Math.min(20000, 2000 * attempt));
       }
     }
     throw lastErr || new Error("Could not upload part " + partNumber);
@@ -206,7 +247,7 @@ document.addEventListener("DOMContentLoaded", function(){
         const small = document.createElement("div");
         small.className = "muted";
         small.style.marginTop = "6px";
-        small.textContent = "Large-file safe upload: 0 / " + totalParts + " parts";
+        small.textContent = "Large-file upload runs direct to R2 in background-safe parts: 0 / " + totalParts + " parts";
         row.appendChild(small);
         row._bsmPartText = small;
       }
@@ -218,13 +259,12 @@ document.addEventListener("DOMContentLoaded", function(){
         const completedBeforeThisPart = start;
         const part = await uploadPartWithRetry(file, uploadInfo, uploadId, partNumber, start, end, contentType, function(partLoaded){
           loadedParts[partNumber] = partLoaded;
-          const loadedCurrent = Object.values(loadedParts).reduce((a,b) => a + b, 0);
           onProgress(Math.min(file.size, completedBeforeThisPart + (loadedParts[partNumber] || 0)), file.size);
-        });
+        }, row);
         parts.push(part);
         loadedParts[partNumber] = end - start;
         onProgress(end, file.size);
-        if (row && row._bsmPartText) row._bsmPartText.textContent = "Large-file safe upload: " + partNumber + " / " + totalParts + " parts";
+        if (row && row._bsmPartText) row._bsmPartText.textContent = "Large-file upload: " + partNumber + " / " + totalParts + " parts complete";
       }
 
       await postJson("/creator/upload/r2/multipart/complete", {
