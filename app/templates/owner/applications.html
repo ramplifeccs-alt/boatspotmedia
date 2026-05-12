@@ -23,4 +23,5 @@
 <tr><td>{{ app.id }}</td><td>{{ app.display_name }}</td><td>{{ app.display_brand }}</td><td>{{ app.display_email }}</td><td>{{ app.display_phone }}</td><td>{{ app.display_social }}</td><td>{{ app.display_status }}</td>
 <td class="owner-actions-v478"><form method="POST" action="/owner/applications/{{ app.id }}/approve"><button type="submit">Approve</button></form><form method="POST" action="/owner/application/{{ app.id }}/status/suspended"><button type="submit">Suspend</button></form><a href="/owner/application/{{ app.id }}/edit">Edit</a><form method="POST" action="/owner/application/{{ app.id }}/delete" onsubmit="return confirm('Delete this application?');"><button class="danger" type="submit">Delete</button></form></td></tr>
 {% else %}<tr><td colspan="8">No applications found.</td></tr>{% endfor %}</tbody></table></div>
-</main></div></body></html>
+</main></div><script src="/static/js/bsm_mobile_safe.js"></script>
+</body></html>

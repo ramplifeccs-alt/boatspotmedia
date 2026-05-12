@@ -8,4 +8,5 @@
 <main class="owner-main-v475"><div class="support-page-v505c"><a href="/owner/support" class="support-back-v505c">← Back to Support Inbox</a><h1>{{ thread.subject }}</h1><p class="support-muted-v505c">{{ thread.creator_name or ('Creator #' ~ thread.creator_id) }} · Status: {{ thread.status|title }}</p>
 <div class="support-chat-v505c">{% for m in messages %}<div class="support-bubble-v505c {% if m.sender_role == 'owner' %}mine{% else %}other{% endif %}"><strong>{{ m.sender_role|replace('_',' ')|title }}</strong><p>{{ m.body }}</p><small>{{ m.created_at_et or m.created_at }}</small></div>{% endfor %}</div>
 <form method="POST" class="support-reply-v505c"><textarea name="message" rows="4" placeholder="Write a reply..." required></textarea><button type="submit">Send Reply</button><button type="submit" name="action" value="close" class="support-close-v505c">Close Thread</button></form>
-</div></main></div></body></html>
+</div></main></div><script src="/static/js/bsm_mobile_safe.js"></script>
+</body></html>

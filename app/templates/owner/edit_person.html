@@ -17,4 +17,5 @@
 {% elif kind == 'buyer' %}
 <label>Email <input name="email" value="{{ row.email or '' }}"></label><label>First Name <input name="first_name" value="{{ row.first_name or '' }}"></label><label>Last Name <input name="last_name" value="{{ row.last_name or '' }}"></label><label>Display Name <input name="display_name" value="{{ row.display_name or '' }}"></label><label>Phone <input name="phone" value="{{ row.phone or '' }}"></label><label class="check"><input type="checkbox" name="is_active" {% if row.is_active %}checked{% endif %}> Active</label>
 {% endif %}
-<div class="full actions"><button type="submit">Save</button><a href="{% if kind == 'application' %}/owner/applications{% elif kind == 'buyer' %}/owner/buyers{% else %}/owner/creators{% endif %}">Cancel</a></div></form></main></div></body></html>
+<div class="full actions"><button type="submit">Save</button><a href="{% if kind == 'application' %}/owner/applications{% elif kind == 'buyer' %}/owner/buyers{% else %}/owner/creators{% endif %}">Cancel</a></div></form></main></div><script src="/static/js/bsm_mobile_safe.js"></script>
+</body></html>

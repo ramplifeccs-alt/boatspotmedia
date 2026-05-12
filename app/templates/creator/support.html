@@ -21,4 +21,5 @@
 {% else %}
 <section class="support-card-v505c"><h2>Buyer Messages</h2>{% if not buyer_threads %}<p class="support-muted-v505c">No buyer messages yet.</p>{% else %}<div class="support-list-v505c">{% for t in buyer_threads %}<a href="/creator/support/{{ t.id }}" class="support-thread-row-v505c"><strong>{{ t.subject }}</strong><span>Buyer: {{ t.buyer_email or 'Buyer' }} · Order #{{ t.order_id or '-' }}</span><small>{{ t.status|title }} · {{ t.last_message_at_et or t.last_message_at }}</small>{% if t.last_body %}<p>{{ t.last_body[:120] }}</p>{% endif %}</a>{% endfor %}</div>{% endif %}</section>
 {% endif %}
-</div></main></div><script src="/static/js/mobile.js"></script></body></html>
+</div></main></div><script src="/static/js/mobile.js"></script><script src="/static/js/bsm_mobile_safe.js"></script>
+</body></html>

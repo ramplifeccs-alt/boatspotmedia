@@ -24,6 +24,7 @@
 let boatspotCancelUpload=false; let boatspotCurrentBatchId=null;
 document.addEventListener("click",function(e){if(e.target&&e.target.id==="cancelUploadBtn"){boatspotCancelUpload=true;e.target.disabled=true;e.target.textContent="Cancelling..."; if(boatspotCurrentBatchId){fetch("/creator/upload/batch/"+boatspotCurrentBatchId+"/cancel",{method:"POST"}).then(r=>r.json()).then(d=>{alert(d.message||d.error||"Upload cancelled");location.reload();});}else{alert("Upload cancelled before saving the batch.");location.reload();}}});
 </script></form><script>document.getElementById('editedForm').addEventListener('submit',function(){document.getElementById('progressWrap').style.display='block';let p=0;const bar=document.getElementById('bar');const timer=setInterval(()=>{p=Math.min(95,p+5);bar.style.width=p+'%';bar.textContent=p+'%';if(p>=95)clearInterval(timer);},400);});</script>{% endif %}</div></div><script src="/static/js/mobile.js"></script>
+<script src="/static/js/bsm_mobile_safe.js"></script>
 </body></html>
 <script id="hide-upload-price-fields">
 document.addEventListener("DOMContentLoaded", function(){
