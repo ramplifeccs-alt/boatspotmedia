@@ -47,6 +47,55 @@ def public_url_for_key(key):
         return ""
     return f"{base}/{key}"
 
+
+# BoatSpotMedia v50.5AT - Safe large-file R2 multipart helpers
+def create_multipart_upload(key, content_type="application/octet-stream"):
+    client = r2_client()
+    resp = client.create_multipart_upload(
+        Bucket=_bucket_name(),
+        Key=key,
+        ContentType=content_type or "application/octet-stream",
+    )
+    return resp.get("UploadId")
+
+
+def create_presigned_upload_part_url(key, upload_id, part_number, expires=60 * 60 * 6):
+    client = r2_client()
+    return client.generate_presigned_url(
+        "upload_part",
+        Params={
+            "Bucket": _bucket_name(),
+            "Key": key,
+            "UploadId": upload_id,
+            "PartNumber": int(part_number),
+        },
+        ExpiresIn=expires,
+    )
+
+
+def complete_multipart_upload(key, upload_id, parts):
+    clean_parts = []
+    for part in parts or []:
+        if not part:
+            continue
+        pn = int(part.get("PartNumber") or part.get("partNumber") or part.get("part_number") or 0)
+        etag = (part.get("ETag") or part.get("etag") or "").strip()
+        if not pn or not etag:
+            continue
+        if not (etag.startswith('"') and etag.endswith('"')):
+            etag = '"' + etag.strip('"') + '"'
+        clean_parts.append({"PartNumber": pn, "ETag": etag})
+    clean_parts.sort(key=lambda x: x["PartNumber"])
+    if not clean_parts:
+        raise ValueError("No valid multipart parts received.")
+    client = r2_client()
+    return client.complete_multipart_upload(
+        Bucket=_bucket_name(),
+        Key=key,
+        UploadId=upload_id,
+        MultipartUpload={"Parts": clean_parts},
+    )
+
 # Backwards compatibility for older routes that import:
 # from app.services.r2 import upload as r2_upload
 # New v35 uploader uses presigned URLs, but this keeps app booting.

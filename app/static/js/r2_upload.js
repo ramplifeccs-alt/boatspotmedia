@@ -126,7 +126,128 @@ document.addEventListener("DOMContentLoaded", function(){
     });
   }
 
-  function uploadOne(file, uploadInfo, onProgress){
+  const BSM_MULTIPART_THRESHOLD = 512 * 1024 * 1024; // 512 MB: large files use safer multipart upload.
+  const BSM_MULTIPART_PART_SIZE = 256 * 1024 * 1024; // 256 MB parts; 115 GB ~= 460 parts.
+
+  function sleep(ms){ return new Promise(resolve => setTimeout(resolve, ms)); }
+
+  async function postJson(url, payload){
+    const res = await fetch(url, {
+      method: "POST",
+      headers: {"Content-Type": "application/json"},
+      body: JSON.stringify(payload || {})
+    });
+    let data = {};
+    try { data = await res.json(); } catch(e) {}
+    if (!res.ok || !data.ok) throw new Error(data.error || ("Request failed: " + url));
+    return data;
+  }
+
+  function uploadPartWithXhr(blob, uploadUrl, contentType, onProgress){
+    return new Promise(function(resolve, reject){
+      const xhr = new XMLHttpRequest();
+      xhr.open("PUT", uploadUrl);
+      xhr.setRequestHeader("Content-Type", contentType || "application/octet-stream");
+      xhr.upload.onprogress = function(evt){
+        if (evt.lengthComputable && onProgress) onProgress(evt.loaded, evt.total);
+      };
+      xhr.onload = function(){
+        if (xhr.status >= 200 && xhr.status < 300) {
+          let etag = xhr.getResponseHeader("ETag") || xhr.getResponseHeader("etag") || "";
+          etag = (etag || "").replace(/^\"|\"$/g, "");
+          if (!etag) {
+            reject(new Error("Large-file upload finished a part, but R2 did not expose the ETag header. In Cloudflare R2 CORS, add ETag to Expose-Headers."));
+            return;
+          }
+          resolve(etag);
+        } else {
+          reject(new Error("R2 part upload failed (HTTP " + xhr.status + ")"));
+        }
+      };
+      xhr.onerror = function(){ reject(new Error("Network error uploading part")); };
+      xhr.send(blob);
+    });
+  }
+
+  async function uploadPartWithRetry(file, info, uploadId, partNumber, start, end, contentType, onPartProgress){
+    const maxAttempts = 3;
+    let lastErr = null;
+    for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+      try {
+        const sign = await postJson("/creator/upload/r2/multipart/sign-part", {
+          key: info.key,
+          upload_id: uploadId,
+          part_number: partNumber
+        });
+        const blob = file.slice(start, end);
+        const etag = await uploadPartWithXhr(blob, sign.upload_url, contentType, onPartProgress);
+        return {PartNumber: partNumber, ETag: etag};
+      } catch(err) {
+        lastErr = err;
+        if (attempt < maxAttempts) await sleep(1200 * attempt);
+      }
+    }
+    throw lastErr || new Error("Could not upload part " + partNumber);
+  }
+
+  async function uploadOneMultipart(file, uploadInfo, onProgress, row){
+    const contentType = file.type || "application/octet-stream";
+    const startResp = await postJson("/creator/upload/r2/multipart/start", {
+      key: uploadInfo.key,
+      content_type: contentType
+    });
+    const uploadId = startResp.upload_id;
+    const totalParts = Math.ceil(file.size / BSM_MULTIPART_PART_SIZE);
+    const loadedParts = {};
+    const parts = [];
+
+    try {
+      if (row) {
+        const small = document.createElement("div");
+        small.className = "muted";
+        small.style.marginTop = "6px";
+        small.textContent = "Large-file safe upload: 0 / " + totalParts + " parts";
+        row.appendChild(small);
+        row._bsmPartText = small;
+      }
+
+      for (let partNumber = 1; partNumber <= totalParts; partNumber++) {
+        if(window.boatspotCancelUpload){ throw new Error('Upload cancelled by creator.'); }
+        const start = (partNumber - 1) * BSM_MULTIPART_PART_SIZE;
+        const end = Math.min(file.size, start + BSM_MULTIPART_PART_SIZE);
+        const completedBeforeThisPart = start;
+        const part = await uploadPartWithRetry(file, uploadInfo, uploadId, partNumber, start, end, contentType, function(partLoaded){
+          loadedParts[partNumber] = partLoaded;
+          const loadedCurrent = Object.values(loadedParts).reduce((a,b) => a + b, 0);
+          onProgress(Math.min(file.size, completedBeforeThisPart + (loadedParts[partNumber] || 0)), file.size);
+        });
+        parts.push(part);
+        loadedParts[partNumber] = end - start;
+        onProgress(end, file.size);
+        if (row && row._bsmPartText) row._bsmPartText.textContent = "Large-file safe upload: " + partNumber + " / " + totalParts + " parts";
+      }
+
+      await postJson("/creator/upload/r2/multipart/complete", {
+        key: uploadInfo.key,
+        upload_id: uploadId,
+        parts: parts
+      });
+
+      return {
+        name: uploadInfo.name,
+        key: uploadInfo.key,
+        size: uploadInfo.size,
+        type: uploadInfo.type
+      };
+    } catch(err) {
+      try {
+        await postJson("/creator/upload/r2/multipart/abort", {key: uploadInfo.key, upload_id: uploadId});
+      } catch(abortErr) {}
+      throw err;
+    }
+  }
+
+  function uploadOneSinglePut(file, uploadInfo, onProgress){
     return new Promise(function(resolve, reject){
       const xhr = new XMLHttpRequest();
       xhr.open("PUT", uploadInfo.upload_url);
@@ -151,6 +272,13 @@ document.addEventListener("DOMContentLoaded", function(){
       xhr.onerror = function(){ reject(new Error("Network error uploading " + file.name)); };
       xhr.send(file);
     });
+  }
+
+  function uploadOne(file, uploadInfo, onProgress, row){
+    if (file.size >= BSM_MULTIPART_THRESHOLD) {
+      return uploadOneMultipart(file, uploadInfo, onProgress, row);
+    }
+    return uploadOneSinglePut(file, uploadInfo, onProgress);
   }
 
   form.addEventListener("submit", async function(e){
@@ -199,7 +327,7 @@ document.addEventListener("DOMContentLoaded", function(){
 
     try {
       for (let i = 0; i < files.length; i++) {
-        if(window.boatspotCancelUpload || boatspotCancelUpload){ throw new Error('Upload cancelled by creator.'); }
+        if(window.boatspotCancelUpload){ throw new Error('Upload cancelled by creator.'); }
         const file = files[i];
         const info = prepare.uploads[i];
         const row = document.createElement("div");
@@ -217,7 +345,7 @@ document.addEventListener("DOMContentLoaded", function(){
           const loadedTotal = Object.values(loadedByIndex).reduce((a,b) => a + b, 0);
           const overall = Math.round((loadedTotal / totalBytes) * 100);
           setOverall(overall, "Uploading to BoatSpotMedia Storage... " + overall + "%");
-        });
+        }, row);
         loadedByIndex[i] = file.size;
         bar.style.width = "100%";
         try {

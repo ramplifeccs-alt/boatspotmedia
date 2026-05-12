@@ -1,0 +1,1 @@
+Fixed desktop language switcher so it stays inside the header nav and does not cover or hide the menu. Visual-only CSS/template adjustment; no backend, payments, R2, database, or auth logic changed.

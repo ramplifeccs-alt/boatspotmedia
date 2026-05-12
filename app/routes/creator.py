@@ -6455,3 +6455,99 @@ def creator_support_thread_v505c(thread_id):
     thread=dict(thread)
     thread["last_message_at_et"] = _bsm_support_et_v505l(thread.get("last_message_at") or thread.get("updated_at") or thread.get("created_at"))
     return render_template("creator/support_thread.html", thread=thread, messages=messages)
+
+
+# BoatSpotMedia v50.5AT - R2 multipart upload endpoints for very large creator files.
+# Safe scope: upload-only. Does not touch Stripe, buyers, orders, owner, pricing, or login logic.
+@creator_bp.route("/upload/r2/multipart/start", methods=["POST"])
+def upload_r2_multipart_start_v505at():
+    c = current_creator()
+    if not c:
+        return jsonify({"ok": False, "error": "Creator login required."}), 401
+    try:
+        _stripe_required_resp_v491x = _bsm_creator_require_stripe_v491x(c.id, "upload videos")
+        if _stripe_required_resp_v491x is not None:
+            return _stripe_required_resp_v491x
+    except Exception:
+        pass
+
+    data = request.get_json(silent=True) or {}
+    key = (data.get("key") or "").strip().lstrip("/")
+    content_type = (data.get("content_type") or data.get("type") or "application/octet-stream").strip()
+    expected_prefix = f"creators/{c.id}/batches/"
+    if not key or not key.startswith(expected_prefix):
+        return jsonify({"ok": False, "error": "Invalid upload key."}), 400
+    try:
+        from app.services.r2 import create_multipart_upload
+        upload_id = create_multipart_upload(key, content_type=content_type)
+        if not upload_id:
+            return jsonify({"ok": False, "error": "Could not start multipart upload."}), 500
+        return jsonify({"ok": True, "upload_id": upload_id})
+    except Exception as e:
+        try: print("R2 multipart start warning v50.5AT:", e)
+        except Exception: pass
+        return jsonify({"ok": False, "error": "Could not start large-file upload."}), 500
+
+
+@creator_bp.route("/upload/r2/multipart/sign-part", methods=["POST"])
+def upload_r2_multipart_sign_part_v505at():
+    c = current_creator()
+    if not c:
+        return jsonify({"ok": False, "error": "Creator login required."}), 401
+    data = request.get_json(silent=True) or {}
+    key = (data.get("key") or "").strip().lstrip("/")
+    upload_id = (data.get("upload_id") or "").strip()
+    part_number = int(data.get("part_number") or data.get("PartNumber") or 0)
+    expected_prefix = f"creators/{c.id}/batches/"
+    if not key or not key.startswith(expected_prefix) or not upload_id or part_number < 1:
+        return jsonify({"ok": False, "error": "Invalid multipart part request."}), 400
+    try:
+        from app.services.r2 import create_presigned_upload_part_url
+        url = create_presigned_upload_part_url(key, upload_id, part_number, expires=60 * 60 * 6)
+        return jsonify({"ok": True, "upload_url": url})
+    except Exception as e:
+        try: print("R2 multipart sign-part warning v50.5AT:", e)
+        except Exception: pass
+        return jsonify({"ok": False, "error": "Could not sign upload part."}), 500
+
+
+@creator_bp.route("/upload/r2/multipart/complete", methods=["POST"])
+def upload_r2_multipart_complete_v505at():
+    c = current_creator()
+    if not c:
+        return jsonify({"ok": False, "error": "Creator login required."}), 401
+    data = request.get_json(silent=True) or {}
+    key = (data.get("key") or "").strip().lstrip("/")
+    upload_id = (data.get("upload_id") or "").strip()
+    parts = data.get("parts") or []
+    expected_prefix = f"creators/{c.id}/batches/"
+    if not key or not key.startswith(expected_prefix) or not upload_id or not parts:
+        return jsonify({"ok": False, "error": "Invalid multipart completion request."}), 400
+    try:
+        from app.services.r2 import complete_multipart_upload
+        complete_multipart_upload(key, upload_id, parts)
+        return jsonify({"ok": True})
+    except Exception as e:
+        try: print("R2 multipart complete warning v50.5AT:", e)
+        except Exception: pass
+        return jsonify({"ok": False, "error": "Could not complete large-file upload."}), 500
+
+
+@creator_bp.route("/upload/r2/multipart/abort", methods=["POST"])
+def upload_r2_multipart_abort_v505at():
+    c = current_creator()
+    if not c:
+        return jsonify({"ok": False, "error": "Creator login required."}), 401
+    data = request.get_json(silent=True) or {}
+    key = (data.get("key") or "").strip().lstrip("/")
+    upload_id = (data.get("upload_id") or "").strip()
+    expected_prefix = f"creators/{c.id}/batches/"
+    if not key or not key.startswith(expected_prefix) or not upload_id:
+        return jsonify({"ok": False, "error": "Invalid multipart abort request."}), 400
+    try:
+        from app.services.r2 import abort_multipart_upload
+        abort_multipart_upload(key, upload_id)
+    except Exception as e:
+        try: print("R2 multipart abort warning v50.5AT:", e)
+        except Exception: pass
+    return jsonify({"ok": True})
