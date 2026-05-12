@@ -1,0 +1,3 @@
+app/templates/public/generic_register.html
+app/templates/public/generic_login.html
+app/static/css/style.css

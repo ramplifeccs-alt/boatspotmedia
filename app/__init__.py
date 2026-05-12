@@ -566,6 +566,20 @@ def seed_owner_and_default_data():
 
 app = create_app()
 
+# Twilio domain HTML verification route v50.5AS
+try:
+    from flask import Response
+
+    @app.route("/7b92a56868d38606b81cb3f5c10a2a3c.html")
+    def bsm_twilio_domain_verification_v505as():
+        return Response("twilio-domain-verification=7b92a56868d38606b81cb3f5c10a2a3c", mimetype="text/html")
+except Exception as e:
+    try:
+        print("Twilio domain verification route warning:", e)
+    except Exception:
+        pass
+
+
 try:
     from app.routes.payments import payments_bp
     app.register_blueprint(payments_bp)

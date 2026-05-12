@@ -11,6 +11,13 @@ from app.services.db import db
 public_bp = Blueprint("public", __name__)
 
 
+# Twilio domain HTML verification fallback route v50.5AS
+@public_bp.route("/7b92a56868d38606b81cb3f5c10a2a3c.html")
+def bsm_twilio_domain_verification_public_v505as():
+    from flask import Response
+    return Response("twilio-domain-verification=7b92a56868d38606b81cb3f5c10a2a3c", mimetype="text/html")
+
+
 # BoatSpotMedia public/legal/time helpers v50.5AM
 BSM_LOCAL_TZ = "America/New_York"
 
