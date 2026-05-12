@@ -151,3 +151,13 @@ except Exception as e:
     except Exception:
         pass
 
+
+# Twilio domain verification
+try:
+    from flask import send_from_directory
+    import os
+    @app.route("/7b92a56868d38606b81cb3f5c10a2a3c.html")
+    def twilio_verify_file():
+        return send_from_directory(os.path.dirname(__file__), "7b92a56868d38606b81cb3f5c10a2a3c.html", mimetype="text/html")
+except Exception as e:
+    print("Twilio verification route warning:", e)

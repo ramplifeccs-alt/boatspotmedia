@@ -1,0 +1,17 @@
+BoatSpotMedia v50.5AN - Safe Mobile UI Patch
+
+Scope: interface-only updates. No payment, R2, database, Stripe, auth, or upload logic changed.
+
+Included:
+1. Improved mobile readability and public responsive spacing.
+2. Added pull-to-refresh behavior on mobile/touch devices.
+3. Added stable Owner mobile menu toggle.
+4. Added stable Creator mobile menu toggle.
+5. Prevented mobile side menus from disappearing unexpectedly after tapping menu areas.
+6. Added a dedicated safe JS file: /static/js/bsm_mobile_safe.js
+7. Added CSS-only mobile polish at the end of style.css.
+
+Notes:
+- Existing desktop layout is preserved.
+- Existing routes and backend logic are preserved.
+- Existing legal pages, footer, Spanish support, ads timezone patch remain included from v50.5AM.
