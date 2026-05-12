@@ -1,0 +1,5 @@
+BoatSpotMedia v50.5AW
+- Safe buyer search restriction: requires location, date, start time, and end time before showing results.
+- Prevents empty searches from returning all active/R2 videos.
+- Buyer preview now displays recorded_at using America/New_York helper, matching search results Miami time.
+- No changes to R2 upload, thumbnails, payments, creator, owner, or database schema.

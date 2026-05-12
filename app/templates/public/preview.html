@@ -24,7 +24,7 @@
 <div class="card">
 <div class="thumb">{% if video.public_thumbnail_url %}<img src="{{video.public_thumbnail_url}}">{% else %}Thumbnail{% endif %}</div>
 <h2>{{ video.location }}</h2>
-<p>{{ video.recorded_at.strftime('%m/%d/%Y %I:%M %p') if video.recorded_at else "Recorded time pending" }}</p>
+<p>{{ ny_dt(video.recorded_at).strftime('%m/%d/%Y %I:%M %p') if video.recorded_at else "Recorded time pending" }}</p>
 <p>Captured by: <b>{{ video.creator.user.display_name if video.creator and video.creator.user else "Creator" }}</b></p>
 {% if video.creator.second_clip_discount_percent %}
 

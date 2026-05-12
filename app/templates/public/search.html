@@ -24,16 +24,17 @@
 <h1>{{ t("find_title") }}</h1>
 <form action="/search/results">
 <label>Location</label>
-<select name="location">
+<select name="location" required>
   <option value="">Select location with available videos</option>
   {% for loc in (video_locations if video_locations is defined else locations) %}
-    <option value="{{ loc }}">{{ loc }}</option>
+    <option value="{{ loc }}" {% if selected_location is defined and selected_location == loc %}selected{% endif %}>{{ loc }}</option>
   {% endfor %}
 </select>
-<label>Date</label><input type="date" name="date">
-<label>From</label><input type="time" name="start_time">
-<label>To</label><input type="time" name="end_time">
+<label>Date</label><input type="date" name="date" required value="{{ selected_date if selected_date is defined else '' }}">
+<label>From</label><input type="time" name="start_time" required value="{{ selected_start_time if selected_start_time is defined else '' }}">
+<label>To</label><input type="time" name="end_time" required value="{{ selected_end_time if selected_end_time is defined else '' }}">
 <button class="btn">{{ t("search_button") }}</button>
+{% if search_error %}<div class="notice" style="margin-top:12px;">{{ search_error }}</div>{% endif %}
 </form>
 
 {% if results is not none %}

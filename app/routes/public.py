@@ -1343,25 +1343,66 @@ def search_page():
 
 @public_bp.route("/search/results")
 def search_results():
-    location = request.args.get("location"); date_s = request.args.get("date"); start_s = request.args.get("start_time"); end_s = request.args.get("end_time")
+    # v50.5AW: Buyer search must be specific to avoid listing every R2 video.
+    # Required fields: location + date + start/end time in Miami/New York time.
+    location = (request.args.get("location") or "").strip()
+    date_s = (request.args.get("date") or "").strip()
+    start_s = (request.args.get("start_time") or "").strip()
+    end_s = (request.args.get("end_time") or "").strip()
     results = []
-    try:
-        q = Video.query.filter_by(status="active")
-        if location: q = q.filter(Video.location == location)
-        if date_s and start_s and end_s:
-            from zoneinfo import ZoneInfo
-            d = datetime.strptime(date_s, "%Y-%m-%d").date()
-            start_local = datetime.combine(d, datetime.strptime(start_s, "%H:%M").time()).replace(tzinfo=ZoneInfo("America/New_York"))
-            end_local = datetime.combine(d, datetime.strptime(end_s, "%H:%M").time()).replace(tzinfo=ZoneInfo("America/New_York"))
-            start_dt = start_local.astimezone(ZoneInfo("UTC")).replace(tzinfo=None)
-            end_dt = end_local.astimezone(ZoneInfo("UTC")).replace(tzinfo=None)
-            q = q.filter(Video.recorded_at >= start_dt, Video.recorded_at <= end_dt)
-        results = q.order_by(Video.recorded_at.asc()).limit(200).all()
-    except Exception:
-        db.session.rollback()
+    search_error = None
+
     try: locations = _public_video_locations()
     except Exception: db.session.rollback(); locations = []
-    return render_template("public/search.html", locations=locations, video_locations=locations, results=results)
+
+    if not location or not date_s or not start_s or not end_s:
+        search_error = "Please select location, date, start time, and end time to search."
+        return render_template(
+            "public/search.html",
+            locations=locations,
+            video_locations=locations,
+            results=None,
+            search_error=search_error,
+            selected_location=location,
+            selected_date=date_s,
+            selected_start_time=start_s,
+            selected_end_time=end_s,
+        )
+
+    try:
+        from zoneinfo import ZoneInfo
+        d = datetime.strptime(date_s, "%Y-%m-%d").date()
+        start_local = datetime.combine(d, datetime.strptime(start_s, "%H:%M").time()).replace(tzinfo=ZoneInfo("America/New_York"))
+        end_local = datetime.combine(d, datetime.strptime(end_s, "%H:%M").time()).replace(tzinfo=ZoneInfo("America/New_York"))
+        # If a buyer selects a time range crossing midnight, include the next day safely.
+        if end_local <= start_local:
+            end_local = end_local + timedelta(days=1)
+        start_dt = start_local.astimezone(ZoneInfo("UTC")).replace(tzinfo=None)
+        end_dt = end_local.astimezone(ZoneInfo("UTC")).replace(tzinfo=None)
+
+        q = Video.query.filter_by(status="active")
+        q = q.filter(Video.location == location)
+        q = q.filter(Video.recorded_at >= start_dt, Video.recorded_at <= end_dt)
+        results = q.order_by(Video.recorded_at.asc()).limit(200).all()
+    except Exception as e:
+        try:
+            print("buyer search warning:", e)
+        except Exception:
+            pass
+        db.session.rollback()
+        search_error = "Search could not be completed. Please check the date and time range."
+
+    return render_template(
+        "public/search.html",
+        locations=locations,
+        video_locations=locations,
+        results=results,
+        search_error=search_error,
+        selected_location=location,
+        selected_date=date_s,
+        selected_start_time=start_s,
+        selected_end_time=end_s,
+    )
 
 
 @public_bp.route("/preview/<int:video_id>")
