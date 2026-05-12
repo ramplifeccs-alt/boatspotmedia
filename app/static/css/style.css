@@ -3431,3 +3431,22 @@ body{touch-action:pan-y;}
   .owner-card-v475 h1,.bsm-creator-main-v451 h1{font-size:26px!important;line-height:1.12!important;}
   input,select,textarea{font-size:16px!important;}
 }
+
+
+/* v50.5AQ desktop language switcher fix - visual only */
+@media (min-width: 761px){
+  header{display:flex!important;align-items:center!important;gap:18px!important;min-height:64px!important;padding:12px 22px!important;}
+  header > div:first-child{flex:0 0 auto!important;}
+  header nav{display:flex!important;align-items:center!important;gap:12px!important;flex:1 1 auto!important;flex-wrap:nowrap!important;overflow:visible!important;min-width:0!important;}
+  header nav a{white-space:nowrap!important;flex:0 0 auto!important;}
+  header nav .nav-user{max-width:180px!important;overflow:hidden!important;text-overflow:ellipsis!important;}
+  header nav .language-toggle-v505al{position:static!important;display:inline-flex!important;align-items:center!important;justify-content:center!important;margin:0 0 0 auto!important;width:auto!important;max-width:none!important;flex:0 0 auto!important;gap:4px!important;padding:4px!important;border-radius:999px!important;background:rgba(255,255,255,.12)!important;box-shadow:none!important;backdrop-filter:none!important;z-index:auto!important;}
+  header nav .language-toggle-v505al a{display:inline-flex!important;width:auto!important;margin:0!important;padding:6px 9px!important;border:0!important;border-radius:999px!important;color:#fff!important;background:transparent!important;font-size:12px!important;line-height:1!important;text-decoration:none!important;}
+  header nav .language-toggle-v505al a.active{background:#2563eb!important;color:#fff!important;}
+  body > .language-toggle-v505al{position:static!important;display:flex!important;justify-content:center!important;margin:10px auto!important;width:max-content!important;}
+}
+
+@media (max-width: 760px){
+  header nav .language-toggle-v505al{position:static!important;display:flex!important;justify-content:center!important;gap:6px!important;margin:8px 0!important;width:100%!important;background:rgba(255,255,255,.10)!important;box-shadow:none!important;}
+  header nav.mobile-open .language-toggle-v505al{display:flex!important;}
+}
