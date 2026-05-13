@@ -1,0 +1,18 @@
+BoatSpotMedia v50.5AU - R2 Upload Retry/Timeout Background-Safe Fix
+
+Scope:
+- Upload-only change for large creator batch uploads.
+- No Stripe, payment, buyer, order, owner, pricing, advertising, login, plan quota, or storage-limit logic changed.
+
+Changes:
+- Large files now use multipart earlier (256MB+).
+- Multipart part size reduced from 256MB to 64MB for better reliability on 100GB-128GB batches.
+- Added per-part stall detection: if no upload progress is detected for 90 seconds, that part is aborted and retried.
+- Added per-part hard timeout.
+- Added up to 6 retry attempts per part with backoff.
+- Upload still goes browser -> R2 directly, so Railway workers are not carrying video bytes.
+- UI now shows active part/attempt/retry status so the creator can see when a frozen part is being retried.
+
+Important:
+- The browser tab must remain open and the computer must not sleep during upload.
+- This fix improves reliability for large 128GB batches without requiring creators to split batches manually.

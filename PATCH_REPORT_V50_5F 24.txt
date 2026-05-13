@@ -1,0 +1,5 @@
+app/templates/buyer/base.html
+app/templates/buyer/dashboard.html
+app/routes/buyer.py
+app/routes/owner.py
+app/static/css/style.css

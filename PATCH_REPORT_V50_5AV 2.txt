@@ -1,0 +1,10 @@
+BoatSpotMedia v50.5AV
+
+Safe fix for 128GB creator batches getting stuck:
+- Large files still upload direct to Cloudflare R2 with multipart uploads.
+- Thumbnail generation is skipped for huge files so the browser does not freeze after upload.
+- Thumbnail generation/upload now has timeouts and never blocks final save.
+- Final /upload/r2/complete call now has a timeout instead of hanging forever.
+- Cancel button now reliably tracks the current batch id after prepare.
+
+Scope intentionally limited to creator upload browser flow only. No Stripe, buyers, owner, Twilio, R2 credentials, database schema, pricing, or login logic changed.

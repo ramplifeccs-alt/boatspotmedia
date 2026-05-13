@@ -122,6 +122,8 @@ def _session_dashboard_url():
         return "/service-account/dashboard"
     if role in ["charter", "charters", "charter_provider"]:
         return "https://charters.boatspotmedia.com"
+    if role == "owner":
+        return "/owner/panel"
     return "/login"
 
 

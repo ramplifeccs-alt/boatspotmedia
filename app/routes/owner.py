@@ -67,6 +67,24 @@ def _bsm_home_ad_display_time_v505am(value):
             return ""
 owner_bp = Blueprint("owner", __name__)
 
+
+def _bsm_owner_credentials_v505ax():
+    """Owner credentials are intentionally env-driven, with the legacy demo fallback."""
+    username = (os.getenv("OWNER_USERNAME") or os.getenv("BSM_OWNER_USERNAME") or "cp12517").strip()
+    password = (os.getenv("OWNER_PASSWORD") or os.getenv("BSM_OWNER_PASSWORD") or "645231cp").strip()
+    return username, password
+
+
+@owner_bp.before_request
+def _bsm_owner_require_login_v505ax():
+    """Protect every /owner route from direct access on any device."""
+    if request.endpoint == "owner.login" or request.path.rstrip("/") == "/owner/login":
+        return None
+    if session.get("owner_logged_in") is True or session.get("user_role") == "owner":
+        return None
+    next_url = request.full_path if request.query_string else request.path
+    return redirect(url_for("owner.login", next=next_url))
+
 def _bsm_creator_onboarding_from_email_v505t():
     import os
     return (
@@ -660,7 +678,21 @@ def _owner_set_status_any_v483(table, row_id, status):
 @owner_bp.route("/login", methods=["GET", "POST"])
 def login():
     if request.method == "POST":
-        return redirect("/owner/applications")
+        submitted_username = (request.form.get("username") or request.form.get("email") or "").strip()
+        submitted_password = (request.form.get("password") or "").strip()
+        owner_username, owner_password = _bsm_owner_credentials_v505ax()
+        if submitted_username == owner_username and submitted_password == owner_password:
+            session.clear()
+            session["owner_logged_in"] = True
+            session["user_role"] = "owner"
+            session["role"] = "owner"
+            session["user_id"] = "owner"
+            session["display_name"] = "Owner"
+            next_url = request.args.get("next") or "/owner/panel"
+            if not next_url.startswith("/owner") or next_url.rstrip("/") == "/owner/login":
+                next_url = "/owner/panel"
+            return redirect(next_url)
+        flash("Invalid owner username or password.")
     return render_template("owner/login.html")
 
 

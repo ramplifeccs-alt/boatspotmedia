@@ -21,7 +21,7 @@
 {% else %}
   <a href="/login">Login</a>
 {% endif %}
-</nav></header><div class="container"><h1>Owner Login</h1><form method="post"><input placeholder="Email"><input type="password" placeholder="Password"><button class="btn">Login</button></form></div><script src="/static/js/mobile.js"></script>
+</nav></header><div class="container"><h1>Owner Login</h1>{% with messages = get_flashed_messages() %}{% if messages %}<div class="alert">{% for msg in messages %}<p>{{ msg }}</p>{% endfor %}</div>{% endif %}{% endwith %}<form method="post"><input name="username" placeholder="Owner username" autocomplete="username" required><input name="password" type="password" placeholder="Password" autocomplete="current-password" required><button class="btn">Login</button></form></div><script src="/static/js/mobile.js"></script>
 <p style="padding:16px;"><a href="/owner/analytics">Analytics</a>
 <a href="/owner/creator-plans">Creator Subscription Plans</a></p>
 <script src="/static/js/bsm_mobile_safe.js"></script>

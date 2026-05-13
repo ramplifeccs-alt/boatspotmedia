@@ -1,0 +1,6 @@
+BoatSpotMedia v50.4P
+Fixes buyer register/login UI overflow issue on iPad/mobile.
+- Fixed hidden overflowing SMS text
+- Fixed input width
+- Fixed responsive layout
+- Improved readability
